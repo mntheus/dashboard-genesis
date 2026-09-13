@@ -27,6 +27,7 @@ let shifts = JSON.parse(localStorage.getItem('lifeos_shifts')) || [];
 let transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
 let notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
 let events = JSON.parse(localStorage.getItem('lifeos_events')) || [];   // compromissos da agenda geral
+let recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || []; // lançamentos recorrentes (modelos)
 let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
   { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
   { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
@@ -528,39 +529,211 @@ function renderEvents() {
 function redesenharAgenda() { renderCalendar(); renderEvents(); renderShifts(); renderJournal(); atualizarSaudacao(); }
 
 // --- FINANÇAS ---
+const CATEGORIAS = {
+  income:  ['Plantão', 'Salário CLT', 'Consulta / Particular', 'Faturamento CNPJ', 'Investimentos', 'Reembolso', 'Outros'],
+  expense: ['Custos Fixos', 'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Assinaturas', 'Educação', 'Lazer', 'Investimentos', 'Impostos', 'Empresa', 'Outros']
+};
+let finMonth = hojeISO().slice(0, 7); // 'aaaa-mm' do mês em exibição
+let finModo = 'mes';                  // 'mes' | 'tudo'
+let finFilter = 'todas';
+let finSearch = '';
+
 function transacaoPendente(t) { return t.pending === true; }
+function transacaoDePlantao(t) { return shifts.some(s => s.id === t.id); }
+function nomeMes(ym) { const [y, m] = ym.split('-'); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase()); }
+function somaMes(ym, delta) { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + delta, 1); return isoDe(d).slice(0, 7); }
+function mudarMesFin(delta) { finMonth = somaMes(finMonth, delta); redesenharFinancas(); }
+function irParaMesAtual() { finMonth = hojeISO().slice(0, 7); redesenharFinancas(); }
+function alternarModoFin(modo, el) { finModo = modo; document.querySelectorAll('#fin-modo span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); redesenharFinancas(); }
+function filtrarFin(f, el) { finFilter = f; document.querySelectorAll('#fin-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderFinances(); }
+function buscarFin(v) { finSearch = (v || '').trim().toLowerCase(); renderFinances(); }
+
+/** Lançamentos do escopo em exibição (mês escolhido ou tudo). */
+function transacoesEscopo() { return finModo === 'mes' ? transactions.filter(t => dataTransacao(t).startsWith(finMonth)) : [...transactions]; }
+
+function preencherCategorias(manterAtual) {
+  const tipo = document.getElementById('type').value; const sel = document.getElementById('category');
+  const atual = manterAtual ? sel.value : '';
+  sel.innerHTML = CATEGORIAS[tipo].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') + '<option value="__outra">✏️ Outra (digitar)</option>';
+  if (atual && [...sel.options].some(o => o.value === atual)) sel.value = atual;
+  document.getElementById('category-custom').hidden = sel.value !== '__outra';
+}
+function categoriaEscolhida() {
+  const sel = document.getElementById('category');
+  if (sel.value === '__outra') return document.getElementById('category-custom').value.trim() || 'Outros';
+  return sel.value;
+}
+function definirCategoriaNaTela(cat) {
+  const sel = document.getElementById('category');
+  if ([...sel.options].some(o => o.value === cat)) { sel.value = cat; document.getElementById('category-custom').hidden = true; }
+  else { sel.value = '__outra'; document.getElementById('category-custom').hidden = false; document.getElementById('category-custom').value = cat; }
+}
+
 function updateFinanceValues() {
-  const income = transactions.filter(t => t.type === 'income' && !transacaoPendente(t)).reduce((acc, t) => acc + t.amount, 0);
-  const pendente = transactions.filter(t => t.type === 'income' && transacaoPendente(t)).reduce((acc, t) => acc + t.amount, 0);
-  const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+  const esc_ = transacoesEscopo();
+  const income = esc_.filter(t => t.type === 'income' && !transacaoPendente(t)).reduce((a, t) => a + t.amount, 0);
+  const expense = esc_.filter(t => t.type === 'expense' && !transacaoPendente(t)).reduce((a, t) => a + t.amount, 0);
+  const aReceber = esc_.filter(t => t.type === 'income' && transacaoPendente(t)).reduce((a, t) => a + t.amount, 0);
+  const aPagar = esc_.filter(t => t.type === 'expense' && transacaoPendente(t)).reduce((a, t) => a + t.amount, 0);
   const total = income - expense;
+  const acumulado = transactions.filter(t => !transacaoPendente(t)).reduce((a, t) => a + (t.type === 'income' ? t.amount : -t.amount), 0);
   document.getElementById('total-income').innerText = formatCurrency(income);
   document.getElementById('total-expense').innerText = formatCurrency(expense);
   document.getElementById('net-balance').innerText = formatCurrency(total);
   document.getElementById('net-balance').style.color = total >= 0 ? '#22c55e' : '#ef4444';
-  const pend = document.getElementById('total-pending'); if (pend) pend.innerText = formatCurrency(pendente);
+  const pend = document.getElementById('total-pending'); if (pend) pend.innerText = formatCurrency(aReceber);
+  const lbl = document.getElementById('fin-month-label'); if (lbl) lbl.innerText = finModo === 'mes' ? nomeMes(finMonth) : 'Todo o período';
+  const extra = document.getElementById('fin-extra');
+  if (extra) extra.innerHTML = `<span>💸 A pagar: <strong style="color:#ef4444">${formatCurrency(aPagar)}</strong></span><span>📈 Previsto (saldo + a receber − a pagar): <strong style="color:${total + aReceber - aPagar >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(total + aReceber - aPagar)}</strong></span><span>🏦 Saldo acumulado (tudo): <strong style="color:${acumulado >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(acumulado)}</strong></span>`;
 }
+
 function renderFinances() {
   const tList = document.getElementById('transaction-list'); tList.innerHTML = '';
-  [...transactions].sort((a, b) => dataTransacao(b).localeCompare(dataTransacao(a))).forEach(t => {
-    const i = transactions.indexOf(t);
-    const li = document.createElement('li'); li.classList.add(t.type === 'income' ? 'income-item' : 'expense-item');
-    if (transacaoPendente(t)) li.classList.add('pending-item');
-    li.innerHTML = `<div class="transaction-info"><span>${esc(t.desc)}</span><small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${transacaoPendente(t) ? ' <small class="badge-unpaid">a receber</small>' : ''}</div>
-      <div><strong>${formatCurrency(t.amount)}</strong><button class="delete-btn" onclick="removeFinance(${i})">✕</button></div>`;
+  let lista = transacoesEscopo();
+  if (finFilter === 'receitas') lista = lista.filter(t => t.type === 'income');
+  else if (finFilter === 'despesas') lista = lista.filter(t => t.type === 'expense');
+  else if (finFilter === 'pendentes') lista = lista.filter(transacaoPendente);
+  if (finSearch) lista = lista.filter(t => `${t.desc} ${t.category || ''} ${t.notes || ''}`.toLowerCase().includes(finSearch));
+  lista.sort((a, b) => dataTransacao(b).localeCompare(dataTransacao(a)) || (b.id || 0) - (a.id || 0));
+  if (!lista.length) { tList.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum lançamento aqui.</li>'; }
+  lista.forEach(t => {
+    const i = transactions.indexOf(t); const pend = transacaoPendente(t); const dePlantao = transacaoDePlantao(t);
+    const li = document.createElement('li'); li.classList.add(t.type === 'income' ? 'income-item' : 'expense-item'); if (pend) li.classList.add('pending-item');
+    li.innerHTML = `<div class="transaction-info" style="flex:1"><span>${dePlantao ? '🚑 ' : ''}${t.recurringId ? '🔁 ' : ''}${esc(t.desc)}${pend ? (t.type === 'income' ? ' <span class="badge-unpaid">a receber</span>' : ' <span class="badge-topay">a pagar</span>') : ''}</span>
+        <small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${t.notes ? `<small class="item-notes">${esc(t.notes)}</small>` : ''}</div>
+      <div class="item-actions"><strong style="margin-right:6px; color:${t.type === 'income' ? '#22c55e' : '#ef4444'}">${t.type === 'income' ? '+' : '−'}${formatCurrency(t.amount)}</strong><button class="mini-btn ${pend ? '' : 'on'}" title="${pend ? 'Marcar como efetivado' : 'Voltar para pendente'}" onclick="alternarEfetivado(${i})">💵</button><button class="mini-btn" title="Editar" onclick="editarTransacao(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removeFinance(${i})">✕</button></div>`;
     tList.appendChild(li);
   });
+  renderCategoriasFin(); renderMesesFin();
 }
+
+function renderCategoriasFin() {
+  const el = document.getElementById('fin-categorias'); if (!el) return;
+  const esc_ = transacoesEscopo().filter(t => !transacaoPendente(t));
+  const bloco = (tipo, cor, titulo) => {
+    const mapa = {}; esc_.filter(t => t.type === tipo).forEach(t => { const c = t.category || 'Sem categoria'; mapa[c] = (mapa[c] || 0) + t.amount; });
+    const itens = Object.entries(mapa).sort((a, b) => b[1] - a[1]); const total = itens.reduce((a, [, v]) => a + v, 0);
+    if (!itens.length) return `<div class="cat-block"><h5>${titulo}</h5><div class="stat-line muted">nada ainda</div></div>`;
+    return `<div class="cat-block"><h5>${titulo} · ${formatCurrency(total)}</h5>` + itens.map(([c, v]) => `<div class="cat-row"><span class="cat-name">${esc(c)}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${cor}"></div></div><span class="cat-val">${formatCurrency(v)} <small>${Math.round(v / total * 100)}%</small></span></div>`).join('') + '</div>';
+  };
+  el.innerHTML = bloco('expense', '#ef4444', '💸 Despesas') + bloco('income', '#22c55e', '💰 Receitas');
+}
+
+function renderMesesFin() {
+  const el = document.getElementById('fin-meses'); if (!el) return;
+  const base = finModo === 'mes' ? finMonth : hojeISO().slice(0, 7);
+  const meses = []; for (let i = 5; i >= 0; i--) meses.push(somaMes(base, -i));
+  const dados = meses.map(m => { const ts = transactions.filter(t => !transacaoPendente(t) && dataTransacao(t).startsWith(m)); return { m, inc: ts.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0), exp: ts.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0) }; });
+  const max = Math.max(1, ...dados.map(d => Math.max(d.inc, d.exp)));
+  el.innerHTML = dados.map(d => `<div class="mes-col ${d.m === finMonth && finModo === 'mes' ? 'atual' : ''}" onclick="finMonth='${d.m}'; finModo='mes'; redesenharFinancas();" title="Receitas ${formatCurrency(d.inc)} · Despesas ${formatCurrency(d.exp)}">
+      <div class="mes-bars"><div class="mes-bar inc" style="height:${Math.round(d.inc / max * 100)}%"></div><div class="mes-bar exp" style="height:${Math.round(d.exp / max * 100)}%"></div></div>
+      <small>${nomeMes(d.m).slice(0, 3)}</small><small class="mes-saldo" style="color:${d.inc - d.exp >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(d.inc - d.exp).replace('R$', '').trim()}</small></div>`).join('');
+}
+
+document.getElementById('type').addEventListener('change', () => preencherCategorias(false));
+document.getElementById('category').addEventListener('change', () => { document.getElementById('category-custom').hidden = document.getElementById('category').value !== '__outra'; if (!document.getElementById('category-custom').hidden) document.getElementById('category-custom').focus(); });
 document.getElementById('finance-form').addEventListener('submit', (e) => {
-  e.preventDefault(); const desc = document.getElementById('desc').value.trim(); const amount = parseFloat(document.getElementById('amount').value);
-  if (!desc || isNaN(amount)) return;
-  transactions.push({ id: Date.now(), date: hojeISO(), desc, amount, type: document.getElementById('type').value, category: document.getElementById('category').value });
-  salvar('finances', transactions); updateFinanceValues(); renderFinances(); renderJournal(); document.getElementById('finance-form').reset();
+  e.preventDefault();
+  const id = document.getElementById('finance-id').value;
+  const dados = {
+    desc: document.getElementById('desc').value.trim(),
+    amount: parseFloat(document.getElementById('amount').value),
+    date: document.getElementById('fin-date').value || hojeISO(),
+    type: document.getElementById('type').value,
+    category: categoriaEscolhida(),
+    notes: document.getElementById('fin-notes').value.trim(),
+    pending: document.getElementById('fin-pending').checked
+  };
+  if (!dados.desc || isNaN(dados.amount)) return;
+  if (id) { const t = transactions.find(x => String(x.id) === id); if (t) Object.assign(t, dados); }
+  else transactions.push({ id: Date.now(), ...dados });
+  salvar('finances', transactions); cancelarEdicaoFin(); redesenharFinancas();
+  toast(id ? '💰 Lançamento atualizado.' : '💰 Lançamento adicionado.');
 });
+function cancelarEdicaoFin() {
+  document.getElementById('finance-form').reset(); document.getElementById('finance-id').value = '';
+  document.getElementById('fin-date').value = hojeISO(); preencherCategorias(false);
+  document.getElementById('finance-form-title').innerText = 'Nova Transação';
+  document.getElementById('finance-submit').innerText = 'Adicionar Registro';
+  document.getElementById('finance-cancel').hidden = true;
+}
+function editarTransacao(index) {
+  const t = transactions[index]; if (!t) return;
+  if (transacaoDePlantao(t)) { editarPlantao(t.id); toast('🚑 Este lançamento vem de um plantão — edite o plantão.'); return; }
+  changeTab('finances');
+  document.getElementById('finance-id').value = t.id; document.getElementById('desc').value = t.desc; document.getElementById('amount').value = t.amount;
+  document.getElementById('fin-date').value = dataTransacao(t); document.getElementById('type').value = t.type; preencherCategorias(false); definirCategoriaNaTela(t.category || 'Outros');
+  document.getElementById('fin-notes').value = t.notes || ''; document.getElementById('fin-pending').checked = transacaoPendente(t);
+  document.getElementById('finance-form-title').innerText = 'Editar lançamento';
+  document.getElementById('finance-submit').innerText = 'Salvar alterações';
+  document.getElementById('finance-cancel').hidden = false;
+  document.getElementById('desc').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('desc').focus();
+}
+function alternarEfetivado(index) {
+  const t = transactions[index]; if (!t) return;
+  if (transacaoDePlantao(t)) { alternarPago(t.id); return; }
+  t.pending = !transacaoPendente(t); if (!t.pending) t.date = hojeISO();
+  salvar('finances', transactions); redesenharFinancas();
+  toast(t.pending ? '⏳ Voltou para pendente.' : '💵 Efetivado hoje.');
+}
 function removeFinance(index) {
   const t = transactions[index];
-  if (shifts.some(s => s.id === t.id) && !confirm('Este lançamento veio de um plantão. Apagar mesmo assim? (o plantão continua na agenda)')) return;
-  transactions.splice(index, 1); salvar('finances', transactions); updateFinanceValues(); renderFinances(); renderJournal();
+  if (transacaoDePlantao(t) && !confirm('Este lançamento veio de um plantão. Apagar mesmo assim? (o plantão continua na agenda)')) return;
+  if (!transacaoDePlantao(t) && !confirm(`Apagar "${t.desc}"?`)) return;
+  transactions.splice(index, 1); salvar('finances', transactions); redesenharFinancas();
+}
+function redesenharFinancas() { updateFinanceValues(); renderFinances(); renderRecorrentes(); renderJournal(); }
+
+// --- FINANÇAS: RECORRENTES ---
+// Modelo: { id, desc, amount, type, category, day, active, since: 'aaaa-mm' }
+// Todo mês (a partir de "since"), gera o lançamento do mês como pendente (a pagar / a receber). Você confirma com 💵.
+function gerarRecorrentes() {
+  const mesAtual = hojeISO().slice(0, 7); let criou = 0;
+  recurring.filter(r => r.active !== false && (!r.since || r.since <= mesAtual)).forEach(r => {
+    // já existe neste mês? (gerado antes, ou lançado à mão com o mesmo nome e tipo)
+    if (transactions.some(t => dataTransacao(t).startsWith(mesAtual) && (t.recurringId === r.id || (t.type === r.type && t.desc.trim().toLowerCase() === r.desc.trim().toLowerCase())))) return;
+    const [y, m] = mesAtual.split('-').map(Number); const ultimo = new Date(y, m, 0).getDate();
+    const dia = Math.min(Math.max(1, Number(r.day) || 1), ultimo);
+    transactions.push({ id: Date.now() + Math.floor(Math.random() * 1000), date: `${mesAtual}-${String(dia).padStart(2, '0')}`, desc: r.desc, amount: r.amount, type: r.type, category: r.category, pending: true, recurringId: r.id });
+    criou++;
+  });
+  if (criou) { salvar('finances', transactions); toast(`🔁 ${criou} lançamento${criou > 1 ? 's' : ''} recorrente${criou > 1 ? 's' : ''} gerado${criou > 1 ? 's' : ''} para ${nomeMes(mesAtual)}.`, 5000); }
+  return criou > 0;
+}
+function preencherCategoriasRec() {
+  const tipo = document.getElementById('rec-type').value; const sel = document.getElementById('rec-category');
+  sel.innerHTML = CATEGORIAS[tipo].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+document.getElementById('rec-type').addEventListener('change', preencherCategoriasRec);
+document.getElementById('rec-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('rec-id').value;
+  const dados = { desc: document.getElementById('rec-desc').value.trim(), amount: parseFloat(document.getElementById('rec-amount').value), type: document.getElementById('rec-type').value, category: document.getElementById('rec-category').value, day: parseInt(document.getElementById('rec-day').value) || 1 };
+  if (!dados.desc || isNaN(dados.amount)) return;
+  if (id) { const r = recurring.find(x => String(x.id) === id); if (r) Object.assign(r, dados); }
+  else recurring.push({ id: Date.now(), active: true, since: hojeISO().slice(0, 7), ...dados });
+  salvar('recurring', recurring); cancelarEdicaoRec(); gerarRecorrentes(); redesenharFinancas();
+});
+function cancelarEdicaoRec() { document.getElementById('rec-form').reset(); document.getElementById('rec-id').value = ''; preencherCategoriasRec(); document.getElementById('rec-submit').innerText = 'Adicionar recorrente'; document.getElementById('rec-cancel').hidden = true; }
+function editarRecorrente(id) {
+  const r = recurring.find(x => x.id === id); if (!r) return;
+  document.getElementById('rec-id').value = r.id; document.getElementById('rec-desc').value = r.desc; document.getElementById('rec-amount').value = r.amount;
+  document.getElementById('rec-type').value = r.type; preencherCategoriasRec(); document.getElementById('rec-category').value = r.category; document.getElementById('rec-day').value = r.day;
+  document.getElementById('rec-submit').innerText = 'Salvar recorrente'; document.getElementById('rec-cancel').hidden = false; document.getElementById('rec-desc').focus();
+}
+function alternarRecorrente(id) { const r = recurring.find(x => x.id === id); if (!r) return; r.active = r.active === false; salvar('recurring', recurring); if (r.active) gerarRecorrentes(); redesenharFinancas(); }
+function removerRecorrente(id) {
+  const r = recurring.find(x => x.id === id); if (!r || !confirm(`Apagar a recorrente "${r.desc}"? (os lançamentos já gerados ficam)`)) return;
+  recurring = recurring.filter(x => x.id !== id); salvar('recurring', recurring); redesenharFinancas();
+}
+function renderRecorrentes() {
+  const ul = document.getElementById('rec-list'); if (!ul) return; ul.innerHTML = '';
+  if (!recurring.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma recorrente. Ex: aluguel, internet, salário CLT, assinatura.</li>'; return; }
+  [...recurring].sort((a, b) => (a.day || 0) - (b.day || 0)).forEach(r => {
+    const off = r.active === false;
+    ul.innerHTML += `<li class="${r.type === 'income' ? 'income-item' : 'expense-item'}" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>🔁 ${esc(r.desc)}${off ? ' <small class="item-date">(pausada)</small>' : ''}</span><small class="category-badge">${esc(r.category)}</small> <small class="item-date">todo dia ${r.day}</small></div>
+      <div class="item-actions"><strong style="margin-right:6px; color:${r.type === 'income' ? '#22c55e' : '#ef4444'}">${formatCurrency(r.amount)}</strong><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRecorrente(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRecorrente(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRecorrente(${r.id})">✕</button></div></li>`;
+  });
 }
 
 // --- PLANTÕES ---
@@ -728,8 +901,8 @@ function renderNotes() { const list = document.getElementById('note-list'); list
 function removeNote(i) { notes.splice(i, 1); salvar('notes', notes); renderNotes(); }
 
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -740,7 +913,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'tasks', 'notes', 'study'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'notes', 'study'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -848,11 +1021,12 @@ function redesenharTudo() {
   events = JSON.parse(localStorage.getItem('lifeos_events')) || [];
   places = JSON.parse(localStorage.getItem('lifeos_places')) || places;
   transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
+  recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || [];
   tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setSyncStatus(estado, detalhe) {
@@ -899,7 +1073,7 @@ setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurad
 
 // INICIALIZAÇÃO
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
-preencherTiposEvento(); preencherLocais();
-updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents();
+preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
+updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

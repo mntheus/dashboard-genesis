@@ -138,26 +138,72 @@
 
     <!-- Módulo 2: Finanças -->
     <div id="finances" class="tab-content">
-      <div class="balance-card balance-4" style="margin-top: 20px;">
+      <div class="card fin-month-bar" style="margin-top: 20px;">
+        <div class="fin-month-nav"><button type="button" class="mini-btn" onclick="mudarMesFin(-1)">◀</button><h2 id="fin-month-label" style="margin:0">Mês</h2><button type="button" class="mini-btn" onclick="mudarMesFin(1)">▶</button><button type="button" class="mini-btn" onclick="irParaMesAtual()">📍 Este mês</button></div>
+        <div class="focus-header-tabs" id="fin-modo" style="border:none; padding:0;"><span class="active" onclick="alternarModoFin('mes', this)">📅 Mês</span><span onclick="alternarModoFin('tudo', this)">♾️ Tudo</span></div>
+      </div>
+      <div class="balance-card balance-4">
         <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
         <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
         <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
         <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color:#f59e0b">R$ 0,00</h3></div>
       </div>
+      <div id="fin-extra" class="summary-row" style="padding: 0 6px;"></div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Nova Transação</h2>
+        <h2 id="finance-form-title">Nova Transação</h2>
         <form id="finance-form">
+          <input type="hidden" id="finance-id">
           <label for="desc">Descrição:</label><input type="text" id="desc" required>
-          <label for="amount">Valor (R$):</label><input type="number" id="amount" step="0.01" required>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label for="amount">Valor (R$):</label><input type="number" id="amount" step="0.01" required></div>
+            <div><label for="fin-date">Data:</label><input type="date" id="fin-date" required></div>
+          </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div><label for="type">Tipo:</label><select id="type"><option value="expense">Despesa</option><option value="income">Receita</option></select></div>
-            <div><label for="category">Categoria:</label><select id="category"><option value="Faturamento CNPJ">Faturamento CNPJ</option><option value="Plantão">Plantão</option><option value="Consulta">Consulta / Particular</option><option value="Salário CLT">Salário CLT</option><option value="Investimentos">Investimentos</option><option value="Assinaturas">Assinaturas</option><option value="Custos Fixos">Custos Fixos</option><option value="Outros">Outros</option></select></div>
+            <div><label for="category">Categoria:</label><select id="category"></select><input type="text" id="category-custom" placeholder="nome da categoria" hidden style="margin-top:6px"></div>
           </div>
-          <button type="submit">Adicionar Registro</button>
+          <label for="fin-notes">Observações:</label><input type="text" id="fin-notes" placeholder="opcional">
+          <label class="check-line"><input type="checkbox" id="fin-pending"> Ainda não efetivado (fica como <em>a receber</em> / <em>a pagar</em> até você confirmar com 💵)</label>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="finance-submit" style="flex:1">Adicionar Registro</button>
+            <button type="button" id="finance-cancel" class="btn" hidden onclick="cancelarEdicaoFin()">Cancelar</button>
+          </div>
         </form>
+      </div>
+      <div class="fin-two-col">
+        <div class="card"><h2>Por categoria</h2><div id="fin-categorias"></div></div>
+        <div class="card"><h2>Últimos 6 meses</h2><p class="hint">Verde = receitas, vermelho = despesas (só o efetivado). Clique num mês pra abrir.</p><div id="fin-meses" class="fin-meses"></div></div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>🔁 Recorrentes</h2>
+        <p class="hint">Contas e entradas que se repetem todo mês (aluguel, internet, salário CLT, assinaturas). No começo de cada mês o lançamento é gerado como pendente — você só confirma com 💵 quando pagar/receber.</p>
+        <form id="rec-form">
+          <input type="hidden" id="rec-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+            <div><label for="rec-desc">Descrição:</label><input type="text" id="rec-desc" placeholder="Internet" required></div>
+            <div><label for="rec-amount">Valor (R$):</label><input type="number" id="rec-amount" step="0.01" required></div>
+            <div><label for="rec-day">Dia do mês:</label><input type="number" id="rec-day" min="1" max="31" value="10"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label for="rec-type">Tipo:</label><select id="rec-type"><option value="expense">Despesa</option><option value="income">Receita</option></select></div>
+            <div><label for="rec-category">Categoria:</label><select id="rec-category"></select></div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="rec-submit" style="flex:1">Adicionar recorrente</button>
+            <button type="button" id="rec-cancel" class="btn" hidden onclick="cancelarEdicaoRec()">Cancelar</button>
+          </div>
+        </form>
+        <ul id="rec-list" class="transaction-list" style="margin-top: 15px;"></ul>
       </div>
       <div class="card" style="margin-top: 20px;">
         <h2>Histórico</h2>
+        <input type="search" id="fin-search" placeholder="🔍 buscar por descrição, categoria ou observação" oninput="buscarFin(this.value)" style="margin-bottom: 10px;">
+        <div class="focus-header-tabs filter-row" id="fin-filters">
+          <span class="active" onclick="filtrarFin('todas', this)">📋 Todas</span>
+          <span onclick="filtrarFin('receitas', this)">💰 Receitas</span>
+          <span onclick="filtrarFin('despesas', this)">💸 Despesas</span>
+          <span onclick="filtrarFin('pendentes', this)">⏳ Pendentes</span>
+        </div>
         <ul id="transaction-list" class="transaction-list"></ul>
       </div>
     </div>

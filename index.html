@@ -17,6 +17,7 @@
       <button class="tab-btn" id="btn-tasks" onclick="changeTab('tasks')">✅ Tarefas</button>
       <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
       <button class="tab-btn" id="btn-studies" onclick="changeTab('studies')">📚 Estudos</button>
+      <button class="tab-btn" id="btn-business" onclick="changeTab('business')">📈 Negócios</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -409,6 +410,108 @@
             <button type="button" class="btn" style="width:100%" onclick="salvarInsight()">Salvar insight em Notas</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Módulo 8: Negócios & Investimentos -->
+    <div id="business" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>📈 Negócios & Investimentos</h2>
+        <div id="biz-dash"></div>
+        <details class="task-more" style="margin-top: 10px;"><summary>📊 Anotar indicadores de referência (CDI, Selic, IPCA)</summary>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 10px; margin-top: 8px;">
+            <div><label for="ind-cdi">CDI % a.a.</label><input type="number" id="ind-cdi" step="0.01" placeholder="10,65"></div>
+            <div><label for="ind-selic">Selic % a.a.</label><input type="number" id="ind-selic" step="0.01" placeholder="10,75"></div>
+            <div><label for="ind-ipca">IPCA % 12m</label><input type="number" id="ind-ipca" step="0.01" placeholder="4,5"></div>
+            <div><label for="ind-ref">Referência (mês/fonte)</label><input type="text" id="ind-ref" placeholder="set/2026 · Banco Central"></div>
+          </div>
+          <button type="button" class="btn" style="width:100%" onclick="salvarIndicadores()">Salvar indicadores</button>
+          <p class="hint" style="margin-top:8px">Sem cotação automática de propósito: você anota o valor do mês e usa como régua pra comparar sua rentabilidade.</p>
+        </details>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Carteira</h2>
+        <p class="hint">Cada ativo com sua classe. O <strong>valor atual</strong> você atualiza quando quiser (💰) — o app calcula o resultado contra o que foi aportado.</p>
+        <form id="asset-form">
+          <input type="hidden" id="asset-id">
+          <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 10px;">
+            <div><label for="asset-name">Nome:</label><input type="text" id="asset-name" placeholder="CDB Nubank 110% CDI" required></div>
+            <div><label for="asset-inst">Instituição:</label><input type="text" id="asset-inst" placeholder="Nubank, XP, Tesouro..."></div>
+            <div><label for="asset-klass">Classe:</label><select id="asset-klass"></select></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+            <div><label for="asset-initial">Já investido (R$):</label><input type="number" id="asset-initial" step="0.01" min="0" placeholder="saldo inicial"></div>
+            <div><label for="asset-current">Valor atual (R$):</label><input type="number" id="asset-current" step="0.01" min="0" placeholder="0"></div>
+            <div><label for="asset-current-at">Valor em:</label><input type="date" id="asset-current-at"></div>
+            <div><label for="asset-due">Vencimento:</label><input type="date" id="asset-due"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+            <div><label for="asset-rate">Taxa / índice:</label><input type="text" id="asset-rate" placeholder="110% CDI, IPCA+6%..."></div>
+            <div><label for="asset-notes">Observações:</label><input type="text" id="asset-notes" placeholder="liquidez, carência, objetivo..."></div>
+          </div>
+          <div style="display:flex; gap:10px;"><button type="submit" id="asset-submit" style="flex:1">Adicionar ativo</button><button type="button" id="asset-cancel" class="btn" hidden onclick="cancelarEdicaoAtivo()">Cancelar</button></div>
+        </form>
+        <ul id="asset-list" class="transaction-list" style="margin-top: 15px;"></ul>
+      </div>
+      <div class="fin-two-col">
+        <div class="card">
+          <h2>Aportes e resgates</h2>
+          <form id="move-form">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+              <div><label for="move-asset">Ativo:</label><select id="move-asset"></select></div>
+              <div><label for="move-type">Tipo:</label><select id="move-type"><option value="aporte">📥 Aporte</option><option value="resgate">📤 Resgate</option></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div><label for="move-amount">Valor (R$):</label><input type="number" id="move-amount" step="0.01" min="0" required></div>
+              <div><label for="move-date">Data:</label><input type="date" id="move-date"></div>
+            </div>
+            <label for="move-note">Observação:</label><input type="text" id="move-note" placeholder="opcional">
+            <label class="check-line"><input type="checkbox" id="move-finance" checked> Lançar em Finanças (categoria Investimentos)</label>
+            <label class="check-line"><input type="checkbox" id="move-update" checked> Somar/subtrair do valor atual do ativo</label>
+            <button type="submit">Registrar</button>
+          </form>
+          <ul id="move-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+        <div class="card">
+          <h2>🎯 Metas</h2>
+          <form id="goal-form">
+            <input type="hidden" id="goal-id">
+            <label for="goal-name">Meta:</label><input type="text" id="goal-name" placeholder="Reserva de 6 meses" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div><label for="goal-target">Valor-alvo (R$):</label><input type="number" id="goal-target" step="0.01" min="0" required></div>
+              <div><label for="goal-deadline">Prazo:</label><input type="date" id="goal-deadline"></div>
+            </div>
+            <label for="goal-link">Acompanha:</label><select id="goal-link"></select>
+            <label for="goal-note">Observação:</label><input type="text" id="goal-note" placeholder="opcional">
+            <div style="display:flex; gap:10px;"><button type="submit" id="goal-submit" style="flex:1">Adicionar meta</button><button type="button" id="goal-cancel" class="btn" hidden onclick="cancelarEdicaoMeta()">Cancelar</button></div>
+          </form>
+          <ul id="goal-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>🚀 Projetos de negócio</h2>
+        <p class="hint">Cada ideia vira um cartão com estágio, próximos passos (checklist), custo previsto × gasto e contatos. Tarefas do dia a dia ficam na lista "Negócios" em Tarefas; anotações, em Notas com o marcador "negócios".</p>
+        <form id="project-form">
+          <input type="hidden" id="project-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+            <div><label for="project-name">Projeto:</label><input type="text" id="project-name" placeholder="Clínica popular" required></div>
+            <div><label for="project-stage">Estágio:</label><select id="project-stage"></select></div>
+          </div>
+          <label for="project-desc">Descrição / proposta:</label><textarea id="project-desc" rows="2" placeholder="O que é, pra quem, como ganha dinheiro"></textarea>
+          <label for="project-steps">Próximos passos (um por linha):</label><textarea id="project-steps" rows="3" placeholder="Conversar com contador&#10;Pesquisar ponto comercial&#10;Estimar custo mensal"></textarea>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;">
+            <div><label for="project-budget">Custo previsto (R$):</label><input type="number" id="project-budget" step="0.01" min="0"></div>
+            <div><label for="project-spent">Gasto até agora (R$):</label><input type="number" id="project-spent" step="0.01" min="0"></div>
+            <div><label for="project-contacts">Contatos envolvidos:</label><input type="text" id="project-contacts" placeholder="contador, sócio, fornecedor..."></div>
+          </div>
+          <label for="project-notes">Observações:</label><input type="text" id="project-notes" placeholder="opcional">
+          <div style="display:flex; gap:10px;"><button type="submit" id="project-submit" style="flex:1">Adicionar projeto</button><button type="button" id="project-cancel" class="btn" hidden onclick="cancelarEdicaoProjeto()">Cancelar</button></div>
+        </form>
+        <div class="focus-header-tabs filter-row" id="project-filters" style="margin-top: 14px;">
+          <span class="active" onclick="filtrarProjetos('ativos', this)">🚀 Ativos</span>
+          <span onclick="filtrarProjetos('todos', this)">🗂️ Todos</span>
+        </div>
+        <div id="project-list"></div>
       </div>
     </div>
 

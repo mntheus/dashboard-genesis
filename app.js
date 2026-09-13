@@ -36,6 +36,11 @@ let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // E
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
 let ritual = JSON.parse(localStorage.getItem('lifeos_ritual')) || { day: '', time: '', roadmap: [], weekStart: '', done: [] }; // estudo semanal de negócios
+let assets = JSON.parse(localStorage.getItem('lifeos_assets')) || [];       // Negócios: ativos da carteira
+let moves = JSON.parse(localStorage.getItem('lifeos_moves')) || [];         // Negócios: aportes/resgates
+let goals = JSON.parse(localStorage.getItem('lifeos_goals')) || [];         // Negócios: metas
+let projects = JSON.parse(localStorage.getItem('lifeos_projects')) || [];   // Negócios: projetos
+let wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || { snapshots: {}, indicators: {} }; // patrimônio mês a mês + indicadores manuais
 let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
   { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
   { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
@@ -368,6 +373,8 @@ function renderJournal() {
   html += tile('✅', `${tarefasFeitas}`, `concluída${tarefasFeitas === 1 ? '' : 's'} · ${tarefasPend} pendente${tarefasPend === 1 ? '' : 's'}`, '#38bdf8');
   html += tile('📚', `${Math.floor(estudo / 60)}h ${estudo % 60}m`, 'de estudo', '#a78bfa');
   html += tile('💰', formatCurrency(inc - exp), `↑ ${formatCurrency(inc)} · ↓ ${formatCurrency(exp)}`, inc - exp >= 0 ? '#22c55e' : '#ef4444');
+  const aportado = moves.filter(m => m.type === 'aporte' && !m.initial && dentro(m.date)).reduce((a, m) => a + m.amount, 0);
+  html += tile('🏦', formatCurrency(patrimonioTotal()), `patrimônio · ${formatCurrency(aportado)} aportados`, '#38bdf8');
   html += '</div>';
 
   if (currentJournal === 'day') {
@@ -1396,9 +1403,239 @@ function renderPainelEstudos() {
 }
 function redesenharEstudos() { preencherTemasSelects(); renderPainelEstudos(); renderTemas(); renderMateriais(); renderSessoes(); renderRitual(); }
 
+// ============================================================================
+// NEGÓCIOS & INVESTIMENTOS (módulo G)
+// assets:   [{ id, name, institution, klass, current, currentAt, due, rate, notes, archived, createdAt }]
+// moves:    [{ id, assetId, date, type: 'aporte'|'resgate', amount, note, financeId }]
+// goals:    [{ id, name, target, deadline, linkedTo: 'total'|'reserva'|<assetId>, note }]
+// projects: [{ id, name, stage, desc, steps: [{text, done}], contacts, budget, spent, notes, createdAt, updatedAt }]
+// wealth:   { snapshots: { 'aaaa-mm': patrimônio }, indicators: { cdi, selic, ipca, ref } }
+// ============================================================================
+const CLASSES_ATIVO = {
+  reserva: { nome: 'Reserva de emergência', cor: '#22c55e', icone: '🛟' },
+  rf:      { nome: 'Renda fixa',            cor: '#38bdf8', icone: '🏦' },
+  fundo:   { nome: 'Fundo',                 cor: '#a78bfa', icone: '🧺' },
+  acao:    { nome: 'Ações',                 cor: '#f472b6', icone: '📈' },
+  fii:     { nome: 'FIIs',                  cor: '#fb923c', icone: '🏢' },
+  cripto:  { nome: 'Cripto',                cor: '#fbbf24', icone: '🪙' },
+  prev:    { nome: 'Previdência',           cor: '#2dd4bf', icone: '🧓' },
+  outro:   { nome: 'Outro',                 cor: '#94a3b8', icone: '📌' }
+};
+const ESTAGIOS_PROJETO = { ideia: ['💡', 'Ideia', '#94a3b8'], estudo: ['🔍', 'Em estudo', '#38bdf8'], validacao: ['🧪', 'Validação', '#a78bfa'], andamento: ['🚀', 'Em andamento', '#22c55e'], pausado: ['⏸️', 'Pausado', '#f59e0b'], encerrado: ['🏁', 'Encerrado', '#64748b'] };
+let projectFilter = 'ativos';
+
+function classeAtivo(k) { return CLASSES_ATIVO[k] || CLASSES_ATIVO.outro; }
+function ativoNome(id) { const a = assets.find(x => x.id === id); return a ? a.name : '—'; }
+function investidoEm(assetId) { return moves.filter(m => m.assetId === assetId).reduce((a, m) => a + (m.type === 'resgate' ? -m.amount : m.amount), 0); }
+function patrimonioTotal() { return assets.filter(a => !a.archived).reduce((a, x) => a + (Number(x.current) || 0), 0); }
+function investidoTotal() { return assets.filter(a => !a.archived).reduce((a, x) => a + investidoEm(x.id), 0); }
+function totalClasse(k) { return assets.filter(a => !a.archived && a.klass === k).reduce((a, x) => a + (Number(x.current) || 0), 0); }
+function pct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1).replace('.', ',') + '%'; }
+
+function preencherSelectsNegocios() {
+  const ativos = assets.filter(a => !a.archived);
+  const opts = ativos.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  const ms = document.getElementById('move-asset'); if (ms) { const v = ms.value; ms.innerHTML = opts || '<option value="">— cadastre um ativo —</option>'; if ([...ms.options].some(o => o.value === v)) ms.value = v; }
+  const gs = document.getElementById('goal-link'); if (gs) { const v = gs.value; gs.innerHTML = '<option value="total">Patrimônio total</option><option value="reserva">Reserva de emergência</option>' + ativos.map(a => `<option value="${a.id}">Ativo: ${esc(a.name)}</option>`).join(''); if ([...gs.options].some(o => o.value === v)) gs.value = v; }
+  const ks = document.getElementById('asset-klass'); if (ks && !ks.options.length) ks.innerHTML = Object.entries(CLASSES_ATIVO).map(([k, c]) => `<option value="${k}">${c.icone} ${c.nome}</option>`).join('');
+  const ps = document.getElementById('project-stage'); if (ps && !ps.options.length) ps.innerHTML = Object.entries(ESTAGIOS_PROJETO).map(([k, e]) => `<option value="${k}">${e[0]} ${e[1]}</option>`).join('');
+}
+
+// --- Ativos ---
+document.getElementById('asset-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('asset-id').value;
+  const dados = { name: document.getElementById('asset-name').value.trim(), institution: document.getElementById('asset-inst').value.trim(), klass: document.getElementById('asset-klass').value, current: parseFloat(document.getElementById('asset-current').value) || 0, currentAt: document.getElementById('asset-current-at').value || hojeISO(), due: document.getElementById('asset-due').value || '', rate: document.getElementById('asset-rate').value.trim(), notes: document.getElementById('asset-notes').value.trim() };
+  if (!dados.name) return;
+  if (id) { const a = assets.find(x => String(x.id) === id); if (a) Object.assign(a, dados); }
+  else {
+    const a = { id: novoId(), archived: false, createdAt: Date.now(), ...dados }; assets.push(a);
+    // valor inicial vira o primeiro aporte (sem lançar em Finanças: já era seu)
+    const inicial = parseFloat(document.getElementById('asset-initial').value) || 0;
+    if (inicial > 0) moves.push({ id: novoId(), assetId: a.id, date: dados.currentAt, type: 'aporte', amount: inicial, note: 'Saldo inicial', financeId: null, initial: true });
+    if (inicial > 0) salvar('moves', moves);
+  }
+  salvar('assets', assets); cancelarEdicaoAtivo(); redesenharNegocios();
+  toast(id ? '📈 Ativo atualizado.' : '📈 Ativo adicionado.');
+});
+function cancelarEdicaoAtivo() { document.getElementById('asset-form').reset(); document.getElementById('asset-id').value = ''; document.getElementById('asset-current-at').value = hojeISO(); document.getElementById('asset-initial').parentElement.hidden = false; document.getElementById('asset-submit').innerText = 'Adicionar ativo'; document.getElementById('asset-cancel').hidden = true; }
+function editarAtivo(id) {
+  const a = assets.find(x => x.id === id); if (!a) return;
+  document.getElementById('asset-id').value = a.id; document.getElementById('asset-name').value = a.name; document.getElementById('asset-inst').value = a.institution || ''; document.getElementById('asset-klass').value = a.klass || 'outro'; document.getElementById('asset-current').value = a.current || 0; document.getElementById('asset-current-at').value = a.currentAt || hojeISO(); document.getElementById('asset-due').value = a.due || ''; document.getElementById('asset-rate').value = a.rate || ''; document.getElementById('asset-notes').value = a.notes || '';
+  document.getElementById('asset-initial').parentElement.hidden = true;
+  document.getElementById('asset-submit').innerText = 'Salvar ativo'; document.getElementById('asset-cancel').hidden = false; document.getElementById('asset-name').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('asset-name').focus();
+}
+function atualizarValorAtivo(id) {
+  const a = assets.find(x => x.id === id); if (!a) return;
+  const v = prompt(`Valor atual de "${a.name}" (R$):`, String(a.current || 0).replace('.', ','));
+  if (v === null) return; const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.')); if (isNaN(n)) return;
+  a.current = n; a.currentAt = hojeISO(); salvar('assets', assets); redesenharNegocios(); toast(`💰 ${a.name}: ${formatCurrency(n)}`);
+}
+function arquivarAtivo(id) { const a = assets.find(x => x.id === id); if (!a) return; a.archived = !a.archived; salvar('assets', assets); redesenharNegocios(); }
+function removerAtivo(id) {
+  const a = assets.find(x => x.id === id); if (!a) return;
+  const n = moves.filter(m => m.assetId === id).length;
+  if (!confirm(`Apagar "${a.name}"?${n ? ` As ${n} movimentações dele também somem (os lançamentos em Finanças ficam).` : ''}`)) return;
+  assets = assets.filter(x => x.id !== id); moves = moves.filter(m => m.assetId !== id); salvar('assets', assets); salvar('moves', moves); redesenharNegocios();
+}
+function renderAtivos() {
+  const ul = document.getElementById('asset-list'); if (!ul) return; ul.innerHTML = '';
+  if (!assets.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre seu primeiro ativo — ex: "CDB Nubank" (Renda fixa) ou "Reserva Tesouro Selic".</li>'; return; }
+  const hoje = hojeISO();
+  [...assets].sort((a, b) => (a.archived === b.archived ? (b.current || 0) - (a.current || 0) : a.archived ? 1 : -1)).forEach(a => {
+    const c = classeAtivo(a.klass); const inv = investidoEm(a.id); const res = (a.current || 0) - inv; const p = inv ? res / inv * 100 : 0;
+    const venc = a.due ? (a.due < hoje ? `<span class="badge-topay">venceu ${isoParaBR(a.due)}</span>` : `<span class="item-date">vence ${isoParaBR(a.due)}</span>`) : '';
+    ul.innerHTML += `<li class="asset-item" style="border-left-color:${c.cor}; ${a.archived ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>${c.icone} ${esc(a.name)} <small class="category-badge" style="color:${c.cor}; background:${c.cor}22">${c.nome}</small>${a.institution ? ` <small class="item-date">${esc(a.institution)}</small>` : ''}${a.rate ? ` <small class="item-date">· ${esc(a.rate)}</small>` : ''} ${venc}${a.archived ? ' <small class="item-date">· arquivado</small>' : ''}</span>
+        <small class="item-date">investido ${formatCurrency(inv)} · resultado <span style="color:${res >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(res)} (${pct(p)})</span> · valor de ${isoParaBR(a.currentAt || hoje)}</small>${a.notes ? `<small class="item-notes">${esc(a.notes)}</small>` : ''}</div>
+      <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(a.current)}</strong><button class="mini-btn" title="Atualizar valor atual" onclick="atualizarValorAtivo(${a.id})">💰</button><button class="mini-btn" title="Editar" onclick="editarAtivo(${a.id})">✎</button><button class="mini-btn" title="${a.archived ? 'Reativar' : 'Arquivar'}" onclick="arquivarAtivo(${a.id})">${a.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removerAtivo(${a.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Movimentações (aportes / resgates) ---
+document.getElementById('move-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const assetId = Number(document.getElementById('move-asset').value); const a = assets.find(x => x.id === assetId); if (!a) { toast('Cadastre um ativo primeiro.'); return; }
+  const type = document.getElementById('move-type').value; const amount = parseFloat(document.getElementById('move-amount').value); if (!amount || amount <= 0) return;
+  const date = document.getElementById('move-date').value || hojeISO(); const note = document.getElementById('move-note').value.trim();
+  const mv = { id: novoId(), assetId, date, type, amount, note, financeId: null };
+  if (document.getElementById('move-finance').checked) {
+    const t = { id: novoId(), date, desc: `${type === 'aporte' ? 'Aporte' : 'Resgate'}: ${a.name}`, amount, type: type === 'aporte' ? 'expense' : 'income', category: 'Investimentos', notes: note, pending: false, investId: mv.id };
+    transactions.push(t); mv.financeId = t.id; salvar('finances', transactions); updateFinanceValues(); renderFinances();
+  }
+  moves.push(mv);
+  if (document.getElementById('move-update').checked) { a.current = Math.max(0, (Number(a.current) || 0) + (type === 'aporte' ? amount : -amount)); a.currentAt = date; salvar('assets', assets); }
+  salvar('moves', moves); document.getElementById('move-form').reset(); document.getElementById('move-date').value = hojeISO(); document.getElementById('move-finance').checked = true; document.getElementById('move-update').checked = true;
+  redesenharNegocios(); renderJournal(); toast(`${type === 'aporte' ? '📥 Aporte' : '📤 Resgate'} de ${formatCurrency(amount)} em ${a.name}.`);
+});
+function removerMovimento(id) {
+  const m = moves.find(x => x.id === id); if (!m || !confirm('Apagar esta movimentação?' + (m.financeId ? ' O lançamento em Finanças também será apagado.' : ''))) return;
+  moves = moves.filter(x => x.id !== id); salvar('moves', moves);
+  if (m.financeId) { transactions = transactions.filter(t => t.id !== m.financeId); salvar('finances', transactions); updateFinanceValues(); renderFinances(); }
+  redesenharNegocios(); renderJournal();
+}
+function renderMovimentos() {
+  const ul = document.getElementById('move-list'); if (!ul) return; ul.innerHTML = '';
+  const lista = [...moves].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 20);
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma movimentação ainda.</li>'; return; }
+  lista.forEach(m => {
+    const ap = m.type === 'aporte';
+    ul.innerHTML += `<li class="${ap ? 'expense-item' : 'income-item'}"><div class="transaction-info" style="flex:1"><span>${ap ? '📥 Aporte' : '📤 Resgate'} · ${esc(ativoNome(m.assetId))}${m.financeId ? ' <small class="item-date">· em Finanças</small>' : ''}</span><small class="item-date">${isoParaBR(m.date)}${m.note ? ' · ' + esc(m.note) : ''}</small></div>
+      <div class="item-actions"><strong style="margin-right:6px; color:${ap ? '#38bdf8' : '#f59e0b'}">${ap ? '+' : '−'}${formatCurrency(m.amount)}</strong><button class="mini-btn" title="Apagar" onclick="removerMovimento(${m.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Metas ---
+function valorMeta(g) { if (g.linkedTo === 'total') return patrimonioTotal(); if (g.linkedTo === 'reserva') return totalClasse('reserva'); const a = assets.find(x => x.id === Number(g.linkedTo)); return a ? (Number(a.current) || 0) : 0; }
+function rotuloVinculo(g) { if (g.linkedTo === 'total') return 'patrimônio total'; if (g.linkedTo === 'reserva') return 'reserva de emergência'; return ativoNome(Number(g.linkedTo)); }
+document.getElementById('goal-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('goal-id').value;
+  const dados = { name: document.getElementById('goal-name').value.trim(), target: parseFloat(document.getElementById('goal-target').value) || 0, deadline: document.getElementById('goal-deadline').value || '', linkedTo: document.getElementById('goal-link').value, note: document.getElementById('goal-note').value.trim() };
+  if (!dados.name || !dados.target) return;
+  if (id) { const g = goals.find(x => String(x.id) === id); if (g) Object.assign(g, dados); } else goals.push({ id: novoId(), createdAt: Date.now(), ...dados });
+  salvar('goals', goals); cancelarEdicaoMeta(); redesenharNegocios(); toast(id ? '🎯 Meta atualizada.' : '🎯 Meta criada.');
+});
+function cancelarEdicaoMeta() { document.getElementById('goal-form').reset(); document.getElementById('goal-id').value = ''; document.getElementById('goal-submit').innerText = 'Adicionar meta'; document.getElementById('goal-cancel').hidden = true; }
+function editarMeta(id) { const g = goals.find(x => x.id === id); if (!g) return; document.getElementById('goal-id').value = g.id; document.getElementById('goal-name').value = g.name; document.getElementById('goal-target').value = g.target; document.getElementById('goal-deadline').value = g.deadline || ''; document.getElementById('goal-link').value = g.linkedTo; document.getElementById('goal-note').value = g.note || ''; document.getElementById('goal-submit').innerText = 'Salvar meta'; document.getElementById('goal-cancel').hidden = false; document.getElementById('goal-name').focus(); }
+function removerMeta(id) { const g = goals.find(x => x.id === id); if (!g || !confirm(`Apagar a meta "${g.name}"?`)) return; goals = goals.filter(x => x.id !== id); salvar('goals', goals); redesenharNegocios(); }
+function renderMetas() {
+  const ul = document.getElementById('goal-list'); if (!ul) return; ul.innerHTML = '';
+  if (!goals.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Ex: "Reserva de 6 meses" (R$ 30.000, vinculada à reserva) ou "Capital pra clínica".</li>'; return; }
+  goals.forEach(g => {
+    const atual = valorMeta(g); const p = g.target ? Math.min(100, Math.round(atual / g.target * 100)) : 0; const falta = Math.max(0, g.target - atual);
+    let porMes = '';
+    if (g.deadline && falta > 0) { const [y, m, d] = g.deadline.split('-').map(Number); const meses = Math.max(1, Math.round((new Date(y, m - 1, d) - new Date()) / (30.44 * 86400000))); porMes = ` · ${formatCurrency(falta / meses)}/mês por ${meses} ${meses === 1 ? 'mês' : 'meses'}`; }
+    ul.innerHTML += `<li class="goal-item" style="border-left-color:${p >= 100 ? '#22c55e' : '#fbbf24'}"><div class="transaction-info" style="flex:1"><span>🎯 ${esc(g.name)} ${p >= 100 ? '<span class="badge-paid">alcançada</span>' : ''}<small class="item-date"> · ${rotuloVinculo(g)}${g.deadline ? ' · até ' + isoParaBR(g.deadline) : ''}</small></span>
+        <div class="cat-bar" style="margin-top:6px"><div style="width:${p}%; background:${p >= 100 ? '#22c55e' : '#fbbf24'}"></div></div>
+        <small class="item-date">${formatCurrency(atual)} de ${formatCurrency(g.target)} (${p}%)${falta > 0 ? ` · faltam ${formatCurrency(falta)}${porMes}` : ''}</small>${g.note ? `<small class="item-notes">${esc(g.note)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarMeta(${g.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMeta(${g.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Projetos de negócio ---
+document.getElementById('project-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('project-id').value;
+  const linhas = document.getElementById('project-steps').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const dados = { name: document.getElementById('project-name').value.trim(), stage: document.getElementById('project-stage').value, desc: document.getElementById('project-desc').value.trim(), budget: parseFloat(document.getElementById('project-budget').value) || 0, spent: parseFloat(document.getElementById('project-spent').value) || 0, contacts: document.getElementById('project-contacts').value.trim(), notes: document.getElementById('project-notes').value.trim(), updatedAt: Date.now() };
+  if (!dados.name) return;
+  if (id) { const p = projects.find(x => String(x.id) === id); if (!p) return; const antigas = p.steps || []; Object.assign(p, dados); p.steps = linhas.map(l => ({ text: l, done: !!(antigas.find(s => s.text === l) || {}).done })); }
+  else projects.push({ id: novoId(), createdAt: Date.now(), steps: linhas.map(l => ({ text: l, done: false })), ...dados });
+  salvar('projects', projects); cancelarEdicaoProjeto(); redesenharNegocios(); toast(id ? '🚀 Projeto atualizado.' : '🚀 Projeto criado.');
+});
+function cancelarEdicaoProjeto() { document.getElementById('project-form').reset(); document.getElementById('project-id').value = ''; document.getElementById('project-submit').innerText = 'Adicionar projeto'; document.getElementById('project-cancel').hidden = true; }
+function editarProjeto(id) {
+  const p = projects.find(x => x.id === id); if (!p) return;
+  document.getElementById('project-id').value = p.id; document.getElementById('project-name').value = p.name; document.getElementById('project-stage').value = p.stage || 'ideia'; document.getElementById('project-desc').value = p.desc || ''; document.getElementById('project-steps').value = (p.steps || []).map(s => s.text).join('\n'); document.getElementById('project-budget').value = p.budget || ''; document.getElementById('project-spent').value = p.spent || ''; document.getElementById('project-contacts').value = p.contacts || ''; document.getElementById('project-notes').value = p.notes || '';
+  document.getElementById('project-submit').innerText = 'Salvar projeto'; document.getElementById('project-cancel').hidden = false; document.getElementById('project-name').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('project-name').focus();
+}
+function mudarEstagio(id, stage) { const p = projects.find(x => x.id === id); if (!p) return; p.stage = stage; p.updatedAt = Date.now(); salvar('projects', projects); redesenharNegocios(); }
+function togglePasso(id, i) { const p = projects.find(x => x.id === id); if (!p || !p.steps[i]) return; p.steps[i].done = !p.steps[i].done; p.updatedAt = Date.now(); salvar('projects', projects); renderProjetos(); }
+function removerProjeto(id) { const p = projects.find(x => x.id === id); if (!p || !confirm(`Apagar o projeto "${p.name}"?`)) return; projects = projects.filter(x => x.id !== id); salvar('projects', projects); redesenharNegocios(); }
+function filtrarProjetos(f, el) { projectFilter = f; document.querySelectorAll('#project-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderProjetos(); }
+function renderProjetos() {
+  const el = document.getElementById('project-list'); if (!el) return; el.innerHTML = '';
+  let lista = [...projects]; if (projectFilter === 'ativos') lista = lista.filter(p => !['pausado', 'encerrado'].includes(p.stage));
+  lista.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (!lista.length) { el.innerHTML = '<div class="stat-line muted" style="text-align:center; padding:16px;">Nenhum projeto aqui. Ex: "Clínica popular", "Telemedicina", "Curso online".</div>'; return; }
+  el.innerHTML = '<div class="note-grid">' + lista.map(p => {
+    const e = ESTAGIOS_PROJETO[p.stage] || ESTAGIOS_PROJETO.ideia; const feitos = (p.steps || []).filter(s => s.done).length; const tot = (p.steps || []).length;
+    const gastoPct = p.budget ? Math.min(100, Math.round((p.spent || 0) / p.budget * 100)) : 0;
+    return `<div class="note-card project-card" style="border-color:${e[2]}">
+      <div class="note-header"><h4>${e[0]} ${esc(p.name)}</h4><div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarProjeto(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerProjeto(${p.id})">✕</button></div></div>
+      <select class="stage-select" style="color:${e[2]}" onchange="mudarEstagio(${p.id}, this.value)">${Object.entries(ESTAGIOS_PROJETO).map(([k, v]) => `<option value="${k}" ${k === p.stage ? 'selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
+      ${p.desc ? `<div class="note-body">${esc(p.desc)}</div>` : ''}
+      ${tot ? `<div class="note-check"><small class="item-date">Próximos passos · ${feitos}/${tot}</small>${p.steps.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="togglePasso(${p.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
+      ${p.budget || p.spent ? `<div><small class="item-date">💸 gasto ${formatCurrency(p.spent || 0)}${p.budget ? ` de ${formatCurrency(p.budget)} previstos (${gastoPct}%)` : ''}</small><div class="cat-bar" style="margin-top:4px"><div style="width:${gastoPct}%; background:${gastoPct > 100 ? '#ef4444' : '#f59e0b'}"></div></div></div>` : ''}
+      ${p.contacts ? `<small class="item-notes">👥 ${esc(p.contacts)}</small>` : ''}${p.notes ? `<small class="item-notes">${esc(p.notes)}</small>` : ''}
+      <div class="note-foot"><small class="item-date" style="margin-left:auto">${new Date(p.updatedAt || p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// --- Indicadores de referência (manuais) e evolução mensal ---
+function salvarIndicadores() {
+  wealth.indicators = { cdi: parseFloat(document.getElementById('ind-cdi').value) || 0, selic: parseFloat(document.getElementById('ind-selic').value) || 0, ipca: parseFloat(document.getElementById('ind-ipca').value) || 0, ref: document.getElementById('ind-ref').value.trim() };
+  salvar('wealth', wealth); renderPainelNegocios(); toast('📊 Indicadores salvos.');
+}
+function registrarSnapshot() {
+  const m = hojeISO().slice(0, 7); const total = patrimonioTotal();
+  if (!wealth.snapshots) wealth.snapshots = {};
+  if (wealth.snapshots[m] !== total && (assets.length || wealth.snapshots[m] !== undefined)) { wealth.snapshots[m] = total; salvar('wealth', wealth); }
+}
+function renderPainelNegocios() {
+  const el = document.getElementById('biz-dash'); if (!el) return;
+  registrarSnapshot();
+  const total = patrimonioTotal(); const inv = investidoTotal(); const res = total - inv; const p = inv ? res / inv * 100 : 0; const reserva = totalClasse('reserva');
+  const mes = hojeISO().slice(0, 7); const aportadoMes = moves.filter(m => m.type === 'aporte' && !m.initial && m.date.startsWith(mes)).reduce((a, m) => a + m.amount, 0);
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  let html = '<div class="stat-grid">';
+  html += tile('🏦', formatCurrency(total), 'patrimônio investido (valor atual)', '#38bdf8');
+  html += tile('📥', formatCurrency(inv), `aportado no total · ${formatCurrency(aportadoMes)} neste mês`, '#a78bfa');
+  html += tile('📈', formatCurrency(res), `resultado simples (${pct(p)})`, res >= 0 ? '#22c55e' : '#ef4444');
+  html += tile('🛟', formatCurrency(reserva), 'reserva de emergência', '#22c55e');
+  html += '</div>';
+  // por classe
+  const classes = Object.keys(CLASSES_ATIVO).map(k => ({ k, v: totalClasse(k) })).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+  if (classes.length) html += '<div class="cat-block" style="margin-top:14px"><h5>Por classe</h5>' + classes.map(({ k, v }) => { const c = classeAtivo(k); return `<div class="cat-row"><span class="cat-name">${c.icone} ${c.nome}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${c.cor}"></div></div><span class="cat-val">${formatCurrency(v)} <small>${Math.round(v / total * 100)}%</small></span></div>`; }).join('') + '</div>';
+  // evolução mensal (últimos 6 meses com registro)
+  const snaps = Object.entries(wealth.snapshots || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
+  if (snaps.length >= 2) { const max = Math.max(1, ...snaps.map(s => s[1])); html += '<div class="cat-block"><h5>Evolução do patrimônio</h5><div class="fin-meses" style="height:120px">' + snaps.map(([m, v]) => `<div class="mes-col" title="${formatCurrency(v)}"><div class="mes-bars" style="height:70px"><div class="mes-bar" style="width:60%; height:${Math.round(v / max * 100)}%; background:#38bdf8"></div></div><small>${nomeMes(m).slice(0, 3)}</small><small class="mes-saldo" style="color:#94a3b8">${(v / 1000).toFixed(1)}k</small></div>`).join('') + '</div></div>'; }
+  // vencimentos próximos (60 dias)
+  const lim = new Date(); lim.setDate(lim.getDate() + 60); const limISO = isoDe(lim); const hoje = hojeISO();
+  const venc = assets.filter(a => !a.archived && a.due && a.due <= limISO).sort((a, b) => a.due.localeCompare(b.due));
+  if (venc.length) html += '<div class="cat-block"><h5>⏰ Vencimentos nos próximos 60 dias</h5>' + venc.map(a => `<div class="stat-line ${a.due < hoje ? 'muted' : ''}"><strong>${isoParaBR(a.due)}</strong> · ${esc(a.name)} · ${formatCurrency(a.current)}${a.due < hoje ? ' (vencido)' : ''}</div>`).join('') + '</div>';
+  // indicadores
+  const ind = wealth.indicators || {};
+  html += `<div class="ind-row"><span>📊 Referência${ind.ref ? ' (' + esc(ind.ref) + ')' : ''}:</span> <span>CDI <strong>${ind.cdi ? ind.cdi.toString().replace('.', ',') + '%' : '—'}</strong></span> <span>Selic <strong>${ind.selic ? ind.selic.toString().replace('.', ',') + '%' : '—'}</strong></span> <span>IPCA <strong>${ind.ipca ? ind.ipca.toString().replace('.', ',') + '%' : '—'}</strong></span> <span class="item-date">· a.a., anotados por você</span></div>`;
+  el.innerHTML = html;
+  ['cdi', 'selic', 'ipca'].forEach(k => { const i = document.getElementById('ind-' + k); if (i && document.activeElement !== i) i.value = ind[k] || ''; }); const r = document.getElementById('ind-ref'); if (r && document.activeElement !== r) r.value = ind.ref || '';
+}
+function redesenharNegocios() { preencherSelectsNegocios(); renderPainelNegocios(); renderAtivos(); renderMovimentos(); renderMetas(); renderProjetos(); }
+
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -1409,7 +1646,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -1537,7 +1774,8 @@ function redesenharTudo() {
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
   topics = JSON.parse(localStorage.getItem('lifeos_topics')) || []; materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || []; ritual = JSON.parse(localStorage.getItem('lifeos_ritual')) || ritual;
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  assets = JSON.parse(localStorage.getItem('lifeos_assets')) || []; moves = JSON.parse(localStorage.getItem('lifeos_moves')) || []; goals = JSON.parse(localStorage.getItem('lifeos_goals')) || []; projects = JSON.parse(localStorage.getItem('lifeos_projects')) || []; wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || wealth;
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); redesenharNegocios(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {
@@ -1609,6 +1847,6 @@ if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
-document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); renderEvents(); renderCalendar();
+document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

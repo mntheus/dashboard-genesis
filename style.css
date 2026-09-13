@@ -262,3 +262,12 @@ button[type="submit"]:hover { background-color: #444444; }
 .ritual-week { background: #121212; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .ritual-week h5 { font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; }
 @media (max-width: 600px) { #topic-form > div[style*="grid"], #session-form > div[style*="grid"], #material-form > div[style*="grid"], #ritual-form > div[style*="grid"] { grid-template-columns: 1fr 1fr !important; } }
+
+/* --- Fase G: Negócios & Investimentos --- */
+.asset-item, .goal-item { border-left: 4px solid #38bdf8 !important; }
+.ind-row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: #94a3b8; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #2a2a2a; }
+.ind-row strong { color: #e2e8f0; }
+.project-card { cursor: default; }
+.project-card:hover { filter: none; }
+.stage-select { width: auto; padding: 4px 8px; font-size: 0.8rem; background: #121212; border-color: #333; }
+@media (max-width: 600px) { #asset-form > div[style*="grid"], #move-form > div[style*="grid"], #goal-form > div[style*="grid"], #project-form > div[style*="grid"], #business details > div[style*="grid"] { grid-template-columns: 1fr 1fr !important; } }

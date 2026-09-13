@@ -16,6 +16,7 @@
       <button class="tab-btn" id="btn-shifts" onclick="changeTab('shifts')">🚑 Plantões</button>
       <button class="tab-btn" id="btn-tasks" onclick="changeTab('tasks')">✅ Tarefas</button>
       <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
+      <button class="tab-btn" id="btn-studies" onclick="changeTab('studies')">📚 Estudos</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -53,6 +54,7 @@
                 <span style="font-size: 0.8rem; color:#94a3b8;">min</span>
               </div>
             </div>
+            <select id="pomodoro-topic" class="pomodoro-topic" title="Estudando o quê?"><option value="">📚 Geral</option></select>
             <div class="timer-display" id="timer-display">50:00</div>
             <div class="timer-controls">
               <button onclick="startTimer()" id="btn-start-timer">▶ Iniciar</button>
@@ -324,6 +326,92 @@
       </div>
     </div>
 
+    <!-- Módulo 7: Estudos -->
+    <div id="studies" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>📚 Estudos</h2>
+        <div id="study-dash"></div>
+      </div>
+      <div class="fin-two-col">
+        <div class="card">
+          <h2>Temas</h2>
+          <p class="hint">O que você está estudando, com meta de horas por semana. O Pomodoro do Painel pergunta o tema.</p>
+          <form id="topic-form">
+            <input type="hidden" id="topic-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 10px;">
+              <div><label for="topic-name">Tema:</label><input type="text" id="topic-name" placeholder="Gestão de clínicas" required></div>
+              <div><label for="topic-area">Área:</label><select id="topic-area"></select></div>
+              <div><label for="topic-goal">Meta h/sem:</label><input type="number" id="topic-goal" step="0.5" min="0" placeholder="3"></div>
+            </div>
+            <div style="display:flex; gap:10px;"><button type="submit" id="topic-submit" style="flex:1">Adicionar tema</button><button type="button" id="topic-cancel" class="btn" hidden onclick="cancelarEdicaoTema()">Cancelar</button></div>
+          </form>
+          <ul id="topic-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+        <div class="card">
+          <h2>Sessões de estudo</h2>
+          <p class="hint">O Pomodoro registra sozinho. Aqui você lança o que estudou fora dele (leitura no plantão, aula, podcast no carro).</p>
+          <form id="session-form">
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px;">
+              <div><label for="session-topic">Tema:</label><select id="session-topic"></select></div>
+              <div><label for="session-minutes">Minutos:</label><input type="number" id="session-minutes" min="1" placeholder="45" required></div>
+              <div><label for="session-date">Data:</label><input type="date" id="session-date"></div>
+            </div>
+            <label for="session-note">O que fez (opcional):</label><input type="text" id="session-note" placeholder="Cap. 3 do livro, aula 5 do curso...">
+            <button type="submit">Registrar sessão</button>
+          </form>
+          <ul id="session-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Materiais</h2>
+        <p class="hint">Livros, cursos, artigos, vídeos, podcasts. ▶ avança o status, o controle deslizante marca o progresso, 🔁 agenda revisões em 1, 7 e 30 dias (viram tarefas na lista "Estudos").</p>
+        <form id="material-form">
+          <input type="hidden" id="material-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+            <div><label for="material-title">Título:</label><input type="text" id="material-title" placeholder="O Investidor Inteligente" required></div>
+            <div><label for="material-topic">Tema:</label><select id="material-topic"></select></div>
+            <div><label for="material-kind">Tipo:</label><select id="material-kind"></select></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;">
+            <div><label for="material-status">Status:</label><select id="material-status"></select></div>
+            <div><label for="material-progress">Progresso %:</label><input type="number" id="material-progress" min="0" max="100" placeholder="0"></div>
+            <div><label for="material-link">Link / onde está:</label><input type="text" id="material-link" placeholder="https://... ou 'Kindle'"></div>
+          </div>
+          <label for="material-notes">Observações:</label><input type="text" id="material-notes" placeholder="opcional">
+          <div style="display:flex; gap:10px;"><button type="submit" id="material-submit" style="flex:1">Adicionar material</button><button type="button" id="material-cancel" class="btn" hidden onclick="cancelarEdicaoMaterial()">Cancelar</button></div>
+        </form>
+        <div class="focus-header-tabs filter-row" id="material-filters" style="margin-top: 14px;">
+          <span class="active" onclick="filtrarMateriais('andamento', this)">▶ Em andamento</span>
+          <span onclick="filtrarMateriais('afazer', this)">📋 A fazer</span>
+          <span onclick="filtrarMateriais('concluido', this)">✅ Concluídos</span>
+          <span onclick="filtrarMateriais('todos', this)">🗂️ Todos</span>
+        </div>
+        <ul id="material-list" class="transaction-list"></ul>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>📅 Estudo semanal de negócios</h2>
+        <p class="hint">Seu ritual fixo: escolha o dia e a hora (vira compromisso na agenda toda semana) e o roteiro — a lista zera toda semana. O insight da semana vai pra Notas.</p>
+        <div class="fin-two-col" style="margin-top: 0;">
+          <div>
+            <form id="ritual-form">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label for="ritual-day">Dia da semana:</label><select id="ritual-day"></select></div>
+                <div><label for="ritual-time">Hora:</label><input type="time" id="ritual-time"></div>
+              </div>
+              <label for="ritual-roadmap">Roteiro (uma linha por item):</label><textarea id="ritual-roadmap" rows="4" placeholder="Ler 1 capítulo do livro da vez&#10;Revisar carteira e aportes&#10;Anotar 1 insight&#10;Definir próximo passo do projeto"></textarea>
+              <button type="submit">Salvar ritual</button>
+            </form>
+          </div>
+          <div>
+            <div id="ritual-week" class="ritual-week"></div>
+            <label for="ritual-insight" style="margin-top: 12px; display:block;">💡 Insight da semana:</label>
+            <textarea id="ritual-insight" rows="3" placeholder="A ideia que ficou desta semana..."></textarea>
+            <button type="button" class="btn" style="width:100%" onclick="salvarInsight()">Salvar insight em Notas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
       <div class="card" style="margin-top: 20px;">
@@ -340,9 +428,9 @@
         <p class="hint">Cole aqui a URL do App da Web e o token que você criou no Apps Script. Eles ficam guardados só neste aparelho.</p>
         <div class="sync-form">
           <label for="sync-url">URL do App da Web (termina em /exec)</label>
-          <input type="url" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+          <div class="input-eye"><input type="password" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"><button type="button" class="mini-btn" id="btn-ver-url" title="Mostrar URL" onclick="alternarVerUrl()">👁️</button></div>
           <label for="sync-token">Token</label>
-          <input type="password" id="sync-token" placeholder="a frase que você definiu na linha 17 do Code.gs" autocomplete="off">
+          <input type="password" id="sync-token" placeholder="a frase que você definiu no Code.gs (nunca é exibida)" autocomplete="off">
         </div>
         <div style="display: flex; gap: 15px; margin-top: 15px;">
           <button class="btn" onclick="salvarSyncConfig()" style="flex: 1; background-color: #38bdf8; color: #121212;">💾 Salvar e testar</button>

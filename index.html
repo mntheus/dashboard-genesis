@@ -24,8 +24,8 @@
       <div class="life-os-header">
         <div class="avatar-placeholder">🎩</div>
         <div style="flex: 1;">
-          <h1 style="font-size: 1.8rem; color: #fff;">Life OS</h1>
-          <button class="start-day-btn">➔ Iniciar o Dia</button>
+          <h1 style="font-size: 1.8rem; color: #fff;">MMN <span style="color:#22c55e">·</span> Life OS</h1>
+          <button class="start-day-btn" id="btn-iniciar-dia" onclick="iniciarDia()">➔ Iniciar o Dia</button>
         </div>
       </div>
 
@@ -40,6 +40,7 @@
           <div class="card overview-card">
             <h4 class="text-blue" style="margin-bottom: 10px;">👤 OVERVIEW</h4>
             <p id="greeting-text" style="color: #f8fafc; font-weight: 500;">Boa tarde, Matheus</p>
+            <p id="greeting-sub" class="greeting-sub"></p>
             <div class="progress-bar-bg" style="margin-top:15px;"><div class="progress-bar-fill" id="progress-fill"></div></div>
             <span id="progress-text" style="font-size: 0.75rem; color: #64748b;">0% Concluído</span>
           </div>
@@ -59,18 +60,24 @@
               <button onclick="resetTimer()">🔄 Reset</button>
             </div>
             <div class="study-stats">Estudo Hoje: <strong id="study-time-today">0h 0m</strong></div>
+            <div class="pomodoro-prefs">
+              <span title="Som ao terminar">🔔</span>
+              <select id="alarme-tipo" onchange="salvarPrefs()"><option value="sino">Sino</option><option value="suave">Suave</option><option value="beep">Beep</option><option value="alarme">Alarme</option><option value="mudo">Mudo</option></select>
+              <input type="range" id="alarme-volume" min="0" max="100" value="70" oninput="salvarPrefs()" title="Volume">
+              <button type="button" class="mini-btn" onclick="testarAlarme()" title="Ouvir o alarme">▶</button>
+            </div>
           </div>
         </div>
 
         <div class="right-col">
           <div class="card journals-section">
-            <h2 style="color: #22c55e; font-size: 1rem; margin-bottom: 15px; letter-spacing: 1px;">📔 JOURNALS</h2>
+            <h2 style="color: #22c55e; font-size: 1rem; margin-bottom: 15px; letter-spacing: 1px;">📔 RESUMO</h2>
             <div class="focus-header-tabs" id="journal-tabs" style="margin-bottom: 15px;">
-              <span class="active" onclick="changeJournalTab('day', this)">▵ day</span>
-              <span onclick="changeJournalTab('week', this)">▵ week</span>
-              <span onclick="changeJournalTab('month', this)">▵ month</span>
-              <span onclick="changeJournalTab('quarter', this)">▵ quarter</span>
-              <span onclick="changeJournalTab('year', this)">▵ year</span>
+              <span class="active" onclick="changeJournalTab('day', this)">▵ Hoje</span>
+              <span onclick="changeJournalTab('week', this)">▵ Semana</span>
+              <span onclick="changeJournalTab('month', this)">▵ Mês</span>
+              <span onclick="changeJournalTab('quarter', this)">▵ Trimestre</span>
+              <span onclick="changeJournalTab('year', this)">▵ Ano</span>
             </div>
             <div class="journal-cards-container" id="journal-content"></div>
             
@@ -199,6 +206,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toast" class="toast"></div>
 
   <div id="day-modal" class="modal-overlay">
     <div class="modal-content">

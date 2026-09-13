@@ -102,3 +102,9 @@ button[type="submit"]:hover { background-color: #444444; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; background-color: #121212; padding: 16px 20px; border-bottom: 1px solid #2a2a2a; }
 .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .modal-actions button { width: 100%; margin-top: 10px; padding: 12px; background-color: #333333; color: #ffffff; border: 1px solid #444; border-radius: 8px; cursor: pointer; }
+/* --- Sincronização (aba Config) --- */
+.btn { margin-top: 10px; padding: 12px; background-color: #333333; color: #ffffff; border: 1px solid #444; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn:hover { filter: brightness(1.15); }
+.sync-form { display: flex; flex-direction: column; gap: 8px; }
+.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4; }
+.sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-left: 4px; vertical-align: middle; }

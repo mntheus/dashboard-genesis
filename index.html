@@ -16,7 +16,7 @@
       <button class="tab-btn" id="btn-shifts" onclick="changeTab('shifts')">🚑 Plantões</button>
       <button class="tab-btn" id="btn-tasks" onclick="changeTab('tasks')">✅ Tarefas</button>
       <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
-      <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config</button>
+      <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
     <div id="focus" class="tab-content active">
@@ -182,6 +182,21 @@
         </div>
         <div id="backup-status" style="font-size: 0.9rem; color: #38bdf8; text-align: center; height: 20px;"></div>
       </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>☁️ Sincronização (PC ↔ Celular)</h2>
+        <p class="hint">Cole aqui a URL do App da Web e o token que você criou no Apps Script. Eles ficam guardados só neste aparelho.</p>
+        <div class="sync-form">
+          <label for="sync-url">URL do App da Web (termina em /exec)</label>
+          <input type="url" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+          <label for="sync-token">Token</label>
+          <input type="password" id="sync-token" placeholder="a frase que você definiu na linha 17 do Code.gs" autocomplete="off">
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+          <button class="btn" onclick="salvarSyncConfig()" style="flex: 1; background-color: #38bdf8; color: #121212;">💾 Salvar e testar</button>
+          <button class="btn" onclick="sincronizar()" style="flex: 1;">🔄 Sincronizar agora</button>
+        </div>
+        <div id="sync-status" style="font-size: 0.9rem; text-align: center; margin-top: 12px; min-height: 20px;"></div>
+      </div>
     </div>
   </div>
 
@@ -196,5 +211,8 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  </script>
 </body>
 </html>

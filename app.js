@@ -83,7 +83,7 @@ function resetTimer() {
 
 function completePomodoro() {
   const mins = parseInt(document.getElementById('pomodoro-input').value);
-  studyData.minutes += mins; localStorage.setItem('lifeos_study', JSON.stringify(studyData));
+  studyData.minutes += mins; salvar('study', studyData);
   updateStudyStats(); resetTimer(); alert("Sessão concluída! Tempo registrado.");
 }
 
@@ -138,14 +138,14 @@ function renderFocusTab() {
   document.getElementById('progress-text').innerText = `${progress}% Concluído`;
 }
 
-function toggleHabit(index) { habits[index].done = !habits[index].done; localStorage.setItem('lifeos_habits', JSON.stringify(habits)); renderFocusTab(); }
+function toggleHabit(index) { habits[index].done = !habits[index].done; salvar('habits', habits); renderFocusTab(); }
 function addNewHabit() {
   const newHabit = prompt("Digite o nome do novo hábito:");
   if (newHabit) {
     const iconMatch = newHabit.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
     const icon = iconMatch ? iconMatch[0] : '📌';
     const text = iconMatch ? newHabit.replace(icon, '').trim() : newHabit.trim();
-    habits.push({ text, icon, done: false }); localStorage.setItem('lifeos_habits', JSON.stringify(habits)); renderFocusTab();
+    habits.push({ text, icon, done: false }); salvar('habits', habits); renderFocusTab();
   }
 }
 
@@ -228,9 +228,9 @@ document.getElementById('finance-form').addEventListener('submit', (e) => {
   e.preventDefault(); const desc = document.getElementById('desc').value.trim(); const amount = parseFloat(document.getElementById('amount').value);
   if (!desc || isNaN(amount)) return;
   transactions.push({ id: Date.now(), desc, amount, type: document.getElementById('type').value, category: document.getElementById('category').value });
-  localStorage.setItem('lifeos_finances', JSON.stringify(transactions)); updateFinanceValues(); renderFinances(); document.getElementById('finance-form').reset();
+  salvar('finances', transactions); updateFinanceValues(); renderFinances(); document.getElementById('finance-form').reset();
 });
-function removeFinance(index) { transactions.splice(index, 1); localStorage.setItem('lifeos_finances', JSON.stringify(transactions)); updateFinanceValues(); renderFinances(); }
+function removeFinance(index) { transactions.splice(index, 1); salvar('finances', transactions); updateFinanceValues(); renderFinances(); }
 
 // --- PLANTÕES ---
 function renderShifts() {
@@ -251,22 +251,22 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
   
   if (!date || !time || !desc || isNaN(amount)) return; 
   const uid = Date.now(); 
-  shifts.push({ id: uid, date, time, desc, amount }); localStorage.setItem('lifeos_shifts', JSON.stringify(shifts));
+  shifts.push({ id: uid, date, time, desc, amount }); salvar('shifts', shifts);
   
   const [y, m, d] = date.split('-'); 
   transactions.push({ id: uid, desc: `Plantão: ${desc} (${d}/${m} às ${time})`, amount: amount, type: 'income', category: 'Plantão SAMU' });
-  localStorage.setItem('lifeos_finances', JSON.stringify(transactions)); 
+  salvar('finances', transactions); 
   renderShifts(); updateFinanceValues(); renderFinances(); document.getElementById('shift-form').reset();
 });
 function removeShift(index) {
-  const sId = shifts[index].id; shifts.splice(index, 1); localStorage.setItem('lifeos_shifts', JSON.stringify(shifts));
-  transactions = transactions.filter(t => t.id !== sId); localStorage.setItem('lifeos_finances', JSON.stringify(transactions)); renderShifts(); updateFinanceValues(); renderFinances();
+  const sId = shifts[index].id; shifts.splice(index, 1); salvar('shifts', shifts);
+  transactions = transactions.filter(t => t.id !== sId); salvar('finances', transactions); renderShifts(); updateFinanceValues(); renderFinances();
 }
 
 // --- TAREFAS (KEEP STYLE) ---
 document.getElementById('task-form').addEventListener('submit', (e) => { 
   e.preventDefault(); const desc = document.getElementById('task-desc').value.trim(); 
-  if (!desc) return; tasks.push({ text: desc, done: false }); localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); renderTasks(); document.getElementById('task-form').reset(); 
+  if (!desc) return; tasks.push({ text: desc, done: false }); salvar('tasks', tasks); renderTasks(); document.getElementById('task-form').reset(); 
 });
 function renderTasks() { 
   const list = document.getElementById('task-list'); list.innerHTML = ''; 
@@ -285,18 +285,179 @@ function renderTasks() {
     list.appendChild(li); 
   }); 
 }
-function toggleTask(i) { tasks[i].done = !tasks[i].done; localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); renderTasks(); }
-function removeTask(i) { tasks.splice(i, 1); localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); renderTasks(); }
+function toggleTask(i) { tasks[i].done = !tasks[i].done; salvar('tasks', tasks); renderTasks(); }
+function removeTask(i) { tasks.splice(i, 1); salvar('tasks', tasks); renderTasks(); }
 
 // --- NOTAS ---
-document.getElementById('note-form').addEventListener('submit', (e) => { e.preventDefault(); const t = document.getElementById('note-title').value.trim(); const c = document.getElementById('note-content').value.trim(); if (!t || !c) return; notes.push({ title: t, content: c }); localStorage.setItem('lifeos_notes', JSON.stringify(notes)); renderNotes(); document.getElementById('note-form').reset(); });
+document.getElementById('note-form').addEventListener('submit', (e) => { e.preventDefault(); const t = document.getElementById('note-title').value.trim(); const c = document.getElementById('note-content').value.trim(); if (!t || !c) return; notes.push({ title: t, content: c }); salvar('notes', notes); renderNotes(); document.getElementById('note-form').reset(); });
 function renderNotes() { const list = document.getElementById('note-list'); list.innerHTML = ''; notes.forEach((n, i) => { const div = document.createElement('div'); div.classList.add('note-card'); div.innerHTML = `<div class="note-header"><h4>${n.title}</h4><button class="delete-btn" onclick="removeNote(${i})">✕</button></div><div class="note-body">${n.content}</div>`; list.appendChild(div); }); }
-function removeNote(i) { notes.splice(i, 1); localStorage.setItem('lifeos_notes', JSON.stringify(notes)); renderNotes(); }
+function removeNote(i) { notes.splice(i, 1); salvar('notes', notes); renderNotes(); }
 
 // Config/Backup
 function exportData() { const data = { habits, shifts, finances: transactions, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if (data.habits) localStorage.setItem('lifeos_habits', JSON.stringify(data.habits)); if (data.shifts) localStorage.setItem('lifeos_shifts', JSON.stringify(data.shifts)); if (data.finances) localStorage.setItem('lifeos_finances', JSON.stringify(data.finances)); if (data.tasks) localStorage.setItem('lifeos_tasks', JSON.stringify(data.tasks)); if (data.notes) localStorage.setItem('lifeos_notes', JSON.stringify(data.notes)); if (data.study) localStorage.setItem('lifeos_study', JSON.stringify(data.study)); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.shifts) salvar('shifts', data.shifts); if (data.finances) salvar('finances', data.finances); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+
+// ============================================================================
+// SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
+// Como funciona: cada módulo (habits, shifts, ...) tem um carimbo de hora
+// "updatedAt" da última vez que foi salvo neste aparelho. Ao sincronizar, o
+// app manda tudo com os carimbos; o Code.gs guarda só o que for mais novo do
+// que a planilha tem e devolve o estado final; o app adota daqui o que a
+// planilha tiver de mais novo. Em empate, a planilha vence.
+// URL e token ficam SÓ no localStorage deste aparelho (aba Config).
+// ============================================================================
+const SYNC_MODULOS = ['habits', 'shifts', 'finances', 'tasks', 'notes', 'study'];
+
+let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
+if (!syncMeta) {
+  // Primeira vez com sync neste aparelho: o que já existe ganha carimbo 1
+  // ("existe, mas é antigo") e o que não existe ganha 0.
+  syncMeta = {};
+  SYNC_MODULOS.forEach(m => syncMeta[m] = localStorage.getItem('lifeos_' + m) ? 1 : 0);
+  localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
+}
+let syncConfig = JSON.parse(localStorage.getItem('lifeos_sync_config')) || { url: '', token: '' };
+let syncPendente = localStorage.getItem('lifeos_sync_pendente') === '1';
+let syncTimer = null;
+let syncEmAndamento = false;
+let syncEditouDurante = false; // alguma gravação aconteceu enquanto a rede respondia?
+
+/** Grava um módulo no localStorage, carimba a hora e agenda uma sincronização. */
+function salvar(modulo, valor) {
+  localStorage.setItem('lifeos_' + modulo, JSON.stringify(valor));
+  syncMeta[modulo] = Date.now();
+  localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
+  syncEditouDurante = true;
+  marcarPendente(true);
+  agendarSync();
+}
+
+function marcarPendente(v) {
+  syncPendente = v;
+  localStorage.setItem('lifeos_sync_pendente', v ? '1' : '0');
+  if (v && !syncEmAndamento) setSyncStatus('pendente');
+}
+
+/** Espera 2,5 s depois da última alteração antes de sincronizar (junta várias edições numa só). */
+function agendarSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => sincronizar(), 2500);
+}
+
+function syncConfigurado() { return !!(syncConfig.url && syncConfig.token); }
+
+async function sincronizar() {
+  if (!syncConfigurado()) { setSyncStatus('naoconfig'); return; }
+  if (syncEmAndamento) return;
+  if (!navigator.onLine) { setSyncStatus('offline'); return; }
+
+  syncEmAndamento = true; syncEditouDurante = false; setSyncStatus('andamento');
+  try {
+    const dados = {};
+    SYNC_MODULOS.forEach(m => {
+      const bruto = localStorage.getItem('lifeos_' + m);
+      if (bruto !== null) dados[m] = { updatedAt: syncMeta[m] || 0, valor: JSON.parse(bruto) };
+    });
+
+    // Content-Type text/plain de propósito: evita o "preflight" CORS que o Apps Script não responde.
+    const resp = await fetch(syncConfig.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: syncConfig.token, acao: 'push', dados })
+    });
+    const r = await resp.json();
+    if (!r.ok) throw new Error(r.erro || 'resposta inválida do servidor');
+
+    const mudou = aplicarRemoto(r.dados || {});
+    // se algo foi editado enquanto a rede respondia, continua pendente
+    const editouDurante = syncEditouDurante;
+    marcarPendente(editouDurante);
+    localStorage.setItem('lifeos_sync_ultima', String(Date.now()));
+    setSyncStatus(editouDurante ? 'pendente' : 'ok');
+    if (mudou) redesenharTudo();
+    if (editouDurante) agendarSync();
+  } catch (err) {
+    console.error('Sync:', err);
+    setSyncStatus(navigator.onLine ? 'erro' : 'offline', String(err.message || err));
+  } finally {
+    syncEmAndamento = false;
+  }
+}
+
+/** Adota o que veio da planilha se for mais novo (ou igual e diferente — empate: planilha vence). */
+function aplicarRemoto(remoto) {
+  let mudou = false;
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  SYNC_MODULOS.forEach(m => {
+    const r = remoto[m];
+    if (!r || r.valor === null || r.valor === undefined) return;
+    if (m === 'study' && r.valor.date !== hoje) return; // estudo de outro dia não interessa
+    const local = syncMeta[m] || 0;
+    if (r.updatedAt < local) return;
+    const texto = JSON.stringify(r.valor);
+    if (r.updatedAt === local && texto === localStorage.getItem('lifeos_' + m)) return;
+    localStorage.setItem('lifeos_' + m, texto);
+    syncMeta[m] = r.updatedAt; // sem carimbar hora nova: isso não é edição local
+    mudou = true;
+  });
+  localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
+  return mudou;
+}
+
+/** Recarrega as variáveis a partir do localStorage e redesenha todas as abas. */
+function redesenharTudo() {
+  habits = JSON.parse(localStorage.getItem('lifeos_habits')) || habits;
+  shifts = JSON.parse(localStorage.getItem('lifeos_shifts')) || [];
+  transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
+  tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
+  notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
+  const st = JSON.parse(localStorage.getItem('lifeos_study'));
+  if (st && st.date === studyData.date) studyData = st;
+  renderFocusTab(); renderShifts(); updateFinanceValues(); renderFinances(); renderTasks(); renderNotes(); updateStudyStats();
+}
+
+function setSyncStatus(estado, detalhe) {
+  const el = document.getElementById('sync-status');
+  const dot = document.getElementById('sync-dot');
+  const ultima = localStorage.getItem('lifeos_sync_ultima');
+  const hora = ultima ? new Date(Number(ultima)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  const mapa = {
+    naoconfig: ['⚪', 'Sincronização não configurada — preencha URL e token abaixo.', '#64748b'],
+    andamento: ['🔄', 'Sincronizando...', '#38bdf8'],
+    ok:        ['🟢', 'Sincronizado' + (hora ? ' às ' + hora : ''), '#22c55e'],
+    pendente:  ['🟡', 'Alterações pendentes' + (hora ? ' (último sync ' + hora + ')' : ''), '#f59e0b'],
+    offline:   ['🔴', 'Offline — vai sincronizar quando a internet voltar.', '#ef4444'],
+    erro:      ['🔴', 'Erro: ' + (detalhe || 'falha na sincronização'), '#ef4444']
+  };
+  const [icone, texto, cor] = mapa[estado] || mapa.naoconfig;
+  if (el) { el.innerText = icone + ' ' + texto; el.style.color = cor; }
+  if (dot) { dot.style.background = cor; dot.title = texto; }
+}
+
+/** Botão "Salvar e testar" da aba Config. */
+function salvarSyncConfig() {
+  const url = document.getElementById('sync-url').value.trim();
+  const token = document.getElementById('sync-token').value.trim();
+  if (url && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) {
+    alert('A URL deve ser a do "App da Web" do Apps Script: começa com https://script.google.com/macros/s/ e termina em /exec');
+    return;
+  }
+  syncConfig = { url, token };
+  localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
+  if (syncConfigurado()) { marcarPendente(true); sincronizar(); } else setSyncStatus('naoconfig');
+}
+
+function carregarSyncConfigNaTela() {
+  const u = document.getElementById('sync-url'); const t = document.getElementById('sync-token');
+  if (u) u.value = syncConfig.url || '';
+  if (t) t.value = syncConfig.token || '';
+}
+
+// Gatilhos automáticos: voltou a internet / voltou pro app (celular) → sincroniza
+window.addEventListener('online', () => sincronizar());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
 
 // INICIALIZAÇÃO
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes();
+carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

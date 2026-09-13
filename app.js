@@ -26,6 +26,11 @@ function toast(msg, ms = 3500) {
 let shifts = JSON.parse(localStorage.getItem('lifeos_shifts')) || [];
 let transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
 let notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
+let events = JSON.parse(localStorage.getItem('lifeos_events')) || [];   // compromissos da agenda geral
+let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
+  { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
+  { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
+];
 
 // Migração das tarefas de Strings para Objetos (Estilo Keep Notes)
 let tasks = JSON.parse(localStorage.getItem('lifeos_tasks')) || [];
@@ -180,6 +185,8 @@ function atualizarSaudacao() {
   const habPend = habits.filter(h => !h.done).length;
   const partes = [];
   partes.push(plantoesHoje.length ? `🚑 ${plantoesHoje.map(s => `${s.desc} ${s.time || ''}`.trim()).join(', ')}` : '🚑 sem plantão hoje');
+  const evHoje = events.filter(e => e.date === hoje && !e.done).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  if (evHoje.length) partes.push(`📅 ${evHoje.map(e => `${e.time ? e.time + ' ' : ''}${e.title}`).join(', ')}`);
   partes.push(`✅ ${pendentes} tarefa${pendentes === 1 ? '' : 's'} pendente${pendentes === 1 ? '' : 's'}`);
   partes.push(`🎮 ${habPend} hábito${habPend === 1 ? '' : 's'} a cumprir`);
   document.getElementById('greeting-sub').innerText = partes.join(' · ');
@@ -358,10 +365,40 @@ function renderJournal() {
     const pend = tasks.filter(t => !t.done).slice(0, 5);
     html += '<div class="stat-lists">';
     html += `<div><h5>🚑 Plantões de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    const evHoje = events.filter(e => e.date === hoje).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+    html += `<div><h5>📅 Compromissos de hoje</h5>${evHoje.length ? evHoje.map(e => `<div class="stat-line" style="${e.done ? 'opacity:0.5;text-decoration:line-through' : ''}">${tipoEvento(e.type).icone} <strong>${esc(e.time || '')}</strong> ${esc(e.title)}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">• ${esc(t.text)}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
     html += '</div>';
   }
   content.innerHTML = html;
+}
+
+// --- AGENDA: TIPOS DE COMPROMISSO ---
+const TIPOS_EVENTO = {
+  trabalho: { nome: 'Trabalho', cor: '#38bdf8', icone: '💼' },
+  pessoal:  { nome: 'Pessoal',  cor: '#a78bfa', icone: '🏠' },
+  saude:    { nome: 'Saúde',    cor: '#22c55e', icone: '🩺' },
+  estudo:   { nome: 'Estudo',   cor: '#f472b6', icone: '📚' },
+  negocios: { nome: 'Negócios', cor: '#fbbf24', icone: '📈' },
+  social:   { nome: 'Social',   cor: '#fb923c', icone: '🎉' },
+  outro:    { nome: 'Outro',    cor: '#94a3b8', icone: '📌' }
+};
+const COR_PLANTAO = '#f59e0b';
+function tipoEvento(t) { return TIPOS_EVENTO[t] || TIPOS_EVENTO.outro; }
+function diaSemanaCurto(iso) { const [y, m, d] = iso.split('-'); return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); }
+function rotuloData(iso) {
+  const hoje = hojeISO(); const am = new Date(); am.setDate(am.getDate() + 1);
+  if (iso === hoje) return 'Hoje'; if (iso === isoDe(am)) return 'Amanhã';
+  return `${diaSemanaCurto(iso)} ${isoParaBR(iso).slice(0, 5)}`;
+}
+function rotuloDataLonga(iso) { const r = rotuloData(iso); return (r === 'Hoje' || r === 'Amanhã' ? r : diaSemanaCurto(iso)) + ' · ' + isoParaBR(iso); }
+
+/** Tudo que acontece num dia (plantões + compromissos), em ordem de horário. */
+function itensDoDia(iso) {
+  const itens = [];
+  shifts.filter(s => s.date === iso).forEach(s => itens.push({ kind: 'shift', time: s.time || '', obj: s }));
+  events.filter(e => e.date === iso).forEach(e => itens.push({ kind: 'event', time: e.time || '', obj: e }));
+  return itens.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
 }
 
 // --- CALENDÁRIO COM HORÁRIO ---
@@ -375,56 +412,141 @@ function renderCalendar() {
   monthYearEl.innerText = `${months[month]} ${year}`;
 
   const firstDayIndex = new Date(year, month, 1).getDay(); const lastDay = new Date(year, month + 1, 0).getDate();
+  const hoje = hojeISO();
   let daysHTML = '';
   for (let x = 0; x < firstDayIndex; x++) daysHTML += `<div class="calendar-day empty"></div>`;
 
   for (let i = 1; i <= lastDay; i++) {
-    const hasShift = shifts.some(s => { const [sy, sm, sd] = s.date.split('-'); return parseInt(sy) === year && parseInt(sm) - 1 === month && parseInt(sd) === i; });
-    const dotHTML = hasShift ? '<div class="shift-dot"></div>' : '';
-    const isToday = i === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
-    daysHTML += `<div class="calendar-day ${isToday ? 'today' : ''}" onclick="openDayModal(${year}, ${month + 1}, ${i})">${i}${dotHTML}</div>`;
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const itens = itensDoDia(iso);
+    const cores = itens.map(it => it.kind === 'shift' ? COR_PLANTAO : tipoEvento(it.obj.type).cor);
+    const dots = cores.slice(0, 4).map(c => `<span class="day-dot" style="background:${c}"></span>`).join('') + (cores.length > 4 ? '<span class="day-more">+</span>' : '');
+    daysHTML += `<div class="calendar-day ${iso === hoje ? 'today' : ''} ${itens.length ? 'has-items' : ''}" onclick="openDayModal(${year}, ${month + 1}, ${i})" title="${itens.length ? itens.length + ' item(ns)' : ''}">${i}<div class="day-dots">${dots}</div></div>`;
   }
   calendarDaysEl.innerHTML = daysHTML;
 }
 document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
 document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+function irParaHoje() { currentDate = new Date(); renderCalendar(); }
 
 function openDayModal(year, month, day) {
   const m = month.toString().padStart(2, '0'); const d = day.toString().padStart(2, '0');
-  selectedModalDate = `${year}-${m}-${d}`; document.getElementById('modal-date-title').innerText = `${d}/${m}/${year}`;
+  selectedModalDate = `${year}-${m}-${d}`;
+  document.getElementById('modal-date-title').innerText = `${diaSemanaCurto(selectedModalDate)}, ${d}/${m}/${year}`;
 
-  const dayShifts = shifts.filter(s => s.date === selectedModalDate);
+  const itens = itensDoDia(selectedModalDate);
   const modalList = document.getElementById('modal-shift-list'); modalList.innerHTML = '';
 
-  if (dayShifts.length === 0) {
-    modalList.innerHTML = '<li style="justify-content:center; color:#64748b; background: transparent; border:none;">Nenhum plantão agendado.</li>';
+  if (itens.length === 0) {
+    modalList.innerHTML = '<li style="justify-content:center; color:#64748b; background: transparent; border:none;">Nada marcado neste dia.</li>';
   } else {
-    // Organiza por horário
-    dayShifts.sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00")).forEach(s => {
-      modalList.innerHTML += `<li class="shift-item"><span style="display:flex; flex-direction:column;"><strong>${esc(s.time || '')}</strong> <span style="font-size:0.85rem;">${esc(s.desc)}</span></span><strong>${formatCurrency(s.amount)}</strong></li>`;
+    itens.forEach(it => {
+      if (it.kind === 'shift') {
+        const s = it.obj;
+        modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_PLANTAO}"><span style="display:flex; flex-direction:column;"><strong>🚑 ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</strong><span style="font-size:0.85rem;">${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago</span>' : '<span class="badge-unpaid">a receber</span>'}</span></span><strong style="color:${COR_PLANTAO}">${formatCurrency(s.amount)}</strong></li>`;
+      } else {
+        const e = it.obj; const tp = tipoEvento(e.type);
+        modalList.innerHTML += `<li class="shift-item" style="border-left-color:${tp.cor}; ${e.done ? 'opacity:0.5' : ''}"><span style="display:flex; flex-direction:column;"><strong>${tp.icone} ${esc(e.time || 'dia todo')}${e.endTime ? '–' + esc(e.endTime) : ''}</strong><span style="font-size:0.85rem; ${e.done ? 'text-decoration:line-through' : ''}">${esc(e.title)}</span></span><small class="category-badge" style="color:${tp.cor}; background:${tp.cor}22">${tp.nome}</small></li>`;
+      }
     });
   }
   document.getElementById('day-modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('day-modal').style.display = 'none'; }
-function goToAddShift() { closeModal(); changeTab('shifts'); document.getElementById('shift-date').value = selectedModalDate; setTimeout(() => document.getElementById('shift-desc').focus(), 100); }
+function goToAddShift() { closeModal(); changeTab('shifts'); cancelarEdicaoPlantao(); document.getElementById('shift-date').value = selectedModalDate; setTimeout(() => document.getElementById('shift-desc').focus(), 100); }
+function goToAddEvent() { closeModal(); cancelarEdicaoEvento(); document.getElementById('event-date').value = selectedModalDate; setTimeout(() => { document.getElementById('event-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('event-title').focus(); }, 100); }
 document.getElementById('day-modal').addEventListener('click', (e) => { if (e.target.id === 'day-modal') closeModal(); });
 
+// --- AGENDA: COMPROMISSOS ---
+let eventFilter = 'proximos';
+function preencherTiposEvento() {
+  const sel = document.getElementById('event-type'); if (!sel) return;
+  sel.innerHTML = Object.entries(TIPOS_EVENTO).map(([k, t]) => `<option value="${k}">${t.icone} ${t.nome}</option>`).join('');
+}
+document.getElementById('event-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('event-id').value;
+  const dados = {
+    title: document.getElementById('event-title').value.trim(),
+    date: document.getElementById('event-date').value,
+    time: document.getElementById('event-time').value,
+    endTime: document.getElementById('event-end').value,
+    type: document.getElementById('event-type').value,
+    notes: document.getElementById('event-notes').value.trim()
+  };
+  if (!dados.title || !dados.date) return;
+  if (id) { const ev = events.find(x => String(x.id) === id); if (ev) Object.assign(ev, dados); }
+  else events.push({ id: Date.now(), done: false, ...dados });
+  salvar('events', events); cancelarEdicaoEvento(); redesenharAgenda();
+  toast(id ? '📅 Compromisso atualizado.' : '📅 Compromisso adicionado.');
+});
+function cancelarEdicaoEvento() {
+  document.getElementById('event-form').reset(); document.getElementById('event-id').value = '';
+  document.getElementById('event-form-title').innerText = 'Novo compromisso';
+  document.getElementById('event-submit').innerText = 'Adicionar compromisso';
+  document.getElementById('event-cancel').hidden = true;
+}
+function editarEvento(id) {
+  const ev = events.find(x => x.id === id); if (!ev) return;
+  changeTab('home');
+  document.getElementById('event-id').value = ev.id;
+  document.getElementById('event-title').value = ev.title; document.getElementById('event-date').value = ev.date;
+  document.getElementById('event-time').value = ev.time || ''; document.getElementById('event-end').value = ev.endTime || '';
+  document.getElementById('event-type').value = ev.type || 'outro'; document.getElementById('event-notes').value = ev.notes || '';
+  document.getElementById('event-form-title').innerText = 'Editar compromisso';
+  document.getElementById('event-submit').innerText = 'Salvar alterações';
+  document.getElementById('event-cancel').hidden = false;
+  document.getElementById('event-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function concluirEvento(id) { const ev = events.find(x => x.id === id); if (!ev) return; ev.done = !ev.done; salvar('events', events); redesenharAgenda(); }
+function removerEvento(id) { const ev = events.find(x => x.id === id); if (!ev || !confirm(`Apagar "${ev.title}"?`)) return; events = events.filter(x => x.id !== id); salvar('events', events); redesenharAgenda(); }
+function filtrarEventos(f, el) { eventFilter = f; document.querySelectorAll('#event-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderEvents(); }
+
+function renderEvents() {
+  const list = document.getElementById('event-list'); if (!list) return; list.innerHTML = '';
+  const hoje = hojeISO();
+  let lista = [...events];
+  if (eventFilter === 'proximos') lista = lista.filter(e => e.date >= hoje && !e.done);
+  else if (eventFilter === 'passados') lista = lista.filter(e => e.date < hoje);
+  else if (eventFilter === 'concluidos') lista = lista.filter(e => e.done);
+  lista.sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
+  if (eventFilter === 'passados') lista.reverse();
+  if (!lista.length) { list.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum compromisso aqui.</li>'; return; }
+  let ultimaData = '';
+  lista.forEach(e => {
+    if (e.date !== ultimaData) { ultimaData = e.date; list.innerHTML += `<li class="date-sep">${rotuloData(e.date)} <small>${isoParaBR(e.date)}</small></li>`; }
+    const tp = tipoEvento(e.type);
+    list.innerHTML += `<li class="event-item" style="border-left-color:${tp.cor}; ${e.done ? 'opacity:0.5' : ''}">
+      <div class="transaction-info" style="flex:1">
+        <span style="${e.done ? 'text-decoration:line-through' : ''}">${tp.icone} <strong>${esc(e.time || 'dia todo')}${e.endTime ? '–' + esc(e.endTime) : ''}</strong> ${esc(e.title)}</span>
+        <small class="category-badge" style="color:${tp.cor}; background:${tp.cor}22">${tp.nome}</small>${e.notes ? `<small class="item-notes">${esc(e.notes)}</small>` : ''}
+      </div>
+      <div class="item-actions"><button class="mini-btn" title="${e.done ? 'Reabrir' : 'Concluir'}" onclick="concluirEvento(${e.id})">${e.done ? '↩' : '✓'}</button><button class="mini-btn" title="Editar" onclick="editarEvento(${e.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerEvento(${e.id})">✕</button></div>
+    </li>`;
+  });
+}
+function redesenharAgenda() { renderCalendar(); renderEvents(); renderShifts(); renderJournal(); atualizarSaudacao(); }
+
 // --- FINANÇAS ---
+function transacaoPendente(t) { return t.pending === true; }
 function updateFinanceValues() {
-  const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+  const income = transactions.filter(t => t.type === 'income' && !transacaoPendente(t)).reduce((acc, t) => acc + t.amount, 0);
+  const pendente = transactions.filter(t => t.type === 'income' && transacaoPendente(t)).reduce((acc, t) => acc + t.amount, 0);
   const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
   const total = income - expense;
   document.getElementById('total-income').innerText = formatCurrency(income);
   document.getElementById('total-expense').innerText = formatCurrency(expense);
   document.getElementById('net-balance').innerText = formatCurrency(total);
   document.getElementById('net-balance').style.color = total >= 0 ? '#22c55e' : '#ef4444';
+  const pend = document.getElementById('total-pending'); if (pend) pend.innerText = formatCurrency(pendente);
 }
 function renderFinances() {
   const tList = document.getElementById('transaction-list'); tList.innerHTML = '';
-  transactions.forEach((t, i) => {
+  [...transactions].sort((a, b) => dataTransacao(b).localeCompare(dataTransacao(a))).forEach(t => {
+    const i = transactions.indexOf(t);
     const li = document.createElement('li'); li.classList.add(t.type === 'income' ? 'income-item' : 'expense-item');
-    li.innerHTML = `<div class="transaction-info"><span>${esc(t.desc)}</span><small class="category-badge">${esc(t.category || 'Sem categoria')}</small></div>
+    if (transacaoPendente(t)) li.classList.add('pending-item');
+    li.innerHTML = `<div class="transaction-info"><span>${esc(t.desc)}</span><small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${transacaoPendente(t) ? ' <small class="badge-unpaid">a receber</small>' : ''}</div>
       <div><strong>${formatCurrency(t.amount)}</strong><button class="delete-btn" onclick="removeFinance(${i})">✕</button></div>`;
     tList.appendChild(li);
   });
@@ -435,37 +557,140 @@ document.getElementById('finance-form').addEventListener('submit', (e) => {
   transactions.push({ id: Date.now(), date: hojeISO(), desc, amount, type: document.getElementById('type').value, category: document.getElementById('category').value });
   salvar('finances', transactions); updateFinanceValues(); renderFinances(); renderJournal(); document.getElementById('finance-form').reset();
 });
-function removeFinance(index) { transactions.splice(index, 1); salvar('finances', transactions); updateFinanceValues(); renderFinances(); renderJournal(); }
+function removeFinance(index) {
+  const t = transactions[index];
+  if (shifts.some(s => s.id === t.id) && !confirm('Este lançamento veio de um plantão. Apagar mesmo assim? (o plantão continua na agenda)')) return;
+  transactions.splice(index, 1); salvar('finances', transactions); updateFinanceValues(); renderFinances(); renderJournal();
+}
 
 // --- PLANTÕES ---
+let shiftFilter = 'proximos';
+function preencherLocais() {
+  const sel = document.getElementById('shift-place'); if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">— escolher local —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
+  if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
+  renderPlaces();
+}
+function aplicarLocalPlantao() {
+  const v = document.getElementById('shift-place').value;
+  if (v === '' || v === 'outro') { if (v === 'outro') document.getElementById('shift-desc').focus(); return; }
+  const p = places[Number(v)]; if (!p) return;
+  document.getElementById('shift-desc').value = p.name;
+  if (p.time) document.getElementById('shift-time').value = p.time;
+  if (p.hours) document.getElementById('shift-hours').value = p.hours;
+  if (p.amount) document.getElementById('shift-amount').value = p.amount;
+}
+function renderPlaces() {
+  const ul = document.getElementById('place-list'); if (!ul) return; ul.innerHTML = '';
+  if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum local cadastrado.</li>'; return; }
+  places.forEach((p, i) => {
+    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</small></div>
+      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
+  });
+}
+document.getElementById('place-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('place-name').value.trim(); if (!name) return;
+  const p = { name, time: document.getElementById('place-time').value, hours: parseFloat(document.getElementById('place-hours').value) || 0, amount: parseFloat(document.getElementById('place-amount').value) || 0 };
+  const idx = document.getElementById('place-id').value;
+  if (idx !== '') places[Number(idx)] = p; else places.push(p);
+  salvar('places', places); document.getElementById('place-form').reset(); document.getElementById('place-id').value = ''; document.getElementById('place-submit').innerText = 'Adicionar local';
+  preencherLocais();
+});
+function editarLocal(i) {
+  const p = places[i];
+  document.getElementById('place-id').value = i; document.getElementById('place-name').value = p.name; document.getElementById('place-time').value = p.time || '';
+  document.getElementById('place-hours').value = p.hours || ''; document.getElementById('place-amount').value = p.amount || '';
+  document.getElementById('place-submit').innerText = 'Salvar local'; document.getElementById('place-name').focus();
+}
+function removerLocal(i) { if (!confirm(`Apagar o local "${places[i].name}"?`)) return; places.splice(i, 1); salvar('places', places); preencherLocais(); }
+
+function transacaoDoPlantao(s) { return transactions.find(t => t.id === s.id); }
+function descricaoLancamento(s) { const [y, m, d] = s.date.split('-'); return `Plantão: ${s.desc} (${d}/${m} às ${s.time})`; }
+/** Mantém o lançamento em Finanças igual ao plantão (valor, data, pago/a receber). */
+function sincronizarLancamentoPlantao(s) {
+  let t = transacaoDoPlantao(s);
+  if (!t) { t = { id: s.id, type: 'income', category: 'Plantão' }; transactions.push(t); }
+  t.desc = descricaoLancamento(s); t.amount = s.amount; t.pending = !s.paid; t.date = s.paid ? (s.paidAt || s.date) : s.date;
+}
+
+function filtrarPlantoes(f, el) { shiftFilter = f; document.querySelectorAll('#shift-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderShifts(); }
 function renderShifts() {
   const sList = document.getElementById('shift-list'); sList.innerHTML = '';
-  shifts.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach((s, i) => {
-    const [y, m, d] = s.date.split('-'); const li = document.createElement('li'); li.classList.add('shift-item');
-    li.innerHTML = `<div class="transaction-info"><span>${esc(s.desc)}</span><small class="category-badge" style="color:#f59e0b; background: rgba(245,158,11,0.1)">${d}/${m}/${y} às ${esc(s.time || '')}</small></div>
-      <div><strong>${formatCurrency(s.amount)}</strong><button class="delete-btn" onclick="removeShift(${i})">✕</button></div>`;
+  const hoje = hojeISO();
+  let lista = [...shifts];
+  if (shiftFilter === 'proximos') lista = lista.filter(s => s.date >= hoje);
+  else if (shiftFilter === 'naopagos') lista = lista.filter(s => !s.paid);
+  else if (shiftFilter === 'passados') lista = lista.filter(s => s.date < hoje);
+  lista.sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+  if (shiftFilter === 'passados') lista.reverse();
+
+  const aReceber = shifts.filter(s => !s.paid); const totalReceber = aReceber.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const mes = hoje.slice(0, 7); const doMes = shifts.filter(s => s.date.startsWith(mes)); const recebidoMes = doMes.filter(s => s.paid).reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const resumo = document.getElementById('shift-summary');
+  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 Plantões no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span>`;
+
+  if (!lista.length) { sList.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum plantão neste filtro.</li>'; return; }
+  lista.forEach(s => {
+    const li = document.createElement('li'); li.classList.add('shift-item'); if (s.paid) li.classList.add('paid');
+    li.innerHTML = `<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
+        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</small>${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
+      <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(s.amount)}</strong><button class="mini-btn ${s.paid ? 'on' : ''}" title="${s.paid ? 'Marcar como não pago' : 'Marcar como pago'}" onclick="alternarPago(${s.id})">💵</button><button class="mini-btn" title="Editar" onclick="editarPlantao(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeShift(${s.id})">✕</button></div>`;
     sList.appendChild(li);
   }); renderCalendar();
 }
 document.getElementById('shift-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const date = document.getElementById('shift-date').value;
-  const time = document.getElementById('shift-time').value;
-  const desc = document.getElementById('shift-desc').value.trim();
-  const amount = parseFloat(document.getElementById('shift-amount').value);
-
-  if (!date || !time || !desc || isNaN(amount)) return;
-  const uid = Date.now();
-  shifts.push({ id: uid, date, time, desc, amount }); salvar('shifts', shifts);
-
-  const [y, m, d] = date.split('-');
-  transactions.push({ id: uid, date, desc: `Plantão: ${desc} (${d}/${m} às ${time})`, amount: amount, type: 'income', category: 'Plantão SAMU' });
-  salvar('finances', transactions);
-  renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao(); document.getElementById('shift-form').reset();
+  const id = document.getElementById('shift-id').value;
+  const dados = {
+    date: document.getElementById('shift-date').value,
+    time: document.getElementById('shift-time').value,
+    hours: parseFloat(document.getElementById('shift-hours').value) || 0,
+    desc: document.getElementById('shift-desc').value.trim(),
+    amount: parseFloat(document.getElementById('shift-amount').value),
+    notes: document.getElementById('shift-notes').value.trim()
+  };
+  if (!dados.date || !dados.time || !dados.desc || isNaN(dados.amount)) return;
+  let s;
+  if (id) { s = shifts.find(x => String(x.id) === id); if (!s) return; Object.assign(s, dados); }
+  else { s = { id: Date.now(), paid: false, paidAt: null, ...dados }; shifts.push(s); }
+  sincronizarLancamentoPlantao(s);
+  salvar('shifts', shifts); salvar('finances', transactions);
+  cancelarEdicaoPlantao(); renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
+  toast(id ? '🚑 Plantão atualizado.' : '🚑 Plantão agendado (a receber).');
 });
-function removeShift(index) {
-  const sId = shifts[index].id; shifts.splice(index, 1); salvar('shifts', shifts);
-  transactions = transactions.filter(t => t.id !== sId); salvar('finances', transactions); renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
+function cancelarEdicaoPlantao() {
+  document.getElementById('shift-form').reset(); document.getElementById('shift-id').value = '';
+  document.getElementById('shift-form-title').innerText = 'Agendar Novo Plantão';
+  document.getElementById('shift-submit').innerText = 'Agendar plantão';
+  document.getElementById('shift-cancel').hidden = true;
+}
+function editarPlantao(id) {
+  const s = shifts.find(x => x.id === id); if (!s) return;
+  changeTab('shifts');
+  document.getElementById('shift-id').value = s.id; document.getElementById('shift-place').value = '';
+  document.getElementById('shift-date').value = s.date; document.getElementById('shift-time').value = s.time || '';
+  document.getElementById('shift-hours').value = s.hours || ''; document.getElementById('shift-desc').value = s.desc;
+  document.getElementById('shift-amount').value = s.amount; document.getElementById('shift-notes').value = s.notes || '';
+  document.getElementById('shift-form-title').innerText = 'Editar plantão';
+  document.getElementById('shift-submit').innerText = 'Salvar alterações';
+  document.getElementById('shift-cancel').hidden = false;
+  document.getElementById('shift-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function alternarPago(id) {
+  const s = shifts.find(x => x.id === id); if (!s) return;
+  s.paid = !s.paid; s.paidAt = s.paid ? hojeISO() : null;
+  sincronizarLancamentoPlantao(s);
+  salvar('shifts', shifts); salvar('finances', transactions);
+  renderShifts(); updateFinanceValues(); renderFinances(); renderJournal();
+  toast(s.paid ? `💵 ${s.desc} marcado como pago.` : `⏳ ${s.desc} voltou para "a receber".`);
+}
+function removeShift(id) {
+  const s = shifts.find(x => x.id === id); if (!s || !confirm(`Apagar o plantão ${s.desc} de ${isoParaBR(s.date)}?`)) return;
+  shifts = shifts.filter(x => x.id !== id); salvar('shifts', shifts);
+  transactions = transactions.filter(t => t.id !== id); salvar('finances', transactions);
+  renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
 }
 
 // --- TAREFAS (KEEP STYLE) ---
@@ -503,8 +728,8 @@ function renderNotes() { const list = document.getElementById('note-list'); list
 function removeNote(i) { notes.splice(i, 1); salvar('notes', notes); renderNotes(); }
 
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, finances: transactions, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.finances) salvar('finances', data.finances); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -515,7 +740,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'finances', 'tasks', 'notes', 'study'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'tasks', 'notes', 'study'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -620,12 +845,14 @@ function redesenharTudo() {
   habits = JSON.parse(localStorage.getItem('lifeos_habits')) || habits;
   habitLog = JSON.parse(localStorage.getItem('lifeos_habitlog')) || habitLog; if (!habitLog.dias) habitLog.dias = {};
   shifts = JSON.parse(localStorage.getItem('lifeos_shifts')) || [];
+  events = JSON.parse(localStorage.getItem('lifeos_events')) || [];
+  places = JSON.parse(localStorage.getItem('lifeos_places')) || places;
   transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
   tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
-  renderFocusTab(); renderShifts(); updateFinanceValues(); renderFinances(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setSyncStatus(estado, detalhe) {
@@ -672,6 +899,7 @@ setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurad
 
 // INICIALIZAÇÃO
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
-updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes();
+preencherTiposEvento(); preencherLocais();
+updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

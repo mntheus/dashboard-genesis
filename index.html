@@ -95,21 +95,54 @@
       </div>
     </div>
 
-    <!-- Módulo 1: Calendário Secundário -->
+    <!-- Módulo 1: Calendário / Agenda geral -->
     <div id="home" class="tab-content">
       <div class="card" style="margin-top: 20px;">
         <div class="calendar-header"><button id="prev-month">&lt;</button><h2 id="month-year">Mês Ano</h2><button id="next-month">&gt;</button></div>
         <div class="calendar-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
         <div id="calendar-days" class="calendar-days"></div>
+        <div class="calendar-legend">
+          <button type="button" class="mini-btn" onclick="irParaHoje()">📍 Hoje</button>
+          <span><i style="background:#f59e0b"></i>Plantão</span><span><i style="background:#38bdf8"></i>Trabalho</span><span><i style="background:#a78bfa"></i>Pessoal</span><span><i style="background:#22c55e"></i>Saúde</span><span><i style="background:#f472b6"></i>Estudo</span><span><i style="background:#fbbf24"></i>Negócios</span><span><i style="background:#fb923c"></i>Social</span>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2 id="event-form-title">Novo compromisso</h2>
+        <form id="event-form">
+          <input type="hidden" id="event-id">
+          <label for="event-title">O quê?</label><input type="text" id="event-title" placeholder="Ex: Reunião contador, Dentista, Aniversário da Ana" required>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div><label for="event-date">Data:</label><input type="date" id="event-date" required></div>
+            <div><label for="event-time">Início:</label><input type="time" id="event-time"></div>
+            <div><label for="event-end">Fim:</label><input type="time" id="event-end"></div>
+          </div>
+          <label for="event-type">Tipo:</label><select id="event-type"></select>
+          <label for="event-notes">Observações:</label><textarea id="event-notes" rows="2" placeholder="endereço, o que levar, link..."></textarea>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="event-submit" style="flex:1">Adicionar compromisso</button>
+            <button type="button" id="event-cancel" class="btn" hidden onclick="cancelarEdicaoEvento()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Compromissos</h2>
+        <div class="focus-header-tabs filter-row" id="event-filters">
+          <span class="active" onclick="filtrarEventos('proximos', this)">📅 Próximos</span>
+          <span onclick="filtrarEventos('concluidos', this)">✅ Concluídos</span>
+          <span onclick="filtrarEventos('passados', this)">🕘 Passados</span>
+          <span onclick="filtrarEventos('todos', this)">📋 Todos</span>
+        </div>
+        <ul id="event-list" class="transaction-list"></ul>
       </div>
     </div>
 
     <!-- Módulo 2: Finanças -->
     <div id="finances" class="tab-content">
-      <div class="balance-card" style="margin-top: 20px;">
+      <div class="balance-card balance-4" style="margin-top: 20px;">
         <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
         <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
         <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
+        <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color:#f59e0b">R$ 0,00</h3></div>
       </div>
       <div class="card" style="margin-top: 20px;">
         <h2>Nova Transação</h2>
@@ -118,7 +151,7 @@
           <label for="amount">Valor (R$):</label><input type="number" id="amount" step="0.01" required>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div><label for="type">Tipo:</label><select id="type"><option value="expense">Despesa</option><option value="income">Receita</option></select></div>
-            <div><label for="category">Categoria:</label><select id="category"><option value="Faturamento CNPJ">Faturamento CNPJ</option><option value="Plantão SAMU">Plantão SAMU</option><option value="Investimentos">Investimentos</option><option value="Assinaturas">Assinaturas</option><option value="Custos Fixos">Custos Fixos</option><option value="Outros">Outros</option></select></div>
+            <div><label for="category">Categoria:</label><select id="category"><option value="Faturamento CNPJ">Faturamento CNPJ</option><option value="Plantão">Plantão</option><option value="Consulta">Consulta / Particular</option><option value="Salário CLT">Salário CLT</option><option value="Investimentos">Investimentos</option><option value="Assinaturas">Assinaturas</option><option value="Custos Fixos">Custos Fixos</option><option value="Outros">Outros</option></select></div>
           </div>
           <button type="submit">Adicionar Registro</button>
         </form>
@@ -132,19 +165,50 @@
     <!-- Módulo 3: Plantões -->
     <div id="shifts" class="tab-content">
       <div class="card" style="margin-top: 20px;">
-        <h2>Agendar Novo Plantão</h2>
+        <h2 id="shift-form-title">Agendar Novo Plantão</h2>
         <form id="shift-form">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <input type="hidden" id="shift-id">
+          <label for="shift-place">Local (preenche hora, duração e valor padrão):</label>
+          <select id="shift-place" onchange="aplicarLocalPlantao()"></select>
+          <label for="shift-desc">Nome do local / tipo:</label><input type="text" id="shift-desc" placeholder="Ex: PSMI — sala de urgência" required>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label for="shift-date">Data:</label><input type="date" id="shift-date" required></div>
-            <div><label for="shift-time">Horário:</label><input type="time" id="shift-time" required></div>
+            <div><label for="shift-time">Início:</label><input type="time" id="shift-time" required></div>
+            <div><label for="shift-hours">Duração (h):</label><input type="number" id="shift-hours" step="0.5" min="0" placeholder="12"></div>
           </div>
-          <label for="shift-desc">Local / Tipo:</label><input type="text" id="shift-desc" required>
           <label for="shift-amount">Valor (R$):</label><input type="number" id="shift-amount" step="0.01" required>
-          <button type="submit">Salvar e Sincronizar</button>
+          <label for="shift-notes">Observações:</label><input type="text" id="shift-notes" placeholder="opcional: troca, cobertura, NF...">
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="shift-submit" style="flex:1">Agendar plantão</button>
+            <button type="button" id="shift-cancel" class="btn" hidden onclick="cancelarEdicaoPlantao()">Cancelar</button>
+          </div>
         </form>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Próximos Plantões</h2><ul id="shift-list" class="transaction-list"></ul>
+        <h2>Plantões</h2>
+        <div id="shift-summary" class="summary-row"></div>
+        <div class="focus-header-tabs filter-row" id="shift-filters">
+          <span class="active" onclick="filtrarPlantoes('proximos', this)">📅 Próximos</span>
+          <span onclick="filtrarPlantoes('naopagos', this)">⏳ A receber</span>
+          <span onclick="filtrarPlantoes('passados', this)">🕘 Passados</span>
+          <span onclick="filtrarPlantoes('todos', this)">📋 Todos</span>
+        </div>
+        <ul id="shift-list" class="transaction-list"></ul>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Locais de plantão</h2>
+        <p class="hint">Cadastre cada local com seus padrões. Ao escolher o local no formulário acima, hora, duração e valor já vêm preenchidos.</p>
+        <form id="place-form">
+          <input type="hidden" id="place-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
+            <div><label for="place-name">Nome:</label><input type="text" id="place-name" placeholder="PSMI" required></div>
+            <div><label for="place-time">Início:</label><input type="time" id="place-time"></div>
+            <div><label for="place-hours">Horas:</label><input type="number" id="place-hours" step="0.5" min="0" placeholder="12"></div>
+            <div><label for="place-amount">Valor (R$):</label><input type="number" id="place-amount" step="0.01" min="0"></div>
+          </div>
+          <button type="submit" id="place-submit">Adicionar local</button>
+        </form>
+        <ul id="place-list" class="transaction-list" style="margin-top: 15px;"></ul>
       </div>
     </div>
 
@@ -213,8 +277,8 @@
     <div class="modal-content">
       <div class="modal-header"><h3 id="modal-date-title">Data</h3><button class="close-modal" onclick="closeModal()">✕</button></div>
       <div class="modal-body">
-        <h4>🚑 Plantões neste dia:</h4><ul id="modal-shift-list" class="transaction-list"></ul>
-        <div class="modal-actions"><button onclick="goToAddShift()">+ Agendar Plantão Aqui</button></div>
+        <h4>📅 Neste dia:</h4><ul id="modal-shift-list" class="transaction-list"></ul>
+        <div class="modal-actions" style="display:flex; gap:10px;"><button onclick="goToAddShift()">🚑 + Plantão</button><button onclick="goToAddEvent()">📅 + Compromisso</button></div>
       </div>
     </div>
   </div>

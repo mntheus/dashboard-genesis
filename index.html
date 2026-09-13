@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Genesis</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div class="container">
+    <nav class="tabs">
+      <button class="tab-btn active" id="btn-focus" onclick="changeTab('focus')">🎯 Painel Central</button>
+      <button class="tab-btn" id="btn-home" onclick="changeTab('home')">📅 Calendário</button>
+      <button class="tab-btn" id="btn-finances" onclick="changeTab('finances')">💰 Finanças</button>
+      <button class="tab-btn" id="btn-shifts" onclick="changeTab('shifts')">🚑 Plantões</button>
+      <button class="tab-btn" id="btn-tasks" onclick="changeTab('tasks')">✅ Tarefas</button>
+      <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
+      <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config</button>
+    </nav>
+
+    <div id="focus" class="tab-content active">
+      <div class="life-os-banner"></div>
+      <div class="life-os-header">
+        <div class="avatar-placeholder">🎩</div>
+        <div style="flex: 1;">
+          <h1 style="font-size: 1.8rem; color: #fff;">Life OS</h1>
+          <button class="start-day-btn">➔ Iniciar o Dia</button>
+        </div>
+      </div>
+
+      <div class="life-os-grid">
+        <div class="left-col">
+          <div class="focus-clock-card">
+            <span class="focus-label">FOCUS</span>
+            <div id="big-clock" class="big-clock">00:00</div>
+            <div id="big-date" class="big-date">Carregando...</div>
+          </div>
+
+          <div class="card overview-card">
+            <h4 class="text-blue" style="margin-bottom: 10px;">👤 OVERVIEW</h4>
+            <p id="greeting-text" style="color: #f8fafc; font-weight: 500;">Boa tarde, Matheus</p>
+            <div class="progress-bar-bg" style="margin-top:15px;"><div class="progress-bar-fill" id="progress-fill"></div></div>
+            <span id="progress-text" style="font-size: 0.75rem; color: #64748b;">0% Concluído</span>
+          </div>
+
+          <div class="card pomodoro-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h2 style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
+              <div style="display:flex; align-items:center; gap:5px;">
+                <input type="number" id="pomodoro-input" value="50" min="1" max="180" onchange="updatePomodoroTime()">
+                <span style="font-size: 0.8rem; color:#94a3b8;">min</span>
+              </div>
+            </div>
+            <div class="timer-display" id="timer-display">50:00</div>
+            <div class="timer-controls">
+              <button onclick="startTimer()" id="btn-start-timer">▶ Iniciar</button>
+              <button onclick="pauseTimer()" id="btn-pause-timer" style="display:none;">⏸ Pausar</button>
+              <button onclick="resetTimer()">🔄 Reset</button>
+            </div>
+            <div class="study-stats">Estudo Hoje: <strong id="study-time-today">0h 0m</strong></div>
+          </div>
+        </div>
+
+        <div class="right-col">
+          <div class="card journals-section">
+            <h2 style="color: #22c55e; font-size: 1rem; margin-bottom: 15px; letter-spacing: 1px;">📔 JOURNALS</h2>
+            <div class="focus-header-tabs" id="journal-tabs" style="margin-bottom: 15px;">
+              <span class="active" onclick="changeJournalTab('day', this)">▵ day</span>
+              <span onclick="changeJournalTab('week', this)">▵ week</span>
+              <span onclick="changeJournalTab('month', this)">▵ month</span>
+              <span onclick="changeJournalTab('quarter', this)">▵ quarter</span>
+              <span onclick="changeJournalTab('year', this)">▵ year</span>
+            </div>
+            <div class="journal-cards-container" id="journal-content"></div>
+            
+            <h2 style="color: #22c55e; font-size: 1rem; margin-top: 30px; margin-bottom: 15px; letter-spacing: 1px;">🎮 HÁBITOS</h2>
+            <div class="focus-header-tabs" id="habit-tabs">
+               <span class="active" onclick="changeHabitTab('do', this)">🔄 Do</span>
+               <span onclick="changeHabitTab('todo', this)">⏹ To-do</span>
+               <span onclick="changeHabitTab('completed', this)">✅ Completed</span>
+               <span onclick="changeHabitTab('all', this)">📋 All</span>
+            </div>
+            <ul id="main-habits-list" class="habit-list-main"></ul>
+            <span class="add-new-btn" onclick="addNewHabit()">+ Novo hábito</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Módulo 1: Calendário Secundário -->
+    <div id="home" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <div class="calendar-header"><button id="prev-month">&lt;</button><h2 id="month-year">Mês Ano</h2><button id="next-month">&gt;</button></div>
+        <div class="calendar-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
+        <div id="calendar-days" class="calendar-days"></div>
+      </div>
+    </div>
+
+    <!-- Módulo 2: Finanças -->
+    <div id="finances" class="tab-content">
+      <div class="balance-card" style="margin-top: 20px;">
+        <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
+        <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
+        <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Nova Transação</h2>
+        <form id="finance-form">
+          <label for="desc">Descrição:</label><input type="text" id="desc" required>
+          <label for="amount">Valor (R$):</label><input type="number" id="amount" step="0.01" required>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label for="type">Tipo:</label><select id="type"><option value="expense">Despesa</option><option value="income">Receita</option></select></div>
+            <div><label for="category">Categoria:</label><select id="category"><option value="Faturamento CNPJ">Faturamento CNPJ</option><option value="Plantão SAMU">Plantão SAMU</option><option value="Investimentos">Investimentos</option><option value="Assinaturas">Assinaturas</option><option value="Custos Fixos">Custos Fixos</option><option value="Outros">Outros</option></select></div>
+          </div>
+          <button type="submit">Adicionar Registro</button>
+        </form>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Histórico</h2>
+        <ul id="transaction-list" class="transaction-list"></ul>
+      </div>
+    </div>
+
+    <!-- Módulo 3: Plantões -->
+    <div id="shifts" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>Agendar Novo Plantão</h2>
+        <form id="shift-form">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label for="shift-date">Data:</label><input type="date" id="shift-date" required></div>
+            <div><label for="shift-time">Horário:</label><input type="time" id="shift-time" required></div>
+          </div>
+          <label for="shift-desc">Local / Tipo:</label><input type="text" id="shift-desc" required>
+          <label for="shift-amount">Valor (R$):</label><input type="number" id="shift-amount" step="0.01" required>
+          <button type="submit">Salvar e Sincronizar</button>
+        </form>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Próximos Plantões</h2><ul id="shift-list" class="transaction-list"></ul>
+      </div>
+    </div>
+
+    <!-- Módulo 4: Tarefas -->
+    <div id="tasks" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>Nova Tarefa</h2>
+        <form id="task-form">
+          <label for="task-desc">O que precisa fazer?</label><input type="text" id="task-desc" required>
+          <button type="submit">Adicionar Tarefa</button>
+        </form>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Sua Lista (Keep Style)</h2>
+        <ul id="task-list" class="transaction-list"></ul>
+      </div>
+    </div>
+
+    <!-- Módulo 5: Notas -->
+    <div id="notes" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>Nova Anotação</h2>
+        <form id="note-form">
+          <label for="note-title">Título:</label><input type="text" id="note-title" required>
+          <label for="note-content">Conteúdo:</label><textarea id="note-content" rows="5" required></textarea>
+          <button type="submit">Salvar Nota</button>
+        </form>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Suas Notas</h2><div id="note-list" class="note-grid"></div>
+      </div>
+    </div>
+
+    <!-- Módulo 6: Config -->
+    <div id="settings" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>Segurança e Backup</h2>
+        <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+          <button onclick="exportData()" style="flex: 1; background-color: #22c55e;">⬇️ Exportar Backup</button>
+          <button onclick="document.getElementById('import-file').click()" style="flex: 1; background-color: #f59e0b;">⬆️ Importar Backup</button>
+          <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
+        </div>
+        <div id="backup-status" style="font-size: 0.9rem; color: #38bdf8; text-align: center; height: 20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="day-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header"><h3 id="modal-date-title">Data</h3><button class="close-modal" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <h4>🚑 Plantões neste dia:</h4><ul id="modal-shift-list" class="transaction-list"></ul>
+        <div class="modal-actions"><button onclick="goToAddShift()">+ Agendar Plantão Aqui</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

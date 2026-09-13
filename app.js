@@ -1194,7 +1194,8 @@ if (!syncMeta) {
   localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
 }
 SYNC_MODULOS.forEach(m => { if (syncMeta[m] === undefined) syncMeta[m] = localStorage.getItem('lifeos_' + m) ? 1 : 0; });
-let syncConfig = JSON.parse(localStorage.getItem('lifeos_sync_config')) || { url: '', token: '' };
+let syncConfig = JSON.parse(localStorage.getItem('lifeos_sync_config')) || { url: '', token: '', agenda: false };
+let agendaForcar = false; // botão "Enviar agenda agora"
 let syncPendente = localStorage.getItem('lifeos_sync_pendente') === '1';
 let syncTimer = null;
 let syncEmAndamento = false;
@@ -1237,16 +1238,28 @@ async function sincronizar() {
       if (bruto !== null) dados[m] = { updatedAt: syncMeta[m] || 0, valor: JSON.parse(bruto) };
     });
 
+    // Google Calendar: só pede o espelhamento quando plantões/compromissos mudaram desde o último envio
+    const agendaStamp = Number(localStorage.getItem('lifeos_agenda_stamp')) || 0;
+    const precisaAgenda = !!syncConfig.agenda && (agendaForcar || (syncMeta.shifts || 0) > agendaStamp || (syncMeta.events || 0) > agendaStamp);
+    agendaForcar = false;
+
     // Content-Type text/plain de propósito: evita o "preflight" CORS que o Apps Script não responde.
     const resp = await fetch(syncConfig.url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token: syncConfig.token, acao: 'push', dados })
+      body: JSON.stringify({ token: syncConfig.token, acao: 'push', dados, agenda: precisaAgenda })
     });
     const r = await resp.json();
     if (!r.ok) throw new Error(r.erro || 'resposta inválida do servidor');
 
     const mudou = aplicarRemoto(r.dados || {});
+    if (precisaAgenda) {
+      if (r.agenda && r.agenda.ok) {
+        localStorage.setItem('lifeos_agenda_stamp', String(Math.max(syncMeta.shifts || 0, syncMeta.events || 0)));
+        const a = r.agenda; setAgendaStatus('ok', `${a.total} na agenda · +${a.criados} criado${a.criados === 1 ? '' : 's'}, ${a.atualizados} atualizado${a.atualizados === 1 ? '' : 's'}, ${a.removidos} removido${a.removidos === 1 ? '' : 's'}`);
+      } else if (r.agenda) setAgendaStatus('erro', r.agenda.erro || 'falha no Calendar');
+      else setAgendaStatus('erro', 'o Code.gs implantado ainda é a versão 1 (sem agenda). Cole a v2 e crie uma nova versão da implantação.');
+    }
     // se algo foi editado enquanto a rede respondia, continua pendente
     const editouDurante = syncEditouDurante;
     marcarPendente(editouDurante);
@@ -1300,6 +1313,17 @@ function redesenharTudo() {
   renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
+function setAgendaStatus(estado, texto) {
+  const el = document.getElementById('agenda-status'); if (!el) return;
+  localStorage.setItem('lifeos_agenda_status', JSON.stringify({ estado, texto, quando: Date.now() }));
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  el.innerText = (estado === 'ok' ? '📆 Google Agenda ' + hora + ': ' : '📆 Google Agenda — erro: ') + texto;
+  el.style.color = estado === 'ok' ? '#22c55e' : '#ef4444';
+}
+function enviarAgendaAgora() {
+  if (!syncConfig.agenda) { toast('Marque "Enviar para o Google Calendar" e clique em Salvar e testar primeiro.'); return; }
+  agendaForcar = true; sincronizar();
+}
 function setSyncStatus(estado, detalhe) {
   const el = document.getElementById('sync-status');
   const dot = document.getElementById('sync-dot');
@@ -1326,7 +1350,9 @@ function salvarSyncConfig() {
     alert('A URL deve ser a do "App da Web" do Apps Script: começa com https://script.google.com/macros/s/ e termina em /exec');
     return;
   }
-  syncConfig = { url, token };
+  const agenda = !!(document.getElementById('sync-agenda') && document.getElementById('sync-agenda').checked);
+  if (agenda && !syncConfig.agenda) agendaForcar = true; // acabou de ligar: manda tudo de uma vez
+  syncConfig = { url, token, agenda };
   localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
   if (syncConfigurado()) { marcarPendente(true); sincronizar(); } else setSyncStatus('naoconfig');
 }
@@ -1335,6 +1361,9 @@ function carregarSyncConfigNaTela() {
   const u = document.getElementById('sync-url'); const t = document.getElementById('sync-token');
   if (u) u.value = syncConfig.url || '';
   if (t) t.value = syncConfig.token || '';
+  const a = document.getElementById('sync-agenda'); if (a) a.checked = !!syncConfig.agenda;
+  const st = JSON.parse(localStorage.getItem('lifeos_agenda_status') || 'null'); const el = document.getElementById('agenda-status');
+  if (st && el) { el.innerText = (st.estado === 'ok' ? '📆 Google Agenda ' + new Date(st.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ': ' : '📆 Google Agenda — erro: ') + st.texto; el.style.color = st.estado === 'ok' ? '#22c55e' : '#ef4444'; }
 }
 
 // Gatilhos automáticos: voltou a internet / voltou pro app (celular) / a cada 30 s com o app visível

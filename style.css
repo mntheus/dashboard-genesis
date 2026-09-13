@@ -243,3 +243,7 @@ button[type="submit"]:hover { background-color: #444444; }
 .color-dot.sel { outline: 2px solid #f8fafc; outline-offset: 2px; }
 #note-search { margin-bottom: 10px; }
 @media (max-width: 600px) { #note-form > div[style*="grid"] { grid-template-columns: 1fr !important; } }
+
+/* --- Fase F: Google Calendar --- */
+.agenda-box { margin-top: 16px; padding-top: 14px; border-top: 1px dashed #2a2a2a; }
+.agenda-box code { background: #121212; padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; }

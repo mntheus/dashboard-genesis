@@ -82,8 +82,10 @@ button[type="submit"]:hover { background-color: #444444; }
 .category-badge { font-size: 0.7rem; color: #38bdf8; background-color: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; width: fit-content; }
 .transaction-info { display: flex; flex-direction: column; }
 
-.note-grid { display: flex; flex-direction: column; gap: 12px; }
-.note-card { background-color: #121212; padding: 16px; border-radius: 8px; border-left: 4px solid #a855f7; display: flex; flex-direction: column; gap: 8px; border: 1px solid #2a2a2a; }
+.note-grid { column-count: 3; column-gap: 12px; }
+@media (max-width: 900px) { .note-grid { column-count: 2; } }
+@media (max-width: 560px) { .note-grid { column-count: 1; } }
+.note-card { break-inside: avoid; margin-bottom: 12px; cursor: pointer; background-color: #121212; padding: 14px; border-radius: 10px; border: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 8px; border: 1px solid #2a2a2a; }
 .note-header { display: flex; justify-content: space-between; align-items: center; }
 .note-header h4 { color: #f1f5f9; font-size: 1rem; }
 .note-body { color: #94a3b8; font-size: 0.9rem; white-space: pre-wrap; line-height: 1.4; }
@@ -220,3 +222,24 @@ button[type="submit"]:hover { background-color: #444444; }
 .mini-btn.star.on { color: #fbbf24; border-color: #fbbf24; }
 .toggle-done { cursor: pointer; }
 @media (max-width: 600px) { #task-form > div[style*="grid"], #task-more > div[style*="grid"] { grid-template-columns: 1fr !important; } }
+
+/* --- Fase E: Notas (Google Keep) --- */
+.note-card:hover { filter: brightness(1.12); }
+.note-header h4 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.note-header .item-actions { opacity: 0.45; }
+.note-card:hover .item-actions { opacity: 1; }
+.note-body { max-height: 220px; overflow: hidden; }
+.note-check { display: flex; flex-direction: column; gap: 4px; }
+.note-foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+.note-section-title { font-size: 0.8rem; color: #cbd5e1; font-weight: 600; letter-spacing: 0.5px; margin: 10px 0 8px; }
+.note-section-title small { color: #64748b; font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { font-size: 0.75rem; color: #cbd5e1; background: #121212; border: 1px solid #333; padding: 3px 9px; border-radius: 12px; cursor: pointer; }
+.chip.sel { background: #2a2a2a; color: #f8fafc; border-color: #666; }
+.chip.small { font-size: 0.68rem; padding: 1px 7px; cursor: default; }
+.color-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; }
+.color-dots { display: flex; flex-wrap: wrap; gap: 8px; }
+.color-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid; cursor: pointer; display: inline-block; }
+.color-dot.sel { outline: 2px solid #f8fafc; outline-offset: 2px; }
+#note-search { margin-bottom: 10px; }
+@media (max-width: 600px) { #note-form > div[style*="grid"] { grid-template-columns: 1fr !important; } }

@@ -293,15 +293,34 @@
     <!-- Módulo 5: Notas -->
     <div id="notes" class="tab-content">
       <div class="card" style="margin-top: 20px;">
-        <h2>Nova Anotação</h2>
+        <h2 id="note-form-title">Nova Anotação</h2>
         <form id="note-form">
-          <label for="note-title">Título:</label><input type="text" id="note-title" required>
-          <label for="note-content">Conteúdo:</label><textarea id="note-content" rows="5" required></textarea>
-          <button type="submit">Salvar Nota</button>
+          <input type="hidden" id="note-id">
+          <div class="focus-header-tabs" id="note-tipo" style="border:none; padding:0; margin-bottom: 4px;"><span class="active" onclick="alternarTipoNota('texto', this)">📝 Texto</span><span onclick="alternarTipoNota('lista', this)">☑️ Lista de verificação</span></div>
+          <label for="note-title">Título:</label><input type="text" id="note-title" placeholder="opcional">
+          <textarea id="note-content" rows="5" placeholder="Escreva sua nota..."></textarea>
+          <textarea id="note-checklist" rows="5" placeholder="Um item por linha&#10;Ex: Leite&#10;Pão&#10;Café" hidden></textarea>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: end;">
+            <div><label for="note-labels-input">Marcadores (separados por vírgula):</label><input type="text" id="note-labels-input" placeholder="trabalho, ideias, negócios"></div>
+            <label class="check-line" style="margin-bottom: 12px;"><input type="checkbox" id="note-pin"> 📌 Fixar no topo</label>
+          </div>
+          <div class="color-row"><span style="font-size:0.8rem; color:#94a3b8">Cor:</span><div id="note-colors" class="color-dots"></div></div>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="note-submit" style="flex:1">Salvar Nota</button>
+            <button type="button" id="note-cancel" class="btn" hidden onclick="cancelarEdicaoNota()">Cancelar</button>
+          </div>
         </form>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Suas Notas</h2><div id="note-list" class="note-grid"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;"><h2 style="margin:0">Suas Notas</h2><small id="note-count" class="item-date"></small></div>
+        <input type="search" id="note-search" placeholder="🔍 buscar em título, conteúdo ou marcador" oninput="buscarNotas(this.value)" style="margin: 12px 0 10px;">
+        <div class="focus-header-tabs filter-row" id="note-filters">
+          <span class="active" onclick="filtrarNotas('ativas', this)">📝 Notas</span>
+          <span onclick="filtrarNotas('fixadas', this)">📌 Fixadas</span>
+          <span onclick="filtrarNotas('arquivadas', this)">🗄️ Arquivadas</span>
+        </div>
+        <div id="note-labels" class="chips"></div>
+        <div id="note-list"></div>
       </div>
     </div>
 

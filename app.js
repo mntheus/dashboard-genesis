@@ -1043,10 +1043,132 @@ function removeTask(id) {
 /** Tarefas pendentes em ordem de importância (estrela, atrasada, hoje, com prazo, resto) — usada no Painel. */
 function tarefasPrioritarias(n) { return tasks.filter(t => !t.done).sort(ordenarTarefas).slice(0, n); }
 
-// --- NOTAS ---
-document.getElementById('note-form').addEventListener('submit', (e) => { e.preventDefault(); const t = document.getElementById('note-title').value.trim(); const c = document.getElementById('note-content').value.trim(); if (!t || !c) return; notes.push({ title: t, content: c }); salvar('notes', notes); renderNotes(); document.getElementById('note-form').reset(); });
-function renderNotes() { const list = document.getElementById('note-list'); list.innerHTML = ''; notes.forEach((n, i) => { const div = document.createElement('div'); div.classList.add('note-card'); div.innerHTML = `<div class="note-header"><h4>${esc(n.title)}</h4><button class="delete-btn" onclick="removeNote(${i})">✕</button></div><div class="note-body">${esc(n.content)}</div>`; list.appendChild(div); }); }
-function removeNote(i) { notes.splice(i, 1); salvar('notes', notes); renderNotes(); }
+// --- NOTAS (estilo Google Keep) ---
+// Modelo: { id, title, content, checklist: [{ text, done }] | null, color, labels: [], pinned, archived, createdAt, updatedAt }
+const CORES_NOTA = {
+  default: { nome: 'Padrão',  bg: '#121212', borda: '#2a2a2a' },
+  red:     { nome: 'Vermelho', bg: '#3b1f1f', borda: '#7f1d1d' },
+  orange:  { nome: 'Laranja',  bg: '#3d2a14', borda: '#9a3412' },
+  yellow:  { nome: 'Amarelo',  bg: '#3d3414', borda: '#a16207' },
+  green:   { nome: 'Verde',    bg: '#14301f', borda: '#166534' },
+  teal:    { nome: 'Azul-petróleo', bg: '#0f2f33', borda: '#0e7490' },
+  blue:    { nome: 'Azul',     bg: '#142a3d', borda: '#1d4ed8' },
+  purple:  { nome: 'Roxo',     bg: '#2a1a3d', borda: '#6d28d9' },
+  pink:    { nome: 'Rosa',     bg: '#3d1a2e', borda: '#be185d' },
+  gray:    { nome: 'Cinza',    bg: '#26272b', borda: '#52525b' }
+};
+let noteFilter = 'ativas';   // 'ativas' | 'fixadas' | 'arquivadas'
+let noteLabel = '';          // marcador selecionado
+let noteSearch = '';
+let noteColorSel = 'default';
+let noteTipo = 'texto';      // 'texto' | 'lista'
+
+function normalizarNotas() {
+  let mudou = false;
+  notes.forEach((n, i) => {
+    if (!n.id) { n.id = novoId() + i; mudou = true; }
+    if (!n.color) { n.color = 'default'; mudou = true; }
+    if (!Array.isArray(n.labels)) { n.labels = []; mudou = true; }
+    if (n.pinned === undefined) { n.pinned = false; mudou = true; }
+    if (n.archived === undefined) { n.archived = false; mudou = true; }
+    if (!n.createdAt) { n.createdAt = n.id; mudou = true; }
+  });
+  return mudou;
+}
+function corNota(c) { return CORES_NOTA[c] || CORES_NOTA.default; }
+function todosMarcadores() { const s = new Set(); notes.forEach(n => (n.labels || []).forEach(l => s.add(l))); return [...s].sort((a, b) => a.localeCompare(b)); }
+
+function renderPaletaNota() {
+  const el = document.getElementById('note-colors'); if (!el) return;
+  el.innerHTML = Object.entries(CORES_NOTA).map(([k, c]) => `<span class="color-dot ${noteColorSel === k ? 'sel' : ''}" style="background:${c.bg}; border-color:${c.borda}" title="${c.nome}" onclick="escolherCorNota('${k}')"></span>`).join('');
+}
+function escolherCorNota(k) { noteColorSel = k; renderPaletaNota(); }
+function alternarTipoNota(tipo, el) {
+  noteTipo = tipo; document.querySelectorAll('#note-tipo span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active');
+  document.getElementById('note-content').hidden = tipo !== 'texto';
+  document.getElementById('note-checklist').hidden = tipo !== 'lista';
+}
+function renderFiltrosNota() {
+  const el = document.getElementById('note-labels'); if (!el) return;
+  const labels = todosMarcadores();
+  el.innerHTML = labels.length ? `<span class="chip ${noteLabel === '' ? 'sel' : ''}" onclick="filtrarMarcador('')">todos</span>` + labels.map(l => `<span class="chip ${noteLabel === l ? 'sel' : ''}" onclick="filtrarMarcador('${esc(l).replace(/'/g, '&#39;')}')">🏷️ ${esc(l)}</span>`).join('') : '';
+}
+function filtrarMarcador(l) { noteLabel = l; renderNotes(); }
+function filtrarNotas(f, el) { noteFilter = f; document.querySelectorAll('#note-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderNotes(); }
+function buscarNotas(v) { noteSearch = (v || '').trim().toLowerCase(); renderNotes(); }
+
+document.getElementById('note-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('note-id').value;
+  const title = document.getElementById('note-title').value.trim();
+  const content = noteTipo === 'texto' ? document.getElementById('note-content').value.trim() : '';
+  const linhas = noteTipo === 'lista' ? document.getElementById('note-checklist').value.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  if (!title && !content && !linhas.length) return;
+  const labels = document.getElementById('note-labels-input').value.split(',').map(s => s.trim()).filter(Boolean);
+  const dados = { title, content, color: noteColorSel, labels, pinned: document.getElementById('note-pin').checked, updatedAt: Date.now() };
+  if (id) {
+    const n = notes.find(x => String(x.id) === id); if (!n) return;
+    const antigas = n.checklist || [];
+    Object.assign(n, dados); n.checklist = noteTipo === 'lista' ? linhas.map(l => ({ text: l, done: !!(antigas.find(a => a.text === l) || {}).done })) : null;
+  } else {
+    notes.push({ id: novoId(), archived: false, createdAt: Date.now(), checklist: noteTipo === 'lista' ? linhas.map(l => ({ text: l, done: false })) : null, ...dados });
+  }
+  salvar('notes', notes); cancelarEdicaoNota(); renderNotes();
+  toast(id ? '📝 Nota atualizada.' : '📝 Nota salva.');
+});
+function cancelarEdicaoNota() {
+  document.getElementById('note-form').reset(); document.getElementById('note-id').value = '';
+  noteColorSel = 'default'; renderPaletaNota(); alternarTipoNota('texto', document.querySelector('#note-tipo span'));
+  document.getElementById('note-form-title').innerText = 'Nova Anotação';
+  document.getElementById('note-submit').innerText = 'Salvar Nota';
+  document.getElementById('note-cancel').hidden = true;
+}
+function editarNota(id) {
+  const n = notes.find(x => x.id === id); if (!n) return;
+  changeTab('notes');
+  document.getElementById('note-id').value = n.id; document.getElementById('note-title').value = n.title || '';
+  const lista = Array.isArray(n.checklist);
+  alternarTipoNota(lista ? 'lista' : 'texto', document.querySelectorAll('#note-tipo span')[lista ? 1 : 0]);
+  document.getElementById('note-content').value = n.content || ''; document.getElementById('note-checklist').value = lista ? n.checklist.map(c => c.text).join('\n') : '';
+  document.getElementById('note-labels-input').value = (n.labels || []).join(', '); document.getElementById('note-pin').checked = !!n.pinned;
+  noteColorSel = n.color || 'default'; renderPaletaNota();
+  document.getElementById('note-form-title').innerText = 'Editar nota';
+  document.getElementById('note-submit').innerText = 'Salvar alterações';
+  document.getElementById('note-cancel').hidden = false;
+  document.getElementById('note-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('note-title').focus();
+}
+function fixarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.pinned = !n.pinned; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
+function arquivarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.archived = !n.archived; if (n.archived) n.pinned = false; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); toast(n.archived ? '🗄️ Nota arquivada.' : '📤 Nota desarquivada.'); }
+function toggleItemNota(id, i) { const n = notes.find(x => x.id === id); if (!n || !n.checklist || !n.checklist[i]) return; n.checklist[i].done = !n.checklist[i].done; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
+function removeNote(id) {
+  const n = notes.find(x => x.id === id); if (!n || !confirm(`Apagar a nota "${n.title || '(sem título)'}"?`)) return;
+  notes = notes.filter(x => x.id !== id); salvar('notes', notes); renderNotes();
+}
+
+function renderNotes() {
+  const list = document.getElementById('note-list'); if (!list) return; list.innerHTML = '';
+  renderFiltrosNota();
+  let vis = notes.filter(n => noteFilter === 'arquivadas' ? n.archived : !n.archived);
+  if (noteFilter === 'fixadas') vis = vis.filter(n => n.pinned);
+  if (noteLabel) vis = vis.filter(n => (n.labels || []).includes(noteLabel));
+  if (noteSearch) vis = vis.filter(n => `${n.title || ''} ${n.content || ''} ${(n.checklist || []).map(c => c.text).join(' ')} ${(n.labels || []).join(' ')}`.toLowerCase().includes(noteSearch));
+  vis.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  const fixadas = vis.filter(n => n.pinned); const outras = vis.filter(n => !n.pinned);
+  const cont = document.getElementById('note-count'); if (cont) cont.innerText = `${vis.length} nota${vis.length === 1 ? '' : 's'}`;
+  if (!vis.length) { list.innerHTML = '<div class="stat-line muted" style="text-align:center; padding:20px;">Nenhuma nota aqui.</div>'; return; }
+  const secao = (titulo, itens) => itens.length ? `<div class="note-section-title">${titulo} <small>${itens.length}</small></div><div class="note-grid">${itens.map(cardNota).join('')}</div>` : '';
+  list.innerHTML = (fixadas.length && noteFilter !== 'fixadas' ? secao('📌 Fixadas', fixadas) + secao('Outras', outras) : `<div class="note-grid">${vis.map(cardNota).join('')}</div>`);
+}
+function cardNota(n) {
+  const c = corNota(n.color); const lista = Array.isArray(n.checklist);
+  const feitos = lista ? n.checklist.filter(i => i.done).length : 0;
+  const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return `<div class="note-card" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
+    <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
+    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> ${esc(i.text)}</label>`).join('')}<small class="item-date">${feitos}/${n.checklist.length} feitos</small></div>` : (n.content ? `<div class="note-body">${esc(n.content)}</div>` : '')}
+    <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
+  </div>`;
+}
 
 // Config/Backup
 function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
@@ -1172,7 +1294,7 @@ function redesenharTudo() {
   recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || [];
   tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
   tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || tasklists; normalizarTarefas();
-  notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
+  notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
   renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
@@ -1222,7 +1344,8 @@ setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurad
 
 // INICIALIZAÇÃO
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
-if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
+if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes));
+renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();

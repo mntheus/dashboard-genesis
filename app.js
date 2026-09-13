@@ -14,6 +14,9 @@ function hojeBR() { return new Date().toLocaleDateString('pt-BR'); }
 function brParaISO(br) { const [d, m, y] = (br || '').split('/'); return y ? `${y}-${m}-${d}` : hojeISO(); }
 function isoParaBR(iso) { const [y, m, d] = (iso || '').split('-'); return d ? `${d}/${m}/${y}` : ''; }
 function formatCurrency(value) { return (Number(value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+let ultimoIdGerado = 0;
+/** Id único mesmo que dois itens sejam criados no mesmo milissegundo. */
+function novoId() { let id = Date.now(); if (id <= ultimoIdGerado) id = ultimoIdGerado + 1; ultimoIdGerado = id; return id; }
 
 let toastTimer = null;
 function toast(msg, ms = 3500) {
@@ -28,6 +31,7 @@ let transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
 let notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
 let events = JSON.parse(localStorage.getItem('lifeos_events')) || [];   // compromissos da agenda geral
 let recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || []; // lançamentos recorrentes (modelos)
+let tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || [{ id: 'padrao', name: 'Minhas tarefas' }]; // listas de tarefas
 let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
   { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
   { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
@@ -363,12 +367,12 @@ function renderJournal() {
 
   if (currentJournal === 'day') {
     const plHoje = pl.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    const pend = tasks.filter(t => !t.done).slice(0, 5);
+    const pend = tarefasPrioritarias(5);
     html += '<div class="stat-lists">';
     html += `<div><h5>🚑 Plantões de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     const evHoje = events.filter(e => e.date === hoje).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
     html += `<div><h5>📅 Compromissos de hoje</h5>${evHoje.length ? evHoje.map(e => `<div class="stat-line" style="${e.done ? 'opacity:0.5;text-decoration:line-through' : ''}">${tipoEvento(e.type).icone} <strong>${esc(e.time || '')}</strong> ${esc(e.title)}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
-    html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">• ${esc(t.text)}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
+    html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">${t.starred ? '★' : '•'} ${esc(t.text)}${t.due ? ` <span class="due ${prazoInfo(t).classe}">${esc(prazoInfo(t).rotulo)}</span>` : ''}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
     html += '</div>';
   }
   content.innerHTML = html;
@@ -399,6 +403,7 @@ function itensDoDia(iso) {
   const itens = [];
   shifts.filter(s => s.date === iso).forEach(s => itens.push({ kind: 'shift', time: s.time || '', obj: s }));
   events.filter(e => e.date === iso).forEach(e => itens.push({ kind: 'event', time: e.time || '', obj: e }));
+  tasks.filter(t => t.due === iso && !t.done).forEach(t => itens.push({ kind: 'task', time: '', obj: t }));
   return itens.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
 }
 
@@ -420,7 +425,7 @@ function renderCalendar() {
   for (let i = 1; i <= lastDay; i++) {
     const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
     const itens = itensDoDia(iso);
-    const cores = itens.map(it => it.kind === 'shift' ? COR_PLANTAO : tipoEvento(it.obj.type).cor);
+    const cores = itens.map(it => it.kind === 'shift' ? COR_PLANTAO : it.kind === 'task' ? COR_TAREFA : tipoEvento(it.obj.type).cor);
     const dots = cores.slice(0, 4).map(c => `<span class="day-dot" style="background:${c}"></span>`).join('') + (cores.length > 4 ? '<span class="day-more">+</span>' : '');
     daysHTML += `<div class="calendar-day ${iso === hoje ? 'today' : ''} ${itens.length ? 'has-items' : ''}" onclick="openDayModal(${year}, ${month + 1}, ${i})" title="${itens.length ? itens.length + ' item(ns)' : ''}">${i}<div class="day-dots">${dots}</div></div>`;
   }
@@ -445,6 +450,9 @@ function openDayModal(year, month, day) {
       if (it.kind === 'shift') {
         const s = it.obj;
         modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_PLANTAO}"><span style="display:flex; flex-direction:column;"><strong>🚑 ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</strong><span style="font-size:0.85rem;">${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago</span>' : '<span class="badge-unpaid">a receber</span>'}</span></span><strong style="color:${COR_PLANTAO}">${formatCurrency(s.amount)}</strong></li>`;
+      } else if (it.kind === 'task') {
+        const t = it.obj;
+        modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_TAREFA}"><span style="display:flex; flex-direction:column;"><strong>✅ Tarefa${t.starred ? ' ★' : ''}</strong><span style="font-size:0.85rem;">${esc(t.text)}</span></span><small class="category-badge">${esc(listaNome(t.list))}</small></li>`;
       } else {
         const e = it.obj; const tp = tipoEvento(e.type);
         modalList.innerHTML += `<li class="shift-item" style="border-left-color:${tp.cor}; ${e.done ? 'opacity:0.5' : ''}"><span style="display:flex; flex-direction:column;"><strong>${tp.icone} ${esc(e.time || 'dia todo')}${e.endTime ? '–' + esc(e.endTime) : ''}</strong><span style="font-size:0.85rem; ${e.done ? 'text-decoration:line-through' : ''}">${esc(e.title)}</span></span><small class="category-badge" style="color:${tp.cor}; background:${tp.cor}22">${tp.nome}</small></li>`;
@@ -477,7 +485,7 @@ document.getElementById('event-form').addEventListener('submit', (e) => {
   };
   if (!dados.title || !dados.date) return;
   if (id) { const ev = events.find(x => String(x.id) === id); if (ev) Object.assign(ev, dados); }
-  else events.push({ id: Date.now(), done: false, ...dados });
+  else events.push({ id: novoId(), done: false, ...dados });
   salvar('events', events); cancelarEdicaoEvento(); redesenharAgenda();
   toast(id ? '📅 Compromisso atualizado.' : '📅 Compromisso adicionado.');
 });
@@ -646,7 +654,7 @@ document.getElementById('finance-form').addEventListener('submit', (e) => {
   };
   if (!dados.desc || isNaN(dados.amount)) return;
   if (id) { const t = transactions.find(x => String(x.id) === id); if (t) Object.assign(t, dados); }
-  else transactions.push({ id: Date.now(), ...dados });
+  else transactions.push({ id: novoId(), ...dados });
   salvar('finances', transactions); cancelarEdicaoFin(); redesenharFinancas();
   toast(id ? '💰 Lançamento atualizado.' : '💰 Lançamento adicionado.');
 });
@@ -694,7 +702,7 @@ function gerarRecorrentes() {
     if (transactions.some(t => dataTransacao(t).startsWith(mesAtual) && (t.recurringId === r.id || (t.type === r.type && t.desc.trim().toLowerCase() === r.desc.trim().toLowerCase())))) return;
     const [y, m] = mesAtual.split('-').map(Number); const ultimo = new Date(y, m, 0).getDate();
     const dia = Math.min(Math.max(1, Number(r.day) || 1), ultimo);
-    transactions.push({ id: Date.now() + Math.floor(Math.random() * 1000), date: `${mesAtual}-${String(dia).padStart(2, '0')}`, desc: r.desc, amount: r.amount, type: r.type, category: r.category, pending: true, recurringId: r.id });
+    transactions.push({ id: novoId(), date: `${mesAtual}-${String(dia).padStart(2, '0')}`, desc: r.desc, amount: r.amount, type: r.type, category: r.category, pending: true, recurringId: r.id });
     criou++;
   });
   if (criou) { salvar('finances', transactions); toast(`🔁 ${criou} lançamento${criou > 1 ? 's' : ''} recorrente${criou > 1 ? 's' : ''} gerado${criou > 1 ? 's' : ''} para ${nomeMes(mesAtual)}.`, 5000); }
@@ -711,7 +719,7 @@ document.getElementById('rec-form').addEventListener('submit', (e) => {
   const dados = { desc: document.getElementById('rec-desc').value.trim(), amount: parseFloat(document.getElementById('rec-amount').value), type: document.getElementById('rec-type').value, category: document.getElementById('rec-category').value, day: parseInt(document.getElementById('rec-day').value) || 1 };
   if (!dados.desc || isNaN(dados.amount)) return;
   if (id) { const r = recurring.find(x => String(x.id) === id); if (r) Object.assign(r, dados); }
-  else recurring.push({ id: Date.now(), active: true, since: hojeISO().slice(0, 7), ...dados });
+  else recurring.push({ id: novoId(), active: true, since: hojeISO().slice(0, 7), ...dados });
   salvar('recurring', recurring); cancelarEdicaoRec(); gerarRecorrentes(); redesenharFinancas();
 });
 function cancelarEdicaoRec() { document.getElementById('rec-form').reset(); document.getElementById('rec-id').value = ''; preencherCategoriasRec(); document.getElementById('rec-submit').innerText = 'Adicionar recorrente'; document.getElementById('rec-cancel').hidden = true; }
@@ -827,7 +835,7 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
   if (!dados.date || !dados.time || !dados.desc || isNaN(dados.amount)) return;
   let s;
   if (id) { s = shifts.find(x => String(x.id) === id); if (!s) return; Object.assign(s, dados); }
-  else { s = { id: Date.now(), paid: false, paidAt: null, ...dados }; shifts.push(s); }
+  else { s = { id: novoId(), paid: false, paidAt: null, ...dados }; shifts.push(s); }
   sincronizarLancamentoPlantao(s);
   salvar('shifts', shifts); salvar('finances', transactions);
   cancelarEdicaoPlantao(); renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
@@ -866,34 +874,174 @@ function removeShift(id) {
   renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
 }
 
-// --- TAREFAS (KEEP STYLE) ---
+// --- TAREFAS (estilo Google Tasks) ---
+// Modelo: { id, text, done, doneAt, list, due: 'aaaa-mm-dd' | '', notes, starred, subtasks: [{ text, done }], createdAt }
+// Listas: tasklists = [{ id, name }]  (a lista 'padrao' sempre existe)
+const COR_TAREFA = '#38bdf8';
+let taskView = 'padrao';      // id da lista em exibição, ou '__star' (com estrela) ou '__all' (todas)
+let taskShowDone = false;
+let taskExpanded = {};        // id -> subtarefas abertas?
+
+function normalizarTarefas() {
+  let mudou = false;
+  tasks.forEach((t, i) => {
+    if (!t.id) { t.id = Date.now() + i; mudou = true; }
+    if (!t.list || !tasklists.some(l => l.id === t.list)) { t.list = 'padrao'; mudou = true; }
+    if (!Array.isArray(t.subtasks)) { t.subtasks = []; mudou = true; }
+  });
+  if (!tasklists.some(l => l.id === 'padrao')) { tasklists.unshift({ id: 'padrao', name: 'Minhas tarefas' }); mudou = true; }
+  return mudou;
+}
+function listaNome(id) { const l = tasklists.find(x => x.id === id); return l ? l.name : 'Minhas tarefas'; }
+function tarefasVisiveis() {
+  if (taskView === '__star') return tasks.filter(t => t.starred);
+  if (taskView === '__all') return [...tasks];
+  return tasks.filter(t => t.list === taskView);
+}
+function prazoInfo(t) {
+  if (!t.due) return { classe: '', rotulo: '' };
+  const hoje = hojeISO(); const r = rotuloData(t.due);
+  if (t.done) return { classe: 'due-done', rotulo: r };
+  if (t.due < hoje) return { classe: 'due-late', rotulo: 'Atrasada · ' + r };
+  if (t.due === hoje) return { classe: 'due-today', rotulo: 'Hoje' };
+  return { classe: 'due-soon', rotulo: r };
+}
+function ordenarTarefas(a, b) {
+  if (!!a.starred !== !!b.starred) return a.starred ? -1 : 1;
+  if (!!a.due !== !!b.due) return a.due ? -1 : 1;
+  if (a.due !== b.due) return a.due.localeCompare(b.due);
+  return (a.createdAt || a.id || 0) - (b.createdAt || b.id || 0);
+}
+
+function renderTaskLists() {
+  const el = document.getElementById('task-lists'); if (!el) return;
+  const cont = id => tasks.filter(t => !t.done && (id === '__star' ? t.starred : id === '__all' ? true : t.list === id)).length;
+  const aba = (id, nome, icone) => `<span class="${taskView === id ? 'active' : ''}" onclick="verLista('${id}', this)">${icone} ${esc(nome)} <small>${cont(id)}</small></span>`;
+  el.innerHTML = aba('__star', 'Com estrela', '⭐') + tasklists.map(l => aba(l.id, l.name, '📋')).join('') + aba('__all', 'Todas', '🗂️') +
+    `<span class="add-list" onclick="novaLista()">+ Nova lista</span>`;
+  const tools = document.getElementById('task-list-tools');
+  if (tools) tools.innerHTML = (taskView !== '__star' && taskView !== '__all') ? `<button class="mini-btn" onclick="renomearLista('${taskView}')" title="Renomear lista">✎ ${esc(listaNome(taskView))}</button>${taskView !== 'padrao' ? `<button class="mini-btn" onclick="apagarLista('${taskView}')" title="Apagar lista">✕</button>` : ''}` : '';
+  const sel = document.getElementById('task-list-select'); if (sel) sel.innerHTML = tasklists.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  if (sel && !document.getElementById('task-id').value) sel.value = (taskView !== '__star' && taskView !== '__all') ? taskView : 'padrao';
+}
+function verLista(id, el) { taskView = id; renderTaskLists(); renderTasks(); }
+function novaLista() {
+  const nome = prompt('Nome da nova lista (ex: Trabalho, Casa, Estudos, Negócios):'); if (!nome || !nome.trim()) return;
+  const l = { id: 'l' + novoId(), name: nome.trim() }; tasklists.push(l); salvar('tasklists', tasklists); taskView = l.id; renderTaskLists(); renderTasks();
+}
+function renomearLista(id) {
+  const l = tasklists.find(x => x.id === id); if (!l) return;
+  const nome = prompt('Novo nome da lista:', l.name); if (!nome || !nome.trim()) return;
+  l.name = nome.trim(); salvar('tasklists', tasklists); renderTaskLists();
+}
+function apagarLista(id) {
+  if (id === 'padrao') return;
+  const n = tasks.filter(t => t.list === id).length;
+  if (!confirm(`Apagar a lista "${listaNome(id)}"?${n ? ` As ${n} tarefa(s) dela vão para "${listaNome('padrao')}".` : ''}`)) return;
+  tasks.forEach(t => { if (t.list === id) t.list = 'padrao'; });
+  tasklists = tasklists.filter(l => l.id !== id); salvar('tasklists', tasklists); salvar('tasks', tasks);
+  taskView = 'padrao'; renderTaskLists(); renderTasks();
+}
+
 document.getElementById('task-form').addEventListener('submit', (e) => {
-  e.preventDefault(); const desc = document.getElementById('task-desc').value.trim();
-  if (!desc) return; tasks.push({ text: desc, done: false }); salvar('tasks', tasks); renderTasks(); renderJournal(); atualizarSaudacao(); document.getElementById('task-form').reset();
+  e.preventDefault();
+  const id = document.getElementById('task-id').value;
+  const text = document.getElementById('task-desc').value.trim(); if (!text) return;
+  const dados = {
+    text, due: document.getElementById('task-due').value || '',
+    list: document.getElementById('task-list-select').value || 'padrao',
+    notes: document.getElementById('task-notes').value.trim(),
+    starred: document.getElementById('task-star').checked
+  };
+  const linhas = document.getElementById('task-subtasks').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (id) {
+    const t = tasks.find(x => String(x.id) === id); if (!t) return;
+    const antigas = t.subtasks || [];
+    Object.assign(t, dados); t.subtasks = linhas.map(l => ({ text: l, done: !!(antigas.find(a => a.text === l) || {}).done }));
+  } else {
+    tasks.push({ id: novoId(), done: false, createdAt: Date.now(), subtasks: linhas.map(l => ({ text: l, done: false })), ...dados });
+    if (taskView !== '__star' && taskView !== '__all' && dados.list !== taskView) { taskView = dados.list; }
+  }
+  salvar('tasks', tasks); cancelarEdicaoTarefa(); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderCalendar();
+  toast(id ? '✅ Tarefa atualizada.' : '✅ Tarefa adicionada.');
 });
+function cancelarEdicaoTarefa() {
+  document.getElementById('task-form').reset(); document.getElementById('task-id').value = '';
+  if (taskView !== '__star' && taskView !== '__all') document.getElementById('task-list-select').value = taskView;
+  document.getElementById('task-form-title').innerText = 'Nova Tarefa';
+  document.getElementById('task-submit').innerText = 'Adicionar Tarefa';
+  document.getElementById('task-cancel').hidden = true;
+  document.getElementById('task-more').open = false;
+}
+function editarTarefa(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  changeTab('tasks');
+  document.getElementById('task-id').value = t.id; document.getElementById('task-desc').value = t.text; document.getElementById('task-due').value = t.due || '';
+  document.getElementById('task-list-select').value = t.list || 'padrao'; document.getElementById('task-notes').value = t.notes || '';
+  document.getElementById('task-star').checked = !!t.starred; document.getElementById('task-subtasks').value = (t.subtasks || []).map(s => s.text).join('\n');
+  document.getElementById('task-form-title').innerText = 'Editar tarefa';
+  document.getElementById('task-submit').innerText = 'Salvar alterações';
+  document.getElementById('task-cancel').hidden = false;
+  document.getElementById('task-more').open = !!(t.notes || (t.subtasks || []).length);
+  document.getElementById('task-desc').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('task-desc').focus();
+}
+
 function renderTasks() {
   const list = document.getElementById('task-list'); list.innerHTML = '';
-  const sortedTasks = [...tasks].map((t, i) => ({ ...t, originalIndex: i })).sort((a, b) => a.done === b.done ? 0 : a.done ? 1 : -1);
-
-  sortedTasks.forEach(t => {
-    const li = document.createElement('li');
-    li.style.borderLeftColor = '#38bdf8';
-    if (t.done) li.style.opacity = '0.5';
-
-    li.innerHTML = `<div style="display:flex; align-items:center; gap:10px; width:100%;">
-      <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.originalIndex})" style="accent-color: #38bdf8;">
-      <span style="${t.done ? 'text-decoration: line-through;' : ''}; cursor: pointer; flex:1;" onclick="toggleTask(${t.originalIndex})">${esc(t.text)}</span>
-    </div>
-    <button class="delete-btn" onclick="removeTask(${t.originalIndex})">✕</button>`;
-    list.appendChild(li);
+  const hoje = hojeISO();
+  const vis = tarefasVisiveis();
+  const abertas = vis.filter(t => !t.done).sort(ordenarTarefas);
+  const feitas = vis.filter(t => t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
+  const grupos = [
+    ['⚠️ Atrasadas', abertas.filter(t => t.due && t.due < hoje)],
+    ['📌 Hoje', abertas.filter(t => t.due === hoje)],
+    ['📅 Próximas', abertas.filter(t => t.due && t.due > hoje)],
+    ['📝 Sem prazo', abertas.filter(t => !t.due)]
+  ];
+  if (!abertas.length && !feitas.length) { list.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nada por aqui. Adicione uma tarefa acima.</li>'; return; }
+  grupos.forEach(([titulo, itens]) => {
+    if (!itens.length) return;
+    list.innerHTML += `<li class="date-sep">${titulo} <small>${itens.length}</small></li>`;
+    itens.forEach(t => list.innerHTML += linhaTarefa(t));
   });
+  if (feitas.length) {
+    list.innerHTML += `<li class="date-sep toggle-done" onclick="taskShowDone = !taskShowDone; renderTasks();">${taskShowDone ? '▾' : '▸'} Concluídas <small>${feitas.length}</small></li>`;
+    if (taskShowDone) feitas.forEach(t => list.innerHTML += linhaTarefa(t));
+  }
 }
-function toggleTask(i) {
-  tasks[i].done = !tasks[i].done;
-  if (tasks[i].done) tasks[i].doneAt = new Date().toISOString(); else delete tasks[i].doneAt;
-  salvar('tasks', tasks); renderTasks(); renderJournal(); atualizarSaudacao();
+function linhaTarefa(t) {
+  const p = prazoInfo(t); const subs = t.subtasks || []; const feitasSub = subs.filter(s => s.done).length; const aberto = !!taskExpanded[t.id];
+  return `<li class="task-item ${t.done ? 'done' : ''}" style="border-left-color:${t.starred ? '#fbbf24' : COR_TAREFA}">
+    <div class="task-main">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: #38bdf8;">
+      <div class="task-body" onclick="editarTarefa(${t.id})">
+        <span class="task-text">${esc(t.text)}</span>
+        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${t.notes ? `<span class="task-notes">${esc(t.notes)}</span>` : ''}</div>
+      </div>
+      <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
+    </div>
+    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
+  </li>`;
 }
-function removeTask(i) { tasks.splice(i, 1); salvar('tasks', tasks); renderTasks(); renderJournal(); atualizarSaudacao(); }
+function toggleTask(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  t.done = !t.done;
+  if (t.done) { t.doneAt = new Date().toISOString(); (t.subtasks || []).forEach(s => s.done = true); } else delete t.doneAt;
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderCalendar();
+}
+function toggleSubtask(id, i) {
+  const t = tasks.find(x => x.id === id); if (!t || !t.subtasks[i]) return;
+  t.subtasks[i].done = !t.subtasks[i].done;
+  if (t.subtasks.every(s => s.done) && !t.done) { t.done = true; t.doneAt = new Date().toISOString(); toast('✅ Todas as subtarefas feitas — tarefa concluída.'); }
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao();
+}
+function alternarEstrela(id) { const t = tasks.find(x => x.id === id); if (!t) return; t.starred = !t.starred; salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); }
+function removeTask(id) {
+  const t = tasks.find(x => x.id === id); if (!t || !confirm(`Apagar "${t.text}"?`)) return;
+  tasks = tasks.filter(x => x.id !== id); salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderCalendar();
+}
+/** Tarefas pendentes em ordem de importância (estrela, atrasada, hoje, com prazo, resto) — usada no Painel. */
+function tarefasPrioritarias(n) { return tasks.filter(t => !t.done).sort(ordenarTarefas).slice(0, n); }
 
 // --- NOTAS ---
 document.getElementById('note-form').addEventListener('submit', (e) => { e.preventDefault(); const t = document.getElementById('note-title').value.trim(); const c = document.getElementById('note-content').value.trim(); if (!t || !c) return; notes.push({ title: t, content: c }); salvar('notes', notes); renderNotes(); document.getElementById('note-form').reset(); });
@@ -901,8 +1049,8 @@ function renderNotes() { const list = document.getElementById('note-list'); list
 function removeNote(i) { notes.splice(i, 1); salvar('notes', notes); renderNotes(); }
 
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -913,7 +1061,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'notes', 'study'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -1023,10 +1171,11 @@ function redesenharTudo() {
   transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
   recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || [];
   tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
+  tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || tasklists; normalizarTarefas();
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setSyncStatus(estado, detalhe) {
@@ -1073,7 +1222,8 @@ setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurad
 
 // INICIALIZAÇÃO
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
-preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
+if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
+renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

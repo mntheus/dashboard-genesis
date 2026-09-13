@@ -261,15 +261,32 @@
     <!-- Módulo 4: Tarefas -->
     <div id="tasks" class="tab-content">
       <div class="card" style="margin-top: 20px;">
-        <h2>Nova Tarefa</h2>
+        <div class="focus-header-tabs task-tabs" id="task-lists"></div>
+        <div id="task-list-tools" class="task-tools"></div>
+        <h2 id="task-form-title" style="margin-top: 14px;">Nova Tarefa</h2>
         <form id="task-form">
-          <label for="task-desc">O que precisa fazer?</label><input type="text" id="task-desc" required>
-          <button type="submit">Adicionar Tarefa</button>
+          <input type="hidden" id="task-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+            <div><label for="task-desc">O que precisa fazer?</label><input type="text" id="task-desc" required></div>
+            <div><label for="task-due">Prazo (opcional):</label><input type="date" id="task-due"></div>
+          </div>
+          <details id="task-more" class="task-more">
+            <summary>Mais detalhes (lista, estrela, observações, subtarefas)</summary>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div><label for="task-list-select">Lista:</label><select id="task-list-select"></select></div>
+              <div><label class="check-line" style="margin-top: 26px;"><input type="checkbox" id="task-star"> ⭐ Com estrela (aparece primeiro)</label></div>
+            </div>
+            <label for="task-notes">Observações:</label><input type="text" id="task-notes" placeholder="opcional">
+            <label for="task-subtasks">Subtarefas (uma por linha):</label><textarea id="task-subtasks" rows="3" placeholder="Ligar pro contador&#10;Separar documentos&#10;Enviar por e-mail"></textarea>
+          </details>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="task-submit" style="flex:1">Adicionar Tarefa</button>
+            <button type="button" id="task-cancel" class="btn" hidden onclick="cancelarEdicaoTarefa()">Cancelar</button>
+          </div>
         </form>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Sua Lista (Keep Style)</h2>
-        <ul id="task-list" class="transaction-list"></ul>
+        <ul id="task-list" class="transaction-list task-list"></ul>
       </div>
     </div>
 

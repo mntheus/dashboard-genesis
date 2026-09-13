@@ -32,6 +32,10 @@ let notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
 let events = JSON.parse(localStorage.getItem('lifeos_events')) || [];   // compromissos da agenda geral
 let recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || []; // lançamentos recorrentes (modelos)
 let tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || [{ id: 'padrao', name: 'Minhas tarefas' }]; // listas de tarefas
+let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
+let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
+let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
+let ritual = JSON.parse(localStorage.getItem('lifeos_ritual')) || { day: '', time: '', roadmap: [], weekStart: '', done: [] }; // estudo semanal de negócios
 let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
   { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
   { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
@@ -133,7 +137,8 @@ function resetTimer() {
 function completePomodoro() {
   const mins = Math.round(pomodoroDuration / 60);
   studyData.minutes += mins; salvar('study', studyData);
-  updateStudyStats(); renderJournal(); resetTimer();
+  const topicSel = document.getElementById('pomodoro-topic'); registrarSessao(topicSel && topicSel.value ? Number(topicSel.value) : '', mins, 'Pomodoro');
+  updateStudyStats(); renderJournal(); redesenharEstudos(); resetTimer();
   tocarAlarme();
   toast(`⏱ Sessão concluída! +${mins} min de estudo registrados.`, 6000);
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -374,6 +379,20 @@ function renderJournal() {
     html += `<div><h5>📅 Compromissos de hoje</h5>${evHoje.length ? evHoje.map(e => `<div class="stat-line" style="${e.done ? 'opacity:0.5;text-decoration:line-through' : ''}">${tipoEvento(e.type).icone} <strong>${esc(e.time || '')}</strong> ${esc(e.title)}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">${t.starred ? '★' : '•'} ${esc(t.text)}${t.due ? ` <span class="due ${prazoInfo(t).classe}">${esc(prazoInfo(t).rotulo)}</span>` : ''}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
     html += '</div>';
+  }
+  if (currentJournal === 'week' || currentJournal === 'month') {
+    const lista = [...pl].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+    const evs = events.filter(e => dentro(e.date) && !e.done).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
+    html += '<div class="stat-lists">';
+    html += `<div><h5>🚑 Plantões ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += `<div><h5>📅 Compromissos ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${evs.length ? evs.slice(0, 12).map(e => `<div class="stat-line ${e.date < hoje ? 'muted' : ''}">${tipoEvento(e.type).icone} <strong>${diaSemanaCurto(e.date)} ${isoParaBR(e.date).slice(0, 5)}</strong> · ${esc(e.time || '')} ${esc(e.title)}</div>`).join('') + (evs.length > 12 ? `<div class="stat-line muted">+${evs.length - 12} mais</div>` : '') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += '</div>';
+  }
+  if (currentJournal === 'quarter' || currentJournal === 'year') {
+    const porMes = {};
+    pl.forEach(s => { const m = s.date.slice(0, 7); porMes[m] = porMes[m] || { n: 0, valor: 0, pagos: 0 }; porMes[m].n++; porMes[m].valor += Number(s.amount) || 0; if (s.paid) porMes[m].pagos += Number(s.amount) || 0; });
+    const meses = Object.keys(porMes).sort();
+    html += `<div class="stat-lists"><div><h5>🚑 Plantões por mês</h5>${meses.length ? meses.map(m => `<div class="stat-line"><strong>${nomeMes(m).slice(0, 3)}</strong> · ${porMes[m].n} plant${porMes[m].n === 1 ? 'ão' : 'ões'} · <span style="color:#f59e0b">${formatCurrency(porMes[m].valor)}</span> <small style="color:#22c55e">(${formatCurrency(porMes[m].pagos)} pago)</small></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div></div>`;
   }
   content.innerHTML = html;
 }
@@ -1170,9 +1189,216 @@ function cardNota(n) {
   </div>`;
 }
 
+// ============================================================================
+// ESTUDOS (módulo H)
+// topics:    [{ id, name, area, weeklyGoalMin, color, archived, createdAt }]
+// materials: [{ id, topicId, title, kind, status, progress, link, notes, createdAt, updatedAt }]
+// sessions:  [{ id, topicId, date, minutes, note, createdAt }]   (Pomodoro e lançamentos manuais)
+// ritual:    { day, time, roadmap: [texto], weekStart, done: [bool], eventKey }  (estudo semanal de negócios)
+// ============================================================================
+const AREAS_ESTUDO = { negocios: '📈 Negócios', investimentos: '💰 Investimentos', medicina: '🩺 Medicina', idiomas: '🗣️ Idiomas', tecnologia: '💻 Tecnologia', pessoal: '🌱 Desenvolvimento pessoal', outro: '📌 Outro' };
+const TIPOS_MATERIAL = { livro: '📖 Livro', curso: '🎓 Curso', artigo: '📄 Artigo', video: '🎬 Vídeo', podcast: '🎧 Podcast', outro: '📌 Outro' };
+const STATUS_MATERIAL = { afazer: 'A fazer', andamento: 'Em andamento', concluido: 'Concluído' };
+const CORES_TEMA = ['#38bdf8', '#a78bfa', '#22c55e', '#f472b6', '#fbbf24', '#fb923c', '#ef4444', '#94a3b8'];
+let materialFilter = 'andamento';
+
+function temaNome(id) { const t = topics.find(x => x.id === id); return t ? t.name : 'Geral'; }
+function temaCor(id) { const t = topics.find(x => x.id === id); return t ? t.color : '#64748b'; }
+function inicioSemanaISO(d) { const x = d ? new Date(d) : new Date(); x.setDate(x.getDate() - x.getDay()); return isoDe(x); }
+function minutosNaSemana(topicId) {
+  const ini = inicioSemanaISO(); const fim = new Date(); fim.setDate(fim.getDate() + (6 - fim.getDay())); const fimISO = isoDe(fim);
+  return sessions.filter(s => s.date >= ini && s.date <= fimISO && (topicId === undefined || s.topicId === topicId)).reduce((a, s) => a + (Number(s.minutes) || 0), 0);
+}
+function fmtMin(m) { m = Math.round(m || 0); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; }
+
+/** Registra minutos de estudo (Pomodoro ou manual) num tema e no total diário. */
+function registrarSessao(topicId, minutes, note, date) {
+  const d = date || hojeISO();
+  sessions.push({ id: novoId(), topicId: topicId || '', date: d, minutes: Number(minutes) || 0, note: (note || '').trim(), createdAt: Date.now() });
+  salvar('sessions', sessions);
+  if (date && date !== hojeISO()) { studyData.dias[d] = (studyData.dias[d] || 0) + Number(minutes); salvar('study', studyData); }
+}
+function streakEstudo() {
+  const dias = new Set(sessions.map(s => s.date)); Object.entries(studyData.dias).forEach(([d, m]) => { if (m > 0) dias.add(d); }); if (studyData.minutes > 0) dias.add(hojeISO());
+  let n = 0; const d = new Date(); if (!dias.has(isoDe(d))) d.setDate(d.getDate() - 1);
+  for (let i = 0; i < 400; i++) { if (dias.has(isoDe(d))) { n++; d.setDate(d.getDate() - 1); } else break; }
+  return n;
+}
+
+// --- Temas ---
+function preencherTemasSelects() {
+  const ativos = topics.filter(t => !t.archived);
+  const opts = ativos.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  ['pomodoro-topic', 'session-topic', 'material-topic'].forEach(id => { const s = document.getElementById(id); if (!s) return; const v = s.value; s.innerHTML = (id === 'pomodoro-topic' ? '<option value="">📚 Geral</option>' : '') + opts; if ([...s.options].some(o => o.value === v)) s.value = v; });
+  const areas = document.getElementById('topic-area'); if (areas && !areas.options.length) areas.innerHTML = Object.entries(AREAS_ESTUDO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const kinds = document.getElementById('material-kind'); if (kinds && !kinds.options.length) kinds.innerHTML = Object.entries(TIPOS_MATERIAL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const st = document.getElementById('material-status'); if (st && !st.options.length) st.innerHTML = Object.entries(STATUS_MATERIAL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+}
+document.getElementById('topic-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('topic-id').value;
+  const dados = { name: document.getElementById('topic-name').value.trim(), area: document.getElementById('topic-area').value, weeklyGoalMin: Math.round((parseFloat(document.getElementById('topic-goal').value) || 0) * 60) };
+  if (!dados.name) return;
+  if (id) { const t = topics.find(x => String(x.id) === id); if (t) Object.assign(t, dados); }
+  else topics.push({ id: novoId(), color: CORES_TEMA[topics.length % CORES_TEMA.length], archived: false, createdAt: Date.now(), ...dados });
+  salvar('topics', topics); cancelarEdicaoTema(); redesenharEstudos();
+  toast(id ? '📚 Tema atualizado.' : '📚 Tema criado.');
+});
+function cancelarEdicaoTema() { document.getElementById('topic-form').reset(); document.getElementById('topic-id').value = ''; document.getElementById('topic-submit').innerText = 'Adicionar tema'; document.getElementById('topic-cancel').hidden = true; }
+function editarTema(id) { const t = topics.find(x => x.id === id); if (!t) return; document.getElementById('topic-id').value = t.id; document.getElementById('topic-name').value = t.name; document.getElementById('topic-area').value = t.area || 'outro'; document.getElementById('topic-goal').value = t.weeklyGoalMin ? (t.weeklyGoalMin / 60) : ''; document.getElementById('topic-submit').innerText = 'Salvar tema'; document.getElementById('topic-cancel').hidden = false; document.getElementById('topic-name').focus(); }
+function arquivarTema(id) { const t = topics.find(x => x.id === id); if (!t) return; t.archived = !t.archived; salvar('topics', topics); redesenharEstudos(); }
+function removerTema(id) {
+  const t = topics.find(x => x.id === id); if (!t) return;
+  const n = materials.filter(m => m.topicId === id).length + sessions.filter(s => s.topicId === id).length;
+  if (!confirm(`Apagar o tema "${t.name}"?${n ? ` ${n} material(is)/sessão(ões) ficam como "Geral".` : ''}`)) return;
+  materials.forEach(m => { if (m.topicId === id) m.topicId = ''; }); sessions.forEach(s => { if (s.topicId === id) s.topicId = ''; });
+  topics = topics.filter(x => x.id !== id); salvar('topics', topics); salvar('materials', materials); salvar('sessions', sessions); redesenharEstudos();
+}
+function renderTemas() {
+  const ul = document.getElementById('topic-list'); if (!ul) return; ul.innerHTML = '';
+  if (!topics.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Crie seu primeiro tema — ex: "Gestão de clínicas", "Renda fixa", "Inglês".</li>'; return; }
+  topics.forEach(t => {
+    const min = minutosNaSemana(t.id); const meta = t.weeklyGoalMin || 0; const pct = meta ? Math.min(100, Math.round(min / meta * 100)) : 0;
+    const mats = materials.filter(m => m.topicId === t.id); const emAnd = mats.filter(m => m.status === 'andamento').length;
+    ul.innerHTML += `<li class="topic-item" style="border-left-color:${t.color}; ${t.archived ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>${esc(t.name)} <small class="item-date">${AREAS_ESTUDO[t.area] || ''}${t.archived ? ' · arquivado' : ''}</small></span>
+        <div class="cat-bar" style="margin-top:6px"><div style="width:${pct}%; background:${t.color}"></div></div>
+        <small class="item-date">${fmtMin(min)} nesta semana${meta ? ` de ${fmtMin(meta)} (${pct}%)` : ' · sem meta'} · ${mats.length} material${mats.length === 1 ? '' : 'is'}${emAnd ? `, ${emAnd} em andamento` : ''}</small></div>
+      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarTema(${t.id})">✎</button><button class="mini-btn" title="${t.archived ? 'Reativar' : 'Arquivar'}" onclick="arquivarTema(${t.id})">${t.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removerTema(${t.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Materiais ---
+document.getElementById('material-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('material-id').value;
+  const dados = { title: document.getElementById('material-title').value.trim(), topicId: Number(document.getElementById('material-topic').value) || '', kind: document.getElementById('material-kind').value, status: document.getElementById('material-status').value, progress: Math.max(0, Math.min(100, parseInt(document.getElementById('material-progress').value) || 0)), link: document.getElementById('material-link').value.trim(), notes: document.getElementById('material-notes').value.trim(), updatedAt: Date.now() };
+  if (!dados.title) return;
+  if (dados.status === 'concluido') dados.progress = 100;
+  if (id) { const m = materials.find(x => String(x.id) === id); if (m) Object.assign(m, dados); }
+  else materials.push({ id: novoId(), createdAt: Date.now(), ...dados });
+  salvar('materials', materials); cancelarEdicaoMaterial(); redesenharEstudos();
+  toast(id ? '📖 Material atualizado.' : '📖 Material adicionado.');
+});
+function cancelarEdicaoMaterial() { document.getElementById('material-form').reset(); document.getElementById('material-id').value = ''; document.getElementById('material-submit').innerText = 'Adicionar material'; document.getElementById('material-cancel').hidden = true; }
+function editarMaterial(id) {
+  const m = materials.find(x => x.id === id); if (!m) return;
+  document.getElementById('material-id').value = m.id; document.getElementById('material-title').value = m.title; document.getElementById('material-topic').value = m.topicId || ''; document.getElementById('material-kind').value = m.kind || 'outro'; document.getElementById('material-status').value = m.status || 'afazer'; document.getElementById('material-progress').value = m.progress || 0; document.getElementById('material-link').value = m.link || ''; document.getElementById('material-notes').value = m.notes || '';
+  document.getElementById('material-submit').innerText = 'Salvar material'; document.getElementById('material-cancel').hidden = false; document.getElementById('material-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('material-title').focus();
+}
+function avancarMaterial(id) {
+  const m = materials.find(x => x.id === id); if (!m) return;
+  m.status = m.status === 'afazer' ? 'andamento' : m.status === 'andamento' ? 'concluido' : 'afazer';
+  if (m.status === 'concluido') m.progress = 100; if (m.status === 'afazer') m.progress = 0; m.updatedAt = Date.now();
+  salvar('materials', materials); redesenharEstudos();
+}
+function progressoMaterial(id, v) { const m = materials.find(x => x.id === id); if (!m) return; m.progress = Math.max(0, Math.min(100, parseInt(v) || 0)); if (m.progress === 100) m.status = 'concluido'; else if (m.progress > 0 && m.status === 'afazer') m.status = 'andamento'; m.updatedAt = Date.now(); salvar('materials', materials); redesenharEstudos(); }
+function removerMaterial(id) { const m = materials.find(x => x.id === id); if (!m || !confirm(`Apagar "${m.title}"?`)) return; materials = materials.filter(x => x.id !== id); salvar('materials', materials); redesenharEstudos(); }
+/** Revisão espaçada: cria 3 tarefas (1, 7 e 30 dias) na lista "Estudos". */
+function agendarRevisao(id) {
+  const m = materials.find(x => x.id === id); if (!m) return;
+  let lista = tasklists.find(l => l.name.toLowerCase() === 'estudos'); if (!lista) { lista = { id: 'l' + novoId(), name: 'Estudos' }; tasklists.push(lista); salvar('tasklists', tasklists); }
+  [1, 7, 30].forEach(n => { const d = new Date(); d.setDate(d.getDate() + n); tasks.push({ id: novoId(), text: `🔁 Revisar: ${m.title} (${n === 1 ? '1 dia' : n + ' dias'})`, done: false, list: lista.id, due: isoDe(d), notes: temaNome(m.topicId), starred: false, subtasks: [], createdAt: Date.now() }); });
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderCalendar(); renderJournal(); atualizarSaudacao();
+  toast(`🔁 Revisões de "${m.title}" agendadas em Tarefas (1, 7 e 30 dias).`, 5000);
+}
+function filtrarMateriais(f, el) { materialFilter = f; document.querySelectorAll('#material-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderMateriais(); }
+function renderMateriais() {
+  const ul = document.getElementById('material-list'); if (!ul) return; ul.innerHTML = '';
+  let lista = [...materials]; if (materialFilter !== 'todos') lista = lista.filter(m => m.status === materialFilter);
+  lista.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum material aqui.</li>'; return; }
+  lista.forEach(m => {
+    const cor = temaCor(m.topicId);
+    ul.innerHTML += `<li class="material-item" style="border-left-color:${cor}"><div class="transaction-info" style="flex:1"><span>${(TIPOS_MATERIAL[m.kind] || '📌').slice(0, 2)} ${m.link ? `<a href="${esc(m.link)}" target="_blank" rel="noopener" style="color:#e2e8f0">${esc(m.title)} ↗</a>` : esc(m.title)} <small class="category-badge" style="color:${cor}; background:${cor}22">${esc(temaNome(m.topicId))}</small> <small class="item-date">${STATUS_MATERIAL[m.status] || ''}</small></span>
+        <div class="progress-line"><input type="range" min="0" max="100" value="${m.progress || 0}" onchange="progressoMaterial(${m.id}, this.value)" title="Progresso"><small>${m.progress || 0}%</small></div>${m.notes ? `<small class="item-notes">${esc(m.notes)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Avançar status" onclick="avancarMaterial(${m.id})">${m.status === 'concluido' ? '↩' : '▶'}</button><button class="mini-btn" title="Agendar revisões (1, 7, 30 dias)" onclick="agendarRevisao(${m.id})">🔁</button><button class="mini-btn" title="Editar" onclick="editarMaterial(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMaterial(${m.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Sessões ---
+document.getElementById('session-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const min = parseInt(document.getElementById('session-minutes').value); if (!min || min <= 0) return;
+  const date = document.getElementById('session-date').value || hojeISO();
+  registrarSessao(Number(document.getElementById('session-topic').value) || '', min, document.getElementById('session-note').value, date);
+  if (date === hojeISO()) { studyData.minutes += min; salvar('study', studyData); }
+  document.getElementById('session-form').reset(); document.getElementById('session-date').value = hojeISO();
+  updateStudyStats(); redesenharEstudos(); renderJournal(); toast(`📚 +${min} min registrados.`);
+});
+function removerSessao(id) { const s = sessions.find(x => x.id === id); if (!s || !confirm('Apagar esta sessão?')) return; sessions = sessions.filter(x => x.id !== id); salvar('sessions', sessions); redesenharEstudos(); }
+function renderSessoes() {
+  const ul = document.getElementById('session-list'); if (!ul) return; ul.innerHTML = '';
+  const lista = [...sessions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 25);
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma sessão ainda. Use o Pomodoro no Painel ou lance acima.</li>'; return; }
+  let ultima = '';
+  lista.forEach(s => {
+    if (s.date !== ultima) { ultima = s.date; const tot = sessions.filter(x => x.date === s.date).reduce((a, x) => a + x.minutes, 0); ul.innerHTML += `<li class="date-sep">${rotuloData(s.date)} <small>${isoParaBR(s.date)} · ${fmtMin(tot)}</small></li>`; }
+    ul.innerHTML += `<li style="border-left:4px solid ${temaCor(s.topicId)}"><div class="transaction-info" style="flex:1"><span><strong>${fmtMin(s.minutes)}</strong> · ${esc(temaNome(s.topicId))}</span>${s.note ? `<small class="item-notes">${esc(s.note)}</small>` : ''}</div><div class="item-actions"><button class="mini-btn" title="Apagar" onclick="removerSessao(${s.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Ritual: estudo semanal de negócios ---
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+function garantirRitual() {
+  if (!ritual.roadmap) ritual.roadmap = [];
+  const semana = inicioSemanaISO();
+  if (ritual.weekStart !== semana) { ritual.weekStart = semana; ritual.done = ritual.roadmap.map(() => false); salvar('ritual', ritual); }
+  if (!Array.isArray(ritual.done) || ritual.done.length !== ritual.roadmap.length) ritual.done = ritual.roadmap.map((_, i) => !!(ritual.done || [])[i]);
+  // compromisso da semana na agenda (tipo estudo) — só se o ritual estiver configurado
+  if (ritual.day !== undefined && ritual.day !== null && ritual.day !== '') {
+    const [sy, sm, sd] = semana.split('-').map(Number); const d = new Date(sy, sm - 1, sd + Number(ritual.day)); const iso = isoDe(d);
+    const existe = events.some(e => e.ritualKey === semana);
+    if (!existe && iso >= hojeISO()) {
+      events.push({ id: novoId(), title: 'Estudo semanal de negócios', date: iso, time: ritual.time || '', endTime: '', type: 'estudo', notes: 'Ritual do Genesis — roteiro na aba Estudos', done: false, ritualKey: semana });
+      salvar('events', events);
+    }
+  }
+}
+document.getElementById('ritual-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  ritual.day = document.getElementById('ritual-day').value; ritual.time = document.getElementById('ritual-time').value;
+  ritual.roadmap = document.getElementById('ritual-roadmap').value.split('\n').map(s => s.trim()).filter(Boolean);
+  ritual.done = ritual.roadmap.map((_, i) => !!(ritual.done || [])[i]);
+  salvar('ritual', ritual); garantirRitual(); redesenharEstudos(); redesenharAgenda(); toast('📅 Ritual semanal salvo.');
+});
+function toggleRitual(i) { ritual.done[i] = !ritual.done[i]; salvar('ritual', ritual); renderRitual(); }
+function salvarInsight() {
+  const txt = document.getElementById('ritual-insight').value.trim(); if (!txt) return;
+  notes.push({ id: novoId(), title: `Insight da semana · ${isoParaBR(inicioSemanaISO()).slice(0, 5)}`, content: txt, checklist: null, color: 'yellow', labels: ['estudo semanal', 'negócios'], pinned: false, archived: false, createdAt: Date.now(), updatedAt: Date.now() });
+  salvar('notes', notes); renderNotes(); document.getElementById('ritual-insight').value = ''; toast('💡 Insight salvo em Notas (marcador "estudo semanal").');
+}
+function renderRitual() {
+  const el = document.getElementById('ritual-week'); if (!el) return;
+  const dsel = document.getElementById('ritual-day'); if (dsel && !dsel.options.length) dsel.innerHTML = '<option value="">— sem dia fixo —</option>' + DIAS_SEMANA.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+  if (dsel && document.activeElement !== dsel) dsel.value = ritual.day ?? '';
+  const tsel = document.getElementById('ritual-time'); if (tsel && document.activeElement !== tsel) tsel.value = ritual.time || '';
+  const rm = document.getElementById('ritual-roadmap'); if (rm && document.activeElement !== rm) rm.value = (ritual.roadmap || []).join('\n');
+  const feitos = (ritual.done || []).filter(Boolean).length; const total = (ritual.roadmap || []).length;
+  el.innerHTML = total ? `<h5>Semana de ${isoParaBR(inicioSemanaISO())} · ${feitos}/${total}</h5>` + ritual.roadmap.map((r, i) => `<label class="subtask ${ritual.done[i] ? 'done' : ''}"><input type="checkbox" ${ritual.done[i] ? 'checked' : ''} onclick="toggleRitual(${i})"> ${esc(r)}</label>`).join('') : '<div class="stat-line muted">Defina o roteiro ao lado (uma linha por item). Ele zera toda semana.</div>';
+}
+
+// --- Painel do módulo ---
+function renderPainelEstudos() {
+  const el = document.getElementById('study-dash'); if (!el) return;
+  const semana = minutosNaSemana(); const metaTotal = topics.filter(t => !t.archived).reduce((a, t) => a + (t.weeklyGoalMin || 0), 0);
+  const emAnd = materials.filter(m => m.status === 'andamento'); const streak = streakEstudo();
+  const proxRev = tasks.filter(t => !t.done && t.text.startsWith('🔁 Revisar') && t.due).sort((a, b) => a.due.localeCompare(b.due))[0];
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  let html = '<div class="stat-grid">';
+  html += tile('⏱', fmtMin(semana), metaTotal ? `nesta semana · meta ${fmtMin(metaTotal)} (${Math.min(100, Math.round(semana / metaTotal * 100))}%)` : 'nesta semana', '#a78bfa');
+  html += tile('🔥', `${streak}`, `dia${streak === 1 ? '' : 's'} seguido${streak === 1 ? '' : 's'} estudando`, '#f59e0b');
+  html += tile('📖', `${emAnd.length}`, 'em andamento', '#38bdf8');
+  html += tile('🔁', proxRev ? rotuloData(proxRev.due) : '—', proxRev ? proxRev.text.replace('🔁 Revisar: ', '').slice(0, 30) : 'nenhuma revisão marcada', '#22c55e');
+  html += '</div>';
+  const porTema = topics.filter(t => !t.archived).map(t => ({ t, min: minutosNaSemana(t.id) })).filter(x => x.min > 0 || x.t.weeklyGoalMin);
+  if (porTema.length) html += '<div class="cat-block" style="margin-top:12px"><h5>Semana por tema</h5>' + porTema.map(({ t, min }) => { const meta = t.weeklyGoalMin || 0; const pct = meta ? Math.min(100, Math.round(min / meta * 100)) : (semana ? Math.round(min / semana * 100) : 0); return `<div class="cat-row"><span class="cat-name">${esc(t.name)}</span><div class="cat-bar"><div style="width:${pct}%; background:${t.color}"></div></div><span class="cat-val">${fmtMin(min)}${meta ? ` <small>/ ${fmtMin(meta)}</small>` : ''}</span></div>`; }).join('') + '</div>';
+  el.innerHTML = html;
+}
+function redesenharEstudos() { preencherTemasSelects(); renderPainelEstudos(); renderTemas(); renderMateriais(); renderSessoes(); renderRitual(); }
+
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -1183,7 +1409,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -1310,7 +1536,8 @@ function redesenharTudo() {
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  topics = JSON.parse(localStorage.getItem('lifeos_topics')) || []; materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || []; ritual = JSON.parse(localStorage.getItem('lifeos_ritual')) || ritual;
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {
@@ -1357,6 +1584,11 @@ function salvarSyncConfig() {
   if (syncConfigurado()) { marcarPendente(true); sincronizar(); } else setSyncStatus('naoconfig');
 }
 
+function alternarVerUrl() {
+  const u = document.getElementById('sync-url'); const b = document.getElementById('btn-ver-url'); if (!u) return;
+  const mostrar = u.type === 'password'; u.type = mostrar ? 'text' : 'password';
+  if (b) { b.innerText = mostrar ? '🙈' : '👁️'; b.title = mostrar ? 'Ocultar URL' : 'Mostrar URL'; }
+}
 function carregarSyncConfigNaTela() {
   const u = document.getElementById('sync-url'); const t = document.getElementById('sync-token');
   if (u) u.value = syncConfig.url || '';
@@ -1377,5 +1609,6 @@ if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
+document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); renderEvents(); renderCalendar();
 carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

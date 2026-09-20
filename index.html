@@ -18,6 +18,7 @@
       <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
       <button class="tab-btn" id="btn-studies" onclick="changeTab('studies')">📚 Estudos</button>
       <button class="tab-btn" id="btn-business" onclick="changeTab('business')">📈 Negócios</button>
+      <button class="tab-btn" id="btn-health" onclick="changeTab('health')">🩺 Saúde</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -26,11 +27,13 @@
       <div class="life-os-header">
         <div class="avatar-placeholder">🎩</div>
         <div style="flex: 1;">
-          <h1 style="font-size: 1.8rem; color: #fff;">MMN <span style="color:#22c55e">·</span> Life OS</h1>
+          <h1 id="header-title" style="font-size: 1.8rem; color: #fff;">Life OS</h1>
+          <div class="trinca" title="Trinca de Ases — projeto em conjunto"><span class="naipe preto">A♠</span><span class="naipe vermelho">A♥</span><span class="naipe vermelho">A♦</span><small>Trinca de Ases</small></div>
           <button class="start-day-btn" id="btn-iniciar-dia" onclick="iniciarDia()">➔ Iniciar o Dia</button>
         </div>
       </div>
 
+      <div class="card habits-quick-card"><div class="habits-quick-head"><span>🎮 Hábitos de hoje</span><span id="progress-text-mini"></span></div><div id="habits-quick" class="habits-quick"></div></div>
       <div class="life-os-grid">
         <div class="left-col">
           <div class="focus-clock-card">
@@ -41,20 +44,22 @@
 
           <div class="card overview-card">
             <h4 class="text-blue" style="margin-bottom: 10px;">👤 OVERVIEW</h4>
-            <p id="greeting-text" style="color: #f8fafc; font-weight: 500;">Boa tarde, Matheus</p>
+            <p id="greeting-text" style="color: #f8fafc; font-weight: 500;">Olá!</p>
             <p id="greeting-sub" class="greeting-sub"></p>
+            <p id="frase-dia" class="frase-dia"></p>
             <div class="progress-bar-bg" style="margin-top:15px;"><div class="progress-bar-fill" id="progress-fill"></div></div>
             <span id="progress-text" style="font-size: 0.75rem; color: #64748b;">0% Concluído</span>
           </div>
 
           <div class="card pomodoro-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h2 style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
+              <h2 id="pomodoro-title" style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
               <div style="display:flex; align-items:center; gap:5px;">
                 <input type="number" id="pomodoro-input" value="50" min="1" max="180" onchange="updatePomodoroTime()">
                 <span style="font-size: 0.8rem; color:#94a3b8;">min</span>
               </div>
             </div>
+            <div class="focus-header-tabs" id="pomodoro-modo" style="border:none; padding:0 0 8px; gap:6px; font-size:0.78rem;"><span class="active" onclick="alternarModoPomodoro('foco', this)">⏱ Foco</span><span onclick="alternarModoPomodoro('meditacao', this)">🧘 Meditação</span></div>
             <select id="pomodoro-topic" class="pomodoro-topic" title="Estudando o quê?"><option value="">📚 Geral</option></select>
             <div class="timer-display" id="timer-display">50:00</div>
             <div class="timer-controls">
@@ -219,13 +224,14 @@
           <input type="hidden" id="shift-id">
           <label for="shift-place">Local (preenche hora, duração e valor padrão):</label>
           <select id="shift-place" onchange="aplicarLocalPlantao()"></select>
-          <label for="shift-desc">Nome do local / tipo:</label><input type="text" id="shift-desc" placeholder="Ex: PSMI — sala de urgência" required>
+          <label for="shift-desc">Nome do local / tipo:</label><input type="text" id="shift-desc" placeholder="Ex: Hospital X — pronto-socorro" required>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label for="shift-date">Data:</label><input type="date" id="shift-date" required></div>
             <div><label for="shift-time">Início:</label><input type="time" id="shift-time" required></div>
             <div><label for="shift-hours">Duração (h):</label><input type="number" id="shift-hours" step="0.5" min="0" placeholder="12"></div>
           </div>
           <label for="shift-amount">Valor (R$):</label><input type="number" id="shift-amount" step="0.01" required>
+          <label for="shift-swap">🔁 Troca (opcional):</label><input type="text" id="shift-swap" placeholder="com quem e por qual dia — ex: com Fulano, por 16/09 07–13h">
           <label for="shift-notes">Observações:</label><input type="text" id="shift-notes" placeholder="opcional: troca, cobertura, NF...">
           <div style="display:flex; gap:10px;">
             <button type="submit" id="shift-submit" style="flex:1">Agendar plantão</button>
@@ -245,17 +251,18 @@
         <ul id="shift-list" class="transaction-list"></ul>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Locais de plantão</h2>
-        <p class="hint">Cadastre cada local com seus padrões. Ao escolher o local no formulário acima, hora, duração e valor já vêm preenchidos.</p>
+        <h2>Turnos de plantão</h2>
+        <p class="hint">Um turno = local + horário + duração + valor. Cadastre um por tipo de plantão (ex: <strong>Hospital X 12h</strong> 07:00 · 12h · R$ 1.500; <strong>Clínica Y 6h</strong> 13:00 · 6h · R$ 700). Ao escolher o turno no formulário acima, tudo vem preenchido.</p>
         <form id="place-form">
           <input type="hidden" id="place-id">
-          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
-            <div><label for="place-name">Nome:</label><input type="text" id="place-name" placeholder="PSMI" required></div>
+          <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr; gap: 10px;">
+            <div><label for="place-name">Turno:</label><input type="text" id="place-name" placeholder="Hospital X 12h" required></div>
+            <div><label for="place-local">Local (opcional):</label><input type="text" id="place-local" placeholder="Hospital X"></div>
             <div><label for="place-time">Início:</label><input type="time" id="place-time"></div>
             <div><label for="place-hours">Horas:</label><input type="number" id="place-hours" step="0.5" min="0" placeholder="12"></div>
             <div><label for="place-amount">Valor (R$):</label><input type="number" id="place-amount" step="0.01" min="0"></div>
           </div>
-          <button type="submit" id="place-submit">Adicionar local</button>
+          <button type="submit" id="place-submit">Adicionar turno</button>
         </form>
         <ul id="place-list" class="transaction-list" style="margin-top: 15px;"></ul>
       </div>
@@ -515,8 +522,95 @@
       </div>
     </div>
 
+    <!-- Módulo 9: Saúde -->
+    <div id="health" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>🩺 Saúde</h2>
+        <div id="health-dash"></div>
+      </div>
+      <div class="fin-two-col">
+        <div class="card">
+          <h2>🏋️ Treinos</h2>
+          <p class="hint">Registrar um treino de hoje marca o hábito "Treino" sozinho. ↻ repete um treino anterior.</p>
+          <form id="workout-form">
+            <input type="hidden" id="workout-id">
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="workout-type">Tipo:</label><select id="workout-type"></select></div>
+              <div><label for="workout-date">Data:</label><input type="date" id="workout-date"></div>
+              <div><label for="workout-minutes">Minutos:</label><input type="number" id="workout-minutes" min="1" placeholder="60"></div>
+              <div><label for="workout-intensity">Intensidade:</label><select id="workout-intensity"><option value="1">🔥 leve</option><option value="2" selected>🔥🔥 moderada</option><option value="3">🔥🔥🔥 pesada</option></select></div>
+            </div>
+            <label for="workout-exercises">Exercícios (um por linha, opcional):</label><textarea id="workout-exercises" rows="3" placeholder="Supino 3x10 40kg&#10;Agachamento 4x8 60kg&#10;Esteira 20 min"></textarea>
+            <label for="workout-note">Como foi:</label><input type="text" id="workout-note" placeholder="opcional">
+            <div style="display:flex; gap:10px;"><button type="submit" id="workout-submit" style="flex:1">Registrar treino</button><button type="button" id="workout-cancel" class="btn" hidden onclick="cancelarEdicaoTreino()">Cancelar</button></div>
+          </form>
+          <ul id="workout-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+        <div class="card">
+          <h2>⚖️ Peso e medidas</h2>
+          <div id="weight-chart" style="margin-bottom: 12px;"></div>
+          <form id="measure-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="measure-date">Data:</label><input type="date" id="measure-date"></div>
+              <div><label for="measure-weight">Peso (kg):</label><input type="number" id="measure-weight" step="0.1" min="0" placeholder="80,5"></div>
+              <div><label for="measure-waist">Cintura (cm):</label><input type="number" id="measure-waist" step="0.5" min="0"></div>
+              <div><label for="measure-fat">Gordura (%):</label><input type="number" id="measure-fat" step="0.1" min="0"></div>
+            </div>
+            <label for="measure-note">Observação:</label><input type="text" id="measure-note" placeholder="opcional">
+            <button type="submit">Registrar medida</button>
+          </form>
+          <ul id="measure-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+      <div class="fin-two-col">
+        <div class="card">
+          <h2>🍽️ Refeições</h2>
+          <form id="meal-form">
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="meal-type">Refeição:</label><select id="meal-type"></select></div>
+              <div><label for="meal-date">Data:</label><input type="date" id="meal-date"></div>
+              <div><label for="meal-time">Hora:</label><input type="time" id="meal-time"></div>
+              <div><label for="meal-quality">Foi:</label><select id="meal-quality"></select></div>
+            </div>
+            <label for="meal-desc">O que comeu:</label><input type="text" id="meal-desc" placeholder="Arroz, feijão, frango grelhado, salada" required>
+            <button type="submit">Anotar refeição</button>
+          </form>
+          <ul id="meal-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+        <div class="card">
+          <h2>🩺 Consultas, exames e vacinas</h2>
+          <p class="hint">Os seus. Com data, vira compromisso tipo Saúde no calendário (e na agenda Genesis do Google). ✓ conclui e tira do calendário.</p>
+          <form id="medical-form">
+            <input type="hidden" id="medical-id">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+              <div><label for="medical-kind">Tipo:</label><select id="medical-kind"></select></div>
+              <div><label for="medical-title">O quê:</label><input type="text" id="medical-title" placeholder="Dermatologista · Hemograma · Gripe 2026" required></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;">
+              <div><label for="medical-date">Data:</label><input type="date" id="medical-date"></div>
+              <div><label for="medical-time">Hora:</label><input type="time" id="medical-time"></div>
+              <div><label for="medical-place">Onde / com quem:</label><input type="text" id="medical-place" placeholder="Dr(a)., clínica, laboratório"></div>
+            </div>
+            <label for="medical-notes">Observações / resultado:</label><input type="text" id="medical-notes" placeholder="opcional">
+            <div style="display:flex; gap:10px;"><button type="submit" id="medical-submit" style="flex:1">Adicionar</button><button type="button" id="medical-cancel" class="btn" hidden onclick="cancelarEdicaoMedico()">Cancelar</button></div>
+          </form>
+          <ul id="medical-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+    </div>
+
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>👤 Perfil</h2>
+        <p class="hint">Como o app fala com você. O nome aparece no cumprimento do Painel; as iniciais (ou um apelido curto) no cabeçalho. Sincroniza entre seus aparelhos.</p>
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+          <div><label for="profile-name">Seu nome:</label><input type="text" id="profile-name" placeholder="Ex: Ana" autocomplete="off"></div>
+          <div><label for="profile-initials">Iniciais / apelido:</label><input type="text" id="profile-initials" placeholder="Ex: ARS" maxlength="12" autocomplete="off"></div>
+          <div><label for="profile-subtitle">Subtítulo:</label><input type="text" id="profile-subtitle" placeholder="Life OS" autocomplete="off"></div>
+        </div>
+        <button class="btn" type="button" onclick="salvarPerfil()" style="width:100%; margin-top:12px">💾 Salvar perfil</button>
+      </div>
       <div class="card" style="margin-top: 20px;">
         <h2>Segurança e Backup</h2>
         <div style="display: flex; gap: 15px; margin-bottom: 15px;">

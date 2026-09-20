@@ -41,10 +41,13 @@ let moves = JSON.parse(localStorage.getItem('lifeos_moves')) || [];         // N
 let goals = JSON.parse(localStorage.getItem('lifeos_goals')) || [];         // Negócios: metas
 let projects = JSON.parse(localStorage.getItem('lifeos_projects')) || [];   // Negócios: projetos
 let wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || { snapshots: {}, indicators: {} }; // patrimônio mês a mês + indicadores manuais
-let places = JSON.parse(localStorage.getItem('lifeos_places')) || [       // locais de plantão com padrões (hora, duração, valor)
-  { name: 'PSMI', time: '07:00', hours: 12, amount: 0 },
-  { name: 'CISURG', time: '07:00', hours: 12, amount: 0 }
-];
+let workouts = JSON.parse(localStorage.getItem('lifeos_workouts')) || [];   // Saúde: treinos
+let measures = JSON.parse(localStorage.getItem('lifeos_measures')) || [];   // Saúde: peso e medidas
+let hydration = JSON.parse(localStorage.getItem('lifeos_hydration')) || { date: hojeBR(), ml: 0, goal: 2500, dias: {} }; // Saúde: água
+let meals = JSON.parse(localStorage.getItem('lifeos_meals')) || [];         // Saúde: refeições
+let medical = JSON.parse(localStorage.getItem('lifeos_medical')) || [];     // Saúde: consultas/exames/vacinas/medicamentos
+let profile = JSON.parse(localStorage.getItem('lifeos_profile')) || { name: '', initials: '', subtitle: 'Life OS' }; // quem usa o app (nome no cumprimento, iniciais no cabeçalho)
+let places = JSON.parse(localStorage.getItem('lifeos_places')) || []; // turnos de plantão (nome, local, hora, duração, valor)
 
 // Migração das tarefas de Strings para Objetos (Estilo Keep Notes)
 let tasks = JSON.parse(localStorage.getItem('lifeos_tasks')) || [];
@@ -85,10 +88,20 @@ let pomodoroDuration = parseInt(document.getElementById('pomodoro-input').value)
 let timerTimeLeft = pomodoroDuration;
 let timerInterval = null;
 let timerEnd = null; // instante em que a sessão termina (funciona mesmo com a aba em segundo plano)
+let pomodoroModo = 'foco'; // 'foco' (estudo) | 'meditacao'
+function alternarModoPomodoro(modo, el) {
+  if (timerInterval) { toast('Pause ou zere o timer antes de trocar o modo.'); return; }
+  pomodoroModo = modo; document.querySelectorAll('#pomodoro-modo span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active');
+  const input = document.getElementById('pomodoro-input'); input.value = modo === 'meditacao' ? (prefs.meditacaoMin || 10) : (prefs.focoMin || 50);
+  document.getElementById('pomodoro-topic').hidden = modo === 'meditacao';
+  document.getElementById('pomodoro-title').innerText = modo === 'meditacao' ? '🧘 MEDITAÇÃO' : '⏱ POMODORO';
+  updatePomodoroTime();
+}
 
 function updatePomodoroTime() {
   const inputVal = parseInt(document.getElementById('pomodoro-input').value);
   if (inputVal > 0 && !timerInterval) {
+    if (pomodoroModo === 'meditacao') prefs.meditacaoMin = inputVal; else prefs.focoMin = inputVal; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
     pomodoroDuration = inputVal * 60;
     timerTimeLeft = pomodoroDuration;
     updateTimerDisplay();
@@ -134,13 +147,20 @@ function pauseTimer() {
 function resetTimer() {
   pauseTimer();
   let inputVal = parseInt(document.getElementById('pomodoro-input').value);
-  if (isNaN(inputVal) || inputVal <= 0) inputVal = 50;
+  if (isNaN(inputVal) || inputVal <= 0) inputVal = pomodoroModo === 'meditacao' ? 10 : 50;
   pomodoroDuration = inputVal * 60; timerTimeLeft = pomodoroDuration;
   document.getElementById('pomodoro-input').disabled = false; updateTimerDisplay();
 }
 
 function completePomodoro() {
   const mins = Math.round(pomodoroDuration / 60);
+  if (pomodoroModo === 'meditacao') {
+    resetTimer(); tocarAlarme('sino');
+    const idx = habits.findIndex(h => /medita/i.test(h.text));
+    if (idx >= 0 && !habits[idx].done) { habits[idx].done = true; salvar('habits', habits); renderFocusTab(); renderJournal(); atualizarSaudacao(); }
+    toast(`🧘 ${mins} min de meditação concluídos.${idx >= 0 ? ' Hábito marcado.' : ''}`, 6000);
+    return;
+  }
   studyData.minutes += mins; salvar('study', studyData);
   const topicSel = document.getElementById('pomodoro-topic'); registrarSessao(topicSel && topicSel.value ? Number(topicSel.value) : '', mins, 'Pomodoro');
   updateStudyStats(); renderJournal(); redesenharEstudos(); resetTimer();
@@ -190,10 +210,48 @@ function updateMainClock() {
 }
 setInterval(updateMainClock, 1000); updateMainClock();
 
+const FRASES = [
+  'O que você faz todos os dias importa mais do que o que você faz de vez em quando.',
+  'Disciplina é escolher entre o que você quer agora e o que você quer mais.',
+  'Não é sobre ter tempo. É sobre fazer tempo.',
+  'Cuide do processo; o resultado cuida de si.',
+  'Um plantão de cada vez, um paciente de cada vez.',
+  'Comece onde você está. Use o que você tem. Faça o que você pode.',
+  'A melhor hora pra plantar uma árvore foi há 20 anos. A segunda melhor é agora.',
+  'Pequenos passos todos os dias somam mais que grandes saltos de vez em quando.',
+  'Primeiro a reserva, depois o risco.',
+  'Saber e não fazer é ainda não saber.',
+  'Você não precisa ver a escada inteira. Só o primeiro degrau.',
+  'Simplifique. Depois simplifique de novo.',
+  'Descanso também é produtividade.',
+  'Quem estuda um pouco todo dia não precisa estudar muito nunca.',
+  'Dinheiro é consequência de valor entregue.',
+  'Faça hoje o que o você de amanhã vai agradecer.',
+  'A consistência vence a intensidade.',
+  'Menos pressa, mais direção.',
+  'Não compare o seu capítulo 1 com o capítulo 20 de alguém.',
+  'Termine o que começou antes de começar o próximo.',
+  'Clareza vem da ação, não do pensamento.',
+  'Trabalhe em silêncio; deixe o resultado fazer barulho.',
+  'O corpo é o primeiro investimento.',
+  'Uma boa noite de sono resolve metade dos problemas.',
+  'Dizer não é dizer sim para o que importa.',
+  'Errar rápido, aprender rápido, ajustar rápido.',
+  'O que é medido, melhora.',
+  'Foco é dizer não a cem boas ideias.',
+  'Grandes coisas nascem de hábitos pequenos.',
+  'Hoje é um bom dia pra ser melhor que ontem.'
+];
+function fraseDoDia() { const d = new Date(); const dia = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); return FRASES[dia % FRASES.length]; }
+function renderHabitosRapidos() {
+  const el = document.getElementById('habits-quick'); if (!el) return;
+  const mini = document.getElementById('progress-text-mini'); if (mini) mini.innerText = habits.length ? `${habits.filter(h => h.done).length}/${habits.length}` : '';
+  el.innerHTML = habits.map((h, i) => `<button class="habit-chip ${h.done ? 'on' : ''}" onclick="toggleHabit(${i})" title="${esc(h.text)}">${esc(h.icon)} <span>${esc(h.text)}</span></button>`).join('') || '<small class="item-date">sem hábitos</small>';
+}
 function atualizarSaudacao() {
   const h = new Date().getHours();
   const saud = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  document.getElementById('greeting-text').innerText = `${saud}, Matheus`;
+  document.getElementById('greeting-text').innerText = profile.name ? `${saud}, ${profile.name}` : `${saud}!`;
   const hoje = hojeISO();
   const plantoesHoje = shifts.filter(s => s.date === hoje).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   const pendentes = tasks.filter(t => !t.done).length;
@@ -205,9 +263,24 @@ function atualizarSaudacao() {
   partes.push(`✅ ${pendentes} tarefa${pendentes === 1 ? '' : 's'} pendente${pendentes === 1 ? '' : 's'}`);
   partes.push(`🎮 ${habPend} hábito${habPend === 1 ? '' : 's'} a cumprir`);
   document.getElementById('greeting-sub').innerText = partes.join(' · ');
+  const fr = document.getElementById('frase-dia'); if (fr) fr.innerText = '“' + fraseDoDia() + '”';
 }
 setInterval(atualizarSaudacao, 60000);
 
+/** Aplica nome/iniciais na tela (cabeçalho, título da aba, campos da Config). */
+function aplicarPerfil() {
+  const h = document.getElementById('header-title');
+  if (h) h.innerHTML = (profile.initials ? `${esc(profile.initials)} <span style="color:#22c55e">·</span> ` : '') + esc(profile.subtitle || 'Life OS');
+  const n = document.getElementById('profile-name'); const i = document.getElementById('profile-initials'); const s = document.getElementById('profile-subtitle');
+  if (n && document.activeElement !== n) n.value = profile.name || '';
+  if (i && document.activeElement !== i) i.value = profile.initials || '';
+  if (s && document.activeElement !== s) s.value = profile.subtitle || '';
+  if (typeof atualizarSaudacao === 'function' && document.getElementById('greeting-sub')) atualizarSaudacao();
+}
+function salvarPerfil() {
+  profile = { name: document.getElementById('profile-name').value.trim(), initials: document.getElementById('profile-initials').value.trim().slice(0, 12), subtitle: document.getElementById('profile-subtitle').value.trim() || 'Life OS' };
+  salvar('profile', profile); aplicarPerfil(); toast(`👤 Perfil salvo${profile.name ? ', ' + profile.name : ''}.`);
+}
 function atualizarBotaoDia() {
   const btn = document.getElementById('btn-iniciar-dia'); if (!btn) return;
   const feito = localStorage.getItem('lifeos_dia_iniciado') === hojeISO();
@@ -239,6 +312,7 @@ function verificarNovoDia() {
     habitLog.date = hoje;
     salvar('habits', habits); salvar('habitlog', habitLog); mudou = true;
   }
+  verificarNovoDiaAgua();
   if (mudou) { renderFocusTab(); updateStudyStats(); renderJournal(); atualizarSaudacao(); }
 }
 
@@ -291,6 +365,7 @@ function renderFocusTab() {
     });
   }
 
+  renderHabitosRapidos();
   const progress = habits.length === 0 ? 0 : Math.round((completedHabits / habits.length) * 100);
   document.getElementById('progress-fill').style.width = `${progress}%`;
   document.getElementById('progress-text').innerText = `${progress}% Concluído`;
@@ -375,6 +450,8 @@ function renderJournal() {
   html += tile('💰', formatCurrency(inc - exp), `↑ ${formatCurrency(inc)} · ↓ ${formatCurrency(exp)}`, inc - exp >= 0 ? '#22c55e' : '#ef4444');
   const aportado = moves.filter(m => m.type === 'aporte' && !m.initial && dentro(m.date)).reduce((a, m) => a + m.amount, 0);
   html += tile('🏦', formatCurrency(patrimonioTotal()), `patrimônio · ${formatCurrency(aportado)} aportados`, '#38bdf8');
+  const tr_ = workouts.filter(w => dentro(w.date)); const trMin = tr_.reduce((a, w) => a + (w.minutes || 0), 0);
+  html += tile('🏋️', `${tr_.length}`, `treino${tr_.length === 1 ? '' : 's'} · ${trMin} min · 💧 ${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L hoje`, '#22c55e');
   html += '</div>';
 
   if (currentJournal === 'day') {
@@ -475,7 +552,7 @@ function openDayModal(year, month, day) {
     itens.forEach(it => {
       if (it.kind === 'shift') {
         const s = it.obj;
-        modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_PLANTAO}"><span style="display:flex; flex-direction:column;"><strong>🚑 ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</strong><span style="font-size:0.85rem;">${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago</span>' : '<span class="badge-unpaid">a receber</span>'}</span></span><strong style="color:${COR_PLANTAO}">${formatCurrency(s.amount)}</strong></li>`;
+        modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_PLANTAO}"><span style="display:flex; flex-direction:column;"><strong>🚑 ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</strong><span style="font-size:0.85rem;">${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago</span>' : '<span class="badge-unpaid">a receber</span>'}${s.swap ? ' <span class="badge-swap">🔁 troca</span>' : ''}</span></span><strong style="color:${COR_PLANTAO}">${formatCurrency(s.amount)}</strong></li>`;
       } else if (it.kind === 'task') {
         const t = it.obj;
         modalList.innerHTML += `<li class="shift-item" style="border-left-color:${COR_TAREFA}"><span style="display:flex; flex-direction:column;"><strong>✅ Tarefa${t.starred ? ' ★' : ''}</strong><span style="font-size:0.85rem;">${esc(t.text)}</span></span><small class="category-badge">${esc(listaNome(t.list))}</small></li>`;
@@ -775,7 +852,7 @@ let shiftFilter = 'proximos';
 function preencherLocais() {
   const sel = document.getElementById('shift-place'); if (!sel) return;
   const atual = sel.value;
-  sel.innerHTML = '<option value="">— escolher local —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
+  sel.innerHTML = '<option value="">— escolher turno —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.time ? ' · ' + esc(p.time) : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
   if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
   renderPlaces();
 }
@@ -783,35 +860,35 @@ function aplicarLocalPlantao() {
   const v = document.getElementById('shift-place').value;
   if (v === '' || v === 'outro') { if (v === 'outro') document.getElementById('shift-desc').focus(); return; }
   const p = places[Number(v)]; if (!p) return;
-  document.getElementById('shift-desc').value = p.name;
+  document.getElementById('shift-desc').value = p.local || p.name;
   if (p.time) document.getElementById('shift-time').value = p.time;
   if (p.hours) document.getElementById('shift-hours').value = p.hours;
   if (p.amount) document.getElementById('shift-amount').value = p.amount;
 }
 function renderPlaces() {
   const ul = document.getElementById('place-list'); if (!ul) return; ul.innerHTML = '';
-  if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum local cadastrado.</li>'; return; }
+  if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum turno cadastrado. Ex: "Hospital X 12h" (07:00, 12h, R$ 1.500).</li>'; return; }
   places.forEach((p, i) => {
-    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</small></div>
+    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</small></div>
       <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
   });
 }
 document.getElementById('place-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const name = document.getElementById('place-name').value.trim(); if (!name) return;
-  const p = { name, time: document.getElementById('place-time').value, hours: parseFloat(document.getElementById('place-hours').value) || 0, amount: parseFloat(document.getElementById('place-amount').value) || 0 };
+  const p = { name, local: (document.getElementById('place-local').value || '').trim() || name, time: document.getElementById('place-time').value, hours: parseFloat(document.getElementById('place-hours').value) || 0, amount: parseFloat(document.getElementById('place-amount').value) || 0 };
   const idx = document.getElementById('place-id').value;
   if (idx !== '') places[Number(idx)] = p; else places.push(p);
-  salvar('places', places); document.getElementById('place-form').reset(); document.getElementById('place-id').value = ''; document.getElementById('place-submit').innerText = 'Adicionar local';
+  salvar('places', places); document.getElementById('place-form').reset(); document.getElementById('place-id').value = ''; document.getElementById('place-submit').innerText = 'Adicionar turno';
   preencherLocais();
 });
 function editarLocal(i) {
   const p = places[i];
-  document.getElementById('place-id').value = i; document.getElementById('place-name').value = p.name; document.getElementById('place-time').value = p.time || '';
+  document.getElementById('place-id').value = i; document.getElementById('place-name').value = p.name; document.getElementById('place-local').value = p.local || ''; document.getElementById('place-time').value = p.time || '';
   document.getElementById('place-hours').value = p.hours || ''; document.getElementById('place-amount').value = p.amount || '';
-  document.getElementById('place-submit').innerText = 'Salvar local'; document.getElementById('place-name').focus();
+  document.getElementById('place-submit').innerText = 'Salvar turno'; document.getElementById('place-name').focus();
 }
-function removerLocal(i) { if (!confirm(`Apagar o local "${places[i].name}"?`)) return; places.splice(i, 1); salvar('places', places); preencherLocais(); }
+function removerLocal(i) { if (!confirm(`Apagar o turno "${places[i].name}"?`)) return; places.splice(i, 1); salvar('places', places); preencherLocais(); }
 
 function transacaoDoPlantao(s) { return transactions.find(t => t.id === s.id); }
 function descricaoLancamento(s) { const [y, m, d] = s.date.split('-'); return `Plantão: ${s.desc} (${d}/${m} às ${s.time})`; }
@@ -842,7 +919,7 @@ function renderShifts() {
   lista.forEach(s => {
     const li = document.createElement('li'); li.classList.add('shift-item'); if (s.paid) li.classList.add('paid');
     li.innerHTML = `<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
-        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</small>${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
+        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</small>${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(s.amount)}</strong><button class="mini-btn ${s.paid ? 'on' : ''}" title="${s.paid ? 'Marcar como não pago' : 'Marcar como pago'}" onclick="alternarPago(${s.id})">💵</button><button class="mini-btn" title="Editar" onclick="editarPlantao(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeShift(${s.id})">✕</button></div>`;
     sList.appendChild(li);
   }); renderCalendar();
@@ -856,7 +933,8 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
     hours: parseFloat(document.getElementById('shift-hours').value) || 0,
     desc: document.getElementById('shift-desc').value.trim(),
     amount: parseFloat(document.getElementById('shift-amount').value),
-    notes: document.getElementById('shift-notes').value.trim()
+    notes: document.getElementById('shift-notes').value.trim(),
+    swap: document.getElementById('shift-swap').value.trim()
   };
   if (!dados.date || !dados.time || !dados.desc || isNaN(dados.amount)) return;
   let s;
@@ -879,7 +957,7 @@ function editarPlantao(id) {
   document.getElementById('shift-id').value = s.id; document.getElementById('shift-place').value = '';
   document.getElementById('shift-date').value = s.date; document.getElementById('shift-time').value = s.time || '';
   document.getElementById('shift-hours').value = s.hours || ''; document.getElementById('shift-desc').value = s.desc;
-  document.getElementById('shift-amount').value = s.amount; document.getElementById('shift-notes').value = s.notes || '';
+  document.getElementById('shift-amount').value = s.amount; document.getElementById('shift-notes').value = s.notes || ''; document.getElementById('shift-swap').value = s.swap || '';
   document.getElementById('shift-form-title').innerText = 'Editar plantão';
   document.getElementById('shift-submit').innerText = 'Salvar alterações';
   document.getElementById('shift-cancel').hidden = false;
@@ -1042,12 +1120,18 @@ function linhaTarefa(t) {
       <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: #38bdf8;">
       <div class="task-body" onclick="editarTarefa(${t.id})">
         <span class="task-text">${esc(t.text)}</span>
-        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${t.notes ? `<span class="task-notes">${esc(t.notes)}</span>` : ''}</div>
+        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${esc(t.notes)}</span>` : ''}</div>
       </div>
       <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
     </div>
     ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
   </li>`;
+}
+function adiarTarefa(id, dias) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const d = new Date(); d.setDate(d.getDate() + dias); t.due = isoDe(d);
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderCalendar();
+  toast(`📅 "${t.text.slice(0, 30)}" → ${rotuloData(t.due)}.`);
 }
 function toggleTask(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
@@ -1101,6 +1185,16 @@ function normalizarNotas() {
   });
   return mudou;
 }
+/** Transforma URLs (num texto já escapado) em links clicáveis. */
+function linkify(s) { return String(s).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u.length > 48 ? u.slice(0, 45) + '…' : u}</a>`); }
+function adicionarItemNota(id, input) {
+  const n = notes.find(x => x.id === id); const v = (input.value || '').trim(); if (!n || !v) return;
+  if (!Array.isArray(n.checklist)) n.checklist = [];
+  n.checklist.push({ text: v, done: false }); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
+  const novo = document.querySelector(`.note-card[data-id="${id}"] .note-add input`); if (novo) novo.focus();
+}
+function desmarcarTodosNota(id) { const n = notes.find(x => x.id === id); if (!n || !n.checklist) return; n.checklist.forEach(i => i.done = false); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
+function limparFeitosNota(id) { const n = notes.find(x => x.id === id); if (!n || !n.checklist) return; if (!confirm('Apagar os itens já marcados desta lista?')) return; n.checklist = n.checklist.filter(i => !i.done); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
 function corNota(c) { return CORES_NOTA[c] || CORES_NOTA.default; }
 function todosMarcadores() { const s = new Set(); notes.forEach(n => (n.labels || []).forEach(l => s.add(l))); return [...s].sort((a, b) => a.localeCompare(b)); }
 
@@ -1189,9 +1283,11 @@ function cardNota(n) {
   const c = corNota(n.color); const lista = Array.isArray(n.checklist);
   const feitos = lista ? n.checklist.filter(i => i.done).length : 0;
   const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  return `<div class="note-card" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
+  return `<div class="note-card" data-id="${n.id}" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
     <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
-    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> ${esc(i.text)}</label>`).join('')}<small class="item-date">${feitos}/${n.checklist.length} feitos</small></div>` : (n.content ? `<div class="note-body">${esc(n.content)}</div>` : '')}
+    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1)).map(({ i, k }) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> ${linkify(esc(i.text))}</label>`).join('')}
+      <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
+      <div class="note-tools"><small class="item-date">${feitos}/${n.checklist.length} feitos</small>${feitos ? `<button class="mini-btn xs" onclick="desmarcarTodosNota(${n.id})" title="Desmarcar todos (lista reutilizável)">↺ desmarcar</button><button class="mini-btn xs" onclick="limparFeitosNota(${n.id})" title="Apagar os marcados">🧹 limpar feitos</button>` : ''}</div></div>` : (n.content ? `<div class="note-body">${linkify(esc(n.content))}</div>` : '')}
     <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
   </div>`;
 }
@@ -1351,15 +1447,23 @@ function garantirRitual() {
   const semana = inicioSemanaISO();
   if (ritual.weekStart !== semana) { ritual.weekStart = semana; ritual.done = ritual.roadmap.map(() => false); salvar('ritual', ritual); }
   if (!Array.isArray(ritual.done) || ritual.done.length !== ritual.roadmap.length) ritual.done = ritual.roadmap.map((_, i) => !!(ritual.done || [])[i]);
-  // compromisso da semana na agenda (tipo estudo) — só se o ritual estiver configurado
-  if (ritual.day !== undefined && ritual.day !== null && ritual.day !== '') {
+  // compromisso da semana na agenda (tipo estudo): cria, ajusta ou remove conforme o ritual
+  const configurado = ritual.day !== undefined && ritual.day !== null && ritual.day !== '';
+  const existente = events.find(e => e.ritualKey === semana);
+  let mudouEventos = false;
+  if (configurado) {
     const [sy, sm, sd] = semana.split('-').map(Number); const d = new Date(sy, sm - 1, sd + Number(ritual.day)); const iso = isoDe(d);
-    const existe = events.some(e => e.ritualKey === semana);
-    if (!existe && iso >= hojeISO()) {
+    if (existente) {
+      if (!existente.done && (existente.date !== iso || (existente.time || '') !== (ritual.time || ''))) { existente.date = iso; existente.time = ritual.time || ''; mudouEventos = true; }
+    } else if (iso >= hojeISO()) {
       events.push({ id: novoId(), title: 'Estudo semanal de negócios', date: iso, time: ritual.time || '', endTime: '', type: 'estudo', notes: 'Ritual do Genesis — roteiro na aba Estudos', done: false, ritualKey: semana });
-      salvar('events', events);
+      mudouEventos = true;
     }
+  } else {
+    // ritual desligado: some com os eventos automáticos ainda não concluídos
+    const antes = events.length; events = events.filter(e => !(e.ritualKey && !e.done)); if (events.length !== antes) mudouEventos = true;
   }
+  if (mudouEventos) salvar('events', events);
 }
 document.getElementById('ritual-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -1633,9 +1737,182 @@ function renderPainelNegocios() {
 }
 function redesenharNegocios() { preencherSelectsNegocios(); renderPainelNegocios(); renderAtivos(); renderMovimentos(); renderMetas(); renderProjetos(); }
 
+// ============================================================================
+// SAÚDE (módulo J)
+// workouts:  [{ id, date, type, minutes, intensity, exercises: [texto], note }]
+// measures:  [{ id, date, weight, waist, bodyfat, note }]
+// hydration: { date: 'dd/mm/aaaa', ml, goal, dias: { 'aaaa-mm-dd': ml } }
+// meals:     [{ id, date, time, type, desc, quality }]
+// medical:   [{ id, kind, title, date, place, notes, done, eventId }]  (consultas, exames, vacinas, medicamentos)
+// ============================================================================
+const TIPOS_TREINO = { musculacao: ['🏋️', 'Musculação'], corrida: ['🏃', 'Corrida'], caminhada: ['🚶', 'Caminhada'], bike: ['🚴', 'Bike'], natacao: ['🏊', 'Natação'], funcional: ['🤸', 'Funcional / Crossfit'], futebol: ['⚽', 'Futebol / Esporte'], alongamento: ['🧘', 'Alongamento / Yoga'], outro: ['💪', 'Outro'] };
+const TIPOS_REFEICAO = { cafe: ['☕', 'Café da manhã'], almoco: ['🍽️', 'Almoço'], lanche: ['🍎', 'Lanche'], jantar: ['🍲', 'Jantar'], ceia: ['🌙', 'Ceia'] };
+const QUALIDADE_REFEICAO = { boa: ['🟢', 'Boa'], ok: ['🟡', 'Ok'], ruim: ['🔴', 'Ruim'] };
+const TIPOS_MEDICO = { consulta: ['🩺', 'Consulta'], exame: ['🧪', 'Exame'], vacina: ['💉', 'Vacina'], medicamento: ['💊', 'Medicamento'], outro: ['📌', 'Outro'] };
+
+function marcarHabitoPorNome(regex) {
+  const idx = habits.findIndex(h => regex.test(h.text));
+  if (idx >= 0 && !habits[idx].done) { habits[idx].done = true; salvar('habits', habits); renderFocusTab(); renderJournal(); atualizarSaudacao(); return true; }
+  return false;
+}
+
+// --- Água ---
+function verificarNovoDiaAgua() {
+  const hoje = hojeBR();
+  if (!hydration.dias) hydration.dias = {};
+  if (hydration.date !== hoje) {
+    if (hydration.ml > 0) hydration.dias[brParaISO(hydration.date)] = hydration.ml;
+    hydration.date = hoje; hydration.ml = 0; salvar('hydration', hydration);
+  }
+}
+function beberAgua(ml) {
+  verificarNovoDiaAgua();
+  hydration.ml = Math.max(0, (hydration.ml || 0) + ml); salvar('hydration', hydration);
+  if (hydration.ml >= (hydration.goal || 2500) && marcarHabitoPorNome(/[áa]gua/i)) toast('💧 Meta de água batida — hábito marcado!');
+  renderSaude(); renderHabitosRapidos();
+}
+function definirMetaAgua() {
+  const v = prompt('Meta diária de água (ml):', String(hydration.goal || 2500)); if (v === null) return;
+  const n = parseInt(v); if (!n || n < 200) return; hydration.goal = n; salvar('hydration', hydration); renderSaude();
+}
+
+// --- Treinos ---
+document.getElementById('workout-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('workout-id').value;
+  const dados = { date: document.getElementById('workout-date').value || hojeISO(), type: document.getElementById('workout-type').value, minutes: parseInt(document.getElementById('workout-minutes').value) || 0, intensity: parseInt(document.getElementById('workout-intensity').value) || 2, exercises: document.getElementById('workout-exercises').value.split('\n').map(s => s.trim()).filter(Boolean), note: document.getElementById('workout-note').value.trim() };
+  if (id) { const w = workouts.find(x => String(x.id) === id); if (w) Object.assign(w, dados); } else workouts.push({ id: novoId(), createdAt: Date.now(), ...dados });
+  salvar('workouts', workouts); cancelarEdicaoTreino();
+  if (dados.date === hojeISO() && marcarHabitoPorNome(/trein|academia|workout|exerc/i)) toast('🏋️ Treino registrado — hábito marcado!'); else toast('🏋️ Treino registrado.');
+  renderSaude(); renderJournal();
+});
+function cancelarEdicaoTreino() { document.getElementById('workout-form').reset(); document.getElementById('workout-id').value = ''; document.getElementById('workout-date').value = hojeISO(); document.getElementById('workout-submit').innerText = 'Registrar treino'; document.getElementById('workout-cancel').hidden = true; }
+function editarTreino(id) {
+  const w = workouts.find(x => x.id === id); if (!w) return;
+  document.getElementById('workout-id').value = w.id; document.getElementById('workout-date').value = w.date; document.getElementById('workout-type').value = w.type; document.getElementById('workout-minutes').value = w.minutes || ''; document.getElementById('workout-intensity').value = w.intensity || 2; document.getElementById('workout-exercises').value = (w.exercises || []).join('\n'); document.getElementById('workout-note').value = w.note || '';
+  document.getElementById('workout-submit').innerText = 'Salvar treino'; document.getElementById('workout-cancel').hidden = false; document.getElementById('workout-date').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function repetirTreino(id) { const w = workouts.find(x => x.id === id); if (!w) return; editarTreino(w.id); document.getElementById('workout-id').value = ''; document.getElementById('workout-date').value = hojeISO(); document.getElementById('workout-submit').innerText = 'Registrar treino'; document.getElementById('workout-cancel').hidden = true; toast('Treino copiado — ajuste e registre.'); }
+function removerTreino(id) { const w = workouts.find(x => x.id === id); if (!w || !confirm('Apagar este treino?')) return; workouts = workouts.filter(x => x.id !== id); salvar('workouts', workouts); renderSaude(); renderJournal(); }
+function renderTreinos() {
+  const ul = document.getElementById('workout-list'); if (!ul) return; ul.innerHTML = '';
+  const lista = [...workouts].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 20);
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum treino ainda.</li>'; return; }
+  lista.forEach(w => {
+    const t = TIPOS_TREINO[w.type] || TIPOS_TREINO.outro;
+    ul.innerHTML += `<li class="health-item"><div class="transaction-info" style="flex:1"><span>${t[0]} ${t[1]} <small class="item-date">${rotuloData(w.date)} · ${isoParaBR(w.date)}${w.minutes ? ' · ' + w.minutes + ' min' : ''} · ${'🔥'.repeat(w.intensity || 2)}</small></span>${(w.exercises || []).length ? `<small class="item-notes">${w.exercises.map(esc).join(' · ')}</small>` : ''}${w.note ? `<small class="item-notes">${esc(w.note)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Repetir hoje" onclick="repetirTreino(${w.id})">↻</button><button class="mini-btn" title="Editar" onclick="editarTreino(${w.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerTreino(${w.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Peso e medidas ---
+document.getElementById('measure-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const dados = { date: document.getElementById('measure-date').value || hojeISO(), weight: parseFloat(document.getElementById('measure-weight').value) || 0, waist: parseFloat(document.getElementById('measure-waist').value) || 0, bodyfat: parseFloat(document.getElementById('measure-fat').value) || 0, note: document.getElementById('measure-note').value.trim() };
+  if (!dados.weight && !dados.waist && !dados.bodyfat) return;
+  measures.push({ id: novoId(), ...dados }); salvar('measures', measures);
+  document.getElementById('measure-form').reset(); document.getElementById('measure-date').value = hojeISO(); renderSaude(); toast('⚖️ Medida registrada.');
+});
+function removerMedida(id) { if (!confirm('Apagar esta medida?')) return; measures = measures.filter(x => x.id !== id); salvar('measures', measures); renderSaude(); }
+function renderMedidas() {
+  const ul = document.getElementById('measure-list'); const ch = document.getElementById('weight-chart'); if (!ul) return; ul.innerHTML = '';
+  const lista = [...measures].sort((a, b) => a.date.localeCompare(b.date));
+  const pesos = lista.filter(m => m.weight > 0).slice(-12);
+  if (ch) {
+    if (pesos.length >= 2) { const min = Math.min(...pesos.map(m => m.weight)) - 1; const max = Math.max(...pesos.map(m => m.weight)) + 1; ch.innerHTML = '<div class="fin-meses" style="grid-template-columns:repeat(' + pesos.length + ',1fr); height:130px">' + pesos.map(m => `<div class="mes-col" title="${isoParaBR(m.date)}: ${m.weight} kg"><div class="mes-bars" style="height:80px"><div class="mes-bar" style="width:60%; height:${Math.round((m.weight - min) / (max - min) * 100)}%; background:#f472b6"></div></div><small>${isoParaBR(m.date).slice(0, 5)}</small><small class="mes-saldo" style="color:#e2e8f0">${m.weight}</small></div>`).join('') + '</div>'; }
+    else ch.innerHTML = '<div class="stat-line muted">Registre pelo menos 2 pesagens pra ver a evolução.</div>';
+  }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma medida ainda.</li>'; return; }
+  [...lista].reverse().slice(0, 10).forEach(m => {
+    ul.innerHTML += `<li class="health-item"><div class="transaction-info" style="flex:1"><span>${m.weight ? `<strong>${m.weight} kg</strong>` : ''}${m.waist ? ` · cintura ${m.waist} cm` : ''}${m.bodyfat ? ` · ${m.bodyfat}% gordura` : ''}</span><small class="item-date">${isoParaBR(m.date)}${m.note ? ' · ' + esc(m.note) : ''}</small></div><div class="item-actions"><button class="mini-btn" title="Apagar" onclick="removerMedida(${m.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Refeições ---
+document.getElementById('meal-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const desc = document.getElementById('meal-desc').value.trim(); if (!desc) return;
+  meals.push({ id: novoId(), date: document.getElementById('meal-date').value || hojeISO(), time: document.getElementById('meal-time').value, type: document.getElementById('meal-type').value, desc, quality: document.getElementById('meal-quality').value });
+  salvar('meals', meals); document.getElementById('meal-form').reset(); document.getElementById('meal-date').value = hojeISO(); renderSaude(); toast('🍽️ Refeição anotada.');
+});
+function removerRefeicao(id) { meals = meals.filter(x => x.id !== id); salvar('meals', meals); renderSaude(); }
+function renderRefeicoes() {
+  const ul = document.getElementById('meal-list'); if (!ul) return; ul.innerHTML = '';
+  const lista = [...meals].sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 15);
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Diário simples: o que comeu e se foi boa, ok ou ruim. Sem calorias, sem culpa.</li>'; return; }
+  let ultima = '';
+  lista.forEach(m => {
+    if (m.date !== ultima) { ultima = m.date; const doDia = meals.filter(x => x.date === m.date); const boas = doDia.filter(x => x.quality === 'boa').length; ul.innerHTML += `<li class="date-sep">${rotuloData(m.date)} <small>${isoParaBR(m.date)} · ${boas}/${doDia.length} boas</small></li>`; }
+    const t = TIPOS_REFEICAO[m.type] || ['🍽️', '']; const q = QUALIDADE_REFEICAO[m.quality] || ['', ''];
+    ul.innerHTML += `<li class="health-item"><div class="transaction-info" style="flex:1"><span>${t[0]} <strong>${esc(m.time || '')}</strong> ${esc(m.desc)} <small class="item-date">${q[0]} ${q[1]}</small></span></div><div class="item-actions"><button class="mini-btn" title="Apagar" onclick="removerRefeicao(${m.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Consultas, exames, vacinas, medicamentos (viram compromisso tipo Saúde na agenda) ---
+function sincronizarEventoMedico(m) {
+  let ev = m.eventId ? events.find(e => e.id === m.eventId) : null;
+  const k = TIPOS_MEDICO[m.kind] || TIPOS_MEDICO.outro;
+  if (!m.date || m.done) { if (ev) { events = events.filter(e => e.id !== ev.id); m.eventId = null; salvar('events', events); } return; }
+  if (!ev) { ev = { id: novoId(), type: 'saude', done: false, medicalId: m.id }; events.push(ev); m.eventId = ev.id; }
+  ev.title = `${k[1]}: ${m.title}`; ev.date = m.date; ev.time = m.time || ''; ev.endTime = ''; ev.notes = [m.place, m.notes].filter(Boolean).join(' · ');
+  salvar('events', events);
+}
+document.getElementById('medical-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('medical-id').value;
+  const dados = { kind: document.getElementById('medical-kind').value, title: document.getElementById('medical-title').value.trim(), date: document.getElementById('medical-date').value || '', time: document.getElementById('medical-time').value, place: document.getElementById('medical-place').value.trim(), notes: document.getElementById('medical-notes').value.trim() };
+  if (!dados.title) return;
+  let m; if (id) { m = medical.find(x => String(x.id) === id); if (!m) return; Object.assign(m, dados); } else { m = { id: novoId(), done: false, eventId: null, createdAt: Date.now(), ...dados }; medical.push(m); }
+  sincronizarEventoMedico(m); salvar('medical', medical); cancelarEdicaoMedico(); renderSaude(); redesenharAgenda(); toast(id ? '🩺 Atualizado.' : '🩺 Registrado' + (dados.date ? ' — já está no calendário.' : '.'));
+});
+function cancelarEdicaoMedico() { document.getElementById('medical-form').reset(); document.getElementById('medical-id').value = ''; document.getElementById('medical-submit').innerText = 'Adicionar'; document.getElementById('medical-cancel').hidden = true; }
+function editarMedico(id) {
+  const m = medical.find(x => x.id === id); if (!m) return;
+  document.getElementById('medical-id').value = m.id; document.getElementById('medical-kind').value = m.kind; document.getElementById('medical-title').value = m.title; document.getElementById('medical-date').value = m.date || ''; document.getElementById('medical-time').value = m.time || ''; document.getElementById('medical-place').value = m.place || ''; document.getElementById('medical-notes').value = m.notes || '';
+  document.getElementById('medical-submit').innerText = 'Salvar'; document.getElementById('medical-cancel').hidden = false; document.getElementById('medical-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function concluirMedico(id) { const m = medical.find(x => x.id === id); if (!m) return; m.done = !m.done; if (m.done) m.doneAt = hojeISO(); sincronizarEventoMedico(m); salvar('medical', medical); renderSaude(); redesenharAgenda(); }
+function removerMedico(id) { const m = medical.find(x => x.id === id); if (!m || !confirm(`Apagar "${m.title}"?`)) return; if (m.eventId) { events = events.filter(e => e.id !== m.eventId); salvar('events', events); } medical = medical.filter(x => x.id !== id); salvar('medical', medical); renderSaude(); redesenharAgenda(); }
+function renderMedico() {
+  const ul = document.getElementById('medical-list'); if (!ul) return; ul.innerHTML = '';
+  const hoje = hojeISO();
+  const abertos = medical.filter(m => !m.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  const feitos = medical.filter(m => m.done).sort((a, b) => (b.doneAt || b.date || '').localeCompare(a.doneAt || a.date || '')).slice(0, 8);
+  if (!medical.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Seus próprios cuidados: consulta, exame, vacina, remédio. Com data, vira compromisso 🩺 no calendário.</li>'; return; }
+  const linha = m => { const k = TIPOS_MEDICO[m.kind] || TIPOS_MEDICO.outro; const atras = m.date && m.date < hoje && !m.done; return `<li class="health-item" style="${m.done ? 'opacity:0.5' : ''}"><div class="transaction-info" style="flex:1"><span>${k[0]} ${esc(m.title)} <small class="item-date">${k[1]}${m.date ? ' · ' + rotuloData(m.date) + (m.time ? ' ' + esc(m.time) : '') : ' · sem data'}${atras ? ' <span class="badge-topay">passou</span>' : ''}</small></span>${m.place || m.notes ? `<small class="item-notes">${esc([m.place, m.notes].filter(Boolean).join(' · '))}</small>` : ''}</div><div class="item-actions"><button class="mini-btn ${m.done ? 'on' : ''}" title="${m.done ? 'Reabrir' : 'Concluído'}" onclick="concluirMedico(${m.id})">${m.done ? '↩' : '✓'}</button><button class="mini-btn" title="Editar" onclick="editarMedico(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMedico(${m.id})">✕</button></div></li>`; };
+  abertos.forEach(m => ul.innerHTML += linha(m));
+  if (feitos.length) { ul.innerHTML += `<li class="date-sep">Concluídos <small>${medical.filter(m => m.done).length}</small></li>`; feitos.forEach(m => ul.innerHTML += linha(m)); }
+}
+
+// --- Painel do módulo ---
+function renderPainelSaude() {
+  const el = document.getElementById('health-dash'); if (!el) return;
+  verificarNovoDiaAgua();
+  const ini = inicioSemanaISO(); const fim = new Date(); fim.setDate(fim.getDate() + (6 - fim.getDay())); const fimISO = isoDe(fim);
+  const semana = workouts.filter(w => w.date >= ini && w.date <= fimISO); const minSemana = semana.reduce((a, w) => a + (w.minutes || 0), 0);
+  const pesos = [...measures].filter(m => m.weight > 0).sort((a, b) => a.date.localeCompare(b.date)); const ultimo = pesos[pesos.length - 1]; const anterior = pesos[pesos.length - 2];
+  const delta = ultimo && anterior ? (ultimo.weight - anterior.weight) : 0;
+  const prox = medical.filter(m => !m.done && m.date && m.date >= hojeISO()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const goal = hydration.goal || 2500; const pct = Math.min(100, Math.round((hydration.ml || 0) / goal * 100));
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  let html = '<div class="stat-grid">';
+  html += tile('🏋️', `${semana.length}`, `treino${semana.length === 1 ? '' : 's'} nesta semana · ${minSemana} min`, '#22c55e');
+  html += tile('💧', `${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L`, `de ${(goal / 1000).toFixed(1).replace('.', ',')} L hoje (${pct}%)`, '#38bdf8');
+  html += tile('⚖️', ultimo ? `${ultimo.weight} kg` : '—', ultimo ? `${isoParaBR(ultimo.date)}${anterior ? ` · ${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')} kg` : ''}` : 'sem pesagem', '#f472b6');
+  html += tile('🩺', prox ? rotuloData(prox.date) : '—', prox ? `${(TIPOS_MEDICO[prox.kind] || TIPOS_MEDICO.outro)[1]}: ${esc(prox.title).slice(0, 28)}` : 'nada marcado', '#a78bfa');
+  html += '</div>';
+  html += `<div class="water-box"><div class="water-bar"><div style="width:${pct}%"></div></div><div class="water-btns"><button class="mini-btn" onclick="beberAgua(250)">+250 ml</button><button class="mini-btn" onclick="beberAgua(500)">+500 ml</button><button class="mini-btn" onclick="beberAgua(750)">+750 ml</button><button class="mini-btn" onclick="beberAgua(-250)" title="Tirar 250 ml">−250</button><button class="mini-btn" onclick="definirMetaAgua()" title="Mudar meta">🎯 meta</button></div></div>`;
+  el.innerHTML = html;
+}
+function preencherSelectsSaude() {
+  const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
+  f('workout-type', TIPOS_TREINO); f('meal-type', TIPOS_REFEICAO); f('meal-quality', QUALIDADE_REFEICAO); f('medical-kind', TIPOS_MEDICO);
+}
+function renderSaude() { preencherSelectsSaude(); renderPainelSaude(); renderTreinos(); renderMedidas(); renderRefeicoes(); renderMedico(); }
+
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -1646,7 +1923,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -1775,7 +2052,9 @@ function redesenharTudo() {
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
   topics = JSON.parse(localStorage.getItem('lifeos_topics')) || []; materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || []; ritual = JSON.parse(localStorage.getItem('lifeos_ritual')) || ritual;
   assets = JSON.parse(localStorage.getItem('lifeos_assets')) || []; moves = JSON.parse(localStorage.getItem('lifeos_moves')) || []; goals = JSON.parse(localStorage.getItem('lifeos_goals')) || []; projects = JSON.parse(localStorage.getItem('lifeos_projects')) || []; wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || wealth;
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); redesenharNegocios(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  workouts = JSON.parse(localStorage.getItem('lifeos_workouts')) || []; measures = JSON.parse(localStorage.getItem('lifeos_measures')) || []; hydration = JSON.parse(localStorage.getItem('lifeos_hydration')) || hydration; meals = JSON.parse(localStorage.getItem('lifeos_meals')) || []; medical = JSON.parse(localStorage.getItem('lifeos_medical')) || [];
+  profile = JSON.parse(localStorage.getItem('lifeos_profile')) || profile; aplicarPerfil();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); redesenharNegocios(); renderSaude(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {
@@ -1847,6 +2126,7 @@ if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
-document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
-carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
+document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); ['workout-date', 'measure-date', 'meal-date'].forEach(i => document.getElementById(i).value = hojeISO()); renderSaude(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
+aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
+if (!profile.name && !localStorage.getItem('lifeos_perfil_avisado')) { localStorage.setItem('lifeos_perfil_avisado', '1'); setTimeout(() => toast('👤 Bem-vindo ao Genesis! Coloque seu nome em ⚙️ Config → Perfil.', 8000), 1500); }
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

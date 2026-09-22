@@ -31,7 +31,10 @@ let transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
 let notes = JSON.parse(localStorage.getItem('lifeos_notes')) || [];
 let events = JSON.parse(localStorage.getItem('lifeos_events')) || [];   // compromissos da agenda geral
 let recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || []; // lançamentos recorrentes (modelos)
+let budget = JSON.parse(localStorage.getItem('lifeos_budget')) || { items: [], aberto: true }; // orçamento mensal por rubrica
 let tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || [{ id: 'padrao', name: 'Minhas tarefas' }]; // listas de tarefas
+let routines = JSON.parse(localStorage.getItem('lifeos_routines')) || []; // rotinas: tarefas que voltam sozinhas
+let orders = JSON.parse(localStorage.getItem('lifeos_orders')) || []; // compras a caminho (entregas)
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -313,6 +316,7 @@ function verificarNovoDia() {
     salvar('habits', habits); salvar('habitlog', habitLog); mudou = true;
   }
   verificarNovoDiaAgua();
+  if (mudou) gerarRotinas(true);
   if (mudou) { renderFocusTab(); updateStudyStats(); renderJournal(); atualizarSaudacao(); }
 }
 
@@ -488,6 +492,7 @@ const TIPOS_EVENTO = {
   saude:    { nome: 'Saúde',    cor: '#22c55e', icone: '🩺' },
   estudo:   { nome: 'Estudo',   cor: '#f472b6', icone: '📚' },
   negocios: { nome: 'Negócios', cor: '#fbbf24', icone: '📈' },
+  reuniao:  { nome: 'Reunião',  cor: '#0ea5e9', icone: '🤝' },
   social:   { nome: 'Social',   cor: '#fb923c', icone: '🎉' },
   outro:    { nome: 'Outro',    cor: '#94a3b8', icone: '📌' }
 };
@@ -565,9 +570,45 @@ function openDayModal(year, month, day) {
   document.getElementById('day-modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('day-modal').style.display = 'none'; }
-function goToAddShift() { closeModal(); changeTab('shifts'); cancelarEdicaoPlantao(); document.getElementById('shift-date').value = selectedModalDate; setTimeout(() => document.getElementById('shift-desc').focus(), 100); }
-function goToAddEvent() { closeModal(); cancelarEdicaoEvento(); document.getElementById('event-date').value = selectedModalDate; setTimeout(() => { document.getElementById('event-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('event-title').focus(); }, 100); }
+function goToAddShift() { closeModal(); changeTab('home'); verSecaoAgenda('plantoes'); cancelarEdicaoPlantao(); document.getElementById('shift-date').value = selectedModalDate; setTimeout(() => document.getElementById('shift-desc').focus(), 100); }
+function goToAddEvent() { closeModal(); changeTab('home'); verSecaoAgenda('compromissos'); cancelarEdicaoEvento(); document.getElementById('event-date').value = selectedModalDate; setTimeout(() => { document.getElementById('event-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('event-title').focus(); }, 100); }
 document.getElementById('day-modal').addEventListener('click', (e) => { if (e.target.id === 'day-modal') closeModal(); });
+
+// --- AGENDA: SEÇÕES DA ABA ---
+let agendaSecao = 'cal';
+function verSecaoAgenda(secao, el) {
+  agendaSecao = secao;
+  document.querySelectorAll('#agenda-secoes span').forEach(s => s.classList.remove('active'));
+  const spans = document.querySelectorAll('#agenda-secoes span');
+  const ordem = ['cal', 'compromissos', 'reunioes', 'plantoes'];
+  if (el) el.classList.add('active'); else if (spans[ordem.indexOf(secao)]) spans[ordem.indexOf(secao)].classList.add('active');
+  ['cal', 'compromissos', 'plantoes'].forEach(s => { const d = document.getElementById('sec-' + s); if (d) d.hidden = !(secao === s || (secao === 'reunioes' && s === 'compromissos')); });
+  if (secao === 'reunioes' || secao === 'compromissos') { eventFilter = secao === 'reunioes' ? 'reunioes' : 'proximos'; document.querySelectorAll('#event-filters span').forEach((s, i) => s.classList.toggle('active', i === 0)); renderEvents(); }
+  if (secao === 'plantoes') renderShifts();
+  const t = document.getElementById('event-form-title');
+  if (t && !document.getElementById('event-id').value) t.innerText = secao === 'reunioes' ? 'Nova reunião' : 'Novo compromisso';
+  const lt = document.getElementById('event-list-title'); if (lt && (secao === 'reunioes' || secao === 'compromissos')) lt.innerText = secao === 'reunioes' ? 'Reuniões' : 'Compromissos';
+  const sb = document.getElementById('event-submit'); if (sb && !document.getElementById('event-id').value) sb.innerText = secao === 'reunioes' ? 'Adicionar reunião' : 'Adicionar compromisso';
+  if (secao === 'reunioes') { const sel = document.getElementById('event-type'); if (sel && !document.getElementById('event-id').value) { sel.value = 'reuniao'; alternarCamposReuniao(); } }
+}
+function alternarCamposReuniao() {
+  const box = document.getElementById('event-reuniao'); if (!box) return;
+  box.hidden = document.getElementById('event-type').value !== 'reuniao';
+}
+/** Encaminhamentos da reunião viram tarefas na lista "Reuniões". */
+function gerarTarefasReuniao(id) {
+  const ev = events.find(x => x.id === id); if (!ev || !(ev.followups || []).length) return;
+  let lista = tasklists.find(l => l.name.toLowerCase() === 'reuniões'); if (!lista) { lista = { id: 'l' + novoId(), name: 'Reuniões' }; tasklists.push(lista); salvar('tasklists', tasklists); }
+  let n = 0;
+  ev.followups.forEach(f => {
+    if (tasks.some(t => t.text === f && t.list === lista.id && !t.done)) return;
+    tasks.push({ id: novoId(), text: f, done: false, list: lista.id, due: '', notes: `Reunião: ${ev.title} (${isoParaBR(ev.date)})`, starred: false, subtasks: [], createdAt: Date.now() }); n++;
+  });
+  if (!n) { toast('Todos os encaminhamentos já viraram tarefas.'); return; }
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao();
+  toast(`✅ ${n} encaminhamento${n > 1 ? 's' : ''} → tarefas na lista "Reuniões".`, 5000);
+}
+function togglePauta(id, i) { const ev = events.find(x => x.id === id); if (!ev || !ev.agenda || !ev.agenda[i]) return; ev.agenda[i].done = !ev.agenda[i].done; salvar('events', events); renderEvents(); }
 
 // --- AGENDA: COMPROMISSOS ---
 let eventFilter = 'proximos';
@@ -584,27 +625,36 @@ document.getElementById('event-form').addEventListener('submit', (e) => {
     time: document.getElementById('event-time').value,
     endTime: document.getElementById('event-end').value,
     type: document.getElementById('event-type').value,
-    notes: document.getElementById('event-notes').value.trim()
+    notes: document.getElementById('event-notes').value.trim(),
+    people: document.getElementById('event-people').value.trim(),
+    minutes: document.getElementById('event-minutes').value.trim(),
+    followups: document.getElementById('event-followups').value.split('\n').map(s => s.trim()).filter(Boolean)
   };
   if (!dados.title || !dados.date) return;
-  if (id) { const ev = events.find(x => String(x.id) === id); if (ev) Object.assign(ev, dados); }
-  else events.push({ id: novoId(), done: false, ...dados });
+  const pauta = document.getElementById('event-agenda').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (id) { const ev = events.find(x => String(x.id) === id); if (ev) { const antigas = ev.agenda || []; Object.assign(ev, dados); ev.agenda = pauta.map(p => ({ text: p, done: !!(antigas.find(a => a.text === p) || {}).done })); } }
+  else events.push({ id: novoId(), done: false, agenda: pauta.map(p => ({ text: p, done: false })), ...dados });
   salvar('events', events); cancelarEdicaoEvento(); redesenharAgenda();
   toast(id ? '📅 Compromisso atualizado.' : '📅 Compromisso adicionado.');
 });
 function cancelarEdicaoEvento() {
   document.getElementById('event-form').reset(); document.getElementById('event-id').value = '';
-  document.getElementById('event-form-title').innerText = 'Novo compromisso';
-  document.getElementById('event-submit').innerText = 'Adicionar compromisso';
+  document.getElementById('event-form-title').innerText = agendaSecao === 'reunioes' ? 'Nova reunião' : 'Novo compromisso';
+  if (agendaSecao === 'reunioes') document.getElementById('event-type').value = 'reuniao';
+  alternarCamposReuniao();
+  document.getElementById('event-submit').innerText = agendaSecao === 'reunioes' ? 'Adicionar reunião' : 'Adicionar compromisso';
   document.getElementById('event-cancel').hidden = true;
 }
 function editarEvento(id) {
   const ev = events.find(x => x.id === id); if (!ev) return;
-  changeTab('home');
+  changeTab('home'); verSecaoAgenda(ev.type === 'reuniao' ? 'reunioes' : 'compromissos');
   document.getElementById('event-id').value = ev.id;
   document.getElementById('event-title').value = ev.title; document.getElementById('event-date').value = ev.date;
   document.getElementById('event-time').value = ev.time || ''; document.getElementById('event-end').value = ev.endTime || '';
   document.getElementById('event-type').value = ev.type || 'outro'; document.getElementById('event-notes').value = ev.notes || '';
+  document.getElementById('event-people').value = ev.people || ''; document.getElementById('event-minutes').value = ev.minutes || '';
+  document.getElementById('event-agenda').value = (ev.agenda || []).map(a => a.text).join('\n'); document.getElementById('event-followups').value = (ev.followups || []).join('\n');
+  alternarCamposReuniao();
   document.getElementById('event-form-title').innerText = 'Editar compromisso';
   document.getElementById('event-submit').innerText = 'Salvar alterações';
   document.getElementById('event-cancel').hidden = false;
@@ -618,6 +668,9 @@ function renderEvents() {
   const list = document.getElementById('event-list'); if (!list) return; list.innerHTML = '';
   const hoje = hojeISO();
   let lista = [...events];
+  if (eventFilter === 'reunioes') lista = lista.filter(e => e.type === 'reuniao');
+  else if (agendaSecao === 'reunioes') lista = lista.filter(e => e.type === 'reuniao');
+  else if (agendaSecao === 'compromissos') lista = lista.filter(e => e.type !== 'reuniao');
   if (eventFilter === 'proximos') lista = lista.filter(e => e.date >= hoje && !e.done);
   else if (eventFilter === 'passados') lista = lista.filter(e => e.date < hoje);
   else if (eventFilter === 'concluidos') lista = lista.filter(e => e.done);
@@ -633,6 +686,12 @@ function renderEvents() {
         <span style="${e.done ? 'text-decoration:line-through' : ''}">${tp.icone} <strong>${esc(e.time || 'dia todo')}${e.endTime ? '–' + esc(e.endTime) : ''}</strong> ${esc(e.title)}</span>
         <small class="category-badge" style="color:${tp.cor}; background:${tp.cor}22">${tp.nome}</small>${e.notes ? `<small class="item-notes">${esc(e.notes)}</small>` : ''}
       </div>
+      ${e.type === 'reuniao' && ((e.agenda || []).length || e.people || e.minutes || (e.followups || []).length) ? `<div class="reuniao-box">
+        ${e.people ? `<small class="item-notes">👥 ${esc(e.people)}</small>` : ''}
+        ${(e.agenda || []).length ? `<div class="note-check">${e.agenda.map((a, i) => `<label class="subtask ${a.done ? 'done' : ''}"><input type="checkbox" ${a.done ? 'checked' : ''} onclick="event.stopPropagation(); togglePauta(${e.id}, ${i})"> ${esc(a.text)}</label>`).join('')}</div>` : ''}
+        ${e.minutes ? `<small class="item-notes">📝 ${esc(e.minutes)}</small>` : ''}
+        ${(e.followups || []).length ? `<div class="followups"><small class="item-date">➡️ ${e.followups.map(esc).join(' · ')}</small><button class="mini-btn xs" onclick="gerarTarefasReuniao(${e.id})" title="Criar tarefas na lista Reuniões">➕ virar tarefas</button></div>` : ''}
+      </div>` : ''}
       <div class="item-actions"><button class="mini-btn" title="${e.done ? 'Reabrir' : 'Concluir'}" onclick="concluirEvento(${e.id})">${e.done ? '↩' : '✓'}</button><button class="mini-btn" title="Editar" onclick="editarEvento(${e.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerEvento(${e.id})">✕</button></div>
     </li>`;
   });
@@ -665,7 +724,7 @@ function transacoesEscopo() { return finModo === 'mes' ? transactions.filter(t =
 function preencherCategorias(manterAtual) {
   const tipo = document.getElementById('type').value; const sel = document.getElementById('category');
   const atual = manterAtual ? sel.value : '';
-  sel.innerHTML = CATEGORIAS[tipo].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') + '<option value="__outra">✏️ Outra (digitar)</option>';
+  sel.innerHTML = categoriasDoTipo(tipo).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') + '<option value="__outra">✏️ Outra (digitar)</option>';
   if (atual && [...sel.options].some(o => o.value === atual)) sel.value = atual;
   document.getElementById('category-custom').hidden = sel.value !== '__outra';
 }
@@ -793,7 +852,116 @@ function removeFinance(index) {
   if (!transacaoDePlantao(t) && !confirm(`Apagar "${t.desc}"?`)) return;
   transactions.splice(index, 1); salvar('finances', transactions); redesenharFinancas();
 }
-function redesenharFinancas() { updateFinanceValues(); renderFinances(); renderRecorrentes(); renderJournal(); }
+function redesenharFinancas() { updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderJournal(); }
+
+// ============================================================================
+// ORÇAMENTO MENSAL (inspirado na planilha do Primo Pobre)
+// budget.items = [{ id, name, kind: 'receita'|'essencial'|'nao', amount }]
+// O nome do item É a categoria usada nos lançamentos — então o "real" do mês
+// sai sozinho das transações efetivadas. Previsto × real, sobra e reserva ideal.
+// ============================================================================
+const MODELO_PRIMO_POBRE = {
+  receita: ['Salário líquido', 'Vale-alimentação', 'Vale-refeição', 'Plantão', 'Renda extra 1', 'Renda extra 2'],
+  essencial: ['Moradia / Aluguel', 'Condomínio', 'Supermercado', 'Água', 'Luz', 'Gás', 'IPTU', 'Plano de saúde', 'Investimentos', 'Outras essenciais'],
+  nao: ['Academia / Esportes', 'Aplicativos e assinaturas', 'Cartão de crédito', 'Celular / Telefonia', 'Combustível', 'Empréstimos', 'Escola / Faculdade / Cursos', 'Farmácia', 'Financiamento de veículo', 'Gastos com animais', 'Gastos imprevistos', 'Transporte', 'Internet residencial', 'Lazer', 'Streaming', 'Padaria / Feira', 'Restaurantes / iFood', 'Salão / Manicure', 'Tarifas bancárias', 'Outras não essenciais']
+};
+const GRUPOS_ORC = { receita: ['💰', 'Receitas (entradas)', '#22c55e'], essencial: ['🏠', 'Despesas essenciais', '#38bdf8'], nao: ['🎉', 'Despesas não essenciais', '#f59e0b'] };
+
+function itensOrc(kind) { return (budget.items || []).filter(i => i.kind === kind); }
+function previstoOrc(kind) { return itensOrc(kind).reduce((a, i) => a + (Number(i.amount) || 0), 0); }
+/** Real do mês em exibição (só o efetivado) para uma categoria. */
+function realCategoria(nome, tipo) {
+  return transactions.filter(t => !transacaoPendente(t) && t.type === tipo && (t.category || '') === nome && dataTransacao(t).startsWith(finMonth)).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+}
+function realOrc(kind) { const tipo = kind === 'receita' ? 'income' : 'expense'; return itensOrc(kind).reduce((a, i) => a + realCategoria(i.name, tipo), 0); }
+function custoVidaBasico() { return previstoOrc('essencial') || realOrc('essencial'); }
+
+function criarOrcamentoModelo() {
+  if ((budget.items || []).length && !confirm('Isso acrescenta as rubricas do modelo que ainda não existem. Continuar?')) return;
+  budget.items = budget.items || []; let n = 0;
+  Object.entries(MODELO_PRIMO_POBRE).forEach(([kind, nomes]) => nomes.forEach(nome => {
+    if (budget.items.some(i => i.name.toLowerCase() === nome.toLowerCase())) return;
+    budget.items.push({ id: novoId(), name: nome, kind, amount: 0 }); n++;
+  }));
+  salvar('budget', budget); renderOrcamento(); preencherCategorias(false);
+  toast(`📋 ${n} rubricas criadas. Preencha os valores do seu mês.`, 6000);
+}
+function addItemOrc(kind) {
+  const nome = prompt(`Nome da rubrica (${GRUPOS_ORC[kind][1]}):`); if (!nome || !nome.trim()) return;
+  budget.items = budget.items || [];
+  if (budget.items.some(i => i.name.toLowerCase() === nome.trim().toLowerCase())) { toast('Já existe uma rubrica com esse nome.'); return; }
+  budget.items.push({ id: novoId(), name: nome.trim(), kind, amount: 0 });
+  salvar('budget', budget); renderOrcamento(); preencherCategorias(false);
+}
+function mudarValorOrc(id, v) {
+  const i = (budget.items || []).find(x => x.id === id); if (!i) return;
+  i.amount = parseFloat(String(v).replace(',', '.')) || 0; salvar('budget', budget); renderOrcamento();
+}
+function renomearItemOrc(id) {
+  const i = (budget.items || []).find(x => x.id === id); if (!i) return;
+  const nome = prompt('Nome da rubrica (é a categoria usada nos lançamentos):', i.name); if (!nome || !nome.trim()) return;
+  const antigo = i.name; i.name = nome.trim();
+  if (confirm(`Renomear também a categoria "${antigo}" nos lançamentos já feitos?`)) { transactions.forEach(t => { if (t.category === antigo) t.category = i.name; }); salvar('finances', transactions); renderFinances(); }
+  salvar('budget', budget); renderOrcamento(); preencherCategorias(false);
+}
+function removerItemOrc(id) {
+  const i = (budget.items || []).find(x => x.id === id); if (!i || !confirm(`Tirar "${i.name}" do orçamento? (os lançamentos ficam)`)) return;
+  budget.items = budget.items.filter(x => x.id !== id); salvar('budget', budget); renderOrcamento(); preencherCategorias(false);
+}
+function alternarOrcamento() { budget.aberto = !budget.aberto; salvar('budget', budget); renderOrcamento(); }
+
+function renderOrcamento() {
+  const el = document.getElementById('orc-conteudo'); if (!el) return;
+  budget.items = budget.items || [];
+  const receitaP = previstoOrc('receita'), essP = previstoOrc('essencial'), naoP = previstoOrc('nao');
+  const receitaR = realOrc('receita'), essR = realOrc('essencial'), naoR = realOrc('nao');
+  const sobraP = receitaP - essP - naoP, sobraR = receitaR - essR - naoR;
+  const reserva = custoVidaBasico() * 6;
+  const resumo = document.getElementById('orc-resumo');
+  if (resumo) resumo.innerHTML = `
+    <div class="orc-tile"><small>Entradas</small><strong style="color:#22c55e">${formatCurrency(receitaR)}</strong><small>previsto ${formatCurrency(receitaP)}</small></div>
+    <div class="orc-tile"><small>Essenciais</small><strong style="color:#38bdf8">${formatCurrency(essR)}</strong><small>previsto ${formatCurrency(essP)}</small></div>
+    <div class="orc-tile"><small>Não essenciais</small><strong style="color:#f59e0b">${formatCurrency(naoR)}</strong><small>previsto ${formatCurrency(naoP)}</small></div>
+    <div class="orc-tile"><small>Sobra do mês</small><strong style="color:${sobraR >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(sobraR)}</strong><small>previsto ${formatCurrency(sobraP)}</small></div>`;
+  const rodape = document.getElementById('orc-reserva');
+  if (rodape) {
+    const jaTem = (typeof totalClasse === 'function') ? totalClasse('reserva') : 0;
+    const falta = Math.max(0, reserva - jaTem);
+    rodape.innerHTML = reserva ? `🛟 <strong>Reserva de emergência ideal: ${formatCurrency(reserva)}</strong> <small>(6 × o seu custo de vida básico de ${formatCurrency(custoVidaBasico())})</small>${jaTem ? ` · você já tem ${formatCurrency(jaTem)}${falta ? `, faltam ${formatCurrency(falta)}` : ' — meta batida! 🎉'}` : ''}${falta ? ` <button class="mini-btn xs" onclick="criarMetaReserva(${reserva})">🎯 virar meta</button>` : ''}` : '';
+  }
+  if (!budget.items.length) { el.innerHTML = '<div class="stat-line muted" style="padding:14px 0">Sem orçamento ainda. Clique em "Usar o modelo" para criar as rubricas e preencher os seus valores.</div>'; return; }
+  el.innerHTML = Object.entries(GRUPOS_ORC).map(([kind, g]) => {
+    const itens = itensOrc(kind); const tipo = kind === 'receita' ? 'income' : 'expense';
+    const tot = itens.reduce((a, i) => a + (Number(i.amount) || 0), 0);
+    const totR = itens.reduce((a, i) => a + realCategoria(i.name, tipo), 0);
+    return `<div class="orc-grupo"><h5 style="color:${g[2]}">${g[0]} ${g[1]} <small>previsto ${formatCurrency(tot)} · real ${formatCurrency(totR)}</small></h5>
+      ${itens.map(i => {
+        const real = realCategoria(i.name, tipo); const prev = Number(i.amount) || 0;
+        const pct = prev ? Math.min(100, Math.round(real / prev * 100)) : 0;
+        const estourou = kind !== 'receita' && prev > 0 && real > prev;
+        const faltou = kind === 'receita' && prev > 0 && real < prev;
+        return `<div class="orc-linha"><span class="orc-nome" title="${esc(i.name)}">${esc(i.name)}</span>
+          <input type="number" step="0.01" min="0" class="orc-valor" value="${prev || ''}" placeholder="0" onchange="mudarValorOrc(${i.id}, this.value)">
+          <div class="cat-bar" title="${formatCurrency(real)} de ${formatCurrency(prev)}"><div style="width:${prev ? pct : 0}%; background:${estourou ? '#ef4444' : faltou ? '#f59e0b' : g[2]}"></div></div>
+          <span class="orc-real" style="color:${estourou ? '#ef4444' : '#cbd5e1'}">${formatCurrency(real)}${prev ? ` <small>${pct}%</small>` : ''}</span>
+          <span class="item-actions"><button class="mini-btn xs" title="Renomear" onclick="renomearItemOrc(${i.id})">✎</button><button class="mini-btn xs" title="Tirar do orçamento" onclick="removerItemOrc(${i.id})">✕</button></span></div>`;
+      }).join('')}
+      <button type="button" class="mini-btn xs" onclick="addItemOrc('${kind}')">＋ rubrica</button></div>`;
+  }).join('');
+}
+/** Cria (ou atualiza) a meta "Reserva de emergência" no módulo Negócios. */
+function criarMetaReserva(valor) {
+  let g = goals.find(x => /reserva/i.test(x.name));
+  if (g) { g.target = Math.round(valor); toast('🎯 Meta de reserva atualizada em Negócios.'); }
+  else { const d = new Date(); d.setMonth(d.getMonth() + 12); goals.push({ id: novoId(), name: 'Reserva de emergência', target: Math.round(valor), deadline: isoDe(d), linkedTo: 'reserva', note: '6 × custo de vida básico (orçamento)', createdAt: Date.now() }); toast('🎯 Meta criada em Negócios → Metas.', 5000); }
+  salvar('goals', goals); if (typeof redesenharNegocios === 'function') redesenharNegocios(); renderOrcamento();
+}
+/** Categorias do formulário de lançamento = as do orçamento + as fixas. */
+function categoriasDoTipo(tipo) {
+  const kinds = tipo === 'income' ? ['receita'] : ['essencial', 'nao'];
+  const doOrc = (budget.items || []).filter(i => kinds.includes(i.kind)).map(i => i.name);
+  return [...new Set([...doOrc, ...CATEGORIAS[tipo]])];
+}
 
 // --- FINANÇAS: RECORRENTES ---
 // Modelo: { id, desc, amount, type, category, day, active, since: 'aaaa-mm' }
@@ -813,7 +981,7 @@ function gerarRecorrentes() {
 }
 function preencherCategoriasRec() {
   const tipo = document.getElementById('rec-type').value; const sel = document.getElementById('rec-category');
-  sel.innerHTML = CATEGORIAS[tipo].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.innerHTML = categoriasDoTipo(tipo).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
 }
 document.getElementById('rec-type').addEventListener('change', preencherCategoriasRec);
 document.getElementById('rec-form').addEventListener('submit', (e) => {
@@ -852,7 +1020,7 @@ let shiftFilter = 'proximos';
 function preencherLocais() {
   const sel = document.getElementById('shift-place'); if (!sel) return;
   const atual = sel.value;
-  sel.innerHTML = '<option value="">— escolher turno —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.time ? ' · ' + esc(p.time) : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
+  sel.innerHTML = '<option value="">— escolher turno —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.time ? ' · ' + esc(p.time) : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ' · ' + fmtHora(valorHora(p.amount, p.hours)) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
   if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
   renderPlaces();
 }
@@ -864,12 +1032,13 @@ function aplicarLocalPlantao() {
   if (p.time) document.getElementById('shift-time').value = p.time;
   if (p.hours) document.getElementById('shift-hours').value = p.hours;
   if (p.amount) document.getElementById('shift-amount').value = p.amount;
+  limparFaixas(); mostrarValorHora();
 }
 function renderPlaces() {
   const ul = document.getElementById('place-list'); if (!ul) return; ul.innerHTML = '';
   if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum turno cadastrado. Ex: "Hospital X 12h" (07:00, 12h, R$ 1.500).</li>'; return; }
   places.forEach((p, i) => {
-    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</small></div>
+    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ` · <strong style="color:#22c55e">${fmtHora(valorHora(p.amount, p.hours))}</strong>` : ''}</small></div>
       <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
   });
 }
@@ -890,6 +1059,52 @@ function editarLocal(i) {
 }
 function removerLocal(i) { if (!confirm(`Apagar o turno "${places[i].name}"?`)) return; places.splice(i, 1); salvar('places', places); preencherLocais(); }
 
+/** R$/hora de um plantão ou turno. */
+function valorHora(valor, horas) { const h = Number(horas) || 0; return h > 0 ? (Number(valor) || 0) / h : 0; }
+function fmtHora(v) { return formatCurrency(v) + '/h'; }
+/** Faixas do plantão: [{ hours, rate, label }] — quando existem, horas e valor vêm delas. */
+function totalFaixas(parts) { return (parts || []).reduce((a, p) => a + (Number(p.hours) || 0) * (Number(p.rate) || 0), 0); }
+function horasFaixas(parts) { return (parts || []).reduce((a, p) => a + (Number(p.hours) || 0), 0); }
+function lerFaixasDoForm() {
+  return [...document.querySelectorAll('#shift-parts .part-row')].map(r => ({
+    hours: parseFloat(r.querySelector('.part-hours').value) || 0,
+    rate: parseFloat(r.querySelector('.part-rate').value) || 0,
+    label: r.querySelector('.part-label').value.trim()
+  })).filter(p => p.hours > 0 && p.rate > 0);
+}
+function linhaFaixa(p) {
+  return `<div class="part-row"><input type="number" class="part-hours" step="0.5" min="0" placeholder="horas" value="${p && p.hours ? p.hours : ''}" oninput="recalcularFaixas()"><span>h ×</span><input type="number" class="part-rate" step="0.01" min="0" placeholder="R$/h" value="${p && p.rate ? p.rate : ''}" oninput="recalcularFaixas()"><input type="text" class="part-label" placeholder="rótulo (ex: feriado)" value="${p && p.label ? esc(p.label) : ''}" oninput="recalcularFaixas()"><button type="button" class="mini-btn" title="Remover faixa" onclick="this.parentElement.remove(); recalcularFaixas();">✕</button></div>`;
+}
+function addFaixa(p) { document.getElementById('shift-parts').insertAdjacentHTML('beforeend', linhaFaixa(p)); recalcularFaixas(); }
+function limparFaixas() { document.getElementById('shift-parts').innerHTML = ''; recalcularFaixas(); }
+/** Com faixas: duração e valor do plantão passam a ser a soma delas (campos ficam só de leitura). */
+function recalcularFaixas() {
+  const faixas = lerFaixasDoForm();
+  const hIn = document.getElementById('shift-hours'); const vIn = document.getElementById('shift-amount');
+  const temFaixas = document.querySelectorAll('#shift-parts .part-row').length > 0;
+  hIn.readOnly = vIn.readOnly = temFaixas;
+  hIn.classList.toggle('calculado', temFaixas); vIn.classList.toggle('calculado', temFaixas);
+  if (faixas.length) { hIn.value = horasFaixas(faixas); vIn.value = Math.round(totalFaixas(faixas) * 100) / 100; }
+  mostrarValorHora();
+}
+/** Linha viva abaixo do valor: R$/h do que está no formulário. */
+function mostrarValorHora() {
+  const el = document.getElementById('shift-rate-hint'); if (!el) return;
+  const h = parseFloat(document.getElementById('shift-hours').value) || 0;
+  const v = parseFloat(document.getElementById('shift-amount').value) || 0;
+  const faixas = lerFaixasDoForm();
+  if (faixas.length) { el.innerHTML = faixas.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' <small>(' + esc(p.label) + ')</small>' : ''}`).join(' + ') + ` = <strong>${formatCurrency(totalFaixas(faixas))}</strong> em ${horasFaixas(faixas)}h · média ${fmtHora(valorHora(totalFaixas(faixas), horasFaixas(faixas)))}`; }
+  else if (h > 0 && v > 0) el.innerHTML = `💰 <strong>${fmtHora(valorHora(v, h))}</strong> · ${h}h × ${fmtHora(valorHora(v, h))} = ${formatCurrency(v)}`;
+  else el.innerHTML = '';
+}
+/** Ajusta o valor pela duração, usando o R$/h do turno escolhido. */
+function recalcularPeloTurno() {
+  const v = document.getElementById('shift-place').value; const p = places[Number(v)];
+  const h = parseFloat(document.getElementById('shift-hours').value) || 0;
+  if (!p || !p.hours || !p.amount || !h) { toast('Escolha um turno com valor e preencha a duração.'); return; }
+  document.getElementById('shift-amount').value = Math.round(valorHora(p.amount, p.hours) * h * 100) / 100;
+  mostrarValorHora(); toast(`💰 ${h}h × ${fmtHora(valorHora(p.amount, p.hours))} = ${formatCurrency(valorHora(p.amount, p.hours) * h)}`);
+}
 function transacaoDoPlantao(s) { return transactions.find(t => t.id === s.id); }
 function descricaoLancamento(s) { const [y, m, d] = s.date.split('-'); return `Plantão: ${s.desc} (${d}/${m} às ${s.time})`; }
 /** Mantém o lançamento em Finanças igual ao plantão (valor, data, pago/a receber). */
@@ -913,13 +1128,13 @@ function renderShifts() {
   const aReceber = shifts.filter(s => !s.paid); const totalReceber = aReceber.reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const mes = hoje.slice(0, 7); const doMes = shifts.filter(s => s.date.startsWith(mes)); const recebidoMes = doMes.filter(s => s.paid).reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const resumo = document.getElementById('shift-summary');
-  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 Plantões no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span>`;
+  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 Plantões no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span><span>⏱ Média no mês: <strong style="color:#22c55e">${fmtHora(valorHora(doMes.reduce((a, s) => a + (Number(s.amount) || 0), 0), doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)))}</strong></span>`;
 
   if (!lista.length) { sList.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum plantão neste filtro.</li>'; return; }
   lista.forEach(s => {
     const li = document.createElement('li'); li.classList.add('shift-item'); if (s.paid) li.classList.add('paid');
     li.innerHTML = `<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
-        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}</small>${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
+        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}${s.hours && s.amount ? ' · ' + fmtHora(valorHora(s.amount, s.hours)) : ''}</small>${(s.parts || []).length ? `<small class="item-notes">🧮 ${s.parts.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' (' + esc(p.label) + ')' : ''}`).join(' + ')}</small>` : ''}${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(s.amount)}</strong><button class="mini-btn ${s.paid ? 'on' : ''}" title="${s.paid ? 'Marcar como não pago' : 'Marcar como pago'}" onclick="alternarPago(${s.id})">💵</button><button class="mini-btn" title="Editar" onclick="editarPlantao(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeShift(${s.id})">✕</button></div>`;
     sList.appendChild(li);
   }); renderCalendar();
@@ -934,8 +1149,10 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
     desc: document.getElementById('shift-desc').value.trim(),
     amount: parseFloat(document.getElementById('shift-amount').value),
     notes: document.getElementById('shift-notes').value.trim(),
-    swap: document.getElementById('shift-swap').value.trim()
+    swap: document.getElementById('shift-swap').value.trim(),
+    parts: lerFaixasDoForm()
   };
+  if (dados.parts.length) { dados.hours = horasFaixas(dados.parts); dados.amount = Math.round(totalFaixas(dados.parts) * 100) / 100; }
   if (!dados.date || !dados.time || !dados.desc || isNaN(dados.amount)) return;
   let s;
   if (id) { s = shifts.find(x => String(x.id) === id); if (!s) return; Object.assign(s, dados); }
@@ -947,17 +1164,19 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
 });
 function cancelarEdicaoPlantao() {
   document.getElementById('shift-form').reset(); document.getElementById('shift-id').value = '';
+  limparFaixas();
   document.getElementById('shift-form-title').innerText = 'Agendar Novo Plantão';
   document.getElementById('shift-submit').innerText = 'Agendar plantão';
   document.getElementById('shift-cancel').hidden = true;
 }
 function editarPlantao(id) {
   const s = shifts.find(x => x.id === id); if (!s) return;
-  changeTab('shifts');
+  changeTab('home'); verSecaoAgenda('plantoes');
   document.getElementById('shift-id').value = s.id; document.getElementById('shift-place').value = '';
   document.getElementById('shift-date').value = s.date; document.getElementById('shift-time').value = s.time || '';
   document.getElementById('shift-hours').value = s.hours || ''; document.getElementById('shift-desc').value = s.desc;
   document.getElementById('shift-amount').value = s.amount; document.getElementById('shift-notes').value = s.notes || ''; document.getElementById('shift-swap').value = s.swap || '';
+  document.getElementById('shift-parts').innerHTML = (s.parts || []).map(linhaFaixa).join(''); recalcularFaixas();
   document.getElementById('shift-form-title').innerText = 'Editar plantão';
   document.getElementById('shift-submit').innerText = 'Salvar alterações';
   document.getElementById('shift-cancel').hidden = false;
@@ -1119,12 +1338,12 @@ function linhaTarefa(t) {
     <div class="task-main">
       <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: #38bdf8;">
       <div class="task-body" onclick="editarTarefa(${t.id})">
-        <span class="task-text">${esc(t.text)}</span>
-        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${esc(t.notes)}</span>` : ''}</div>
+        <span class="task-text">${t.routineId ? '<span class="rot-tag" title="Tarefa de rotina">🔄</span> ' : ''}${textoComLink(t.text)}</span>
+        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${linkify(esc(t.notes))}</span>` : ''}</div>
       </div>
       <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
     </div>
-    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
+    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})"> ${textoComLink(s.text)}</label>`).join('')}</div>` : ''}
   </li>`;
 }
 function adiarTarefa(id, dias) {
@@ -1137,6 +1356,7 @@ function toggleTask(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
   t.done = !t.done;
   if (t.done) { t.doneAt = new Date().toISOString(); (t.subtasks || []).forEach(s => s.done = true); } else delete t.doneAt;
+  if (t.done && t.routineId) rotinaConcluida(t);
   salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderCalendar();
 }
 function toggleSubtask(id, i) {
@@ -1152,6 +1372,204 @@ function removeTask(id) {
 }
 /** Tarefas pendentes em ordem de importância (estrela, atrasada, hoje, com prazo, resto) — usada no Painel. */
 function tarefasPrioritarias(n) { return tasks.filter(t => !t.done).sort(ordenarTarefas).slice(0, n); }
+
+// ============================================================================
+// ROTINAS (tarefas que voltam sozinhas)
+// routines: [{ id, text, list, freq, weekdays[], monthday, interval, notes,
+//              starred, subtasks[], active, next, count, lastDone }]
+// freq: 'diaria' | 'semanal' | 'quinzenal' | 'mensal' | 'dias' | 'apos'
+// A rotina não é uma tarefa: ela FABRICA tarefas. Cada tarefa gerada carrega
+// routineId + occur (a data daquela ocorrência), então nunca duplica.
+// ============================================================================
+const FREQS = {
+  diaria:    'Todo dia',
+  semanal:   'Toda semana',
+  quinzenal: 'A cada 15 dias',
+  mensal:    'Todo mês',
+  dias:      'A cada N dias',
+  apos:      'N dias depois de concluída'
+};
+const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const ROTINAS_SUGERIDAS = [
+  { text: '💸 Conferir extrato e lançar gastos da semana', freq: 'semanal', weekdays: [0], lista: 'Rotinas' },
+  { text: '✂️ Cortar unha / cabelo / barba', freq: 'apos', interval: 21, lista: 'Rotinas' },
+  { text: '🔍 Revisão do app: tarefas, notas e pendências', freq: 'semanal', weekdays: [0], lista: 'Rotinas' },
+  { text: '💾 Exportar backup do Genesis', freq: 'semanal', weekdays: [6], lista: 'Rotinas' },
+  { text: '🚑 Conferir plantões recebidos e dar baixa', freq: 'mensal', monthday: 5, lista: 'Rotinas' },
+  { text: '📈 Atualizar valores dos investimentos', freq: 'mensal', monthday: 1, lista: 'Rotinas' },
+  { text: '🧹 Limpar listas de compras concluídas', freq: 'quinzenal', weekdays: [6], lista: 'Rotinas' }
+];
+
+function diaDaSemanaISO(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).getDay(); }
+function somaDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); return isoDe(new Date(y, m - 1, d + n)); }
+/** Próxima data válida da rotina, a partir de (e incluindo) `desde`. */
+function proximaData(r, desde) {
+  const base = desde || hojeISO();
+  if (r.freq === 'diaria') return base;
+  if (r.freq === 'dias' || r.freq === 'apos') return base;
+  if (r.freq === 'semanal' || r.freq === 'quinzenal') {
+    const dias = (r.weekdays && r.weekdays.length) ? r.weekdays : [diaDaSemanaISO(base)];
+    for (let i = 0; i < 14; i++) { const cand = somaDias(base, i); if (dias.includes(diaDaSemanaISO(cand))) return cand; }
+    return base;
+  }
+  if (r.freq === 'mensal') {
+    const dia = Math.min(Math.max(1, Number(r.monthday) || 1), 28);
+    const [y, m, d] = base.split('-').map(Number);
+    return d <= dia ? `${y}-${String(m).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : isoDe(new Date(y, m, dia));
+  }
+  return base;
+}
+/** Avança a rotina para a ocorrência seguinte a `apartir`. */
+function avancarRotina(r, apartir) {
+  const base = apartir || r.next || hojeISO();
+  if (r.freq === 'diaria') r.next = somaDias(base, 1);
+  else if (r.freq === 'dias' || r.freq === 'apos') r.next = somaDias(base, Math.max(1, Number(r.interval) || 7));
+  else if (r.freq === 'quinzenal') r.next = proximaData(r, somaDias(base, 8));
+  else if (r.freq === 'semanal') r.next = proximaData(r, somaDias(base, 1));
+  else if (r.freq === 'mensal') { const [y, m] = base.split('-').map(Number); r.next = proximaData(r, isoDe(new Date(y, m, 1))); }
+  return r.next;
+}
+function listaRotinas() {
+  let l = tasklists.find(x => x.name.toLowerCase() === 'rotinas');
+  if (!l) { l = { id: 'l' + novoId(), name: 'Rotinas' }; tasklists.push(l); salvar('tasklists', tasklists); }
+  return l;
+}
+function descricaoRotina(r) {
+  if (r.freq === 'semanal' || r.freq === 'quinzenal') { const d = (r.weekdays || []).map(i => DIAS_SEM[i]).join(', ') || '—'; return `${r.freq === 'quinzenal' ? 'A cada 15 dias' : 'Toda semana'} · ${d}`; }
+  if (r.freq === 'mensal') return `Todo dia ${r.monthday || 1} do mês`;
+  if (r.freq === 'dias') return `A cada ${r.interval || 7} dias`;
+  if (r.freq === 'apos') return `${r.interval || 7} dias depois de concluída`;
+  return FREQS[r.freq] || '';
+}
+
+/** Cria as tarefas das rotinas que estão chegando (até 2 dias à frente). Roda na carga e na virada do dia. */
+function gerarRotinas(silencioso) {
+  const hoje = hojeISO(); const limite = somaDias(hoje, 2); let criadas = 0; let mudouRot = false;
+  routines.filter(r => r.active !== false).forEach(r => {
+    if (!r.next) { r.next = proximaData(r, hoje); mudouRot = true; }
+    let guarda = 0;
+    while (r.next <= limite && guarda++ < 40) {
+      const occur = r.next;
+      const existe = tasks.some(t => t.routineId === r.id && t.occur === occur);
+      if (!existe) {
+        tasks.push({ id: novoId(), text: r.text, done: false, list: r.list || listaRotinas().id, due: occur, notes: r.notes || '', starred: !!r.starred, subtasks: (r.subtasks || []).map(s => ({ text: s, done: false })), createdAt: Date.now(), routineId: r.id, occur });
+        criadas++;
+      }
+      if (r.freq === 'apos') break; // só avança quando for concluída
+      avancarRotina(r, occur); mudouRot = true;
+    }
+  });
+  if (criadas) { salvar('tasks', tasks); if (typeof renderTaskLists === 'function') { renderTaskLists(); renderTasks(); } }
+  if (mudouRot) salvar('routines', routines);
+  if (criadas && !silencioso) toast(`🔄 ${criadas} tarefa${criadas > 1 ? 's' : ''} de rotina na lista.`, 5000);
+  return criadas;
+}
+/** Chamado quando uma tarefa gerada por rotina é concluída. */
+function rotinaConcluida(t) {
+  const r = routines.find(x => x.id === t.routineId); if (!r) return;
+  r.count = (r.count || 0) + 1; r.lastDone = hojeISO();
+  if (r.freq === 'apos') r.next = somaDias(hojeISO(), Math.max(1, Number(r.interval) || 7));
+  salvar('routines', routines); renderRotinas();
+  toast(`🔄 ${r.text.slice(0, 28)} — próxima ${rotuloData(r.next)} (${r.count}ª vez)`, 5000);
+}
+
+// --- formulário ---
+function camposPorFrequencia() {
+  const f = document.getElementById('rot-freq').value;
+  document.getElementById('rot-semana').hidden = !(f === 'semanal' || f === 'quinzenal');
+  document.getElementById('rot-mes').hidden = f !== 'mensal';
+  document.getElementById('rot-intervalo').hidden = !(f === 'dias' || f === 'apos');
+}
+function preencherFreqs() {
+  const s = document.getElementById('rot-freq'); if (s && !s.options.length) s.innerHTML = Object.entries(FREQS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const d = document.getElementById('rot-weekdays'); if (d && !d.children.length) d.innerHTML = DIAS_SEM.map((n, i) => `<label class="dia-chip"><input type="checkbox" value="${i}"> ${n}</label>`).join('');
+  const l = document.getElementById('rot-list');
+  if (l) {
+    const v = l.value; const rot = tasklists.find(x => x.name.toLowerCase() === 'rotinas');
+    l.innerHTML = (rot ? '' : '<option value="__rotinas">🔄 Rotinas (criar lista)</option>') + tasklists.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+    if ([...l.options].some(o => o.value === v)) l.value = v; else if (rot) l.value = rot.id;
+  }
+}
+document.getElementById('rot-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('rot-id').value;
+  const dados = {
+    text: document.getElementById('rot-text').value.trim(),
+    freq: document.getElementById('rot-freq').value,
+    weekdays: [...document.querySelectorAll('#rot-weekdays input:checked')].map(c => Number(c.value)),
+    monthday: parseInt(document.getElementById('rot-monthday').value) || 1,
+    interval: parseInt(document.getElementById('rot-interval').value) || 7,
+    list: document.getElementById('rot-list').value === '__rotinas' ? listaRotinas().id : document.getElementById('rot-list').value,
+    notes: document.getElementById('rot-notes').value.trim(),
+    starred: document.getElementById('rot-star').checked,
+    subtasks: document.getElementById('rot-subtasks').value.split('\n').map(s => s.trim()).filter(Boolean)
+  };
+  if (!dados.text) return;
+  if ((dados.freq === 'semanal' || dados.freq === 'quinzenal') && !dados.weekdays.length) { toast('Escolha pelo menos um dia da semana.'); return; }
+  if (id) { const r = routines.find(x => String(x.id) === id); if (r) { Object.assign(r, dados); r.next = proximaData(r, hojeISO()); } }
+  else { const r = { id: novoId(), active: true, count: 0, createdAt: Date.now(), ...dados }; r.next = proximaData(r, hojeISO()); routines.push(r); }
+  salvar('routines', routines); cancelarEdicaoRotina(); gerarRotinas(true); renderRotinas(); renderTaskLists(); renderTasks(); renderJournal();
+  toast(id ? '🔄 Rotina atualizada.' : '🔄 Rotina criada.');
+});
+function cancelarEdicaoRotina() {
+  document.getElementById('rot-form').reset(); document.getElementById('rot-id').value = '';
+  document.querySelectorAll('#rot-weekdays input').forEach(c => c.checked = false);
+  camposPorFrequencia();
+  document.getElementById('rot-submit').innerText = 'Criar rotina'; document.getElementById('rot-cancel').hidden = true;
+}
+function editarRotina(id) {
+  const r = routines.find(x => x.id === id); if (!r) return;
+  changeTab('tasks');
+  document.getElementById('rot-id').value = r.id; document.getElementById('rot-text').value = r.text;
+  document.getElementById('rot-freq').value = r.freq; camposPorFrequencia();
+  document.querySelectorAll('#rot-weekdays input').forEach(c => c.checked = (r.weekdays || []).includes(Number(c.value)));
+  document.getElementById('rot-monthday').value = r.monthday || 1; document.getElementById('rot-interval').value = r.interval || 7;
+  preencherFreqs(); document.getElementById('rot-list').value = r.list || listaRotinas().id;
+  document.getElementById('rot-notes').value = r.notes || ''; document.getElementById('rot-star').checked = !!r.starred;
+  document.getElementById('rot-subtasks').value = (r.subtasks || []).join('\n');
+  document.getElementById('rot-submit').innerText = 'Salvar rotina'; document.getElementById('rot-cancel').hidden = false;
+  document.getElementById('rot-text').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('rot-text').focus();
+}
+function alternarRotina(id) { const r = routines.find(x => x.id === id); if (!r) return; r.active = r.active === false; if (r.active) r.next = proximaData(r, hojeISO()); salvar('routines', routines); if (r.active) gerarRotinas(true); renderRotinas(); renderTasks(); }
+function removerRotina(id) {
+  const r = routines.find(x => x.id === id); if (!r) return;
+  const geradas = tasks.filter(t => t.routineId === id && !t.done).length;
+  if (!confirm(`Apagar a rotina "${r.text}"?${geradas ? ` As ${geradas} tarefa(s) já criadas continuam na lista.` : ''}`)) return;
+  routines = routines.filter(x => x.id !== id); salvar('routines', routines); renderRotinas();
+}
+function gerarRotinaAgora(id) {
+  const r = routines.find(x => x.id === id); if (!r) return;
+  const occur = hojeISO();
+  if (tasks.some(t => t.routineId === r.id && t.occur === occur && !t.done)) { toast('Já existe uma tarefa dessa rotina em aberto para hoje.'); return; }
+  tasks.push({ id: novoId(), text: r.text, done: false, list: r.list || listaRotinas().id, due: occur, notes: r.notes || '', starred: !!r.starred, subtasks: (r.subtasks || []).map(s => ({ text: s, done: false })), createdAt: Date.now(), routineId: r.id, occur });
+  salvar('tasks', tasks); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderAvisos();
+  toast('🔄 Tarefa criada para hoje.');
+}
+function criarRotinasSugeridas() {
+  const lista = listaRotinas(); let n = 0;
+  ROTINAS_SUGERIDAS.forEach(s => {
+    if (routines.some(r => r.text === s.text)) return;
+    const r = { id: novoId(), text: s.text, freq: s.freq, weekdays: s.weekdays || [], monthday: s.monthday || 1, interval: s.interval || 7, list: lista.id, notes: '', starred: false, subtasks: [], active: true, count: 0, createdAt: Date.now() };
+    r.next = proximaData(r, hojeISO()); routines.push(r); n++;
+  });
+  if (!n) { toast('As sugestões já estão criadas.'); return; }
+  salvar('routines', routines); gerarRotinas(true); renderRotinas(); renderTaskLists(); renderTasks();
+  toast(`🔄 ${n} rotinas sugeridas criadas — ajuste ou apague o que não usar.`, 6000);
+}
+function renderRotinas() {
+  const ul = document.getElementById('rot-list-ul'); if (!ul) return; ul.innerHTML = '';
+  preencherFreqs();
+  if (!routines.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma rotina ainda. Use as sugestões abaixo ou crie a sua.</li>'; return; }
+  [...routines].sort((a, b) => (a.active === false ? 1 : 0) - (b.active === false ? 1 : 0) || (a.next || '').localeCompare(b.next || '')).forEach(r => {
+    const off = r.active === false;
+    const aberta = tasks.find(t => t.routineId === r.id && !t.done);
+    ul.innerHTML += `<li class="rotina-item" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
+        <span>🔄 ${esc(r.text)}${off ? ' <small class="item-date">(pausada)</small>' : ''}${aberta ? ' <span class="badge-unpaid">em aberto</span>' : ''}</span>
+        <small class="item-date">${esc(descricaoRotina(r))} · próxima <strong>${off ? '—' : rotuloData(r.next || hojeISO())}</strong>${r.count ? ` · feita ${r.count}×` : ''} · lista ${esc(listaNome(r.list))}</small>
+        ${(r.subtasks || []).length ? `<small class="item-notes">${r.subtasks.map(esc).join(' · ')}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Criar tarefa para hoje" onclick="gerarRotinaAgora(${r.id})">▶</button><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRotina(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRotina(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRotina(${r.id})">✕</button></div></li>`;
+  });
+}
 
 // --- NOTAS (estilo Google Keep) ---
 // Modelo: { id, title, content, checklist: [{ text, done }] | null, color, labels: [], pinned, archived, createdAt, updatedAt }
@@ -1285,7 +1703,7 @@ function cardNota(n) {
   const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   return `<div class="note-card" data-id="${n.id}" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
     <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
-    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1)).map(({ i, k }) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> ${linkify(esc(i.text))}</label>`).join('')}
+    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1)).map(({ i, k }) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> <span class="sub-txt">${textoComLink(i.text)}</span><button class="mini-btn xs comprei" title="Comprei — mandar para Entregas" onclick="event.preventDefault(); event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></label>`).join('')}
       <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
       <div class="note-tools"><small class="item-date">${feitos}/${n.checklist.length} feitos</small>${feitos ? `<button class="mini-btn xs" onclick="desmarcarTodosNota(${n.id})" title="Desmarcar todos (lista reutilizável)">↺ desmarcar</button><button class="mini-btn xs" onclick="limparFeitosNota(${n.id})" title="Apagar os marcados">🧹 limpar feitos</button>` : ''}</div></div>` : (n.content ? `<div class="note-body">${linkify(esc(n.content))}</div>` : '')}
     <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
@@ -1910,9 +2328,289 @@ function preencherSelectsSaude() {
 }
 function renderSaude() { preencherSelectsSaude(); renderPainelSaude(); renderTreinos(); renderMedidas(); renderRefeicoes(); renderMedico(); }
 
+// ============================================================================
+// AVISOS (com o app aberto)
+// O app confere a cada minuto o que está pra acontecer e mostra no card 🔔 do
+// Painel. Quando chega a hora, dispara notificação do sistema + som (se ligado).
+// Preferências ficam em `prefs` (por aparelho, não sincronizam).
+// O que já foi avisado fica em lifeos_avisos_ok para não repetir no mesmo dia.
+// ============================================================================
+const AVISOS_PADRAO = { ligado: true, som: true, sistema: true, plantaoMin: 120, eventoMin: 30, resumoHora: 21 };
+function cfgAvisos() { prefs.avisos = Object.assign({}, AVISOS_PADRAO, prefs.avisos || {}); return prefs.avisos; }
+let avisosVistos = JSON.parse(localStorage.getItem('lifeos_avisos_ok')) || {};
+function marcarAvisoVisto(chave) { avisosVistos[chave] = hojeISO(); localStorage.setItem('lifeos_avisos_ok', JSON.stringify(avisosVistos)); }
+function limparAvisosAntigos() {
+  const hoje = hojeISO(); let mudou = false;
+  Object.keys(avisosVistos).forEach(k => { if (avisosVistos[k] !== hoje) { delete avisosVistos[k]; mudou = true; } });
+  if (mudou) localStorage.setItem('lifeos_avisos_ok', JSON.stringify(avisosVistos));
+}
+function minutosAte(iso, hhmm) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split('-').map(Number); const [hh, mi] = (hhmm || '00:00').split(':').map(Number);
+  return Math.round((new Date(y, m - 1, d, hh || 0, mi || 0) - new Date()) / 60000);
+}
+function textoEmMinutos(min) {
+  if (min < 0) return `há ${Math.abs(min) < 60 ? Math.abs(min) + ' min' : Math.round(Math.abs(min) / 60) + 'h'}`;
+  if (min < 60) return `em ${min} min`;
+  if (min < 1440) return `em ${Math.round(min / 60)}h`;
+  return `em ${Math.round(min / 1440)} dia(s)`;
+}
+
+/**
+ * Monta a lista de avisos de agora.
+ * prio: 1 = urgente (vermelho), 2 = atenção (amarelo), 3 = lembrete (azul).
+ * "pronto" = já está na hora de notificar (senão é só informativo no card).
+ */
+function calcularAvisos() {
+  const c = cfgAvisos(); const hoje = hojeISO(); const agora = new Date(); const lista = [];
+  const add = (chave, icone, texto, prio, pronto, acao) => lista.push({ chave, icone, texto, prio, pronto, acao });
+
+  // Plantões de hoje/amanhã
+  shifts.filter(s => s.date >= hoje).forEach(s => {
+    const min = minutosAte(s.date, s.time);
+    if (min === null || min > c.plantaoMin || min < -60) return;
+    add(`plantao:${s.id}`, '🚑', `Plantão ${s.desc} ${textoEmMinutos(min)}${s.time ? ' (' + s.time + ')' : ''}${s.swap ? ' · 🔁 ' + s.swap : ''}`, min <= 60 ? 1 : 2, true, "changeTab('home'); verSecaoAgenda('plantoes');");
+  });
+  // Compromissos e reuniões
+  events.filter(e => !e.done && e.date >= hoje).forEach(e => {
+    const tp = tipoEvento(e.type);
+    if (!e.time) { if (e.date === hoje && !avisosVistos[`evento:${e.id}`]) add(`evento:${e.id}`, tp.icone, `Hoje: ${e.title}`, 2, true, `editarEvento(${e.id});`); return; }
+    const min = minutosAte(e.date, e.time);
+    if (min === null || min > c.eventoMin || min < -30) return;
+    add(`evento:${e.id}`, tp.icone, `${e.title} ${textoEmMinutos(min)} (${e.time})`, min <= 15 ? 1 : 2, true, `editarEvento(${e.id});`);
+  });
+  // Tarefas: atrasadas e de hoje
+  const atrasadas = tasks.filter(t => !t.done && t.due && t.due < hoje);
+  if (atrasadas.length) add('tarefas:atrasadas', '⚠️', `${atrasadas.length} tarefa${atrasadas.length > 1 ? 's' : ''} atrasada${atrasadas.length > 1 ? 's' : ''}: ${atrasadas.slice(0, 2).map(t => t.text).join(', ')}${atrasadas.length > 2 ? '…' : ''}`, 1, agora.getHours() >= 8, "changeTab('tasks');");
+  const hojeTar = tasks.filter(t => !t.done && t.due === hoje);
+  if (hojeTar.length) add('tarefas:hoje', '✅', `${hojeTar.length} tarefa${hojeTar.length > 1 ? 's' : ''} para hoje: ${hojeTar.slice(0, 2).map(t => t.text).join(', ')}${hojeTar.length > 2 ? '…' : ''}`, 2, agora.getHours() >= 8, "changeTab('tasks');");
+  // Contas a pagar vencendo / vencidas
+  const contas = transactions.filter(t => t.pending && t.type === 'expense' && dataTransacao(t) <= hoje);
+  if (contas.length) { const tot = contas.reduce((a, t) => a + t.amount, 0); add('contas:pagar', '💸', `${contas.length} conta${contas.length > 1 ? 's' : ''} a pagar (${formatCurrency(tot)}): ${contas.slice(0, 2).map(t => t.desc).join(', ')}${contas.length > 2 ? '…' : ''}`, 1, agora.getHours() >= 8, "changeTab('finances'); filtrarFin('pendentes');"); }
+  // Plantões já feitos e não recebidos
+  const receber = shifts.filter(s => !s.paid && s.date < hoje);
+  if (receber.length) { const tot = receber.reduce((a, s) => a + (Number(s.amount) || 0), 0); add('plantoes:receber', '⏳', `${receber.length} plantão${receber.length > 1 ? 'ões' : ''} já feito${receber.length > 1 ? 's' : ''} sem baixa: ${formatCurrency(tot)}`, 3, agora.getHours() >= 9, "changeTab('home'); verSecaoAgenda('plantoes'); filtrarPlantoes('naopagos');"); }
+  // Resumo do fim do dia: hábitos e água
+  if (agora.getHours() >= c.resumoHora) {
+    const falta = habits.filter(h => !h.done);
+    if (falta.length) add('habitos:noite', '🎮', `${falta.length} hábito${falta.length > 1 ? 's' : ''} sem marcar hoje: ${falta.slice(0, 3).map(h => h.text).join(', ')}${falta.length > 3 ? '…' : ''}`, 2, true, "changeTab('focus');");
+    const meta = hydration.goal || 2500;
+    if ((hydration.ml || 0) < meta) add('agua:noite', '💧', `Água: ${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L de ${(meta / 1000).toFixed(1).replace('.', ',')} L hoje`, 3, true, "changeTab('health');");
+  }
+  // Entregas previstas para hoje ou atrasadas
+  const entHoje = orders.filter(o => o.status !== 'entregue' && o.eta === hoje);
+  if (entHoje.length) add('entrega:hoje', '📦', `Entrega prevista para hoje: ${entHoje.map(o => o.item).slice(0, 2).join(', ')}${entHoje.length > 2 ? '…' : ''}`, 2, agora.getHours() >= 9, "changeTab('notes');");
+  const entAtras = orders.filter(o => o.status !== 'entregue' && o.eta && o.eta < hoje);
+  if (entAtras.length) add('entrega:atrasada', '⚠️', `${entAtras.length} entrega${entAtras.length > 1 ? 's' : ''} passou da previsão: ${entAtras.map(o => o.item).slice(0, 2).join(', ')}`, 2, agora.getHours() >= 9, "changeTab('notes');");
+  // Revisões de estudo marcadas para hoje
+  const rev = tasks.filter(t => !t.done && t.due === hoje && /^🔁 Revisar/.test(t.text));
+  if (rev.length) add('estudo:revisao', '🔁', `${rev.length} revisão${rev.length > 1 ? 'ões' : ''} de estudo para hoje`, 3, agora.getHours() >= 8, "changeTab('tasks');");
+
+  return lista.sort((a, b) => a.prio - b.prio);
+}
+
+function renderAvisos() {
+  const card = document.getElementById('avisos-card'); const el = document.getElementById('avisos-lista'); if (!el) return;
+  const c = cfgAvisos();
+  if (!c.ligado) { if (card) card.hidden = true; return; }
+  const lista = calcularAvisos();
+  if (card) card.hidden = false;
+  const n = document.getElementById('avisos-contador'); if (n) n.innerText = lista.length ? `${lista.length}` : '';
+  if (!lista.length) { el.innerHTML = '<div class="stat-line muted">Nada pendente agora. 👌</div>'; return; }
+  el.innerHTML = lista.map(a => `<div class="aviso p${a.prio}" onclick="${a.acao || ''}"><span class="aviso-ic">${a.icone}</span><span>${esc(a.texto)}</span></div>`).join('');
+}
+
+/** Roda a cada minuto: dispara o que chegou a hora e ainda não foi avisado hoje. */
+function verificarAvisos() {
+  const c = cfgAvisos(); limparAvisosAntigos(); renderAvisos();
+  if (!c.ligado) return;
+  calcularAvisos().filter(a => a.pronto && !avisosVistos[a.chave]).forEach(a => {
+    marcarAvisoVisto(a.chave);
+    toast(`${a.icone} ${a.texto}`, 8000);
+    if (c.som) tocarAlarme(a.prio === 1 ? 'sino' : 'suave', Math.min(60, prefs.alarmeVolume || 60));
+    if (c.sistema && 'Notification' in window && Notification.permission === 'granted') {
+      try { new Notification(`${a.icone} Genesis`, { body: a.texto, tag: a.chave }); } catch (e) {}
+    }
+  });
+}
+
+function pedirPermissaoAvisos() {
+  if (!('Notification' in window)) { toast('Este navegador não tem notificações.'); return; }
+  Notification.requestPermission().then(p => {
+    atualizarStatusAvisos();
+    if (p === 'granted') { toast('🔔 Notificações ativadas neste aparelho.'); try { new Notification('🔔 Genesis', { body: 'Pronto! Os avisos vão aparecer assim, com o app aberto.' }); } catch (e) {} }
+    else toast('Permissão negada — os avisos continuam aparecendo dentro do app.');
+  }).catch(() => {});
+}
+function atualizarStatusAvisos() {
+  const el = document.getElementById('avisos-permissao'); if (!el) return;
+  const p = ('Notification' in window) ? Notification.permission : 'indisponivel';
+  const mapa = { granted: ['🟢 Notificações do sistema ativadas.', '#22c55e'], denied: ['🔴 Notificações bloqueadas neste navegador — libere nas configurações do site.', '#ef4444'], default: ['⚪ Notificações do sistema ainda não autorizadas.', '#94a3b8'], indisponivel: ['⚪ Este navegador não tem notificações.', '#94a3b8'] };
+  const [txt, cor] = mapa[p] || mapa.default; el.innerText = txt; el.style.color = cor;
+}
+function salvarAvisos() {
+  const c = cfgAvisos();
+  c.ligado = document.getElementById('av-ligado').checked;
+  c.som = document.getElementById('av-som').checked;
+  c.sistema = document.getElementById('av-sistema').checked;
+  c.plantaoMin = parseInt(document.getElementById('av-plantao').value) || 120;
+  c.eventoMin = parseInt(document.getElementById('av-evento').value) || 30;
+  c.resumoHora = Math.min(23, Math.max(12, parseInt(document.getElementById('av-hora').value) || 21));
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  renderAvisos(); toast('🔔 Avisos salvos.');
+}
+function carregarAvisosNaTela() {
+  const c = cfgAvisos();
+  const set = (id, v, prop) => { const e = document.getElementById(id); if (e && document.activeElement !== e) e[prop] = v; };
+  set('av-ligado', c.ligado, 'checked'); set('av-som', c.som, 'checked'); set('av-sistema', c.sistema, 'checked');
+  set('av-plantao', c.plantaoMin, 'value'); set('av-evento', c.eventoMin, 'value'); set('av-hora', c.resumoHora, 'value');
+  atualizarStatusAvisos();
+}
+setInterval(verificarAvisos, 60000);
+// ============================================================================
+// LINKS COM NOME  +  COMPRAS E ENTREGAS
+// Item de lista pode ser "Purificador Consul CPC34 https://..." — a tela mostra
+// o nome e um 🔗 discreto. E o item comprado sai da lista e vira uma ENTREGA,
+// com status, previsão e rastreio (módulo `orders`).
+// ============================================================================
+const LOJAS = { 'mercadolivre.com': 'Mercado Livre', 'amazon.com': 'Amazon', 'magazineluiza.com': 'Magalu', 'americanas.com': 'Americanas', 'casasbahia.com': 'Casas Bahia', 'shopee.com': 'Shopee', 'aliexpress.com': 'AliExpress', 'kabum.com': 'KaBuM', 'submarino.com': 'Submarino', 'shoptime.com': 'Shoptime', 'carrefour.com': 'Carrefour', 'extra.com': 'Extra', 'leroymerlin.com': 'Leroy Merlin', 'madeiramadeira.com': 'MadeiraMadeira' };
+const STATUS_ENTREGA = {
+  comprado: ['🛒', 'Comprado', '#38bdf8'],
+  caminho:  ['🚚', 'A caminho', '#f59e0b'],
+  entregue: ['📦', 'Entregue', '#22c55e'],
+  problema: ['⚠️', 'Com problema', '#ef4444']
+};
+const ORDEM_STATUS = ['comprado', 'caminho', 'entregue'];
+
+/** Separa "Nome https://loja.com/x" em { titulo, url, loja }. */
+function separarLink(texto) {
+  const s = String(texto || ''); const m = s.match(/(https?:\/\/[^\s]+)/);
+  if (!m) return { titulo: s.trim(), url: '', loja: '' };
+  const url = m[1];
+  let titulo = s.replace(url, '').replace(/[\s|—–-]+$/, '').replace(/^[\s|—–-]+/, '').trim();
+  let host = ''; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { host = ''; }
+  const loja = Object.keys(LOJAS).find(k => host.includes(k.split('.')[0])) ? LOJAS[Object.keys(LOJAS).find(k => host.includes(k.split('.')[0]))] : host;
+  if (!titulo) titulo = loja || url;
+  return { titulo, url, loja };
+}
+/** Item de lista com link: nome legível + 🔗 que abre em nova aba. */
+function textoComLink(texto) {
+  const { titulo, url, loja } = separarLink(texto);
+  if (!url) return esc(titulo);
+  return `${esc(titulo)} <a class="link-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(url)}">🔗${loja ? ' ' + esc(loja) : ''}</a>`;
+}
+
+// --- Comprei: item da lista vira entrega ---
+let compraCtx = null; // { noteId, index, texto }
+function abrirCompra(noteId, index) {
+  const n = notes.find(x => x.id === noteId); if (!n || !n.checklist || !n.checklist[index]) return;
+  const { titulo, url, loja } = separarLink(n.checklist[index].text);
+  compraCtx = { noteId, index };
+  document.getElementById('compra-item').value = titulo;
+  document.getElementById('compra-loja').value = loja || '';
+  document.getElementById('compra-url').value = url || '';
+  document.getElementById('compra-valor').value = '';
+  document.getElementById('compra-eta').value = '';
+  document.getElementById('compra-rastreio').value = '';
+  document.getElementById('compra-fin').checked = true;
+  document.getElementById('compra-remove').checked = true;
+  document.getElementById('compra-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('compra-valor').focus(), 100);
+}
+function fecharCompra() { document.getElementById('compra-modal').style.display = 'none'; compraCtx = null; }
+function confirmarCompra() {
+  const item = document.getElementById('compra-item').value.trim(); if (!item) return;
+  const valor = parseFloat(document.getElementById('compra-valor').value) || 0;
+  const o = {
+    id: novoId(), item, store: document.getElementById('compra-loja').value.trim(), amount: valor,
+    url: document.getElementById('compra-url').value.trim(), tracking: document.getElementById('compra-rastreio').value.trim(),
+    eta: document.getElementById('compra-eta').value || '', status: 'comprado', boughtAt: hojeISO(), deliveredAt: '', notes: '', financeId: null
+  };
+  if (valor > 0 && document.getElementById('compra-fin').checked) {
+    const t = { id: novoId(), date: hojeISO(), desc: `Compra: ${item}${o.store ? ' (' + o.store + ')' : ''}`, amount: valor, type: 'expense', category: 'Outros', notes: '', pending: false, orderId: o.id };
+    transactions.push(t); o.financeId = t.id; salvar('finances', transactions); updateFinanceValues(); renderFinances();
+  }
+  orders.push(o); salvar('orders', orders);
+  if (compraCtx && document.getElementById('compra-remove').checked) {
+    const n = notes.find(x => x.id === compraCtx.noteId);
+    if (n && n.checklist) { n.checklist.splice(compraCtx.index, 1); n.updatedAt = Date.now(); salvar('notes', notes); }
+  }
+  fecharCompra(); renderNotes(); renderEntregas(); renderAvisos();
+  toast(`🛒 ${item} → Entregas${valor ? ' · ' + formatCurrency(valor) : ''}`, 5000);
+}
+/** Compra avulsa (sem vir de uma lista). */
+function novaCompraAvulsa() {
+  compraCtx = null;
+  ['compra-item', 'compra-loja', 'compra-url', 'compra-valor', 'compra-eta', 'compra-rastreio'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('compra-fin').checked = true; document.getElementById('compra-remove').checked = false;
+  document.getElementById('compra-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('compra-item').focus(), 100);
+}
+
+// --- Entregas ---
+let entregaFiltro = 'andamento';
+function filtrarEntregas(f, el) { entregaFiltro = f; document.querySelectorAll('#entrega-filtros span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderEntregas(); }
+function avancarEntrega(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  const i = ORDEM_STATUS.indexOf(o.status);
+  o.status = i < 0 ? 'comprado' : ORDEM_STATUS[Math.min(i + 1, ORDEM_STATUS.length - 1)];
+  if (o.status === 'entregue' && !o.deliveredAt) o.deliveredAt = hojeISO();
+  if (o.status !== 'entregue') o.deliveredAt = '';
+  salvar('orders', orders); renderEntregas(); renderAvisos();
+  toast(`${STATUS_ENTREGA[o.status][0]} ${o.item}: ${STATUS_ENTREGA[o.status][1]}`);
+}
+function problemaEntrega(id) { const o = orders.find(x => x.id === id); if (!o) return; o.status = o.status === 'problema' ? 'caminho' : 'problema'; salvar('orders', orders); renderEntregas(); renderAvisos(); }
+function editarEntrega(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  const eta = prompt(`Previsão de entrega de "${o.item}" (dd/mm/aaaa, vazio para tirar):`, o.eta ? isoParaBR(o.eta) : '');
+  if (eta === null) return;
+  o.eta = eta.trim() ? brParaISO(eta.trim()) : '';
+  const rast = prompt('Código de rastreio (opcional):', o.tracking || '');
+  if (rast !== null) o.tracking = rast.trim();
+  salvar('orders', orders); renderEntregas(); renderAvisos();
+}
+function removerEntrega(id) {
+  const o = orders.find(x => x.id === id); if (!o || !confirm(`Apagar "${o.item}" das entregas?${o.financeId ? ' (o lançamento em Finanças fica)' : ''}`)) return;
+  orders = orders.filter(x => x.id !== id); salvar('orders', orders); renderEntregas(); renderAvisos();
+}
+/** Volta o item para uma lista de compras (ex.: devolveu, quer comprar de novo). */
+function devolverParaLista(id) {
+  const o = orders.find(x => x.id === id); if (!o) return;
+  let n = notes.find(x => Array.isArray(x.checklist) && !x.archived && /compra/i.test(x.title || ''));
+  if (!n) { n = { id: novoId(), title: 'Compras', content: '', checklist: [], color: 'yellow', labels: ['Compras'], pinned: false, archived: false, createdAt: Date.now(), updatedAt: Date.now() }; notes.push(n); }
+  n.checklist.push({ text: o.url ? `${o.item} ${o.url}` : o.item, done: false }); n.updatedAt = Date.now();
+  orders = orders.filter(x => x.id !== id);
+  salvar('notes', notes); salvar('orders', orders); renderNotes(); renderEntregas();
+  toast(`↩️ "${o.item}" voltou para a lista "${n.title}".`);
+}
+function renderEntregas() {
+  const ul = document.getElementById('entrega-lista'); if (!ul) return; ul.innerHTML = '';
+  const hoje = hojeISO();
+  let lista = [...orders];
+  if (entregaFiltro === 'andamento') lista = lista.filter(o => o.status !== 'entregue');
+  else if (entregaFiltro === 'entregues') lista = lista.filter(o => o.status === 'entregue');
+  lista.sort((a, b) => (a.eta || '9999').localeCompare(b.eta || '9999') || b.id - a.id);
+  const andamento = orders.filter(o => o.status !== 'entregue');
+  const resumo = document.getElementById('entrega-resumo');
+  if (resumo) {
+    const total = andamento.reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const atrasadas = andamento.filter(o => o.eta && o.eta < hoje).length;
+    resumo.innerHTML = `<span>📦 ${andamento.length} a caminho${total ? ' · ' + formatCurrency(total) : ''}</span>${atrasadas ? `<span style="color:#ef4444">⚠️ ${atrasadas} passou da previsão</span>` : ''}<span>✅ ${orders.filter(o => o.status === 'entregue').length} entregue(s)</span>`;
+  }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nada aqui. Nas listas de compras, use o 🛒 do item para mandá-lo pra cá.</li>'; return; }
+  lista.forEach(o => {
+    const st = STATUS_ENTREGA[o.status] || STATUS_ENTREGA.comprado;
+    const atrasada = o.status !== 'entregue' && o.eta && o.eta < hoje;
+    ul.innerHTML += `<li class="entrega-item" style="border-left-color:${st[2]}"><div class="transaction-info" style="flex:1">
+        <span>${st[0]} ${esc(o.item)} ${o.url ? `<a class="link-chip" href="${esc(o.url)}" target="_blank" rel="noopener">🔗${o.store ? ' ' + esc(o.store) : ''}</a>` : (o.store ? `<small class="item-date">${esc(o.store)}</small>` : '')}</span>
+        <small class="item-date">${st[1]}${o.amount ? ' · ' + formatCurrency(o.amount) : ''} · comprado ${isoParaBR(o.boughtAt)}${o.eta ? ` · previsão <strong style="color:${atrasada ? '#ef4444' : '#cbd5e1'}">${rotuloData(o.eta)}</strong>` : ''}${o.deliveredAt ? ` · entregue ${isoParaBR(o.deliveredAt)}` : ''}</small>
+        ${o.tracking ? `<small class="item-notes">🔎 ${esc(o.tracking)}</small>` : ''}</div>
+      <div class="item-actions">${o.status !== 'entregue' ? `<button class="mini-btn" title="Avançar status" onclick="avancarEntrega(${o.id})">▶</button>` : ''}<button class="mini-btn ${o.status === 'problema' ? 'on' : ''}" title="Marcar problema" onclick="problemaEntrega(${o.id})">⚠️</button><button class="mini-btn" title="Previsão e rastreio" onclick="editarEntrega(${o.id})">✎</button><button class="mini-btn" title="Voltar para a lista de compras" onclick="devolverParaLista(${o.id})">↩️</button><button class="mini-btn" title="Apagar" onclick="removerEntrega(${o.id})">✕</button></div></li>`;
+  });
+}
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, tasks, tasklists, notes, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -1923,7 +2621,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'tasks', 'tasklists', 'notes', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -1944,6 +2642,7 @@ let syncEditouDurante = false; // alguma gravação aconteceu enquanto a rede re
 /** Grava um módulo no localStorage, carimba a hora e agenda uma sincronização. */
 function salvar(modulo, valor) {
   localStorage.setItem('lifeos_' + modulo, JSON.stringify(valor));
+  if (typeof renderAvisos === 'function') setTimeout(renderAvisos, 0);
   syncMeta[modulo] = Date.now();
   localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
   syncEditouDurante = true;
@@ -2045,8 +2744,11 @@ function redesenharTudo() {
   places = JSON.parse(localStorage.getItem('lifeos_places')) || places;
   transactions = JSON.parse(localStorage.getItem('lifeos_finances')) || [];
   recurring = JSON.parse(localStorage.getItem('lifeos_recurring')) || [];
+  budget = JSON.parse(localStorage.getItem('lifeos_budget')) || budget;
   tasks = (JSON.parse(localStorage.getItem('lifeos_tasks')) || []).map(t => typeof t === 'string' ? { text: t, done: false } : t);
   tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || tasklists; normalizarTarefas();
+  routines = JSON.parse(localStorage.getItem('lifeos_routines')) || [];
+  orders = JSON.parse(localStorage.getItem('lifeos_orders')) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
@@ -2054,7 +2756,7 @@ function redesenharTudo() {
   assets = JSON.parse(localStorage.getItem('lifeos_assets')) || []; moves = JSON.parse(localStorage.getItem('lifeos_moves')) || []; goals = JSON.parse(localStorage.getItem('lifeos_goals')) || []; projects = JSON.parse(localStorage.getItem('lifeos_projects')) || []; wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || wealth;
   workouts = JSON.parse(localStorage.getItem('lifeos_workouts')) || []; measures = JSON.parse(localStorage.getItem('lifeos_measures')) || []; hydration = JSON.parse(localStorage.getItem('lifeos_hydration')) || hydration; meals = JSON.parse(localStorage.getItem('lifeos_meals')) || []; medical = JSON.parse(localStorage.getItem('lifeos_medical')) || [];
   profile = JSON.parse(localStorage.getItem('lifeos_profile')) || profile; aplicarPerfil();
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderTaskLists(); renderTasks(); renderNotes(); redesenharEstudos(); redesenharNegocios(); renderSaude(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderTaskLists(); renderTasks(); renderRotinas(); renderNotes(); renderEntregas(); redesenharEstudos(); redesenharNegocios(); renderSaude(); renderAvisos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {
@@ -2126,6 +2828,12 @@ if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
+['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
+renderOrcamento();
+renderEntregas();
+preencherFreqs(); camposPorFrequencia(); gerarRotinas(true); renderRotinas();
+carregarAvisosNaTela(); verificarAvisos();
+verSecaoAgenda('cal'); document.getElementById('event-type').addEventListener('change', alternarCamposReuniao);
 document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); ['workout-date', 'measure-date', 'meal-date'].forEach(i => document.getElementById(i).value = hojeISO()); renderSaude(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
 aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 if (!profile.name && !localStorage.getItem('lifeos_perfil_avisado')) { localStorage.setItem('lifeos_perfil_avisado', '1'); setTimeout(() => toast('👤 Bem-vindo ao Genesis! Coloque seu nome em ⚙️ Config → Perfil.', 8000), 1500); }

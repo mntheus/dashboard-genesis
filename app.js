@@ -3,6 +3,7 @@ function changeTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
   document.getElementById('btn-' + tabId).classList.add('active');
+  if (typeof atualizarBotaoConfigAba === 'function') atualizarBotaoConfigAba();
 }
 
 // --- UTILITÁRIOS ---
@@ -39,6 +40,10 @@ let media = JSON.parse(localStorage.getItem('lifeos_media')) || [];         // f
 let playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || []; // atalhos de música
 let trips = JSON.parse(localStorage.getItem('lifeos_trips')) || [];         // viagens
 let contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];   // rede de contatos
+let devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};   // caderno de ajustes por aba
+let servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || [];   // catálogo da clínica
+let pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; // funil da clínica
+let repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];   // comissões a pagar
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -131,6 +136,7 @@ function updateTimerDisplay() {
   const s = (timerTimeLeft % 60).toString().padStart(2, '0');
   const txt = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
   document.getElementById('timer-display').innerText = txt;
+  const pfd = document.getElementById('pf-pomo-display'); if (pfd) { pfd.innerText = txt; pfd.classList.toggle('rodando', !!timerInterval); }
   document.title = timerInterval ? `${txt} · Genesis` : 'Dashboard Genesis';
 }
 
@@ -378,6 +384,7 @@ async function carregarObraDoDia(forcar) {
 }
 function diaDoAno() { const d = new Date(); return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); }
 async function renderArte(forcar) {
+  if (forcar && typeof tocarPaineis === 'function') setTimeout(() => tocarPaineis('arte'), 400);
   const card = document.getElementById('arte-card'); if (!card) return;
   const c = cfgArte();
   if (!c.ligado) { card.hidden = true; return; }
@@ -492,7 +499,7 @@ function atualizarSaudacao() {
   const pendentes = tasks.filter(t => !t.done).length;
   const habPend = habits.filter(h => !h.done).length;
   const partes = [];
-  partes.push(plantoesHoje.length ? `🚑 ${plantoesHoje.map(s => `${s.desc} ${s.time || ''}`.trim()).join(', ')}` : '🚑 sem plantão hoje');
+  partes.push(plantoesHoje.length ? `${vt().ic} ${plantoesHoje.map(s => `${s.desc} ${s.time || ''}`.trim()).join(', ')}` : `${vt().ic} sem ${vt().um} hoje`);
   const evHoje = events.filter(e => e.date === hoje && !e.done).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
   if (evHoje.length) partes.push(`📅 ${evHoje.map(e => `${e.time ? e.time + ' ' : ''}${e.title}`).join(', ')}`);
   partes.push(`✅ ${pendentes} tarefa${pendentes === 1 ? '' : 's'} pendente${pendentes === 1 ? '' : 's'}`);
@@ -504,6 +511,9 @@ setInterval(atualizarSaudacao, 60000);
 
 /** Aplica nome/iniciais na tela (cabeçalho, título da aba, campos da Config). */
 function aplicarPerfil() {
+  if (typeof aplicarVocabulario === 'function') { aplicarVocabulario(); renderPerfilTrabalho(); }
+  const bs = document.getElementById('modal-add-shift');
+  if (bs && typeof vt === 'function') bs.innerText = `${vt().ic} + ${vt().um.charAt(0).toUpperCase()}${vt().um.slice(1)}`;
   const h = document.getElementById('header-title');
   if (h) h.innerHTML = (profile.initials ? `${esc(profile.initials)} <span style="color:#22c55e">·</span> ` : '') + esc(profile.subtitle || 'Life OS');
   const n = document.getElementById('profile-name'); const i = document.getElementById('profile-initials'); const s = document.getElementById('profile-subtitle');
@@ -528,7 +538,7 @@ function iniciarDia() {
   changeJournalTab('day', document.querySelector('#journal-tabs span'));
   const hoje = hojeISO();
   const pl = shifts.filter(s => s.date === hoje).length; const pend = tasks.filter(t => !t.done).length;
-  toast(`☀️ Bom trabalho hoje! ${pl} plant${pl === 1 ? 'ão' : 'ões'} · ${pend} tarefa${pend === 1 ? '' : 's'} pendente${pend === 1 ? '' : 's'} · ${habits.length} hábitos pra cumprir.`, 6000);
+  toast(`☀️ Bom trabalho hoje! ${qt(pl)} · ${plural(pend, 'tarefa pendente', 'tarefas pendentes')} · ${habits.length} hábitos pra cumprir.`, 6000);
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
 }
 
@@ -548,7 +558,7 @@ function verificarNovoDia() {
     salvar('habits', habits); salvar('habitlog', habitLog); mudou = true;
   }
   verificarNovoDiaAgua();
-  if (mudou) gerarRotinas(true);
+  if (mudou) { gerarRotinas(true); gerarPlantoesFixos(true); renderShifts(); }
   if (mudou) { renderFocusTab(); updateStudyStats(); renderJournal(); atualizarSaudacao(); }
 }
 
@@ -711,7 +721,7 @@ function renderJournal() {
   const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
   let html = `<div class="stat-period">${nomes[currentJournal]} · ${isoParaBR(ini)}${ini !== fim ? ' a ' + isoParaBR(fim) : ''}</div><div class="stat-grid">`;
   html += tile('🎮', `${habPct}%`, currentJournal === 'day' ? 'hábitos hoje' : 'média de hábitos', '#22c55e');
-  html += tile('🚑', `${pl.length}`, `plant${pl.length === 1 ? 'ão' : 'ões'} · ${formatCurrency(plR)}`, '#f59e0b');
+  html += tile(vt().ic, `${pl.length}`, `${pl.length === 1 ? vt().um : vt().muitos} · ${formatCurrency(plR)}`, '#f59e0b');
   html += tile('✅', `${tarefasFeitas}`, `concluída${tarefasFeitas === 1 ? '' : 's'} · ${tarefasPend} pendente${tarefasPend === 1 ? '' : 's'}`, '#38bdf8');
   html += tile('📚', `${Math.floor(estudo / 60)}h ${estudo % 60}m`, 'de estudo', '#a78bfa');
   html += tile('💰', formatCurrency(inc - exp), `↑ ${formatCurrency(inc)} · ↓ ${formatCurrency(exp)}`, inc - exp >= 0 ? '#22c55e' : '#ef4444');
@@ -725,18 +735,18 @@ function renderJournal() {
     const plHoje = pl.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     const pend = tarefasPrioritarias(5);
     html += '<div class="stat-lists">';
-    html += `<div><h5>🚑 Plantões de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += `<div><h5>${vt().ic} ${vt().listaTitulo} de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     const evHoje = events.filter(e => e.date === hoje).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
     html += `<div><h5>📅 Compromissos de hoje</h5>${evHoje.length ? evHoje.map(e => `<div class="stat-line" style="${e.done ? 'opacity:0.5;text-decoration:line-through' : ''}">${tipoEvento(e.type).icone} <strong>${esc(e.time || '')}</strong> ${esc(e.title)}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">${t.starred ? '★' : '•'} ${esc(t.text)}${t.due ? ` <span class="due ${prazoInfo(t).classe}">${esc(prazoInfo(t).rotulo)}</span>` : ''}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
     html += '</div>';
   }
   if (currentJournal === 'week' || currentJournal === 'month') {
-    if (currentJournal === 'week') html += cardsDaSemana(ini, fim);
+    if (currentJournal === 'week' && cfgAba('btn-focus').semana) html += cardsDaSemana(ini, fim);
     const lista = [...pl].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
     const evs = events.filter(e => dentro(e.date) && !e.done).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
     html += '<div class="stat-lists">';
-    html += `<div><h5>🚑 Plantões ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += `<div><h5>${vt().ic} ${vt().listaTitulo} ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>📅 Compromissos ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${evs.length ? evs.slice(0, 12).map(e => `<div class="stat-line ${e.date < hoje ? 'muted' : ''}">${tipoEvento(e.type).icone} <strong>${diaSemanaCurto(e.date)} ${isoParaBR(e.date).slice(0, 5)}</strong> · ${esc(e.time || '')} ${esc(e.title)}</div>`).join('') + (evs.length > 12 ? `<div class="stat-line muted">+${evs.length - 12} mais</div>` : '') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     const tw = tasks.filter(t => !t.done && t.due && dentro(t.due)).sort((a, b) => a.due.localeCompare(b.due));
     const semPrazo = tarefasPrioritarias(20).filter(t => !t.due).slice(0, 4);
@@ -748,7 +758,7 @@ function renderJournal() {
     const porMes = {};
     pl.forEach(s => { const m = s.date.slice(0, 7); porMes[m] = porMes[m] || { n: 0, valor: 0, pagos: 0 }; porMes[m].n++; porMes[m].valor += Number(s.amount) || 0; if (s.paid) porMes[m].pagos += Number(s.amount) || 0; });
     const meses = Object.keys(porMes).sort();
-    html += `<div class="stat-lists"><div><h5>🚑 Plantões por mês</h5>${meses.length ? meses.map(m => `<div class="stat-line"><strong>${nomeMes(m).slice(0, 3)}</strong> · ${porMes[m].n} plant${porMes[m].n === 1 ? 'ão' : 'ões'} · <span style="color:#f59e0b">${formatCurrency(porMes[m].valor)}</span> <small style="color:#22c55e">(${formatCurrency(porMes[m].pagos)} pago)</small></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div></div>`;
+    html += `<div class="stat-lists"><div><h5>${vt().ic} ${vt().listaTitulo} por mês</h5>${meses.length ? meses.map(m => `<div class="stat-line"><strong>${nomeMes(m).slice(0, 3)}</strong> · ${porMes[m].n} plant${porMes[m].n === 1 ? 'ão' : 'ões'} · <span style="color:#f59e0b">${formatCurrency(porMes[m].valor)}</span> <small style="color:#22c55e">(${formatCurrency(porMes[m].pagos)} pago)</small></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div></div>`;
   }
   content.innerHTML = html;
 }
@@ -968,8 +978,8 @@ function redesenharAgenda() { renderCalendar(); renderEvents(); renderShifts(); 
 
 // --- FINANÇAS ---
 const CATEGORIAS = {
-  income:  ['Plantão', 'Salário CLT', 'Consulta / Particular', 'Faturamento CNPJ', 'Investimentos', 'Reembolso', 'Outros'],
-  expense: ['Custos Fixos', 'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Assinaturas', 'Educação', 'Lazer', 'Investimentos', 'Impostos', 'Empresa', 'Outros']
+  income:  ['Plantão', 'Salário CLT', 'Consulta / Particular', 'Clínica', 'Faturamento CNPJ', 'Investimentos', 'Reembolso', 'Outros'],
+  expense: ['Custos Fixos', 'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Assinaturas', 'Educação', 'Lazer', 'Investimentos', 'Impostos', 'Empresa', 'Repasses / Comissões', 'Outros']
 };
 let finMonth = hojeISO().slice(0, 7); // 'aaaa-mm' do mês em exibição
 let finModo = 'mes';                  // 'mes' | 'tudo'
@@ -1038,7 +1048,7 @@ function renderFinances() {
     const i = transactions.indexOf(t); const pend = transacaoPendente(t); const dePlantao = transacaoDePlantao(t);
     const li = document.createElement('li'); li.classList.add(t.type === 'income' ? 'income-item' : 'expense-item'); if (pend) li.classList.add('pending-item');
     li.innerHTML = `<div class="transaction-info" style="flex:1"><span>${dePlantao ? '🚑 ' : ''}${t.recurringId ? '🔁 ' : ''}${esc(t.desc)}${pend ? (t.type === 'income' ? ' <span class="badge-unpaid">a receber</span>' : ' <span class="badge-topay">a pagar</span>') : ''}</span>
-        <small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${t.notes ? `<small class="item-notes">${esc(t.notes)}</small>` : ''}</div>
+        <small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${t.paidAt && t.paidAt !== dataTransacao(t) ? `<small class="item-date">· 💵 ${t.type === 'income' ? 'recebido' : 'pago'} em ${isoParaBR(t.paidAt)}</small>` : ''}${t.notes ? `<small class="item-notes">${esc(t.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px; color:${t.type === 'income' ? '#22c55e' : '#ef4444'}">${t.type === 'income' ? '+' : '−'}${formatCurrency(t.amount)}</strong><button class="mini-btn ${pend ? '' : 'on'}" title="${pend ? 'Marcar como efetivado' : 'Voltar para pendente'}" onclick="alternarEfetivado(${i})">💵</button><button class="mini-btn" title="Editar" onclick="editarTransacao(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removeFinance(${i})">✕</button></div>`;
     tList.appendChild(li);
   });
@@ -1097,7 +1107,7 @@ function cancelarEdicaoFin() {
 }
 function editarTransacao(index) {
   const t = transactions[index]; if (!t) return;
-  if (transacaoDePlantao(t)) { editarPlantao(t.id); toast('🚑 Este lançamento vem de um plantão — edite o plantão.'); return; }
+  if (transacaoDePlantao(t)) { editarPlantao(t.id); toast(`${vt().ic} Este lançamento vem de um ${vt().um} — edite ${vt().esse}.`); return; }
   changeTab('finances');
   document.getElementById('finance-id').value = t.id; document.getElementById('desc').value = t.desc; document.getElementById('amount').value = t.amount;
   document.getElementById('fin-date').value = dataTransacao(t); document.getElementById('type').value = t.type; preencherCategorias(false); definirCategoriaNaTela(t.category || 'Outros');
@@ -1110,13 +1120,16 @@ function editarTransacao(index) {
 function alternarEfetivado(index) {
   const t = transactions[index]; if (!t) return;
   if (transacaoDePlantao(t)) { alternarPago(t.id); return; }
-  t.pending = !transacaoPendente(t); if (!t.pending) t.date = hojeISO();
+  t.pending = !transacaoPendente(t);
+  // A data continua sendo a do fato (vencimento / dia do serviço); a baixa é um
+  // carimbo à parte. Assim nada troca de mês quando você paga ou recebe atrasado.
+  t.paidAt = t.pending ? null : hojeISO();
   salvar('finances', transactions); redesenharFinancas();
-  toast(t.pending ? '⏳ Voltou para pendente.' : '💵 Efetivado hoje.');
+  toast(t.pending ? '⏳ Voltou para pendente.' : `💵 Baixado hoje. O lançamento continua em ${nomeMes(dataTransacao(t).slice(0, 7))}.`);
 }
 function removeFinance(index) {
   const t = transactions[index];
-  if (transacaoDePlantao(t) && !confirm('Este lançamento veio de um plantão. Apagar mesmo assim? (o plantão continua na agenda)')) return;
+  if (transacaoDePlantao(t) && !confirm(`Este lançamento veio de um ${vt().um}. Apagar mesmo assim? (${vt().esse} continua na agenda)`)) return;
   if (!transacaoDePlantao(t) && !confirm(`Apagar "${t.desc}"?`)) return;
   transactions.splice(index, 1); salvar('finances', transactions); redesenharFinancas();
 }
@@ -1234,18 +1247,53 @@ function categoriasDoTipo(tipo) {
 // --- FINANÇAS: RECORRENTES ---
 // Modelo: { id, desc, amount, type, category, day, active, since: 'aaaa-mm' }
 // Todo mês (a partir de "since"), gera o lançamento do mês como pendente (a pagar / a receber). Você confirma com 💵.
+/** Migração: lançamentos bem antigos ficaram sem id e sem data. Como a data era
+ *  "adivinhada" na hora de desenhar, eles apareciam em TODO mês, para sempre.
+ *  Aqui cada um recebe um id e uma data fixa uma única vez — depois não anda mais.
+ *  (Se a data ficar errada, é só editar o lançamento com o ✎.) */
+function normalizarTransacoes() {
+  let mudou = false;
+  transactions.forEach(t => {
+    if (!t.id) { t.id = novoId(); mudou = true; }
+    if (!t.date) { t.date = isoDe(new Date(t.id)); mudou = true; }
+  });
+  return mudou;
+}
+
+/** O lançamento daquela recorrente no mês pedido (ym = 'aaaa-mm'), se existir. */
+function lancRecorrente(r, ym) {
+  return transactions.find(t => dataTransacao(t).startsWith(ym) && (t.recurringId === r.id || (t.type === r.type && (t.desc || '').trim().toLowerCase() === r.desc.trim().toLowerCase())));
+}
+/** Cria o lançamento pendente daquela recorrente no mês pedido. Não duplica. */
+function gerarRecorrenteNoMes(r, ym) {
+  if (lancRecorrente(r, ym)) return false;
+  const [y, m] = ym.split('-').map(Number); const ultimo = new Date(y, m, 0).getDate();
+  const dia = Math.min(Math.max(1, Number(r.day) || 1), ultimo);
+  transactions.push({ id: novoId(), date: `${ym}-${String(dia).padStart(2, '0')}`, desc: r.desc, amount: r.amount, type: r.type, category: r.category, pending: true, paidAt: null, recurringId: r.id });
+  return true;
+}
 function gerarRecorrentes() {
   const mesAtual = hojeISO().slice(0, 7); let criou = 0;
-  recurring.filter(r => r.active !== false && (!r.since || r.since <= mesAtual)).forEach(r => {
-    // já existe neste mês? (gerado antes, ou lançado à mão com o mesmo nome e tipo)
-    if (transactions.some(t => dataTransacao(t).startsWith(mesAtual) && (t.recurringId === r.id || (t.type === r.type && t.desc.trim().toLowerCase() === r.desc.trim().toLowerCase())))) return;
-    const [y, m] = mesAtual.split('-').map(Number); const ultimo = new Date(y, m, 0).getDate();
-    const dia = Math.min(Math.max(1, Number(r.day) || 1), ultimo);
-    transactions.push({ id: novoId(), date: `${mesAtual}-${String(dia).padStart(2, '0')}`, desc: r.desc, amount: r.amount, type: r.type, category: r.category, pending: true, recurringId: r.id });
-    criou++;
-  });
+  recurring.filter(r => r.active !== false && (!r.since || r.since <= mesAtual)).forEach(r => { if (gerarRecorrenteNoMes(r, mesAtual)) criou++; });
   if (criou) { salvar('finances', transactions); toast(`🔁 ${criou} lançamento${criou > 1 ? 's' : ''} recorrente${criou > 1 ? 's' : ''} gerado${criou > 1 ? 's' : ''} para ${nomeMes(mesAtual)}.`, 5000); }
   return criou > 0;
+}
+/** O mês que o card de recorrentes está mostrando (segue a navegação de Finanças). */
+function mesRecorrentes() { return finModo === 'mes' ? finMonth : hojeISO().slice(0, 7); }
+/** Botão ＋ : lança a recorrente no mês que está na tela (útil quando você passou o mês). */
+function gerarRecorrenteAgora(id) {
+  const r = recurring.find(x => x.id === id); if (!r) return;
+  const ym = mesRecorrentes();
+  if (!gerarRecorrenteNoMes(r, ym)) { toast(`${nomeMes(ym)} já tem esse lançamento.`); return; }
+  salvar('finances', transactions); redesenharFinancas();
+  toast(`🔁 "${r.desc}" lançado em ${nomeMes(ym)} como pendente.`);
+}
+/** Botão 💵 do card de recorrentes: dá baixa (ou desfaz) sem precisar caçar na lista. */
+function baixarRecorrente(id) {
+  const r = recurring.find(x => x.id === id); if (!r) return;
+  const t = lancRecorrente(r, mesRecorrentes());
+  if (!t) { gerarRecorrenteAgora(id); return; }
+  alternarEfetivado(transactions.indexOf(t));
 }
 function preencherCategoriasRec() {
   const tipo = document.getElementById('rec-type').value; const sel = document.getElementById('rec-category');
@@ -1275,11 +1323,26 @@ function removerRecorrente(id) {
 }
 function renderRecorrentes() {
   const ul = document.getElementById('rec-list'); if (!ul) return; ul.innerHTML = '';
+  const ym = mesRecorrentes();
+  const rot = document.getElementById('rec-mes'); if (rot) rot.innerText = nomeMes(ym);
   if (!recurring.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma recorrente. Ex: aluguel, internet, salário CLT, assinatura.</li>'; return; }
   [...recurring].sort((a, b) => (a.day || 0) - (b.day || 0)).forEach(r => {
     const off = r.active === false;
-    ul.innerHTML += `<li class="${r.type === 'income' ? 'income-item' : 'expense-item'}" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>🔁 ${esc(r.desc)}${off ? ' <small class="item-date">(pausada)</small>' : ''}</span><small class="category-badge">${esc(r.category)}</small> <small class="item-date">todo dia ${r.day}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${r.type === 'income' ? '#22c55e' : '#ef4444'}">${formatCurrency(r.amount)}</strong><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRecorrente(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRecorrente(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRecorrente(${r.id})">✕</button></div></li>`;
+    const t = lancRecorrente(r, ym);
+    const pend = t ? transacaoPendente(t) : false;
+    let chip, botao;
+    if (!t) {
+      chip = `<small class="rec-chip nao">sem lançamento neste mês</small>`;
+      botao = `<button class="mini-btn" title="Lançar em ${esc(nomeMes(ym))}" onclick="gerarRecorrenteAgora(${r.id})">＋</button>`;
+    } else if (pend) {
+      chip = `<small class="${r.type === 'income' ? 'badge-unpaid' : 'badge-topay'}">${r.type === 'income' ? 'a receber' : 'a pagar'} · ${isoParaBR(dataTransacao(t))}</small>`;
+      botao = `<button class="mini-btn" title="Dar baixa agora" onclick="baixarRecorrente(${r.id})">💵</button>`;
+    } else {
+      chip = `<small class="rec-chip ok">✅ ${r.type === 'income' ? 'recebido' : 'pago'}${t.paidAt ? ' em ' + isoParaBR(t.paidAt) : ''}</small>`;
+      botao = `<button class="mini-btn on" title="Voltar para pendente" onclick="baixarRecorrente(${r.id})">💵</button>`;
+    }
+    ul.innerHTML += `<li class="${r.type === 'income' ? 'income-item' : 'expense-item'}" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>🔁 ${esc(r.desc)}${off ? ' <small class="item-date">(pausada)</small>' : ''} ${chip}</span><small class="category-badge">${esc(r.category)}</small> <small class="item-date">todo dia ${r.day}</small></div>
+      <div class="item-actions"><strong style="margin-right:6px; color:${r.type === 'income' ? '#22c55e' : '#ef4444'}">${formatCurrency(r.amount)}</strong>${off ? '' : botao}<button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRecorrente(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRecorrente(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRecorrente(${r.id})">✕</button></div></li>`;
   });
 }
 
@@ -1303,19 +1366,24 @@ function aplicarLocalPlantao() {
   limparFaixas(); mostrarValorHora();
 }
 function renderPlaces() {
+  renderSugestaoTurnos();
   const ul = document.getElementById('place-list'); if (!ul) return; ul.innerHTML = '';
   if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum turno cadastrado. Ex: "Hospital X 12h" (07:00, 12h, R$ 1.500).</li>'; return; }
   places.forEach((p, i) => {
-    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ` · <strong style="color:#22c55e">${fmtHora(valorHora(p.amount, p.hours))}</strong>` : ''}</small></div>
-      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
+    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ` · <strong style="color:#22c55e">${fmtHora(valorHora(p.amount, p.hours))}</strong>` : ''}</small>${turnoTemEscala(p) ? `<small class="item-notes" style="color:#38bdf8">${rotuloEscala(p)}${(p.skips || []).length ? ` · ${p.skips.length} dia(s) fora` : ''}</small>` : ''}</div>
+      <div class="item-actions">${(p.skips || []).length ? `<button class="mini-btn" title="Devolver os dias pulados para a escala" onclick="limparPuladas(${i})">↺</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
   });
 }
 document.getElementById('place-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const name = document.getElementById('place-name').value.trim(); if (!name) return;
-  const p = { name, local: (document.getElementById('place-local').value || '').trim() || name, time: document.getElementById('place-time').value, hours: parseFloat(document.getElementById('place-hours').value) || 0, amount: parseFloat(document.getElementById('place-amount').value) || 0 };
+  const p = { name, local: (document.getElementById('place-local').value || '').trim() || name, time: document.getElementById('place-time').value, hours: parseFloat(document.getElementById('place-hours').value) || 0, amount: parseFloat(document.getElementById('place-amount').value) || 0, ...lerEscalaDoForm() };
+  if (p.repete && !p.weekdays.length) { toast('Escolha pelo menos um dia da semana para a escala fixa.'); return; }
   const idx = document.getElementById('place-id').value;
-  if (idx !== '') places[Number(idx)] = p; else places.push(p);
+  // ao editar, preserva o id e os dias já pulados (senão a escala perderia o histórico)
+  if (idx !== '') places[Number(idx)] = Object.assign({}, places[Number(idx)], p);
+  else places.push({ id: novoId(), skips: [], ...p });
+  gerarPlantoesFixos(true); renderShifts(); updateFinanceValues(); renderFinances();
   salvar('places', places); document.getElementById('place-form').reset(); document.getElementById('place-id').value = ''; document.getElementById('place-submit').innerText = 'Adicionar turno';
   preencherLocais();
 });
@@ -1323,9 +1391,105 @@ function editarLocal(i) {
   const p = places[i];
   document.getElementById('place-id').value = i; document.getElementById('place-name').value = p.name; document.getElementById('place-local').value = p.local || ''; document.getElementById('place-time').value = p.time || '';
   document.getElementById('place-hours').value = p.hours || ''; document.getElementById('place-amount').value = p.amount || '';
+  montarDiasTurno();
+  document.getElementById('place-repete').checked = !!p.repete;
+  document.querySelectorAll('#place-weekdays input').forEach(c => c.checked = (p.weekdays || []).includes(Number(c.value)));
+  document.getElementById('place-desde').value = p.desde || hojeISO();
+  alternarEscala();
   document.getElementById('place-submit').innerText = 'Salvar turno'; document.getElementById('place-name').focus();
 }
-function removerLocal(i) { if (!confirm(`Apagar o turno "${places[i].name}"?`)) return; places.splice(i, 1); salvar('places', places); preencherLocais(); }
+function removerLocal(i) {
+  const p = places[i]; if (!p) return;
+  const daEscala = turnoTemEscala(p) ? shifts.filter(s => s.placeId === p.id && s.date >= hojeISO() && !s.paid).length : 0;
+  if (!confirm(`Apagar o turno "${p.name}"?${daEscala ? `\n\nA escala fixa para de gerar. Os ${daEscala} plantão(ões) futuro(s) que ela já criou continuam na agenda — apague um a um se não forem acontecer.` : ''}`)) return;
+  places.splice(i, 1); salvar('places', places); preencherLocais(); renderSugestaoTurnos();
+}
+
+// --- ESCALA FIXA: turno que se repete toda semana ---------------------------
+// Igual ao compromisso recorrente do Google Agenda: o turno marca os dias da
+// semana e o app cria os plantões sozinho, algumas semanas à frente. Apagar UM
+// plantão da escala pula só aquele dia — a sequência continua nos outros. Para
+// encerrar a escala inteira, é só desmarcar "escala fixa" no turno.
+// Plantão avulso (extra, troca, bico) continua sendo lançado à mão, como antes.
+const ESCALA_DIAS_FRENTE = 28;
+
+/** Cada turno precisa de id próprio: é por ele que o plantão sabe de onde veio. */
+function normalizarTurnos() {
+  let mudou = false;
+  places.forEach(p => { if (!p.id) { p.id = novoId(); mudou = true; } });
+  return mudou;
+}
+// Sempre exigir um id de verdade: sem isso, `s.placeId === p.id` viraria
+// `undefined === undefined` e casaria com qualquer plantão antigo.
+function turnoPorId(id) { return id ? places.find(p => p.id === id) : null; }
+function turnoTemEscala(p) { return !!(p && p.id && p.repete && (p.weekdays || []).length); }
+
+/** Cria os plantões da escala até ESCALA_DIAS_FRENTE dias à frente, sem repetir. */
+function gerarPlantoesFixos(silencioso) {
+  const hoje = hojeISO(); const limite = somaDias(hoje, ESCALA_DIAS_FRENTE);
+  let criados = 0;
+  places.filter(turnoTemEscala).forEach(p => {
+    let d = (p.desde && p.desde > hoje) ? p.desde : hoje;
+    let guarda = 0;
+    while (d <= limite && guarda++ < 400) {
+      const pula = (p.skips || []).includes(d);
+      const jaTem = shifts.some(s => s.placeId === p.id && s.occur === d);
+      if (p.weekdays.includes(diaDaSemanaISO(d)) && !pula && !jaTem) {
+        const s = {
+          id: novoId(), paid: false, paidAt: null, date: d, time: p.time || '07:00',
+          hours: Number(p.hours) || 0, desc: p.local || p.name, amount: Number(p.amount) || 0,
+          notes: '', swap: '', parts: [], placeId: p.id, occur: d
+        };
+        shifts.push(s); sincronizarLancamentoPlantao(s); criados++;
+      }
+      d = somaDias(d, 1);
+    }
+  });
+  if (criados) {
+    salvar('shifts', shifts); salvar('finances', transactions);
+    if (!silencioso) toast(`🗓️ ${qt(criados)} da escala fixa ${criados > 1 ? 'entraram' : 'entrou'} na agenda.`, 5000);
+  }
+  return criados;
+}
+
+/** Tira só aquele dia da escala (o turno continua valendo nos outros). */
+function pularOcorrencia(s) {
+  const p = turnoPorId(s.placeId); if (!p) return false;
+  p.skips = p.skips || [];
+  if (!p.skips.includes(s.occur)) p.skips.push(s.occur);
+  salvar('places', places); return true;
+}
+function limparPuladas(i) {
+  const p = places[i]; if (!p || !(p.skips || []).length) return;
+  if (!confirm(`O turno "${p.name}" tem ${p.skips.length} dia(s) que você tirou da escala.\n\nDevolver todos para a escala?`)) return;
+  p.skips = []; salvar('places', places);
+  gerarPlantoesFixos(true); renderPlaces(); renderShifts(); updateFinanceValues(); renderFinances();
+  toast('↺ Dias devolvidos à escala.');
+}
+/** Texto curto da escala, para a lista de turnos. */
+function rotuloEscala(p) {
+  if (!turnoTemEscala(p)) return '';
+  const dias = [...p.weekdays].sort().map(i => DIAS_SEM[i]).join(', ');
+  return `🗓️ toda semana · ${dias}`;
+}
+
+// --- formulário do turno ----------------------------------------------------
+function alternarEscala() {
+  const on = document.getElementById('place-repete').checked;
+  document.getElementById('place-escala').hidden = !on;
+  if (on && !document.getElementById('place-desde').value) document.getElementById('place-desde').value = hojeISO();
+}
+function montarDiasTurno() {
+  const d = document.getElementById('place-weekdays');
+  if (d && !d.children.length) d.innerHTML = DIAS_SEM.map((n, i) => `<label class="dia-chip"><input type="checkbox" value="${i}"> ${n}</label>`).join('');
+}
+function lerEscalaDoForm() {
+  return {
+    repete: document.getElementById('place-repete').checked,
+    weekdays: [...document.querySelectorAll('#place-weekdays input:checked')].map(c => Number(c.value)),
+    desde: document.getElementById('place-desde').value || hojeISO()
+  };
+}
 
 /** R$/hora de um plantão ou turno. */
 function valorHora(valor, horas) { const h = Number(horas) || 0; return h > 0 ? (Number(valor) || 0) / h : 0; }
@@ -1379,7 +1543,10 @@ function descricaoLancamento(s) { const [y, m, d] = s.date.split('-'); return `P
 function sincronizarLancamentoPlantao(s) {
   let t = transacaoDoPlantao(s);
   if (!t) { t = { id: s.id, type: 'income', category: 'Plantão' }; transactions.push(t); }
-  t.desc = descricaoLancamento(s); t.amount = s.amount; t.pending = !s.paid; t.date = s.paid ? (s.paidAt || s.date) : s.date;
+  // A data do lançamento é SEMPRE a do plantão (quando o serviço aconteceu).
+  // Receber depois, mesmo virando o mês, é normal: isso vira só o carimbo paidAt.
+  t.desc = descricaoLancamento(s); t.amount = s.amount; t.pending = !s.paid;
+  t.date = s.date; t.paidAt = s.paid ? (s.paidAt || hojeISO()) : null;
 }
 
 function filtrarPlantoes(f, el) { shiftFilter = f; document.querySelectorAll('#shift-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderShifts(); }
@@ -1396,13 +1563,14 @@ function renderShifts() {
   const aReceber = shifts.filter(s => !s.paid); const totalReceber = aReceber.reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const mes = hoje.slice(0, 7); const doMes = shifts.filter(s => s.date.startsWith(mes)); const recebidoMes = doMes.filter(s => s.paid).reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const resumo = document.getElementById('shift-summary');
-  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 Plantões no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span><span>⏱ Média no mês: <strong style="color:#22c55e">${fmtHora(valorHora(doMes.reduce((a, s) => a + (Number(s.amount) || 0), 0), doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)))}</strong></span>`;
+  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 ${vt().listaTitulo} no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span><span>⏱ Média no mês: <strong style="color:#22c55e">${fmtHora(valorHora(doMes.reduce((a, s) => a + (Number(s.amount) || 0), 0), doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)))}</strong></span>`;
 
-  if (!lista.length) { sList.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum plantão neste filtro.</li>'; return; }
+  renderBaixaLote();
+  if (!lista.length) { sList.innerHTML = `<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum ${esc(vt().um)} neste filtro.</li>`; return; }
   lista.forEach(s => {
     const li = document.createElement('li'); li.classList.add('shift-item'); if (s.paid) li.classList.add('paid');
-    li.innerHTML = `<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
-        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}${s.hours && s.amount ? ' · ' + fmtHora(valorHora(s.amount, s.hours)) : ''}</small>${(s.parts || []).length ? `<small class="item-notes">🧮 ${s.parts.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' (' + esc(p.label) + ')' : ''}`).join(' + ')}</small>` : ''}${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
+    li.innerHTML = `${s.paid ? '' : `<input type="checkbox" class="mk-plantao" id="mk-${s.id}"${plantoesMarcados.has(s.id) ? ' checked' : ''} onchange="alternarMarcaPlantao(${s.id})" title="Marcar para dar baixa junto">`}<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
+        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}${s.hours && s.amount ? ' · ' + fmtHora(valorHora(s.amount, s.hours)) : ''}</small>${(s.parts || []).length ? `<small class="item-notes">🧮 ${s.parts.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' (' + esc(p.label) + ')' : ''}`).join(' + ')}</small>` : ''}${s.placeId ? '<small class="item-notes" style="color:#38bdf8">🗓️ da escala fixa</small>' : ''}${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(s.amount)}</strong><button class="mini-btn ${s.paid ? 'on' : ''}" title="${s.paid ? 'Marcar como não pago' : 'Marcar como pago'}" onclick="alternarPago(${s.id})">💵</button><button class="mini-btn" title="Editar" onclick="editarPlantao(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeShift(${s.id})">✕</button></div>`;
     sList.appendChild(li);
   }); renderCalendar();
@@ -1433,8 +1601,8 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
 function cancelarEdicaoPlantao() {
   document.getElementById('shift-form').reset(); document.getElementById('shift-id').value = '';
   limparFaixas();
-  document.getElementById('shift-form-title').innerText = 'Agendar Novo Plantão';
-  document.getElementById('shift-submit').innerText = 'Agendar plantão';
+  document.getElementById('shift-form-title').innerText = vt().formTitulo;
+  document.getElementById('shift-submit').innerText = vt().formBtn;
   document.getElementById('shift-cancel').hidden = true;
 }
 function editarPlantao(id) {
@@ -1445,7 +1613,7 @@ function editarPlantao(id) {
   document.getElementById('shift-hours').value = s.hours || ''; document.getElementById('shift-desc').value = s.desc;
   document.getElementById('shift-amount').value = s.amount; document.getElementById('shift-notes').value = s.notes || ''; document.getElementById('shift-swap').value = s.swap || '';
   document.getElementById('shift-parts').innerHTML = (s.parts || []).map(linhaFaixa).join(''); recalcularFaixas();
-  document.getElementById('shift-form-title').innerText = 'Editar plantão';
+  document.getElementById('shift-form-title').innerText = `Editar ${vt().um}`;
   document.getElementById('shift-submit').innerText = 'Salvar alterações';
   document.getElementById('shift-cancel').hidden = false;
   document.getElementById('shift-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1459,7 +1627,13 @@ function alternarPago(id) {
   toast(s.paid ? `💵 ${s.desc} marcado como pago.` : `⏳ ${s.desc} voltou para "a receber".`);
 }
 function removeShift(id) {
-  const s = shifts.find(x => x.id === id); if (!s || !confirm(`Apagar o plantão ${s.desc} de ${isoParaBR(s.date)}?`)) return;
+  const s = shifts.find(x => x.id === id); if (!s) return;
+  const p = s.placeId ? turnoPorId(s.placeId) : null;
+  const msg = p
+    ? `Tirar o ${vt().um} de ${isoParaBR(s.date)} da escala fixa "${p.name}"?\n\nSó este dia sai — a escala continua nos outros.\nPara encerrar a escala inteira, desmarque "escala fixa" no tipo.`
+    : `Apagar o ${vt().um} ${s.desc} de ${isoParaBR(s.date)}?`;
+  if (!confirm(msg)) return;
+  if (p) pularOcorrencia(s);
   shifts = shifts.filter(x => x.id !== id); salvar('shifts', shifts);
   transactions = transactions.filter(t => t.id !== id); salvar('finances', transactions);
   renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
@@ -1607,9 +1781,9 @@ function linhaTarefa(t) {
       <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: #38bdf8;">
       <div class="task-body" onclick="editarTarefa(${t.id})">
         <span class="task-text">${t.routineId ? '<span class="rot-tag" title="Tarefa de rotina">🔄</span> ' : ''}${textoComLink(t.text)}</span>
-        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${linkify(esc(t.notes))}</span>` : ''}</div>
+        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${linkify(esc(t.notes))}</span>` : ''}${chipsAnexos(t, 'task', t.id)}</div>
       </div>
-      <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
+      <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn${nAnexos(t) ? ' on' : ''}" title="Anexos: link ou imagem" onclick="event.stopPropagation(); abrirAnexos('task', ${t.id})">📎${nAnexos(t) || ''}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
     </div>
     ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<div class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarSubtarefa(${t.id}, ${i}, this)" title="Clique para editar o texto">${textoComLink(s.text)}</span></div>`).join('')}</div>` : ''}
   </li>`;
@@ -1663,7 +1837,7 @@ const ROTINAS_SUGERIDAS = [
   { text: '✂️ Cortar unha / cabelo / barba', freq: 'apos', interval: 21, lista: 'Rotinas' },
   { text: '🔍 Revisão do app: tarefas, notas e pendências', freq: 'semanal', weekdays: [0], lista: 'Rotinas' },
   { text: '💾 Exportar backup do Genesis', freq: 'semanal', weekdays: [6], lista: 'Rotinas' },
-  { text: '🚑 Conferir plantões recebidos e dar baixa', freq: 'mensal', monthday: 5, lista: 'Rotinas' },
+  { text: '💵 Conferir o que foi recebido e dar baixa', freq: 'mensal', monthday: 5, lista: 'Rotinas' },
   { text: '📈 Atualizar valores dos investimentos', freq: 'mensal', monthday: 1, lista: 'Rotinas' },
   { text: '🧹 Limpar listas de compras concluídas', freq: 'quinzenal', weekdays: [6], lista: 'Rotinas' }
 ];
@@ -1979,6 +2153,7 @@ function removeNote(id) {
 }
 
 function renderNotes() {
+  if (typeof tocarPaineis === 'function') tocarPaineis('notas');
   const list = document.getElementById('note-list'); if (!list) return; list.innerHTML = '';
   renderFiltrosNota();
   let vis = notes.filter(n => noteFilter === 'arquivadas' ? n.archived : !n.archived);
@@ -1998,7 +2173,7 @@ function cardNota(n) {
   const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   return `<div class="note-card" data-id="${n.id}" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
     <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
-    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (n.checklist.some(x => x.nivel) ? a.k - b.k : (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1))).map(({ i, k }) => `<div class="subtask nivel-${i.nivel || 0} ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarItemNota(${n.id}, ${k}, this)" title="Clique para editar o texto">${textoComLink(i.text)}</span><span class="item-tools"><button class="mini-btn xs" title="Recuar (subitem)" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, 1)">⇥</button><button class="mini-btn xs" title="Avançar" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, -1)">⇤</button><button class="mini-btn xs" title="Virar tarefa" onclick="event.stopPropagation(); itemViraTarefa(${n.id}, ${k})">✅</button><button class="mini-btn xs" title="Comprei — mandar para Entregas" onclick="event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></span></div>`).join('')}
+    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (n.checklist.some(x => x.nivel) ? a.k - b.k : (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1))).map(({ i, k }) => `<div class="subtask nivel-${i.nivel || 0} ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarItemNota(${n.id}, ${k}, this)" title="Clique para editar o texto">${textoComLink(i.text)}</span>${chipsAnexos(i, 'item', n.id, k)}<span class="item-tools"><button class="mini-btn xs" title="Recuar (subitem)" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, 1)">⇥</button><button class="mini-btn xs" title="Avançar" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, -1)">⇤</button><button class="mini-btn xs" title="Virar tarefa" onclick="event.stopPropagation(); itemViraTarefa(${n.id}, ${k})">✅</button><button class="mini-btn xs${nAnexos(i) ? ' on' : ''}" title="Anexos: link ou imagem" onclick="event.stopPropagation(); abrirAnexos('item', ${n.id}, ${k})">📎</button><button class="mini-btn xs" title="Comprei — mandar para Entregas" onclick="event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></span></div>`).join('')}
       <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
       <div class="note-tools"><small class="item-date">${feitos}/${n.checklist.length} feitos</small>${feitos ? `<button class="mini-btn xs" onclick="desmarcarTodosNota(${n.id})" title="Desmarcar todos (lista reutilizável)">↺ desmarcar</button><button class="mini-btn xs" onclick="limparFeitosNota(${n.id})" title="Apagar os marcados">🧹 limpar feitos</button>` : ''}</div></div>` : (n.content ? `<div class="note-body">${linkify(esc(n.content))}</div>` : '')}
     <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
@@ -2628,31 +2803,55 @@ function renderSaude() { preencherSelectsSaude(); renderPainelSaude(); renderTre
 // quais abas aparecem. Fica em `prefs` — é por aparelho (o PC widescreen e o
 // celular podem ter layouts diferentes).
 // ============================================================================
+// Claros primeiro (do mais claro ao menos), depois os escuros.
 const TEMAS = {
-  escuro:       ['🌑', 'Escuro', '#121212', '#22c55e'],
   claro:        ['☀️', 'Claro', '#f1f5f9', '#16a34a'],
-  medio:        ['🌗', 'Médio', '#232830', '#34d399'],
-  colorido:     ['🎨', 'Colorido', '#1a1430', '#f472b6'],
-  gamificado:   ['🎮', 'Gamificado', '#07110d', '#00e676'],
-  profissional: ['💼', 'Profissional', '#0f172a', '#3b82f6']
+  papel:        ['📄', 'Papel', '#f7f2e7', '#b45309'],
+  menta:        ['🌿', 'Menta', '#e3ede6', '#047857'],
+  nevoa:        ['🌫️', 'Névoa', '#dfe6ee', '#0369a1'],
+  medio:        ['🌗', 'Médio', '#3a414d', '#34d399'],
+  profissional: ['💼', 'Profissional', '#18243d', '#60a5fa'],
+  escuro:       ['🌑', 'Escuro', '#121212', '#22c55e'],
+  violeta:      ['🔮', 'Violeta', '#2b1f4d', '#f472b6'],
+  gamer:        ['🎮', 'Gamer', '#04140c', '#00e676']
 };
+/** Os dois temas que mudaram de nome continuam valendo para quem já os usava. */
+const TEMAS_RENOMEADOS = { colorido: 'violeta', gamificado: 'gamer' };
+const MODOS_COR = { colorido: ['🎨', 'Colorido'], neutro: ['🩶', 'Neutro'] };
 const ABAS_INFO = [
   ['btn-focus', '🎯 Painel Central'], ['btn-home', '📅 Agenda'], ['btn-finances', '💰 Finanças'],
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
-  ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-settings', '⚙️ Config']
+  ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-settings', '⚙️ Config']
 ];
-const APARENCIA_PADRAO = { tema: 'escuro', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+const APARENCIA_PADRAO = { tema: 'escuro', cores: 'colorido', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+/** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
+ *  com cópia, um `const c = cfgAparencia()` guardado numa variável se perderia
+ *  na chamada seguinte. Mesmo cuidado do cfgFlut(). */
 function cfgAparencia() {
-  prefs.aparencia = Object.assign({}, APARENCIA_PADRAO, prefs.aparencia || {});
+  const c = prefs.aparencia = prefs.aparencia || {};
+  Object.keys(APARENCIA_PADRAO).forEach(k => {
+    if (c[k] !== undefined) return;
+    const p = APARENCIA_PADRAO[k];
+    c[k] = Array.isArray(p) ? p.slice() : p;
+  });
+  if (TEMAS_RENOMEADOS[c.tema]) c.tema = TEMAS_RENOMEADOS[c.tema];   // "colorido"→violeta, "gamificado"→gamer
+  if (!TEMAS[c.tema]) c.tema = 'escuro';
+  if (!MODOS_COR[c.cores]) c.cores = 'colorido';
   const ids = ABAS_INFO.map(a => a[0]);
-  prefs.aparencia.ordem = [...new Set([...(prefs.aparencia.ordem || []).filter(i => ids.includes(i)), ...ids])];
-  prefs.aparencia.ocultas = (prefs.aparencia.ocultas || []).filter(i => ids.includes(i) && i !== 'btn-settings');
-  return prefs.aparencia;
+  c.ordem = ordemTravada([...new Set([...(c.ordem || []).filter(i => ids.includes(i)), ...ids])]);
+  c.ocultas = (c.ocultas || []).filter(i => ids.includes(i) && i !== 'btn-settings' && i !== 'btn-focus');
+  return c;
+}
+/** Painel Central sempre na ponta de cima/esquerda; Config sempre na de baixo/direita. */
+function ordemTravada(ordem) {
+  const meio = ordem.filter(i => i !== 'btn-focus' && i !== 'btn-settings');
+  return ['btn-focus', ...meio, 'btn-settings'];
 }
 function salvarAparencia() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarAparencia(); }
 function aplicarAparencia() {
   const c = cfgAparencia();
   document.documentElement.dataset.tema = c.tema;
+  document.body.dataset.cores = c.cores;
   aplicarCapa();
   document.body.dataset.abas = c.abas;
   const nav = document.querySelector('.tabs');
@@ -2663,10 +2862,15 @@ function aplicarAparencia() {
   renderAparencia();
 }
 function escolherTema(t) { cfgAparencia().tema = t; salvarAparencia(); toast(`${TEMAS[t][0]} Tema ${TEMAS[t][1]}.`); }
+function escolherModoCor(m) {
+  cfgAparencia().cores = m; salvarAparencia();
+  toast(m === 'neutro' ? '🩶 Modo neutro: cor só no que avisa (atraso, conta a pagar, dinheiro).' : '🎨 Modo colorido: tudo com as cores cheias.', 5000);
+}
 function escolherPosicaoAbas(p) { cfgAparencia().abas = p; salvarAparencia(); }
 function moverAba(id, dir) {
+  if (id === 'btn-focus' || id === 'btn-settings') return;   // as duas pontas são fixas
   const c = cfgAparencia(); const i = c.ordem.indexOf(id); const j = i + dir;
-  if (i < 0 || j < 0 || j >= c.ordem.length) return;
+  if (i < 0 || j < 1 || j >= c.ordem.length - 1) return;      // não passa por cima das pontas
   c.ordem.splice(j, 0, c.ordem.splice(i, 1)[0]); salvarAparencia();
 }
 function alternarAbaVisivel(id) {
@@ -2680,6 +2884,8 @@ function renderAparencia() {
   const c = cfgAparencia();
   const paleta = document.getElementById('temas-lista');
   if (paleta) paleta.innerHTML = Object.entries(TEMAS).map(([k, t]) => `<button type="button" class="tema-chip ${c.tema === k ? 'sel' : ''}" onclick="escolherTema('${k}')" style="background:${t[2]}; border-color:${t[3]}"><span>${t[0]}</span><small style="color:${t[3]}">${t[1]}</small></button>`).join('');
+  const mc = document.getElementById('modo-cor');
+  if (mc) mc.innerHTML = Object.entries(MODOS_COR).map(([k, m]) => `<span class="${c.cores === k ? 'active' : ''}" onclick="escolherModoCor('${k}')">${m[0]} ${m[1]}</span>`).join('');
   document.querySelectorAll('#abas-posicao span').forEach(s => s.classList.toggle('active', s.dataset.pos === c.abas));
   const fa = document.getElementById('arte-fonte'); if (fa) fa.querySelectorAll('span').forEach(s => s.classList.toggle('active', s.dataset.fonte === cfgArte().fonte));
   const al = document.getElementById('arte-ligado'); if (al) al.checked = cfgArte().ligado;
@@ -2689,12 +2895,13 @@ function renderAparencia() {
   const seg = document.getElementById('rel-segundos'); if (seg) seg.checked = !!c.segundos;
   const lista = document.getElementById('abas-ordem');
   if (lista) lista.innerHTML = c.ordem.map((id, i) => {
-    const nome = (ABAS_INFO.find(a => a[0] === id) || [id, id])[1]; const oculta = c.ocultas.includes(id); const fixa = id === 'btn-settings';
+    const nome = (ABAS_INFO.find(a => a[0] === id) || [id, id])[1]; const oculta = c.ocultas.includes(id);
+    const fixa = id === 'btn-settings' || id === 'btn-focus';   // as duas pontas não saem do lugar
     return `<li class="aba-linha ${oculta ? 'oculta' : ''}"><span class="aba-nome">${nome}</span>
       <span class="item-actions">
-        <button class="mini-btn xs" title="Subir" onclick="moverAba('${id}', -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
-        <button class="mini-btn xs" title="Descer" onclick="moverAba('${id}', 1)" ${i === c.ordem.length - 1 ? 'disabled' : ''}>↓</button>
-        <button class="mini-btn xs ${oculta ? '' : 'on'}" title="${fixa ? 'Config não pode ser escondida' : (oculta ? 'Mostrar' : 'Esconder')}" onclick="alternarAbaVisivel('${id}')" ${fixa ? 'disabled' : ''}>${oculta ? '🙈' : '👁️'}</button>
+        <button class="mini-btn xs" title="${fixa ? 'Esta aba fica sempre na ponta' : 'Subir'}" onclick="moverAba('${id}', -1)" ${fixa || i <= 1 ? 'disabled' : ''}>↑</button>
+        <button class="mini-btn xs" title="${fixa ? 'Esta aba fica sempre na ponta' : 'Descer'}" onclick="moverAba('${id}', 1)" ${fixa || i >= c.ordem.length - 2 ? 'disabled' : ''}>↓</button>
+        <button class="mini-btn xs ${oculta ? '' : 'on'}" title="${fixa ? 'Esta aba não pode ser escondida' : (oculta ? 'Mostrar' : 'Esconder')}" onclick="alternarAbaVisivel('${id}')" ${fixa ? 'disabled' : ''}>${oculta ? '🙈' : '👁️'}</button>${fixa ? '<small class="aba-fixa" title="Painel Central fica sempre na primeira posição e Config na última">📌</small>' : ''}
       </span></li>`;
   }).join('');
 }
@@ -2793,6 +3000,7 @@ function renderAvisos() {
   if (card) card.hidden = false;
   const n = document.getElementById('avisos-contador'); if (n) n.innerText = lista.length ? `${lista.length}` : '';
   if (!lista.length) { el.innerHTML = '<div class="stat-line muted">Nada pendente agora. 👌</div>'; return; }
+  if (typeof tocarPaineis === 'function') tocarPaineis('avisos', 'hoje');
   el.innerHTML = lista.map(a => `<div class="aviso p${a.prio}" onclick="${a.acao || ''}"><span class="aviso-ic">${a.icone}</span><span>${esc(a.texto)}</span></div>`).join('');
 }
 
@@ -2911,7 +3119,7 @@ function confirmarCompra() {
     const n = notes.find(x => x.id === compraCtx.noteId);
     if (n && n.checklist) { n.checklist.splice(compraCtx.index, 1); n.updatedAt = Date.now(); salvar('notes', notes); }
   }
-  fecharCompra(); renderNotes(); renderEntregas(); redesenharLazer(); renderViagens(); renderRede(); renderAvisos();
+  fecharCompra(); renderNotes(); renderEntregas(); redesenharLazer(); renderViagens(); renderRede(); renderClinica(); renderAvisos();
   toast(`🛒 ${item} → Entregas${valor ? ' · ' + formatCurrency(valor) : ''}`, 5000);
 }
 /** Compra avulsa (sem vir de uma lista). */
@@ -3187,7 +3395,10 @@ function renderFaixas() {
 function atualizarMiniPlayer() {
   const mp = document.getElementById('mini-player'); const a = document.getElementById('audio-player'); if (!mp || !a) return;
   const ativo = faixas.length && faixaAtual >= 0;
-  mp.hidden = !ativo || mp.dataset.fechado === '1';
+  // Se a janela flutuante de Música estiver aberta, ela assume os controles.
+  const temJanela = typeof cfgFlut === 'function' && cfgFlut().ligado && (cfgFlut().ativos || []).includes('musica') && !document.getElementById('paineis').hidden;
+  mp.hidden = !ativo || mp.dataset.fechado === '1' || temJanela;
+  if (typeof tocarPaineis === 'function') tocarPaineis('musica');
   if (!ativo) return;
   document.getElementById('mp-nome').innerText = faixas[faixaAtual] ? faixas[faixaAtual].nome : '';
   document.getElementById('mp-play').innerText = a.paused ? '▶️' : '⏸️';
@@ -3349,8 +3560,1329 @@ function renderRede() {
   });
 }
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+
+// ============================================================================
+// PERFIL DE TRABALHO — o app deixa de ser "de médico"
+// O módulo de turnos sempre foi genérico por dentro (data, hora, horas, valor,
+// pago/a receber). O que era médico era só a PALAVRA. Então o perfil troca o
+// vocabulário e o ícone, sem tocar em um byte dos dados: quem já lançou
+// plantões continua com os mesmos registros, só muda como a tela os chama.
+// Guardado em `profile.trabalho`, que sincroniza — é identidade, não gosto.
+// ============================================================================
+const PERFIS_TRABALHO = {
+  geral: {
+    ic: '💼', nome: 'Trabalho (geral)', dica: 'Serve para qualquer jornada paga por hora, dia ou tarefa.',
+    aba: '💼 Trabalho', um: 'trabalho', muitos: 'trabalhos', esse: 'este trabalho',
+    formTitulo: 'Agendar novo trabalho', formBtn: 'Agendar trabalho', listaTitulo: 'Trabalhos',
+    turnosTitulo: 'Tipos de trabalho',
+    turnosHint: 'Um tipo = onde + horário + duração + valor. Cadastre um por tipo de jornada, inclusive as de valor diferente — ex.: <strong>Obra 8h</strong> (08:00 · 8h · R$ 400), <strong>Obra 8h sábado</strong> (08:00 · 8h · R$ 600). O app mostra o <strong>R$/h</strong> de cada um e, ao escolher, preenche tudo.',
+    receber: '💰 Receber trabalhos', avisoLabel: 'Avisar trabalho (min antes):',
+    descLabel: 'Onde / o quê:', descDica: 'Obra do centro',
+    escalaHint: 'O app cria os trabalhos sozinho nas próximas 4 semanas. Se numa semana você não fizer, apague <strong>aquele</strong> na lista: só o dia sai, a escala continua. Trabalho extra você lança à mão, como sempre.',
+    faixasHint: 'Use quando a mesma jornada tem horas pagas a preços diferentes — ex.: <em>8h × R$ 50 (normal) + 4h × R$ 75 (extra)</em>.'
+  },
+  plantao: {
+    ic: '🚑', nome: 'Plantões (saúde)', dica: 'Vocabulário de plantão: hospital, turno, escala.',
+    aba: '🚑 Plantões', um: 'plantão', muitos: 'plantões', esse: 'este plantão',
+    formTitulo: 'Agendar novo plantão', formBtn: 'Agendar plantão', listaTitulo: 'Plantões',
+    turnosTitulo: 'Turnos de plantão',
+    turnosHint: 'Um turno = local + horário + duração + valor. Cadastre um por tipo de plantão, inclusive os de valor diferente — ex.: <strong>Hospital X 12h</strong> (07:00 · 12h · R$ 1.400), <strong>Hospital X 12h feriado</strong> (07:00 · 12h · R$ 1.800). O app mostra o <strong>R$/h</strong> de cada um e, ao escolher o turno, preenche tudo.',
+    receber: '💰 Receber plantões', avisoLabel: 'Avisar plantão (min antes):',
+    descLabel: 'Local:', descDica: 'Hospital X',
+    escalaHint: 'O app cria os plantões sozinho nas próximas 4 semanas. Se numa semana você não fizer, apague <strong>aquele</strong> plantão na lista: só o dia sai, a escala continua. Plantão extra ou troca você lança à mão, como sempre.',
+    faixasHint: 'Use quando o mesmo plantão tem horas pagas a preços diferentes — ex.: <em>12h × R$ 116,67 (normal) + 6h × R$ 150 (feriado)</em>.'
+  },
+  clinica: {
+    ic: '🏥', nome: 'Clínica / consultório', dica: 'Para quem atende ou administra: cada registro é um dia de atendimento.',
+    aba: '🏥 Atendimentos', um: 'atendimento', muitos: 'atendimentos', esse: 'este atendimento',
+    formTitulo: 'Agendar novo atendimento', formBtn: 'Agendar atendimento', listaTitulo: 'Atendimentos',
+    turnosTitulo: 'Tipos de atendimento',
+    turnosHint: 'Um tipo = unidade + horário + duração + valor. Cadastre um por tipo de agenda — ex.: <strong>Clínica manhã</strong> (08:00 · 4h · R$ 800), <strong>Clínica sábado</strong> (08:00 · 4h · R$ 1.100). O app mostra o <strong>R$/h</strong> e preenche o resto ao escolher.',
+    receber: '💰 Receber atendimentos', avisoLabel: 'Avisar atendimento (min antes):',
+    descLabel: 'Unidade:', descDica: 'Clínica centro',
+    escalaHint: 'O app cria os atendimentos sozinho nas próximas 4 semanas. Se numa semana não houver, apague <strong>aquele</strong> dia na lista: só ele sai, a agenda fixa continua.',
+    faixasHint: 'Use quando o mesmo dia tem horas pagas a preços diferentes — ex.: <em>4h × R$ 200 (consulta) + 2h × R$ 350 (procedimento)</em>.'
+  },
+  producao: {
+    ic: '🖨️', nome: 'Produção / oficina', dica: 'Para quem produz sob encomenda: cada registro é um lote ou uma diária.',
+    aba: '🖨️ Produção', um: 'trabalho', muitos: 'trabalhos', esse: 'este trabalho',
+    formTitulo: 'Agendar novo trabalho', formBtn: 'Agendar trabalho', listaTitulo: 'Trabalhos',
+    turnosTitulo: 'Tipos de trabalho',
+    turnosHint: 'Um tipo = onde + horário + duração + valor. Ex.: <strong>Visita de obra</strong> (08:00 · 4h · R$ 500), <strong>Diária de projeto</strong> (09:00 · 8h · R$ 900). O app mostra o <strong>R$/h</strong> e preenche o resto ao escolher.',
+    receber: '💰 Receber trabalhos', avisoLabel: 'Avisar trabalho (min antes):',
+    descLabel: 'Onde / o quê:', descDica: 'Visita de obra',
+    escalaHint: 'O app cria os trabalhos sozinho nas próximas 4 semanas. Se numa semana você não fizer, apague <strong>aquele</strong> na lista: só o dia sai, a escala continua.',
+    faixasHint: 'Use quando o mesmo trabalho tem horas pagas a preços diferentes — ex.: <em>8h × R$ 60 (projeto) + 3h × R$ 90 (urgência)</em>.'
+  }
+};
+/** O vocabulário em uso. Nunca acessar PERFIS_TRABALHO direto na tela. */
+function vt() { return PERFIS_TRABALHO[(profile && profile.trabalho) || 'geral'] || PERFIS_TRABALHO.geral; }
+/** Quantos + a palavra certa: qt(2) => "2 plantões". */
+function qt(n) { return plural(n, vt().um, vt().muitos); }
+
+/** Quem já usava o app com plantões lançados continua no vocabulário de plantão;
+ *  quem está começando agora (os amigos) começa no genérico. */
+function definirPerfilTrabalho() {
+  if (profile.trabalho && PERFIS_TRABALHO[profile.trabalho]) return false;
+  profile.trabalho = shifts.length ? 'plantao' : 'geral';
+  salvar('profile', profile);
+  return true;
+}
+function escolherPerfilTrabalho(p) {
+  if (!PERFIS_TRABALHO[p]) return;
+  profile.trabalho = p; salvar('profile', profile);
+  aplicarVocabulario(); renderPerfilTrabalho(); redesenharAgenda(); ajustarAbaClinica();
+  toast(`${vt().ic} Agora o app chama isso de "${vt().um}".`, 5000);
+}
+
+/** Escreve o vocabulário em todo elemento marcado com data-vt. */
+function aplicarVocabulario() {
+  const v = vt();
+  document.querySelectorAll('[data-vt]').forEach(el => {
+    const campo = el.dataset.vt; const txt = v[campo]; if (txt === undefined) return;
+    if (el.dataset.vtOnde === 'placeholder') el.placeholder = txt;
+    else if (el.dataset.vtOnde === 'html') el.innerHTML = txt;
+    else el.innerText = txt;
+  });
+  const b = document.getElementById('busca-global');
+  if (b) b.placeholder = `🔍 Buscar em tudo: tarefas, notas, agenda, ${v.muitos}, finanças…  (Ctrl+K)`;
+  const ab = document.getElementById('aba-plantoes');
+  if (ab) ab.innerText = v.aba;
+}
+function renderPerfilTrabalho() {
+  const el = document.getElementById('perfil-trabalho'); if (!el) return;
+  const atual = (profile && profile.trabalho) || 'geral';
+  el.innerHTML = Object.entries(PERFIS_TRABALHO).map(([k, p]) =>
+    `<span class="${atual === k ? 'active' : ''}" onclick="escolherPerfilTrabalho('${k}')" title="${esc(p.dica)}">${p.ic} ${esc(p.nome)}</span>`).join('');
+  const d = document.getElementById('perfil-trabalho-dica');
+  if (d) d.innerText = vt().dica;
+}
+
+// ============================================================================
+// CONFIGURAÇÃO DE CADA ABA (⚙) + CADERNO DO DESENVOLVEDOR
+// Cada aba tem seus próprios ajustes, no ⚙ do canto — a aba Config lá em cima
+// continua sendo a geral. E toda aba tem um caderninho: enquanto você usa,
+// anota ali o que precisa mudar NAQUELA tela. Tudo junto aparece na janela
+// flutuante "🛠️ Ajustes", que é o bloco da Trinca de Ases.
+// ============================================================================
+/** Plural sem tropeço: plural(2, 'plantão', 'plantões'). */
+function plural(n, um, muitos) { return `${n} ${n === 1 ? um : muitos}`; }
+
+const ABA_ATUAL = () => (document.querySelector('.tab-btn.active') || {}).id || 'btn-focus';
+const ABA_NOME = id => (ABAS_INFO.find(a => a[0] === id) || [id, id])[1];
+
+// --- ajustes por aba (só entram aqui os que realmente mexem em algo) --------
+const AJUSTES_ABA = {
+  'btn-focus': [
+    { k: 'avisos', nome: 'Card de avisos', pad: true },
+    { k: 'frase', nome: 'Frase do dia', pad: true },
+    { k: 'busca', nome: 'Busca global (Ctrl+K continua funcionando)', pad: true },
+    { k: 'arte', nome: 'Obra do dia', pad: true },
+    { k: 'semana', nome: 'Cartões da semana no resumo', pad: true },
+    { k: 'pomodoro', nome: 'Pomodoro', pad: true }
+  ],
+  'btn-tasks': [
+    { k: 'feitas', nome: 'Já abrir mostrando as concluídas', pad: false },
+    { k: 'rotinas', nome: 'Card de rotinas', pad: true }
+  ],
+  'btn-notes': [
+    { k: 'entregas', nome: 'Card de compras e entregas', pad: true },
+    { k: 'arquivadas', nome: 'Mostrar as arquivadas junto', pad: false }
+  ],
+  'btn-finances': [
+    { k: 'mesAtual', nome: 'Abrir sempre no mês de hoje', pad: true },
+    { k: 'orcamento', nome: 'Card de orçamento', pad: true },
+    { k: 'recorrentes', nome: 'Card de recorrentes', pad: true },
+    { k: 'graficos', nome: 'Gráficos (por categoria e últimos 6 meses)', pad: true }
+  ],
+  'btn-home': [
+    { k: 'turnos', nome: 'Card de turnos de trabalho', pad: true },
+    { k: 'baixa', nome: 'Card de receber (baixa em lote)', pad: true }
+  ]
+};
+const AJUSTES_PADRAO_TODAS = [];
+
+function cfgAba(id) {
+  prefs.abas = prefs.abas || {};
+  const c = prefs.abas[id] = prefs.abas[id] || {};
+  (AJUSTES_ABA[id] || []).forEach(a => { if (c[a.k] === undefined) c[a.k] = a.pad; });
+  return c;
+}
+function gravarCfgAba() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarAjustesAba(); }
+function alternarAjusteAba(id, k) { const c = cfgAba(id); c[k] = !c[k]; gravarCfgAba(); renderConfigAba(); }
+
+/** Liga/desliga os pedaços de tela conforme os ajustes de cada aba. */
+function aplicarAjustesAba() {
+  const mostra = (elId, on) => { const e = document.getElementById(elId); if (e) e.hidden = !on; };
+  const f = cfgAba('btn-focus');
+  mostra('avisos-card', f.avisos && (typeof cfgAvisos !== 'function' || cfgAvisos().ligado));
+  mostra('frase-dia', f.frase); mostra('busca-card', f.busca);
+  mostra('pomodoro-card', f.pomodoro);
+  const ca = document.getElementById('arte-card');
+  if (ca && typeof cfgArte === 'function') ca.hidden = !(f.arte && cfgArte().ligado);
+  const t = cfgAba('btn-tasks'); mostra('rotinas-card', t.rotinas);
+  const n = cfgAba('btn-notes'); mostra('entregas-card', n.entregas);
+  const fi = cfgAba('btn-finances');
+  mostra('orcamento-card', fi.orcamento); mostra('recorrentes-card', fi.recorrentes);
+  mostra('fin-graficos', fi.graficos);
+  const h = cfgAba('btn-home'); mostra('turnos-card', h.turnos);
+  const sb = document.getElementById('shift-baixa');
+  if (sb && !h.baixa) sb.hidden = true;
+}
+
+// --- caderno do desenvolvedor ----------------------------------------------
+// devnotes = { 'btn-focus': [{ id, text, done, quando }], ... }  (sincroniza)
+function notasDev(id) { devnotes[id] = devnotes[id] || []; return devnotes[id]; }
+function addNotaDev(ev, id) {
+  if (ev) ev.preventDefault();
+  const inp = document.getElementById('dev-input'); const txt = (inp.value || '').trim(); if (!txt) return;
+  notasDev(id).push({ id: novoId(), text: txt, done: false, quando: Date.now() });
+  salvar('devnotes', devnotes); inp.value = ''; inp.focus();
+  renderConfigAba(); tocarPaineis('dev');
+  toast(`🛠️ Anotado em ${ABA_NOME(id)}.`, 2500);
+}
+function marcarNotaDev(aba, itemId) {
+  const n = notasDev(aba).find(x => x.id === itemId); if (!n) return;
+  n.done = !n.done; salvar('devnotes', devnotes); renderConfigAba(); tocarPaineis('dev');
+}
+function removerNotaDev(aba, itemId) {
+  devnotes[aba] = notasDev(aba).filter(x => x.id !== itemId);
+  salvar('devnotes', devnotes); renderConfigAba(); tocarPaineis('dev');
+}
+function limparFeitosDev() {
+  let n = 0;
+  Object.keys(devnotes).forEach(a => { const antes = devnotes[a].length; devnotes[a] = devnotes[a].filter(x => !x.done); n += antes - devnotes[a].length; });
+  if (!n) { toast('Nada marcado como feito.'); return; }
+  salvar('devnotes', devnotes); renderConfigAba(); tocarPaineis('dev');
+  toast(`🧹 ${plural(n, 'anotação resolvida saiu', 'anotações resolvidas saíram')} da lista.`);
+}
+function totalDev(abertas) {
+  return Object.values(devnotes).reduce((a, l) => a + (l || []).filter(x => abertas ? !x.done : true).length, 0);
+}
+
+// --- o modal do ⚙ -----------------------------------------------------------
+let abaConfigAtual = null;
+function abrirConfigAba(id) {
+  abaConfigAtual = id || ABA_ATUAL();
+  renderConfigAba();
+  document.getElementById('aba-config-modal').style.display = 'flex';
+  setTimeout(() => { const i = document.getElementById('dev-input'); if (i) i.focus(); }, 60);
+}
+function fecharConfigAba() { document.getElementById('aba-config-modal').style.display = 'none'; abaConfigAtual = null; }
+function renderConfigAba() {
+  const id = abaConfigAtual; if (!id) return;
+  const el = document.getElementById('aba-config-corpo'); if (!el) return;
+  document.getElementById('aba-config-titulo').innerText = ABA_NOME(id);
+  const ajustes = AJUSTES_ABA[id] || [];
+  const c = cfgAba(id);
+  const lista = notasDev(id);
+  const abertas = lista.filter(x => !x.done); const feitas = lista.filter(x => x.done);
+  const linha = n => `<li class="dev-item ${n.done ? 'feito' : ''}"><input type="checkbox" ${n.done ? 'checked' : ''} onclick="marcarNotaDev('${id}', ${n.id})">
+      <span>${esc(n.text)}</span><button class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`;
+  el.innerHTML = `
+    ${ajustes.length ? `<h4 class="dev-titulo">Ajustes desta aba</h4>
+      ${ajustes.map(a => `<label class="check-line"><input type="checkbox" ${c[a.k] ? 'checked' : ''} onchange="alternarAjusteAba('${id}', '${a.k}')"> ${esc(a.nome)}</label>`).join('')}`
+      : `<p class="hint">Esta aba ainda não tem ajustes próprios — use o caderno abaixo para pedir os que fizerem falta.</p>`}
+    <h4 class="dev-titulo">🛠️ Caderno desta aba <small>${abertas.length ? plural(abertas.length, 'em aberto', 'em aberto') : 'vazio'}</small></h4>
+    <p class="hint" style="margin:0 0 6px 0">Anote aqui, enquanto usa, o que precisa mudar <strong>nesta tela</strong>. Tudo que for anotado em todas as abas aparece junto na janela flutuante 🛠️ Ajustes.</p>
+    <form onsubmit="addNotaDev(event, '${id}')" style="display:flex; gap:8px; margin:0">
+      <input type="text" id="dev-input" placeholder="o que mudar nesta aba…" autocomplete="off" style="flex:1">
+      <button type="submit">＋</button>
+    </form>
+    <ul class="dev-lista">${abertas.map(linha).join('') || '<li class="dev-vazio">Nada anotado ainda.</li>'}${feitas.length ? `<li class="dev-sep">resolvidos (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
+    <div class="pf-botoes" style="margin-top:8px"><button class="mini-btn" onclick="limparFeitosDev()">🧹 limpar resolvidos (todas as abas)</button><button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings');">⚙️ Config geral</button></div>`;
+}
+/** O ⚙ flutuante muda de dono conforme a aba aberta. */
+function atualizarBotaoConfigAba() {
+  const b = document.getElementById('aba-cfg-btn'); if (!b) return;
+  const id = ABA_ATUAL();
+  const n = notasDev(id).filter(x => !x.done).length;
+  b.hidden = id === 'btn-settings';
+  b.title = `Ajustes e caderno de ${ABA_NOME(id)}`;
+  b.innerHTML = `⚙${n ? `<span class="cfg-bolha">${n}</span>` : ''}`;
+}
+
+// --- a janela flutuante 🛠️ ---------------------------------------------------
+function corpoDev(el) {
+  const abas = Object.keys(devnotes).filter(a => notasDev(a).some(x => !x.done));
+  if (!abas.length) {
+    el.innerHTML = `<div class="pf-vazio">Nada anotado. Use o ⚙ de cada aba para anotar o que mudar nela.</div>
+      <div class="pf-botoes"><button class="mini-btn" onclick="abrirConfigAba()">⚙ anotar nesta aba</button></div>`;
+    return;
+  }
+  el.innerHTML = abas.map(a => `<div class="pf-titulo">${esc(ABA_NOME(a))}</div>` +
+    notasDev(a).filter(x => !x.done).slice(0, 6).map(n =>
+      `<label class="pf-item"><input type="checkbox" onchange="marcarNotaDev('${a}', ${n.id})"><span>${esc(n.text)}</span></label>`).join('')).join('') +
+    `<div class="pf-rodape"><span>${plural(totalDev(true), 'ajuste pedido', 'ajustes pedidos')}</span><button class="mini-btn" onclick="abrirConfigAba()">⚙ nesta aba</button></div>`;
+}
+
+// ============================================================================
+// ANEXOS em tarefas e em itens de lista — 📎
+// Decisão do Matheus (27/09): os DOIS jeitos.
+//  · LINK (Drive, foto, documento, qualquer endereço) — é o padrão, é leve e
+//    SINCRONIZA normalmente, porque é só texto.
+//  · IMAGEM do aparelho — reduzida na hora e guardada em `lifeos_imgs`, que é
+//    LOCAL e NÃO sincroniza. Motivo: uma foto em base64 passa de 50 mil letras
+//    e estoura a célula da planilha, quebrando a sincronização de tudo. Então
+//    no outro aparelho o anexo aparece como "só no aparelho onde foi enviada".
+//    Para a foto ir junto, o caminho é mandar o link do Drive.
+// ============================================================================
+const IMGS_CHAVE = 'lifeos_imgs';
+const IMG_LADO_MAX = 900;       // maior lado da imagem guardada
+const IMG_KB_MAX = 450;         // teto por imagem
+const IMGS_KB_TOTAL = 5000;     // teto de todas juntas neste aparelho
+
+function lerImgs() { try { return JSON.parse(localStorage.getItem(IMGS_CHAVE)) || {}; } catch (e) { return {}; } }
+function gravarImgs(m) { try { localStorage.setItem(IMGS_CHAVE, JSON.stringify(m)); return true; } catch (e) { return false; } }
+function imgPorId(id) { return lerImgs()[id] || null; }
+function tamanhoImgs() { return Math.round((localStorage.getItem(IMGS_CHAVE) || '').length * 0.75 / 1024); }
+
+/** Onde o anexo vai morar. tipo: 'task' (tarefa) ou 'item' (item de lista). */
+let anexoAlvo = null;
+function alvoAnexos(alvo) {
+  if (!alvo) return null;
+  if (alvo.tipo === 'task') { const t = tasks.find(x => x.id === alvo.id); return t || null; }
+  const n = notes.find(x => x.id === alvo.id);
+  return n && n.checklist && n.checklist[alvo.i] ? n.checklist[alvo.i] : null;
+}
+function gravarAlvo(alvo) {
+  if (alvo.tipo === 'task') { salvar('tasks', tasks); renderTasks(); }
+  else { const n = notes.find(x => x.id === alvo.id); if (n) n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
+}
+
+function abrirAnexos(tipo, id, i) {
+  anexoAlvo = { tipo, id, i };
+  const o = alvoAnexos(anexoAlvo); if (!o) return;
+  document.getElementById('anexo-titulo').innerText = (o.text || '').slice(0, 60) || 'Item';
+  document.getElementById('anexo-link').value = '';
+  renderAnexoModal();
+  document.getElementById('anexo-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('anexo-link').focus(), 50);
+}
+function fecharAnexos() { document.getElementById('anexo-modal').style.display = 'none'; anexoAlvo = null; }
+function renderAnexoModal() {
+  const o = alvoAnexos(anexoAlvo); const el = document.getElementById('anexo-lista'); if (!el) return;
+  const lista = (o && o.anexos) || [];
+  el.innerHTML = lista.length
+    ? lista.map((a, k) => `<li><div class="transaction-info" style="flex:1"><span>${a.tipo === 'img' ? '🖼️' : iconeDoLink(a.url || '')} ${esc(a.nome || a.url || 'anexo')}</span>
+        <small class="item-date">${a.tipo === 'img' ? (imgPorId(a.imgId) ? 'imagem neste aparelho' : '⚠️ enviada noutro aparelho — aqui não aparece') : 'link'}</small></div>
+        <div class="item-actions"><button class="mini-btn" title="Abrir" onclick="abrirAnexo(${k})">↗</button><button class="mini-btn" title="Tirar" onclick="removerAnexo(${k})">✕</button></div></li>`).join('')
+    : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum anexo ainda.</li>';
+  const info = document.getElementById('anexo-espaco');
+  if (info) info.innerText = `Imagens guardadas neste aparelho: ${tamanhoImgs()} KB de ${IMGS_KB_TOTAL} KB.`;
+}
+function addAnexos(o) { if (!Array.isArray(o.anexos)) o.anexos = []; return o.anexos; }
+
+function anexarLink(ev) {
+  if (ev) ev.preventDefault();
+  const campo = document.getElementById('anexo-link'); const bruto = (campo.value || '').trim();
+  if (!bruto) { toast('Cole um link primeiro.'); return; }
+  const o = alvoAnexos(anexoAlvo); if (!o) return;
+  const s = separarLink(bruto);
+  if (!s.url) { toast('Não achei um endereço aí. Cole algo que comece com http.'); return; }
+  addAnexos(o).push({ id: novoId(), tipo: 'link', url: s.url, nome: s.titulo || s.loja || s.url });
+  campo.value = ''; gravarAlvo(anexoAlvo); renderAnexoModal();
+  toast('🔗 Link anexado (vai junto na sincronização).');
+}
+function anexarImagem(input) {
+  const f = input.files && input.files[0]; input.value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { toast('Escolha um arquivo de imagem. Para PDF e outros arquivos, use o link do Drive.', 7000); return; }
+  const o = alvoAnexos(anexoAlvo); if (!o) return;
+  if (tamanhoImgs() > IMGS_KB_TOTAL) { toast(`As imagens deste aparelho já ocupam ${tamanhoImgs()} KB. Apague alguma ou use link.`, 8000); return; }
+  const fr = new FileReader();
+  fr.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, IMG_LADO_MAX / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const dados = cv.toDataURL('image/jpeg', 0.62);
+      const kb = Math.round(dados.length * 0.75 / 1024);
+      if (kb > IMG_KB_MAX) { toast(`Imagem grande demais mesmo depois de reduzir (${kb} KB). Mande o link do Drive.`, 8000); return; }
+      const imgId = 'i' + novoId();
+      const m = lerImgs(); m[imgId] = dados;
+      if (!gravarImgs(m)) { toast('A memória do navegador encheu. Apague imagens antigas ou use link.', 8000); return; }
+      addAnexos(o).push({ id: novoId(), tipo: 'img', imgId, nome: f.name.replace(/\.[^.]+$/, '').slice(0, 40) });
+      gravarAlvo(anexoAlvo); renderAnexoModal();
+      toast(`🖼️ Imagem anexada (${kb} KB, só neste aparelho).`, 6000);
+    };
+    img.onerror = () => toast('Não consegui ler essa imagem.');
+    img.src = e.target.result;
+  };
+  fr.readAsDataURL(f);
+}
+function removerAnexo(k) {
+  const o = alvoAnexos(anexoAlvo); if (!o || !o.anexos || !o.anexos[k]) return;
+  const a = o.anexos[k];
+  if (!confirm(`Tirar "${a.nome || 'este anexo'}"?`)) return;
+  if (a.tipo === 'img' && a.imgId) { const m = lerImgs(); delete m[a.imgId]; gravarImgs(m); }
+  o.anexos.splice(k, 1);
+  gravarAlvo(anexoAlvo); renderAnexoModal();
+}
+function abrirAnexo(k) {
+  const o = alvoAnexos(anexoAlvo); const a = o && o.anexos && o.anexos[k]; if (!a) return;
+  if (a.tipo === 'link') { window.open(a.url, '_blank', 'noopener'); return; }
+  verImagem(a.imgId, a.nome);
+}
+/** Abre a imagem em tamanho grande. */
+function verImagem(imgId, nome) {
+  const d = imgPorId(imgId);
+  if (!d) { toast('Esta imagem foi enviada no outro aparelho — ela não sincroniza. Use o link do Drive para ver nos dois.', 9000); return; }
+  document.getElementById('lupa-img').src = d;
+  document.getElementById('lupa-nome').innerText = nome || '';
+  document.getElementById('lupa-modal').style.display = 'flex';
+}
+function fecharLupa() { document.getElementById('lupa-modal').style.display = 'none'; document.getElementById('lupa-img').src = ''; }
+
+/** Os selinhos que aparecem embaixo do texto do item. */
+function chipsAnexos(o, tipo, id, i) {
+  const lista = (o && o.anexos) || [];
+  if (!lista.length) return '';
+  return `<span class="anexos" onclick="event.stopPropagation()">` + lista.map((a, k) => {
+    if (a.tipo === 'img') {
+      const d = imgPorId(a.imgId);
+      return d
+        ? `<img class="anexo-mini" src="${d}" alt="${esc(a.nome || '')}" title="${esc(a.nome || 'imagem')}" onclick="verImagem('${a.imgId}', '${esc(a.nome || '').replace(/'/g, '')}')">`
+        : `<span class="anexo-chip falta" title="Imagem enviada em outro aparelho — não sincroniza" onclick="abrirAnexos('${tipo}', ${id}${i === undefined ? '' : ', ' + i})">🖼️ ${esc(a.nome || 'imagem')}</span>`;
+    }
+    return `<a class="anexo-chip" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.url)}">${iconeDoLink(a.url)} ${esc(a.nome || 'link')}</a>`;
+  }).join('') + `</span>`;
+}
+/** Quantos anexos o item tem (para o botão 📎 mostrar o número). */
+function nAnexos(o) { return ((o && o.anexos) || []).length; }
+
+/** Apaga imagens que não pertencem mais a ninguém (item ou tarefa apagados).
+ *  Sem isso o teto de espaço encheria de foto órfã. Roda na abertura do app. */
+function limparImagensOrfas() {
+  const m = lerImgs(); const ids = Object.keys(m); if (!ids.length) return 0;
+  const usados = new Set();
+  const varrer = o => ((o && o.anexos) || []).forEach(a => { if (a.imgId) usados.add(a.imgId); });
+  tasks.forEach(varrer);
+  notes.forEach(n => (n.checklist || []).forEach(varrer));
+  const orfas = ids.filter(id => !usados.has(id));
+  if (!orfas.length) return 0;
+  orfas.forEach(id => delete m[id]); gravarImgs(m);
+  return orfas.length;
+}
+
+// ============================================================================
+// REDE DE SEGURANÇA — cópias automáticas no próprio aparelho
+// Por que existe: a sincronização é boa, mas é burra. Se um erro esvaziar um
+// módulo, o `salvar()` carimba a hora, a planilha acha que é a versão mais nova
+// e o dado bom some também no outro aparelho. A cópia não impede isso — ela
+// deixa você voltar atrás. São tiradas sozinhas, sem você lembrar de nada:
+//   · uma por dia, quando você abre o app;
+//   · uma sempre que um módulo cheio fica vazio de uma vez (o caso perigoso);
+//   · uma antes de restaurar ou importar (para a restauração também ter volta).
+// Ficam SÓ neste aparelho (não sincronizam, não vão pro GitHub).
+// ============================================================================
+const SNAP_CHAVE = 'lifeos_snapshots';
+const SNAP_MAX = 8;              // quantas cópias guardar
+const SNAP_LIMITE_BYTES = 2500000; // teto de espaço (o localStorage é pequeno)
+
+function lerFotos() {
+  try { return JSON.parse(localStorage.getItem(SNAP_CHAVE)) || []; } catch (e) { return []; }
+}
+function gravarFotos(fotos) {
+  // corta pelas mais antigas até caber no teto e na quantidade
+  let lista = fotos.slice(-SNAP_MAX);
+  for (let tentativa = 0; tentativa < SNAP_MAX; tentativa++) {
+    const txt = JSON.stringify(lista);
+    if (txt.length <= SNAP_LIMITE_BYTES) {
+      try { localStorage.setItem(SNAP_CHAVE, txt); return true; }
+      catch (e) { lista = lista.slice(1); continue; }   // estourou a cota: joga a mais velha fora
+    }
+    lista = lista.slice(1);
+  }
+  return false;
+}
+/** Conta itens de cada módulo — é o que mostra "sumiu coisa" de relance. */
+function resumirDados(dados) {
+  const r = {};
+  Object.keys(dados || {}).forEach(k => {
+    const v = dados[k];
+    r[k] = Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : (v ? 1 : 0));
+  });
+  return r;
+}
+function dadosAtuais() {
+  const d = {};
+  SYNC_MODULOS.forEach(m => {
+    try { const v = localStorage.getItem('lifeos_' + m); if (v !== null) d[m] = JSON.parse(v); } catch (e) {}
+  });
+  return d;
+}
+/** Tira uma cópia agora. `chaveDia` evita mais de uma cópia diária no mesmo dia. */
+function tirarFoto(motivo, chaveDia) {
+  const fotos = lerFotos();
+  if (chaveDia && fotos.some(f => f.dia === chaveDia)) return null;
+  const dados = dadosAtuais();
+  const itens = Object.values(resumirDados(dados)).reduce((a, n) => a + n, 0);
+  if (!itens) return null;   // nada pra guardar ainda
+  const foto = { quando: Date.now(), motivo, dia: chaveDia || null, dados };
+  fotos.push(foto);
+  return gravarFotos(fotos) ? foto : null;
+}
+function fotoDoDia() { return tirarFoto('cópia do dia', hojeISO()); }
+function copiaManual() {
+  const f = tirarFoto('você pediu');
+  renderCopias();
+  toast(f ? '🛟 Cópia guardada neste aparelho.' : '⚠️ Não consegui guardar a cópia (memória do navegador cheia).', 5000);
+}
+function apagarFoto(i) {
+  const fotos = lerFotos(); if (!fotos[i]) return;
+  if (!confirm(`Apagar a cópia de ${new Date(fotos[i].quando).toLocaleString('pt-BR')}?`)) return;
+  fotos.splice(i, 1); gravarFotos(fotos); renderCopias();
+}
+/** Baixa a cópia como .json — mesmo formato do backup normal. */
+function baixarFoto(i) {
+  const f = lerFotos()[i]; if (!f) return;
+  const dados = Object.assign({}, f.dados);
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  const d = new Date(f.quando);
+  a.href = url; a.download = `genesis_copia_${isoDe(d).replace(/-/g, '')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('💾 Cópia baixada.');
+}
+/** Volta o app para o estado daquela cópia (guardando antes o estado de agora). */
+function restaurarFoto(i) {
+  const f = lerFotos()[i]; if (!f) return;
+  if (snapPausado) return;
+  const agora = resumirDados(dadosAtuais()); const antes = resumirDados(f.dados);
+  const difs = Object.keys(antes).filter(k => (antes[k] || 0) !== (agora[k] || 0))
+    .map(k => `  · ${k}: ${agora[k] || 0} agora → ${antes[k] || 0} na cópia`);
+  const quando = new Date(f.quando).toLocaleString('pt-BR');
+  if (!confirm(`Voltar o app para a cópia de ${quando}?\n\n${difs.length ? 'O que muda:\n' + difs.join('\n') : 'Os dois estados têm a mesma contagem de itens.'}\n\nO estado de agora é guardado antes, então dá pra desfazer.`)) return;
+  tirarFoto('antes de restaurar');
+  snapPausado = true;
+  Object.keys(f.dados).forEach(m => salvar(m, f.dados[m]));
+  snapPausado = false;
+  toast('🛟 Restaurado. Recarregando…', 4000);
+  setTimeout(() => location.reload(), 900);
+}
+
+function renderCopias() {
+  const el = document.getElementById('copias-lista'); if (!el) return;
+  const fotos = lerFotos().slice().reverse();
+  const tam = (localStorage.getItem(SNAP_CHAVE) || '').length;
+  const info = document.getElementById('copias-info');
+  if (info) info.innerText = fotos.length
+    ? `${fotos.length} cópia${fotos.length > 1 ? 's' : ''} guardada${fotos.length > 1 ? 's' : ''} · ${(tam / 1024).toFixed(0)} KB neste aparelho`
+    : 'Nenhuma cópia ainda — a primeira é tirada sozinha quando você abre o app.';
+  if (!fotos.length) { el.innerHTML = ''; return; }
+  el.innerHTML = fotos.map((f, iRev) => {
+    const i = fotos.length - 1 - iRev;   // índice real na lista guardada
+    const r = resumirDados(f.dados);
+    const itens = Object.values(r).reduce((a, n) => a + n, 0);
+    const destaque = ['tasks', 'notes', 'finances', 'shifts'].filter(k => r[k]).map(k => `${r[k]} ${k}`).join(' · ');
+    return `<li><div class="transaction-info" style="flex:1"><span>🛟 ${new Date(f.quando).toLocaleString('pt-BR')}</span>
+      <small class="item-date">${esc(f.motivo)} · ${itens} itens</small>${destaque ? `<small class="item-notes">${esc(destaque)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Voltar o app para esta cópia" onclick="restaurarFoto(${i})">↺</button><button class="mini-btn" title="Baixar como arquivo" onclick="baixarFoto(${i})">💾</button><button class="mini-btn" title="Apagar esta cópia" onclick="apagarFoto(${i})">✕</button></div></li>`;
+  }).join('');
+}
+
+/** Durante restaurar/importar as cópias ficam pausadas (senão sairia uma por módulo). */
+let snapPausado = false;
+/** O caso perigoso: um módulo cheio virar vazio de uma vez. Guarda antes de gravar. */
+function protegerEsvaziamento(modulo, valor) {
+  if (snapPausado) return;
+  try {
+    if (!Array.isArray(valor) || valor.length) return;
+    const antes = JSON.parse(localStorage.getItem('lifeos_' + modulo) || 'null');
+    if (!Array.isArray(antes) || antes.length < 3) return;
+    tirarFoto(`antes de "${modulo}" ficar vazio (tinha ${antes.length})`);
+    if (typeof renderCopias === 'function') renderCopias();
+  } catch (e) {}
+}
+
+// ============================================================================
+// BAIXA EM LOTE  +  TURNOS A PARTIR DO HISTÓRICO
+// Dois atalhos para o que mais dava trabalho: receber vários plantões de uma
+// vez (você não recebe um a um, recebe o pacote do hospital) e cadastrar os
+// turnos sem digitar nada — eles saem dos plantões que você já lançou.
+// ============================================================================
+let plantoesMarcados = new Set();   // só nesta sessão, não é salvo
+
+function alternarMarcaPlantao(id) {
+  if (plantoesMarcados.has(id)) plantoesMarcados.delete(id); else plantoesMarcados.add(id);
+  renderBaixaLote();
+  const cx = document.getElementById('mk-' + id); if (cx) cx.checked = plantoesMarcados.has(id);
+}
+/** Os locais com plantão em aberto, sempre na mesma ordem. A tela manda o ÍNDICE
+ *  em vez do nome — um local com apóstrofo quebraria o onclick. */
+function locaisEmAberto() { return [...new Set(shifts.filter(s => !s.paid).map(s => s.desc))].sort(); }
+/** Atalhos: todos, os de um local (pelo índice) ou os de um mês. */
+function marcarPlantoes(tipo, valor) {
+  const naoPagos = shifts.filter(s => !s.paid);
+  const alvo = tipo === 'todos' ? naoPagos
+    : tipo === 'local' ? naoPagos.filter(s => s.desc === locaisEmAberto()[valor])
+    : naoPagos.filter(s => (s.date || '').startsWith(valor));
+  const todosJaMarcados = alvo.length && alvo.every(s => plantoesMarcados.has(s.id));
+  alvo.forEach(s => { if (todosJaMarcados) plantoesMarcados.delete(s.id); else plantoesMarcados.add(s.id); });
+  renderShifts();
+}
+function limparMarcasPlantao() { plantoesMarcados.clear(); renderShifts(); }
+
+/** Dá baixa em tudo que está marcado, de uma vez só. */
+function darBaixaEmLote() {
+  const alvo = shifts.filter(s => !s.paid && plantoesMarcados.has(s.id));
+  if (!alvo.length) { toast(`Marque os ${vt().muitos} que você recebeu.`); return; }
+  const total = alvo.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const quando = document.getElementById('baixa-data') ? document.getElementById('baixa-data').value : '';
+  const dia = quando || hojeISO();
+  if (!confirm(`Marcar ${qt(alvo.length)} como recebidos em ${isoParaBR(dia)}?\n\nTotal: ${formatCurrency(total)}\n\nA data de cada um não muda — só entra o carimbo de quando o dinheiro caiu.`)) return;
+  alvo.forEach(s => { s.paid = true; s.paidAt = dia; sincronizarLancamentoPlantao(s); });
+  plantoesMarcados.clear();
+  salvar('shifts', shifts); salvar('finances', transactions);
+  renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
+  toast(`💵 ${formatCurrency(total)} recebidos em ${qt(alvo.length)}.`, 6000);
+}
+
+/** A barra de seleção: atalhos por local e por mês + o botão de dar baixa. */
+function renderBaixaLote() {
+  const el = document.getElementById('shift-baixa'); if (!el) return;
+  const naoPagos = shifts.filter(s => !s.paid);
+  if (!naoPagos.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const marcados = naoPagos.filter(s => plantoesMarcados.has(s.id));
+  const total = marcados.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const locais = locaisEmAberto();
+  const meses = [...new Set(naoPagos.map(s => (s.date || '').slice(0, 7)))].filter(Boolean).sort();
+  const somaLocal = d => naoPagos.filter(s => s.desc === d).reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const somaMes = m => naoPagos.filter(s => (s.date || '').startsWith(m)).reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  const ativo = (tipo, v) => {
+    const lista = tipo === 'local' ? naoPagos.filter(s => s.desc === locais[v]) : naoPagos.filter(s => (s.date || '').startsWith(v));
+    return lista.length && lista.every(s => plantoesMarcados.has(s.id)) ? ' sel' : '';
+  };
+  el.innerHTML = `<div class="baixa-topo"><strong>${esc(vt().receber)}</strong><small>${naoPagos.length} em aberto · ${formatCurrency(naoPagos.reduce((a, s) => a + (Number(s.amount) || 0), 0))}</small></div>
+    <p class="hint" style="margin:2px 0 8px 0">Marque os que caíram na conta e dê baixa de uma vez. Cada ${esc(vt().um)} continua no mês em que aconteceu — entra só a data do recebimento.</p>
+    <div class="chips">
+      <span class="chip${naoPagos.every(s => plantoesMarcados.has(s.id)) ? ' sel' : ''}" onclick="marcarPlantoes('todos')">✓ todos (${formatCurrency(naoPagos.reduce((a, s) => a + (Number(s.amount) || 0), 0))})</span>
+      ${locais.map((d, i) => `<span class="chip${ativo('local', i)}" onclick="marcarPlantoes('local', ${i})">🏥 ${esc(d)} · ${formatCurrency(somaLocal(d))}</span>`).join('')}
+      ${meses.map(m => `<span class="chip${ativo('mes', m)}" onclick="marcarPlantoes('mes', '${m}')">📆 ${esc(nomeMes(m))} · ${formatCurrency(somaMes(m))}</span>`).join('')}
+    </div>
+    <div class="baixa-acao">
+      <label>Recebi em: <input type="date" id="baixa-data" value="${hojeISO()}"></label>
+      <button class="mini-btn" onclick="limparMarcasPlantao()">limpar</button>
+      <button ${marcados.length ? '' : 'disabled'} onclick="darBaixaEmLote()">💵 Dar baixa em ${marcados.length} · ${formatCurrency(total)}</button>
+    </div>`;
+}
+
+// --- turnos a partir dos plantões já lançados -------------------------------
+/** Agrupa seus plantões por local + duração + horário e sugere o turno de cada grupo. */
+function turnosSugeridos() {
+  const grupos = {};
+  shifts.forEach(s => {
+    if (!s.desc) return;
+    const chave = `${s.desc}|${s.hours || 0}|${s.time || ''}`;
+    (grupos[chave] = grupos[chave] || []).push(s);
+  });
+  return Object.values(grupos).map(g => {
+    // valor típico do grupo = o que mais se repete (desempate: o mais recente)
+    const contagem = {};
+    g.forEach(s => { contagem[s.amount] = (contagem[s.amount] || 0) + 1; });
+    const maisComum = Object.entries(contagem).sort((a, b) => b[1] - a[1] || Number(b[0]) - Number(a[0]))[0];
+    const s0 = g[0];
+    const horas = Number(s0.hours) || 0;
+    return {
+      name: `${s0.desc}${horas ? ' ' + horas + 'h' : ''}`,
+      local: s0.desc, time: s0.time || '', hours: horas,
+      amount: Number(maisComum[0]) || 0,
+      vezes: g.length
+    };
+  }).filter(t => t.amount > 0)
+    .filter(t => !places.some(p => (p.name || '').toLowerCase() === t.name.toLowerCase()))
+    .sort((a, b) => b.vezes - a.vezes);
+}
+function renderSugestaoTurnos() {
+  const el = document.getElementById('turnos-sugeridos'); if (!el) return;
+  const sug = turnosSugeridos();
+  if (!sug.length) {
+    el.innerHTML = shifts.length
+      ? '<p class="hint">Seus plantões já viraram turnos — nada novo pra sugerir aqui.</p>'
+      : '<p class="hint">Assim que você lançar alguns plantões, o app sugere os turnos prontos a partir deles.</p>';
+    return;
+  }
+  el.innerHTML = `<p class="hint" style="margin-bottom:6px">✨ Achei <strong>${sug.length}</strong> tipo${sug.length > 1 ? 's' : ''} nos ${vt().muitos} que você já lançou. Clique para criar sem digitar nada:</p>
+    <ul class="transaction-list">${sug.map((t, i) => `<li><div class="transaction-info"><span>🏥 ${esc(t.name)}</span><small class="item-date">${t.time ? 'às ' + esc(t.time) : ''}${t.hours ? ' · ' + t.hours + 'h' : ''} · ${formatCurrency(t.amount)}${t.hours ? ' · ' + fmtHora(valorHora(t.amount, t.hours)) : ''} <em>· ${t.vezes}×</em></small></div>
+      <div class="item-actions"><button class="mini-btn" title="Criar este turno" onclick="criarTurnoSugerido(${i})">＋</button></div></li>`).join('')}</ul>
+    <button class="btn" style="width:100%; margin-top:8px" onclick="criarTodosTurnosSugeridos()">✨ Criar os ${sug.length} de uma vez</button>`;
+}
+function criarTurnoSugerido(i) {
+  const t = turnosSugeridos()[i]; if (!t) return;
+  places.push({ id: novoId(), skips: [], name: t.name, local: t.local, time: t.time, hours: t.hours, amount: t.amount });
+  salvar('places', places); preencherLocais(); renderSugestaoTurnos();
+  toast(`🏥 Turno "${t.name}" criado.`);
+}
+function criarTodosTurnosSugeridos() {
+  const sug = turnosSugeridos(); if (!sug.length) return;
+  if (!confirm(`Criar ${sug.length} turnos a partir dos seus plantões?\n\n${sug.map(t => `· ${t.name} — ${t.time || 's/ hora'} · ${t.hours}h · ${formatCurrency(t.amount)}`).join('\n')}\n\nVocê pode editar ou apagar qualquer um depois.`)) return;
+  sug.forEach(t => places.push({ id: novoId(), skips: [], name: t.name, local: t.local, time: t.time, hours: t.hours, amount: t.amount }));
+  salvar('places', places); preencherLocais(); renderSugestaoTurnos();
+  toast(`🏥 ${sug.length} turnos criados. Agora é só escolher no formulário do plantão.`, 6000);
+}
+
+// ============================================================================
+// JANELAS FLUTUANTES (painéis que seguem você em qualquer aba)
+// Na tela larga do PC elas ocupam as margens que ficavam vazias dos dois lados.
+// Se a tela não tiver margem, elas viram um empilhado no canto de baixo.
+// No celular só aparecem se você ligar em Config, e ficam rentes ao rodapé.
+// Arraste pelo título para mudar de lugar; ali ela fica até você "arrumar".
+// Tudo daqui mora em prefs (por aparelho) e NÃO sincroniza.
+// ============================================================================
+const PAINEIS = {
+  notas:    { ic: '📝', nome: 'Bloco rápido' },
+  hoje:     { ic: '📌', nome: 'Hoje' },
+  pomodoro: { ic: '⏱️', nome: 'Pomodoro' },
+  avisos:   { ic: '🔔', nome: 'Avisos' },
+  arte:     { ic: '🖼️', nome: 'Obra do dia' },
+  musica:   { ic: '🎵', nome: 'Música' },
+  dev:      { ic: '🛠️', nome: 'Ajustes' }
+};
+const FLUT_PADRAO = { ligado: true, celular: false, largura: 310, ativos: ['notas'], pos: {}, encolhidos: [], nota: null };
+/** Devolve SEMPRE o mesmo objeto (preenchendo o que faltar), nunca uma cópia:
+ *  com cópia, um `cfgFlut().x = 1` se perderia na chamada seguinte. */
+function cfgFlut() {
+  const c = prefs.flutuantes = prefs.flutuantes || {};
+  Object.keys(FLUT_PADRAO).forEach(k => {
+    if (c[k] !== undefined) return;
+    const p = FLUT_PADRAO[k];
+    c[k] = Array.isArray(p) ? p.slice() : (p && typeof p === 'object' ? {} : p);
+  });
+  return c;
+}
+function gravarFlut() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); }
+
+/** Liga/desliga o sistema todo. */
+function alternarFlutuantes() { const c = cfgFlut(); c.ligado = !c.ligado; gravarFlut(); montarPaineis(); renderConfigFlut(); }
+/** No celular as janelas só aparecem se você pedir. */
+function alternarFlutCelular() { const c = cfgFlut(); c.celular = !c.celular; gravarFlut(); montarPaineis(); renderConfigFlut(); }
+function mudarLarguraFlut(v) { const c = cfgFlut(); c.largura = Number(v) || 310; gravarFlut(); recolocarPaineis(); }
+/** Marca/desmarca um painel na lista de Config. */
+function alternarPainel(k) {
+  const c = cfgFlut(); c.ativos = c.ativos || [];
+  if (c.ativos.includes(k)) c.ativos = c.ativos.filter(x => x !== k); else c.ativos.push(k);
+  gravarFlut(); montarPaineis(); renderConfigFlut();
+}
+function fecharPainel(k) { alternarPainel(k); toast(`Janela "${PAINEIS[k].nome}" fechada. Pra voltar: Config → Janelas flutuantes.`, 5000); }
+function encolherPainel(k) {
+  const c = cfgFlut(); c.encolhidos = c.encolhidos || [];
+  if (c.encolhidos.includes(k)) c.encolhidos = c.encolhidos.filter(x => x !== k); else c.encolhidos.push(k);
+  gravarFlut();
+  const el = document.getElementById('pf-' + k);
+  if (el) { el.classList.toggle('encolhido', c.encolhidos.includes(k)); const b = el.querySelector('.pf-encolher'); if (b) b.innerText = c.encolhidos.includes(k) ? '▸' : '▾'; }
+  recolocarPaineis();
+}
+/** Devolve todas as janelas para as margens (desfaz os arrastos). */
+function arrumarPaineis() { const c = cfgFlut(); c.pos = {}; gravarFlut(); recolocarPaineis(); toast('🪟 Janelas de volta para as margens.'); }
+
+// --- montagem ---------------------------------------------------------------
+/** Cria/remove as cascas das janelas. Chamar quando a lista ou o modo muda. */
+function montarPaineis() {
+  const wrap = document.getElementById('paineis'); if (!wrap) return;
+  const c = cfgFlut();
+  const estreito = window.innerWidth < 900;
+  const mostrar = c.ligado && (!estreito || c.celular);
+  const rascunho = (document.getElementById('pf-notas-input') || {}).value || '';
+  if (!mostrar) { wrap.innerHTML = ''; wrap.hidden = true; document.body.classList.remove('com-paineis'); atualizarMiniPlayer(); return; }
+  wrap.hidden = false; document.body.classList.add('com-paineis');
+  const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
+  wrap.innerHTML = ativos.map(k => {
+    const p = PAINEIS[k]; const enc = (c.encolhidos || []).includes(k);
+    return `<section class="pf${enc ? ' encolhido' : ''}" id="pf-${k}" data-k="${k}">
+      <header class="pf-top" onpointerdown="pegarPainel(event, '${k}')"><span class="pf-ic">${p.ic}</span><strong>${esc(p.nome)}</strong>
+        <span class="pf-acoes"><button class="mini-btn pf-encolher" title="Encolher / abrir" onclick="encolherPainel('${k}')">${enc ? '▸' : '▾'}</button><button class="mini-btn" title="Fechar esta janela" onclick="fecharPainel('${k}')">✕</button></span></header>
+      <div class="pf-corpo" id="pf-${k}-corpo"></div></section>`;
+  }).join('');
+  ativos.forEach(k => atualizarPainel(k));
+  const inp = document.getElementById('pf-notas-input'); if (inp && rascunho) inp.value = rascunho;
+  recolocarPaineis(); atualizarMiniPlayer();
+}
+
+/** Redesenha o miolo de UMA janela (sem mexer nas outras nem perder o que você digita). */
+function atualizarPainel(k) {
+  const el = document.getElementById('pf-' + k + '-corpo'); if (!el) return;
+  if (k === 'notas') return corpoNotas(el);
+  if (k === 'hoje') return corpoHoje(el);
+  if (k === 'pomodoro') return corpoPomodoro(el);
+  if (k === 'avisos') return corpoAvisos(el);
+  if (k === 'arte') return corpoArte(el);
+  if (k === 'musica') return corpoMusica(el);
+  if (k === 'dev') return corpoDev(el);
+}
+/** Atualiza só as janelas abertas (usado pelos módulos quando algo muda). */
+function tocarPaineis(...quais) {
+  const c = cfgFlut(); if (!c.ligado) return;
+  quais.filter(k => (c.ativos || []).includes(k)).forEach(atualizarPainel);
+}
+
+// --- onde cada janela fica --------------------------------------------------
+/** Calcula a posição: margem da direita, depois da esquerda, senão canto. */
+function recolocarPaineis() {
+  const wrap = document.getElementById('paineis'); if (!wrap || wrap.hidden) return;
+  const c = cfgFlut(); const L = Math.max(230, Math.min(460, c.largura || 310));
+  const estreito = window.innerWidth < 900;
+  const cont = document.querySelector('.container');
+  const r = cont ? cont.getBoundingClientRect() : { left: 0, right: window.innerWidth };
+  const folgaDir = Math.max(0, window.innerWidth - r.right), folgaEsq = Math.max(0, r.left);
+  const cabeDir = !estreito && folgaDir >= L + 22;
+  const cabeEsq = !estreito && folgaEsq >= L + 22;
+  wrap.dataset.modo = estreito ? 'celular' : ((cabeDir || cabeEsq) ? 'margem' : 'canto');
+  const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
+  if (estreito) { ativos.forEach(k => { const el = document.getElementById('pf-' + k); if (el) el.removeAttribute('style'); }); return; }
+  let yDir = 14, yEsq = 14, yCanto = 14;
+  const limite = window.innerHeight - 14;
+  ativos.forEach(k => {
+    const el = document.getElementById('pf-' + k); if (!el) return;
+    el.style.width = L + 'px';
+    const salvo = (c.pos || {})[k];
+    if (salvo) {   // você arrastou: manda ela pro lugar que escolheu (sem sair da tela)
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+      el.style.left = Math.max(4, Math.min(window.innerWidth - L - 4, salvo.x)) + 'px';
+      el.style.top = Math.max(4, Math.min(window.innerHeight - 46, salvo.y)) + 'px';
+      return;
+    }
+    const alt = el.offsetHeight + 12;
+    // Com as duas margens livres, cada janela vai para a coluna mais curta:
+    // assim elas se dividem sozinhas entre esquerda e direita em vez de
+    // empilhar tudo de um lado só.
+    const preferEsq = cabeEsq && (!cabeDir || yEsq < yDir);
+    if (preferEsq && yEsq + alt <= limite) {
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+      el.style.left = Math.round(Math.max(6, (folgaEsq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
+    } else if (cabeDir && yDir + alt <= limite) {
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+      el.style.left = Math.round(r.right + (folgaDir - L) / 2) + 'px'; el.style.top = yDir + 'px'; yDir += alt;
+    } else if (cabeEsq && yEsq + alt <= limite) {
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+      el.style.left = Math.round(Math.max(6, (folgaEsq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
+    } else {       // sem margem: empilha no canto de baixo, como o player
+      el.style.left = 'auto'; el.style.top = 'auto';
+      el.style.right = '16px'; el.style.bottom = yCanto + 'px'; yCanto += alt;
+    }
+  });
+}
+
+// --- arrastar ---------------------------------------------------------------
+let pfArrasto = null;
+function pegarPainel(ev, k) {
+  if (ev.target.closest('button')) return;
+  const wrap = document.getElementById('paineis'); if (wrap && wrap.dataset.modo === 'celular') return;
+  const el = document.getElementById('pf-' + k); if (!el) return;
+  const r = el.getBoundingClientRect();
+  pfArrasto = { k, el, dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+  el.classList.add('arrastando');
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  ev.preventDefault();
+}
+function moverPainel(ev) {
+  if (!pfArrasto) return;
+  const { el, dx, dy } = pfArrasto;
+  el.style.right = 'auto'; el.style.bottom = 'auto';
+  el.style.left = Math.max(4, Math.min(window.innerWidth - el.offsetWidth - 4, ev.clientX - dx)) + 'px';
+  el.style.top = Math.max(4, Math.min(window.innerHeight - 46, ev.clientY - dy)) + 'px';
+}
+function soltarPainel() {
+  if (!pfArrasto) return;
+  const { k, el } = pfArrasto; el.classList.remove('arrastando');
+  const c = cfgFlut(); c.pos = c.pos || {};
+  c.pos[k] = { x: parseInt(el.style.left, 10) || 0, y: parseInt(el.style.top, 10) || 0 };
+  pfArrasto = null; gravarFlut();
+}
+document.addEventListener('pointermove', moverPainel);
+document.addEventListener('pointerup', soltarPainel);
+document.addEventListener('pointercancel', soltarPainel);
+let pfTimerTela = null;
+window.addEventListener('resize', () => { clearTimeout(pfTimerTela); pfTimerTela = setTimeout(montarPaineis, 180); });
+
+// --- o miolo de cada janela -------------------------------------------------
+/** A nota que o Bloco rápido alimenta. Só cria quando você anota a primeira vez. */
+function notaDoBloco(criar) {
+  const c = cfgFlut();
+  let n = c.nota ? notes.find(x => x.id === c.nota) : null;
+  if (!n) n = notes.find(x => x.title === 'Bloco rápido' && !x.archived);
+  if (!n && criar) {
+    n = { id: novoId(), title: 'Bloco rápido', content: '', checklist: [], color: 'yellow', labels: ['bloco rápido'], pinned: true, archived: false, createdAt: Date.now(), updatedAt: Date.now() };
+    notes.unshift(n); salvar('notes', notes);
+  }
+  if (n) { c.nota = n.id; gravarFlut(); }
+  return n;
+}
+function escolherNotaDoBloco(id) { const c = cfgFlut(); c.nota = id ? Number(id) : null; gravarFlut(); atualizarPainel('notas'); }
+function addNoBloco(ev) {
+  ev.preventDefault();
+  const inp = document.getElementById('pf-notas-input'); const txt = (inp.value || '').trim(); if (!txt) return;
+  const n = notaDoBloco(true); if (!n) return;
+  n.checklist = Array.isArray(n.checklist) ? n.checklist : [];
+  n.checklist.push({ text: txt, done: false, nivel: 0 });
+  n.updatedAt = Date.now(); salvar('notes', notes);
+  inp.value = ''; inp.focus();
+  atualizarPainel('notas'); renderNotes();
+  toast(`📝 Anotado em "${n.title}".`, 2200);
+}
+function blocoMarcar(i) {
+  const n = notaDoBloco(false); if (!n) return;
+  toggleItemNota(n.id, i); atualizarPainel('notas');
+}
+function corpoNotas(el) {
+  const n = notaDoBloco(false);
+  const listas = notes.filter(x => !x.archived && Array.isArray(x.checklist));
+  const abertos = n && n.checklist ? n.checklist.map((it, i) => ({ it, i })).filter(o => !o.it.done) : [];
+  const feitos = n && n.checklist ? n.checklist.filter(o => o.done).length : 0;
+  el.innerHTML = `<form class="pf-linha" onsubmit="addNoBloco(event)"><input type="text" id="pf-notas-input" placeholder="anote sem sair da aba…" autocomplete="off"><button type="submit" title="Anotar">＋</button></form>
+    <select class="pf-sel" onchange="escolherNotaDoBloco(this.value)" title="Em qual lista anotar">
+      ${listas.length ? '' : '<option value="">— cria "Bloco rápido" ao anotar —</option>'}
+      ${listas.map(x => `<option value="${x.id}"${n && x.id === n.id ? ' selected' : ''}>${esc(x.title || 'sem título')}</option>`).join('')}
+    </select>
+    <div class="pf-itens">${abertos.length ? abertos.slice(0, 12).map(o => `<label class="pf-item"><input type="checkbox" onchange="blocoMarcar(${o.i})"><span>${textoComLink(o.it.text)}</span></label>`).join('')
+      : '<div class="pf-vazio">Nada em aberto aqui. Escreva acima e aperte Enter.</div>'}</div>
+    ${n ? `<div class="pf-rodape"><span>${abertos.length} em aberto${feitos ? ' · ' + feitos + ' feitos' : ''}</span><button class="mini-btn" title="Abrir a nota inteira" onclick="changeTab('notes'); editarNota(${n.id});">abrir</button></div>` : ''}`;
+}
+
+function corpoHoje(el) {
+  const hoje = hojeISO();
+  const itens = itensDoDia(hoje);
+  const atrasadas = tasks.filter(t => !t.done && t.due && t.due < hoje);
+  const linha = (ic, txt, acao) => `<div class="pf-item clicavel" onclick="${acao}"><span>${ic}</span><span>${esc(txt)}</span></div>`;
+  let h = '';
+  if (atrasadas.length) h += `<div class="pf-titulo vermelho">⚠️ ${atrasadas.length} atrasada${atrasadas.length > 1 ? 's' : ''}</div>` +
+    atrasadas.slice(0, 3).map(t => linha('•', t.text, `changeTab('tasks')`)).join('');
+  h += `<div class="pf-titulo">${DIAS_LONGO[new Date(hoje + 'T12:00').getDay()]}, ${isoParaBR(hoje).slice(0, 5)}</div>`;
+  if (!itens.length) h += '<div class="pf-vazio">Nada marcado para hoje.</div>';
+  else h += itens.slice(0, 8).map(o => {
+    if (o.kind === 'shift') return linha('🚑', `${o.time || ''} ${o.obj.desc}`.trim(), `changeTab('focus'); verSecaoAgenda('plantoes');`);
+    if (o.kind === 'event') return linha((TIPOS_EVENTO[o.obj.type] || {}).icone || '📌', `${o.time || ''} ${o.obj.title}`.trim(), `changeTab('focus'); verSecaoAgenda('compromissos');`);
+    return linha(o.obj.starred ? '⭐' : '☐', o.obj.text, `changeTab('tasks')`);
+  }).join('');
+  el.innerHTML = h;
+}
+
+function corpoPomodoro(el) {
+  const rodando = !!timerInterval;
+  const h = Math.floor(timerTimeLeft / 3600), m = Math.floor((timerTimeLeft % 3600) / 60).toString().padStart(2, '0'), s = (timerTimeLeft % 60).toString().padStart(2, '0');
+  el.innerHTML = `<div class="pf-timer${rodando ? ' rodando' : ''}" id="pf-pomo-display">${h > 0 ? h + ':' : ''}${m}:${s}</div>
+    <div class="pf-timer-sub">${pomodoroModo === 'meditacao' ? '🧘 meditação' : '⏱ foco'}${rodando ? ' · rodando' : ''}</div>
+    <div class="pf-botoes">
+      <button class="mini-btn" onclick="${rodando ? 'pauseTimer()' : 'startTimer()'}; tocarPaineis('pomodoro');">${rodando ? '⏸ pausar' : '▶ iniciar'}</button>
+      <button class="mini-btn" onclick="resetTimer(); tocarPaineis('pomodoro');">↺ zerar</button>
+      <button class="mini-btn" onclick="changeTab('home')">abrir</button>
+    </div>`;
+}
+
+function corpoAvisos(el) {
+  const lista = (typeof calcularAvisos === 'function') ? calcularAvisos() : [];
+  el.innerHTML = lista.length
+    ? lista.slice(0, 7).map(a => `<div class="aviso p${a.prio}" onclick="${a.acao || ''}"><span class="aviso-ic">${a.icone}</span><span>${esc(a.texto)}</span></div>`).join('')
+    : '<div class="pf-vazio">Nada pendente agora. 👌</div>';
+}
+
+async function corpoArte(el) {
+  const obra = await carregarObraDoDia(false);
+  if (!obra) { el.innerHTML = '<div class="pf-vazio">Obra do dia desligada em Config → Aparência.</div>'; return; }
+  el.innerHTML = `<a href="${esc(obra.link)}" target="_blank" rel="noopener" class="pf-arte"><img src="${esc(obra.img)}" alt="${esc(obra.titulo)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'pf-vazio\\'>🖼️ imagem indisponível</div>'"></a>
+    <div class="pf-arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small></div>
+    <div class="pf-botoes"><button class="mini-btn" onclick="renderArte(true); tocarPaineis('arte');">↻ outra</button></div>`;
+}
+
+function corpoMusica(el) {
+  const a = document.getElementById('audio-player');
+  const tem = faixas.length && faixaAtual >= 0;
+  if (!tem) {
+    el.innerHTML = `<div class="pf-vazio">Nenhuma faixa tocando.</div><div class="pf-botoes"><button class="mini-btn" onclick="mpIrParaMusica()">escolher música</button></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="pf-faixa">${esc(faixas[faixaAtual].nome)}</div>
+    <div class="pf-prog"><div id="pf-mus-prog" style="width:${a && a.duration ? Math.round(a.currentTime / a.duration * 100) : 0}%"></div></div>
+    <div class="pf-botoes"><button class="mini-btn" onclick="tocarFaixa(faixaAtual - 1); tocarPaineis('musica');">⏮</button>
+      <button class="mini-btn" onclick="mpPlayPause(); tocarPaineis('musica');">${a && a.paused ? '▶️' : '⏸️'}</button>
+      <button class="mini-btn" onclick="tocarFaixa(faixaAtual + 1); tocarPaineis('musica');">⏭</button>
+      <button class="mini-btn" onclick="mpIrParaMusica()">lista</button></div>`;
+}
+
+// --- card da Config ---------------------------------------------------------
+function renderConfigFlut() {
+  const el = document.getElementById('flut-config'); if (!el) return;
+  const c = cfgFlut();
+  const estreito = window.innerWidth < 900;
+  el.innerHTML = `<label class="check-line"><input type="checkbox" ${c.ligado ? 'checked' : ''} onchange="alternarFlutuantes()"> Usar janelas flutuantes</label>
+    <label class="check-line"><input type="checkbox" ${c.celular ? 'checked' : ''} onchange="alternarFlutCelular()"> Mostrar também no celular / tela estreita</label>
+    <div class="check-line">Largura: <input type="range" min="230" max="460" step="10" value="${c.largura || 310}" oninput="mudarLarguraFlut(this.value)"> <small>${c.largura || 310}px</small></div>
+    <div class="chips" style="margin-top:8px">${Object.keys(PAINEIS).map(k => `<span class="chip${(c.ativos || []).includes(k) ? ' sel' : ''}" onclick="alternarPainel('${k}')">${PAINEIS[k].ic} ${esc(PAINEIS[k].nome)}</span>`).join('')}</div>
+    <div class="pf-botoes" style="margin-top:10px"><button class="btn" onclick="arrumarPaineis()">↔ Arrumar nas margens</button></div>
+    <p class="hint" style="margin-top:8px">${estreito
+      ? 'Nesta tela as janelas ficam rentes ao rodapé, encolhidas — toque no título para abrir uma.'
+      : 'Nesta tela cabem ' + (document.getElementById('paineis') && document.getElementById('paineis').dataset.modo === 'margem' ? 'nas margens laterais' : 'só empilhadas no canto') + '. Arraste pelo título para mudar de lugar; o botão acima devolve todas para a margem.'}</p>`;
+}
+
+// ============================================================================
+// CLÍNICA — para quem administra atendimentos (perfil "clinica")
+// Três módulos que sincronizam: `servicos` (o que a clínica vende, com preço
+// E custo, então a margem sai sozinha), `pacientes` (o funil, de lead até
+// feito) e `repasses` (a comissão de quem executou).
+// Liga no que já existe: paciente "feito" vira receita em Finanças, repasse
+// vira despesa pendente, e a próxima data vira compromisso na Agenda — do
+// mesmo jeito que plantão e consulta médica já faziam.
+// ============================================================================
+const TIPOS_SERVICO = {
+  consulta:     ['🗣️', 'Consulta / avaliação'],
+  procedimento: ['✨', 'Procedimento fechado'],
+  sessao:       ['🔁', 'Sessão avulsa'],
+  pacote:       ['📦', 'Pacote de sessões']
+};
+const ETAPAS = {
+  lead:      ['🌱', 'Lead', '#94a3b8', 'Chegou o contato'],
+  avaliacao: ['🗣️', 'Avaliação', '#38bdf8', 'Vai passar por avaliação'],
+  agendado:  ['📅', 'Agendado', '#fbbf24', 'Data marcada'],
+  feito:     ['✅', 'Feito', '#22c55e', 'Executado e faturado'],
+  retorno:   ['🔄', 'Retorno', '#a78bfa', 'Acompanhamento'],
+  perdido:   ['✖️', 'Perdido', '#ef4444', 'Não fechou']
+};
+const ORDEM_ETAPAS = ['lead', 'avaliacao', 'agendado', 'feito', 'retorno'];
+const ORIGENS = ['Indicação', 'Instagram', 'Google', 'WhatsApp', 'Passou na frente', 'Parceria', 'Outro'];
+const CAT_CLINICA = 'Clínica';
+const CAT_REPASSE = 'Repasses / Comissões';
+
+// --- serviços ---------------------------------------------------------------
+function servicoPorId(id) { return servicos.find(s => s.id === Number(id)) || null; }
+/** Quanto sobra em cada venda. Se não houver custo lançado, a margem é o preço. */
+function margemServico(s) {
+  const preco = Number(s.preco) || 0, custo = Number(s.custo) || 0;
+  const com = preco * ((Number(s.comissaoPct) || 0) / 100);
+  const lucro = preco - custo - com;
+  return { lucro, pct: preco > 0 ? Math.round(lucro / preco * 100) : 0, comissao: com };
+}
+/** Pacote: o que interessa no dia a dia é o preço de cada sessão. */
+function precoPorSessao(s) {
+  const n = Math.max(1, Number(s.sessoes) || 1);
+  return s.tipo === 'pacote' ? (Number(s.preco) || 0) / n : (Number(s.preco) || 0);
+}
+function preencherSelectsClinica() {
+  const t = document.getElementById('serv-tipo');
+  if (t && !t.options.length) t.innerHTML = Object.entries(TIPOS_SERVICO).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+  const e = document.getElementById('pac-etapa');
+  if (e && !e.options.length) e.innerHTML = ORDEM_ETAPAS.concat('perdido').map(k => `<option value="${k}">${ETAPAS[k][0]} ${ETAPAS[k][1]}</option>`).join('');
+  const o = document.getElementById('pac-origem');
+  if (o && !o.options.length) o.innerHTML = '<option value="">— origem —</option>' + ORIGENS.map(x => `<option value="${x}">${x}</option>`).join('');
+  const sv = document.getElementById('pac-servico');
+  if (sv) { const atual = sv.value; sv.innerHTML = '<option value="">— serviço —</option>' + servicos.filter(s => s.ativo !== false).map(s => `<option value="${s.id}">${esc(s.nome)} · ${formatCurrency(s.preco)}</option>`).join(''); if (atual) sv.value = atual; }
+}
+function alternarCamposServico() {
+  const t = document.getElementById('serv-tipo').value;
+  document.getElementById('serv-sessoes-box').hidden = t !== 'pacote';
+}
+function cancelarEdicaoServico() {
+  document.getElementById('serv-form').reset(); document.getElementById('serv-id').value = '';
+  document.getElementById('serv-submit').innerText = 'Adicionar serviço';
+  document.getElementById('serv-cancel').hidden = true; alternarCamposServico();
+}
+function editarServico(id) {
+  const s = servicoPorId(id); if (!s) return;
+  changeTab('clinic'); verSecaoClinica('servicos');
+  document.getElementById('serv-id').value = s.id; document.getElementById('serv-nome').value = s.nome;
+  document.getElementById('serv-tipo').value = s.tipo; document.getElementById('serv-preco').value = s.preco || '';
+  document.getElementById('serv-custo').value = s.custo || ''; document.getElementById('serv-sessoes').value = s.sessoes || '';
+  document.getElementById('serv-comissao').value = s.comissaoPct || ''; document.getElementById('serv-notas').value = s.notas || '';
+  alternarCamposServico();
+  document.getElementById('serv-submit').innerText = 'Salvar serviço'; document.getElementById('serv-cancel').hidden = false;
+  document.getElementById('serv-nome').focus();
+}
+function alternarServicoAtivo(id) { const s = servicoPorId(id); if (!s) return; s.ativo = s.ativo === false; salvar('servicos', servicos); renderClinica(); }
+function removerServico(id) {
+  const s = servicoPorId(id); if (!s) return;
+  const usos = pacientes.filter(p => Number(p.servicoId) === s.id).length;
+  if (!confirm(`Apagar o serviço "${s.nome}"?${usos ? `\n\n${plural(usos, 'pessoa usa', 'pessoas usam')} ele no funil — elas continuam, só ficam sem serviço ligado.` : ''}`)) return;
+  servicos = servicos.filter(x => x.id !== s.id); salvar('servicos', servicos); renderClinica();
+}
+function renderServicos() {
+  const ul = document.getElementById('serv-lista'); if (!ul) return;
+  if (!servicos.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum serviço ainda. Cadastre o que a clínica vende, com preço <em>e</em> custo — a margem sai sozinha.</li>'; return; }
+  ul.innerHTML = [...servicos].sort((a, b) => (b.preco || 0) - (a.preco || 0)).map(s => {
+    const m = margemServico(s); const t = TIPOS_SERVICO[s.tipo] || TIPOS_SERVICO.procedimento;
+    const off = s.ativo === false;
+    return `<li style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
+      <span>${t[0]} ${esc(s.nome)}${off ? ' <small class="item-date">(fora do catálogo)</small>' : ''}</span>
+      <small class="item-date">${esc(t[1])}${s.tipo === 'pacote' ? ` · ${s.sessoes || 1} sessões · ${formatCurrency(precoPorSessao(s))}/sessão` : ''}${s.comissaoPct ? ` · comissão ${s.comissaoPct}%` : ''}</small>
+      <small class="item-notes">💰 ${formatCurrency(s.preco)} − custo ${formatCurrency(s.custo || 0)}${m.comissao ? ' − comissão ' + formatCurrency(m.comissao) : ''} = <strong style="color:${m.lucro >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(m.lucro)}</strong> <span class="margem-pct">(${m.pct}%)</span></small>
+      ${s.notas ? `<small class="item-notes">${esc(s.notas)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Voltar ao catálogo' : 'Tirar do catálogo'}" onclick="alternarServicoAtivo(${s.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarServico(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerServico(${s.id})">✕</button></div></li>`;
+  }).join('');
+}
+
+// --- funil de pacientes -----------------------------------------------------
+function pacientePorId(id) { return pacientes.find(p => p.id === Number(id)) || null; }
+function nomeServico(id) { const s = servicoPorId(id); return s ? s.nome : ''; }
+/** Receita esperada de uma pessoa: o valor combinado, ou o preço do serviço. */
+function valorPaciente(p) {
+  if (p.valor !== '' && p.valor !== null && p.valor !== undefined && !isNaN(Number(p.valor))) return Number(p.valor);
+  const s = servicoPorId(p.servicoId); return s ? Number(s.preco) || 0 : 0;
+}
+/** Paciente "feito" vira receita em Finanças — mesma ideia do plantão. */
+function sincronizarLancamentoPaciente(p) {
+  const existe = transactions.find(t => t.pacienteId === p.id);
+  if (p.etapa !== 'feito') {
+    if (existe) { transactions = transactions.filter(t => t.pacienteId !== p.id); salvar('finances', transactions); }
+    return;
+  }
+  const t = existe || { id: novoId(), type: 'income', category: CAT_CLINICA, pacienteId: p.id };
+  if (!existe) transactions.push(t);
+  t.desc = `${nomeServico(p.servicoId) || 'Atendimento'}: ${p.nome}`;
+  t.amount = valorPaciente(p);
+  t.date = p.feitoEm || hojeISO();
+  t.pending = !p.recebido;
+  t.paidAt = p.recebido ? (p.recebidoEm || hojeISO()) : null;
+  salvar('finances', transactions);
+}
+/** A próxima data vira compromisso na Agenda (e some quando não há mais). */
+function sincronizarEventoPaciente(p) {
+  let ev = p.eventId ? events.find(e => e.id === p.eventId) : null;
+  if (!p.proximaData || p.etapa === 'perdido') {
+    if (ev) { events = events.filter(e => e.id !== ev.id); p.eventId = null; salvar('events', events); }
+    return;
+  }
+  if (!ev) { ev = { id: novoId(), type: 'trabalho', done: false, pacienteId: p.id }; events.push(ev); p.eventId = ev.id; }
+  ev.title = `${ETAPAS[p.etapa][0]} ${p.nome}${nomeServico(p.servicoId) ? ' — ' + nomeServico(p.servicoId) : ''}`;
+  ev.date = p.proximaData; ev.time = p.proximaHora || ''; ev.endTime = '';
+  ev.notes = [p.telefone, p.notas].filter(Boolean).join(' · ');
+  salvar('events', events);
+}
+/** Ao ficar "feito" com comissão configurada, o repasse nasce sozinho. */
+function gerarRepasse(p) {
+  if (p.etapa !== 'feito') { repasses = repasses.filter(r => r.pacienteId !== p.id || r.pago); return; }
+  const s = servicoPorId(p.servicoId);
+  const pct = Number(p.comissaoPct !== undefined && p.comissaoPct !== '' ? p.comissaoPct : (s ? s.comissaoPct : 0)) || 0;
+  const pessoa = (p.responsavel || '').trim();
+  const jaTem = repasses.find(r => r.pacienteId === p.id);
+  if (!pct || !pessoa) { if (jaTem && !jaTem.pago) repasses = repasses.filter(r => r.id !== jaTem.id); return; }
+  const base = valorPaciente(p); const valor = Math.round(base * pct) / 100;
+  if (jaTem) { if (!jaTem.pago) Object.assign(jaTem, { pessoa, base, pct, valor, servicoNome: nomeServico(p.servicoId) }); return; }
+  repasses.push({ id: novoId(), pacienteId: p.id, pessoa, servicoNome: nomeServico(p.servicoId), base, pct, valor, pago: false, pagoEm: null, financeId: null, criadoEm: Date.now() });
+}
+function salvarTudoClinica() {
+  salvar('pacientes', pacientes); salvar('repasses', repasses);
+  renderClinica(); redesenharAgenda(); updateFinanceValues(); renderFinances();
+}
+function avancarEtapa(id) {
+  const p = pacientePorId(id); if (!p) return;
+  const i = ORDEM_ETAPAS.indexOf(p.etapa);
+  if (i < 0 || i >= ORDEM_ETAPAS.length - 1) { toast('Já está na última etapa.'); return; }
+  moverEtapa(id, ORDEM_ETAPAS[i + 1]);
+}
+function moverEtapa(id, etapa) {
+  const p = pacientePorId(id); if (!p || !ETAPAS[etapa]) return;
+  p.etapa = etapa; p.etapaEm = hojeISO();
+  p.historico = p.historico || []; p.historico.push({ etapa, quando: Date.now() });
+  if (etapa === 'feito' && !p.feitoEm) p.feitoEm = hojeISO();
+  sincronizarLancamentoPaciente(p); sincronizarEventoPaciente(p); gerarRepasse(p);
+  salvarTudoClinica();
+  toast(`${ETAPAS[etapa][0]} ${p.nome} → ${ETAPAS[etapa][1]}${etapa === 'feito' ? ` · ${formatCurrency(valorPaciente(p))} lançado em Finanças` : ''}`, 5000);
+}
+function alternarRecebido(id) {
+  const p = pacientePorId(id); if (!p) return;
+  p.recebido = !p.recebido; p.recebidoEm = p.recebido ? hojeISO() : null;
+  sincronizarLancamentoPaciente(p); salvarTudoClinica();
+  toast(p.recebido ? '💵 Recebido.' : '⏳ Voltou para a receber.');
+}
+function removerPaciente(id) {
+  const p = pacientePorId(id); if (!p || !confirm(`Apagar "${p.nome}" do funil?\n\nO lançamento em Finanças e o compromisso na agenda saem junto.`)) return;
+  transactions = transactions.filter(t => t.pacienteId !== p.id);
+  events = events.filter(e => e.pacienteId !== p.id);
+  repasses = repasses.filter(r => r.pacienteId !== p.id || r.pago);
+  pacientes = pacientes.filter(x => x.id !== p.id);
+  salvar('finances', transactions); salvar('events', events);
+  salvarTudoClinica();
+}
+function cancelarEdicaoPaciente() {
+  document.getElementById('pac-form').reset(); document.getElementById('pac-id').value = '';
+  document.getElementById('pac-submit').innerText = 'Adicionar ao funil';
+  document.getElementById('pac-cancel').hidden = true;
+}
+function editarPaciente(id) {
+  const p = pacientePorId(id); if (!p) return;
+  changeTab('clinic'); verSecaoClinica('funil');
+  preencherSelectsClinica();
+  ['id:pac-id', 'nome:pac-nome', 'telefone:pac-tel', 'origem:pac-origem', 'etapa:pac-etapa',
+   'valor:pac-valor', 'proximaData:pac-data', 'proximaHora:pac-hora', 'responsavel:pac-resp', 'notas:pac-notas'
+  ].forEach(par => { const [campo, el] = par.split(':'); const e = document.getElementById(el); if (e) e.value = p[campo] === undefined || p[campo] === null ? '' : p[campo]; });
+  document.getElementById('pac-servico').value = p.servicoId || '';
+  document.getElementById('pac-submit').innerText = 'Salvar'; document.getElementById('pac-cancel').hidden = false;
+  document.getElementById('pac-nome').focus();
+}
+let funilFiltro = 'ativos';
+function filtrarFunil(f, el) { funilFiltro = f; document.querySelectorAll('#funil-filtros span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderFunil(); }
+function renderFunil() {
+  const el = document.getElementById('funil-lista'); if (!el) return;
+  const etapasMostrar = funilFiltro === 'todos' ? Object.keys(ETAPAS)
+    : funilFiltro === 'ativos' ? ['lead', 'avaliacao', 'agendado']
+    : [funilFiltro];
+  let html = '';
+  etapasMostrar.forEach(k => {
+    const lista = pacientes.filter(p => p.etapa === k).sort((a, b) => (a.proximaData || '9').localeCompare(b.proximaData || '9'));
+    const soma = lista.reduce((a, p) => a + valorPaciente(p), 0);
+    const e = ETAPAS[k];
+    html += `<div class="etapa-bloco"><div class="etapa-topo" style="border-left-color:${e[2]}"><strong>${e[0]} ${e[1]}</strong><small>${lista.length ? `${lista.length} · ${formatCurrency(soma)}` : '—'}</small></div>`;
+    html += lista.length ? lista.map(p => {
+      const s = servicoPorId(p.servicoId);
+      const pode = ORDEM_ETAPAS.indexOf(p.etapa) >= 0 && ORDEM_ETAPAS.indexOf(p.etapa) < ORDEM_ETAPAS.length - 1;
+      return `<div class="pac-linha"><div class="transaction-info" style="flex:1">
+        <span>${esc(p.nome)}${p.etapa === 'feito' ? (p.recebido ? ' <span class="badge-paid">recebido</span>' : ' <span class="badge-unpaid">a receber</span>') : ''}</span>
+        <small class="item-date">${s ? esc(s.nome) + ' · ' : ''}${formatCurrency(valorPaciente(p))}${p.origem ? ' · ' + esc(p.origem) : ''}${p.proximaData ? ' · 📅 ' + isoParaBR(p.proximaData) + (p.proximaHora ? ' ' + esc(p.proximaHora) : '') : ''}</small>
+        ${p.responsavel ? `<small class="item-notes">👤 ${esc(p.responsavel)}</small>` : ''}${p.notas ? `<small class="item-notes">${esc(p.notas)}</small>` : ''}</div>
+        <div class="item-actions">${p.etapa === 'feito' ? `<button class="mini-btn ${p.recebido ? 'on' : ''}" title="${p.recebido ? 'Voltar para a receber' : 'Marcar como recebido'}" onclick="alternarRecebido(${p.id})">💵</button>` : ''}${pode ? `<button class="mini-btn" title="Avançar para ${ETAPAS[ORDEM_ETAPAS[ORDEM_ETAPAS.indexOf(p.etapa) + 1]][1]}" onclick="avancarEtapa(${p.id})">▶</button>` : ''}${p.etapa !== 'perdido' && p.etapa !== 'feito' ? `<button class="mini-btn" title="Não fechou" onclick="moverEtapa(${p.id}, 'perdido')">✖️</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarPaciente(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerPaciente(${p.id})">✕</button></div></div>`;
+    }).join('') : '<div class="pf-vazio" style="padding:4px 10px">ninguém aqui</div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// --- repasses ---------------------------------------------------------------
+function pagarRepasse(id) {
+  const r = repasses.find(x => x.id === id); if (!r) return;
+  r.pago = !r.pago; r.pagoEm = r.pago ? hojeISO() : null;
+  if (r.pago) {
+    const t = { id: novoId(), date: hojeISO(), desc: `Repasse: ${r.pessoa}${r.servicoNome ? ' (' + r.servicoNome + ')' : ''}`, amount: r.valor, type: 'expense', category: CAT_REPASSE, notes: '', pending: false, paidAt: hojeISO(), repasseId: r.id };
+    transactions.push(t); r.financeId = t.id;
+  } else if (r.financeId) {
+    transactions = transactions.filter(t => t.id !== r.financeId); r.financeId = null;
+  }
+  salvar('finances', transactions); salvarTudoClinica();
+  toast(r.pago ? `💸 Repasse de ${formatCurrency(r.valor)} para ${r.pessoa} lançado em Finanças.` : '↩️ Repasse voltou para pendente.', 5000);
+}
+function renderRepasses() {
+  const el = document.getElementById('repasse-lista'); if (!el) return;
+  const aberto = repasses.filter(r => !r.pago);
+  const info = document.getElementById('repasse-resumo');
+  if (info) info.innerHTML = aberto.length
+    ? `<span>💸 A repassar: <strong style="color:#ef4444">${formatCurrency(aberto.reduce((a, r) => a + r.valor, 0))}</strong> (${aberto.length})</span>`
+    : '<span>Nenhuma comissão em aberto.</span>';
+  const lista = [...repasses].sort((a, b) => (a.pago === b.pago ? b.criadoEm - a.criadoEm : a.pago ? 1 : -1));
+  el.innerHTML = lista.length ? lista.map(r => `<li style="${r.pago ? 'opacity:0.55' : ''}"><div class="transaction-info" style="flex:1">
+      <span>👤 ${esc(r.pessoa)}${r.pago ? ` <span class="badge-paid">pago ${r.pagoEm ? isoParaBR(r.pagoEm).slice(0, 5) : ''}</span>` : ' <span class="badge-topay">a repassar</span>'}</span>
+      <small class="item-date">${esc(r.servicoNome || '')} · ${r.pct}% de ${formatCurrency(r.base)}</small></div>
+      <div class="item-actions"><strong style="margin-right:6px; color:#ef4444">${formatCurrency(r.valor)}</strong><button class="mini-btn ${r.pago ? 'on' : ''}" title="${r.pago ? 'Desfazer' : 'Pagar e lançar em Finanças'}" onclick="pagarRepasse(${r.id})">💵</button></div></li>`).join('')
+    : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Comissões aparecem aqui quando um serviço com % é marcado como feito e tem responsável.</li>';
+}
+
+// --- painel da clínica ------------------------------------------------------
+function indicadoresClinica(ym) {
+  const doMes = pacientes.filter(p => p.etapa === 'feito' && (p.feitoEm || '').startsWith(ym));
+  const faturamento = doMes.reduce((a, p) => a + valorPaciente(p), 0);
+  const custo = doMes.reduce((a, p) => { const s = servicoPorId(p.servicoId); return a + (s ? Number(s.custo) || 0 : 0); }, 0);
+  const comissao = repasses.filter(r => { const p = pacientePorId(r.pacienteId); return p && (p.feitoEm || '').startsWith(ym); }).reduce((a, r) => a + r.valor, 0);
+  const entraram = pacientes.filter(p => (p.criadoEm ? isoDe(new Date(p.criadoEm)) : '').startsWith(ym));
+  const fechados = pacientes.filter(p => p.etapa === 'feito');
+  const conversao = pacientes.length ? Math.round(fechados.length / pacientes.length * 100) : 0;
+  const aReceber = pacientes.filter(p => p.etapa === 'feito' && !p.recebido).reduce((a, p) => a + valorPaciente(p), 0);
+  const pipeline = pacientes.filter(p => ['lead', 'avaliacao', 'agendado'].includes(p.etapa)).reduce((a, p) => a + valorPaciente(p), 0);
+  return { doMes, faturamento, custo, comissao, lucro: faturamento - custo - comissao,
+    ticket: doMes.length ? faturamento / doMes.length : 0, entraram: entraram.length, conversao, aReceber, pipeline };
+}
+function renderPainelClinica() {
+  const el = document.getElementById('clinica-painel'); if (!el) return;
+  const ym = hojeISO().slice(0, 7); const i = indicadoresClinica(ym);
+  const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+  el.innerHTML = `<div class="stat-grid">
+      ${tile('💰', formatCurrency(i.faturamento), `faturado em ${nomeMes(ym).toLowerCase()}`, '#22c55e')}
+      ${tile('🎯', formatCurrency(i.lucro), 'depois de custo e comissão', i.lucro >= 0 ? '#22c55e' : '#ef4444')}
+      ${tile('🧾', formatCurrency(i.ticket), `ticket médio · ${plural(i.doMes.length, 'atendimento', 'atendimentos')}`)}
+      ${tile('📈', i.conversao + '%', 'do funil vira atendimento')}
+      ${tile('🔮', formatCurrency(i.pipeline), 'em negociação agora', '#38bdf8')}
+      ${tile('⏳', formatCurrency(i.aReceber), 'feito e ainda não recebido', i.aReceber ? '#f59e0b' : undefined)}
+    </div>`;
+  // por serviço e por origem
+  const porServico = {}; const porOrigem = {};
+  i.doMes.forEach(p => {
+    const n = nomeServico(p.servicoId) || 'Sem serviço';
+    porServico[n] = (porServico[n] || 0) + valorPaciente(p);
+  });
+  pacientes.forEach(p => { const o = p.origem || 'Sem origem'; porOrigem[o] = (porOrigem[o] || 0) + 1; });
+  const barras = (mapa, cor, moeda) => {
+    const itens = Object.entries(mapa).sort((a, b) => b[1] - a[1]); if (!itens.length) return '<div class="stat-line muted">nada ainda</div>';
+    const total = itens.reduce((a, [, v]) => a + v, 0);
+    return itens.map(([k, v]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${cor}"></div></div><span class="cat-val">${moeda ? formatCurrency(v) : v} <small>${Math.round(v / total * 100)}%</small></span></div>`).join('');
+  };
+  const det = document.getElementById('clinica-detalhe');
+  if (det) det.innerHTML = `<div class="stat-lists">
+    <div><h5>✨ Faturamento por serviço (mês)</h5>${barras(porServico, '#22c55e', true)}</div>
+    <div><h5>🌱 De onde vêm as pessoas</h5>${barras(porOrigem, '#38bdf8', false)}</div></div>`;
+}
+
+// --- a aba ------------------------------------------------------------------
+let clinicaSecao = 'painel';
+function verSecaoClinica(s, el) {
+  clinicaSecao = s;
+  document.querySelectorAll('#clinica-secoes span').forEach(x => x.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else { const i = ['painel', 'funil', 'servicos'].indexOf(s); const sp = document.querySelectorAll('#clinica-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  ['painel', 'funil', 'servicos'].forEach(k => { const d = document.getElementById('sec-cl-' + k); if (d) d.hidden = k !== s; });
+}
+function renderClinica() {
+  preencherSelectsClinica(); renderPainelClinica(); renderFunil(); renderServicos(); renderRepasses();
+}
+/** A aba só aparece para quem escolheu o perfil de clínica (ou ligou à mão). */
+function ajustarAbaClinica() {
+  const b = document.getElementById('btn-clinic'); if (!b) return;
+  const c = cfgAparencia();
+  const ehClinica = (profile && profile.trabalho) === 'clinica';
+  if (ehClinica) c.ocultas = c.ocultas.filter(x => x !== 'btn-clinic');
+  else if (!c.ocultas.includes('btn-clinic') && !pacientes.length && !servicos.length) c.ocultas.push('btn-clinic');
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarAparencia();
+}
+
+// --- formulários ------------------------------------------------------------
+document.getElementById('serv-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('serv-id').value;
+  const dados = {
+    nome: document.getElementById('serv-nome').value.trim(),
+    tipo: document.getElementById('serv-tipo').value,
+    preco: parseFloat(document.getElementById('serv-preco').value) || 0,
+    custo: parseFloat(document.getElementById('serv-custo').value) || 0,
+    sessoes: parseInt(document.getElementById('serv-sessoes').value) || 1,
+    comissaoPct: parseFloat(document.getElementById('serv-comissao').value) || 0,
+    notas: document.getElementById('serv-notas').value.trim()
+  };
+  if (!dados.nome) return;
+  if (id) { const s = servicoPorId(id); if (s) Object.assign(s, dados); }
+  else servicos.push({ id: novoId(), ativo: true, criadoEm: Date.now(), ...dados });
+  salvar('servicos', servicos); cancelarEdicaoServico(); renderClinica();
+  toast(id ? '✨ Serviço atualizado.' : '✨ Serviço no catálogo.');
+});
+document.getElementById('pac-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('pac-id').value;
+  const v = document.getElementById('pac-valor').value;
+  const dados = {
+    nome: document.getElementById('pac-nome').value.trim(),
+    telefone: document.getElementById('pac-tel').value.trim(),
+    origem: document.getElementById('pac-origem').value,
+    servicoId: document.getElementById('pac-servico').value ? Number(document.getElementById('pac-servico').value) : '',
+    valor: v === '' ? '' : parseFloat(v),
+    etapa: document.getElementById('pac-etapa').value,
+    proximaData: document.getElementById('pac-data').value,
+    proximaHora: document.getElementById('pac-hora').value,
+    responsavel: document.getElementById('pac-resp').value.trim(),
+    notas: document.getElementById('pac-notas').value.trim()
+  };
+  if (!dados.nome) return;
+  let p;
+  if (id) { p = pacientePorId(id); if (!p) return; Object.assign(p, dados); }
+  else { p = { id: novoId(), criadoEm: Date.now(), etapaEm: hojeISO(), recebido: false, eventId: null, historico: [], ...dados }; pacientes.push(p); }
+  if (p.etapa === 'feito' && !p.feitoEm) p.feitoEm = hojeISO();
+  sincronizarLancamentoPaciente(p); sincronizarEventoPaciente(p); gerarRepasse(p);
+  cancelarEdicaoPaciente(); salvarTudoClinica();
+  toast(id ? '🌱 Atualizado.' : `🌱 ${p.nome} entrou no funil.`);
+});
+/** Ao escolher o serviço, já sugere o valor dele. */
+document.getElementById('pac-servico').addEventListener('change', function () {
+  const s = servicoPorId(this.value); const v = document.getElementById('pac-valor');
+  if (s && !v.value) v.placeholder = formatCurrency(s.preco);
+});
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -3361,7 +4893,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -3381,6 +4913,7 @@ let syncEditouDurante = false; // alguma gravação aconteceu enquanto a rede re
 
 /** Grava um módulo no localStorage, carimba a hora e agenda uma sincronização. */
 function salvar(modulo, valor) {
+  if (typeof protegerEsvaziamento === 'function') protegerEsvaziamento(modulo, valor);
   localStorage.setItem('lifeos_' + modulo, JSON.stringify(valor));
   if (typeof renderAvisos === 'function') setTimeout(renderAvisos, 0);
   syncMeta[modulo] = Date.now();
@@ -3477,6 +5010,7 @@ function aplicarRemoto(remoto) {
 
 /** Recarrega as variáveis a partir do localStorage e redesenha todas as abas. */
 function redesenharTudo() {
+  if (typeof tocarPaineis === 'function') setTimeout(() => tocarPaineis('notas', 'hoje', 'avisos'), 0);
   habits = JSON.parse(localStorage.getItem('lifeos_habits')) || habits;
   habitLog = JSON.parse(localStorage.getItem('lifeos_habitlog')) || habitLog; if (!habitLog.dias) habitLog.dias = {};
   shifts = JSON.parse(localStorage.getItem('lifeos_shifts')) || [];
@@ -3491,6 +5025,8 @@ function redesenharTudo() {
   orders = JSON.parse(localStorage.getItem('lifeos_orders')) || [];
   media = JSON.parse(localStorage.getItem('lifeos_media')) || []; playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || [];
   trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
+  devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};
+  servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || []; pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
@@ -3568,7 +5104,12 @@ setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurad
 changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
 if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes));
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
-renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); gerarRecorrentes();
+renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); if (normalizarTransacoes()) salvar('finances', transactions); gerarRecorrentes();
+if (normalizarTurnos()) salvar('places', places); montarDiasTurno(); gerarPlantoesFixos(true);
+fotoDoDia(); renderCopias(); limparImagensOrfas();
+aplicarAjustesAba(); atualizarBotaoConfigAba();
+definirPerfilTrabalho(); aplicarVocabulario(); renderPerfilTrabalho();
+renderClinica(); verSecaoClinica('painel'); ajustarAbaClinica();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();
@@ -3579,6 +5120,7 @@ renderEntregas();
 preencherFreqs(); camposPorFrequencia(); gerarRotinas(true); renderRotinas();
 aplicarAparencia(); renderArte(); setInterval(updateMainClock, 1000); updateMainClock();
 carregarAvisosNaTela(); verificarAvisos();
+montarPaineis(); renderConfigFlut();
 verSecaoAgenda('cal'); document.getElementById('event-type').addEventListener('change', alternarCamposReuniao);
 document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); ['workout-date', 'measure-date', 'meal-date'].forEach(i => document.getElementById(i).value = hojeISO()); renderSaude(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
 aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();

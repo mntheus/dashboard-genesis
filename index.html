@@ -21,6 +21,7 @@
       <button class="tab-btn" id="btn-leisure" onclick="changeTab('leisure')">🎬 Lazer</button>
       <button class="tab-btn" id="btn-trips" onclick="changeTab('trips')">✈️ Viagens</button>
       <button class="tab-btn" id="btn-net" onclick="changeTab('net')">🤝 Rede</button>
+      <button class="tab-btn" id="btn-clinic" onclick="changeTab('clinic')">🏥 Clínica</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -35,7 +36,7 @@
         </div>
       </div>
 
-      <div class="busca-box">
+      <div class="busca-box" id="busca-card">
         <input type="search" id="busca-global" placeholder="🔍 Buscar em tudo: tarefas, notas, agenda, plantões, finanças…  (Ctrl+K)" oninput="renderBusca(this.value)" autocomplete="off">
         <div id="busca-res" class="busca-res" hidden></div>
       </div>
@@ -65,7 +66,7 @@
             <span id="progress-text" style="font-size: 0.75rem; color: #64748b;">0% Concluído</span>
           </div>
 
-          <div class="card pomodoro-card">
+          <div class="card pomodoro-card" id="pomodoro-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h2 id="pomodoro-title" style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
               <div style="display:flex; align-items:center; gap:5px;">
@@ -123,7 +124,7 @@
         <span class="active" onclick="verSecaoAgenda('cal', this)">📅 Calendário</span>
         <span onclick="verSecaoAgenda('compromissos', this)">🗓️ Compromissos</span>
         <span onclick="verSecaoAgenda('reunioes', this)">🤝 Reuniões</span>
-        <span onclick="verSecaoAgenda('plantoes', this)">🚑 Plantões</span>
+        <span id="aba-plantoes" onclick="verSecaoAgenda('plantoes', this)">🚑 Plantões</span>
       </div>
       <div id="sec-cal" class="agenda-sec">
       <div class="card" style="margin-top: 20px;">
@@ -132,7 +133,7 @@
         <div id="calendar-days" class="calendar-days"></div>
         <div class="calendar-legend">
           <button type="button" class="mini-btn" onclick="irParaHoje()">📍 Hoje</button>
-          <span><i style="background:#f59e0b"></i>Plantão</span><span><i style="background:#38bdf8"></i>Trabalho</span><span><i style="background:#a78bfa"></i>Pessoal</span><span><i style="background:#22c55e"></i>Saúde</span><span><i style="background:#f472b6"></i>Estudo</span><span><i style="background:#fbbf24"></i>Negócios</span><span><i style="background:#fb923c"></i>Social</span>
+          <span><i style="background:#f59e0b"></i><span data-vt="listaTitulo">Plantão</span></span><span><i style="background:#38bdf8"></i>Trabalho</span><span><i style="background:#a78bfa"></i>Pessoal</span><span><i style="background:#22c55e"></i>Saúde</span><span><i style="background:#f472b6"></i>Estudo</span><span><i style="background:#fbbf24"></i>Negócios</span><span><i style="background:#fb923c"></i>Social</span>
         </div>
       </div>
       </div>
@@ -175,12 +176,12 @@
       </div>
       <div id="sec-plantoes" class="agenda-sec">
       <div class="card" style="margin-top: 20px;">
-        <h2 id="shift-form-title">Agendar Novo Plantão</h2>
+        <h2 id="shift-form-title" data-vt="formTitulo">Agendar novo plantão</h2>
         <form id="shift-form">
           <input type="hidden" id="shift-id">
           <label for="shift-place">Local (preenche hora, duração e valor padrão):</label>
           <select id="shift-place" onchange="aplicarLocalPlantao()"></select>
-          <label for="shift-desc">Nome do local / tipo:</label><input type="text" id="shift-desc" placeholder="Ex: Hospital X — pronto-socorro" required>
+          <label for="shift-desc" data-vt="descLabel">Local:</label><input type="text" id="shift-desc" data-vt="descDica" data-vt-onde="placeholder" placeholder="Hospital X" required>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label for="shift-date">Data:</label><input type="date" id="shift-date" required></div>
             <div><label for="shift-time">Início:</label><input type="time" id="shift-time" required></div>
@@ -190,7 +191,7 @@
           <div id="shift-rate-hint" class="rate-hint"></div>
           <details class="task-more" id="shift-parts-box">
             <summary>🧮 Horas com valores diferentes (feriado, virada de dia, hora extra)</summary>
-            <p class="hint">Use quando o mesmo plantão tem horas pagas a preços diferentes — ex.: <em>12h × R$ 116,67 (normal) + 6h × R$ 150 (feriado)</em>. Duração e valor total passam a ser a soma das faixas.</p>
+            <p class="hint" data-vt="faixasHint" data-vt-onde="html">Use quando o mesmo plantão tem horas pagas a preços diferentes.</p><p class="hint"> Duração e valor total passam a ser a soma das faixas.</p>
             <div id="shift-parts" class="parts"></div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
               <button type="button" class="mini-btn" onclick="addFaixa()">＋ faixa</button>
@@ -201,14 +202,15 @@
           <label for="shift-swap">🔁 Troca (opcional):</label><input type="text" id="shift-swap" placeholder="com quem e por qual dia — ex: com Fulano, por 16/09 07–13h">
           <label for="shift-notes">Observações:</label><input type="text" id="shift-notes" placeholder="opcional: troca, cobertura, NF...">
           <div style="display:flex; gap:10px;">
-            <button type="submit" id="shift-submit" style="flex:1">Agendar plantão</button>
+            <button type="submit" id="shift-submit" style="flex:1" data-vt="formBtn">Agendar plantão</button>
             <button type="button" id="shift-cancel" class="btn" hidden onclick="cancelarEdicaoPlantao()">Cancelar</button>
           </div>
         </form>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Plantões</h2>
+        <h2 data-vt="listaTitulo">Plantões</h2>
         <div id="shift-summary" class="summary-row"></div>
+        <div id="shift-baixa" class="baixa-card" hidden></div>
         <div class="focus-header-tabs filter-row" id="shift-filters">
           <span class="active" onclick="filtrarPlantoes('proximos', this)">📅 Próximos</span>
           <span onclick="filtrarPlantoes('naopagos', this)">⏳ A receber</span>
@@ -217,9 +219,10 @@
         </div>
         <ul id="shift-list" class="transaction-list"></ul>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>Turnos de plantão</h2>
-        <p class="hint">Um turno = local + horário + duração + valor. Cadastre um por tipo de plantão, inclusive os de valor diferente — ex.: <strong>Hospital X 12h</strong> (07:00 · 12h · R$ 1.400), <strong>Hospital X 12h feriado</strong> (07:00 · 12h · R$ 1.800), <strong>Clínica Y 6h</strong> (13:00 · 6h · R$ 700). O app mostra o <strong>R$/h</strong> de cada um e, ao escolher o turno, preenche tudo.</p>
+      <div class="card" style="margin-top: 20px;" id="turnos-card">
+        <h2 data-vt="turnosTitulo">Turnos de plantão</h2>
+        <p class="hint" data-vt="turnosHint" data-vt-onde="html"></p>
+        <div id="turnos-sugeridos"></div>
         <form id="place-form">
           <input type="hidden" id="place-id">
           <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr; gap: 10px;">
@@ -228,6 +231,12 @@
             <div><label for="place-time">Início:</label><input type="time" id="place-time"></div>
             <div><label for="place-hours">Horas:</label><input type="number" id="place-hours" step="0.5" min="0" placeholder="12"></div>
             <div><label for="place-amount">Valor (R$):</label><input type="number" id="place-amount" step="0.01" min="0"></div>
+          </div>
+          <label class="check-line" style="margin-top:10px"><input type="checkbox" id="place-repete" onchange="alternarEscala()"> 🗓️ <strong>Escala fixa</strong> — este turno se repete toda semana</label>
+          <div id="place-escala" hidden>
+            <p class="hint" style="margin:2px 0 6px 0" data-vt="escalaHint" data-vt-onde="html"></p>
+            <div class="dias-linha" id="place-weekdays"></div>
+            <label for="place-desde" style="margin-top:8px">Começando em:</label><input type="date" id="place-desde">
           </div>
           <button type="submit" id="place-submit">Adicionar turno</button>
         </form>
@@ -271,11 +280,11 @@
           </div>
         </form>
       </div>
-      <div class="fin-two-col">
+      <div class="fin-two-col" id="fin-graficos">
         <div class="card"><h2>Por categoria</h2><div id="fin-categorias"></div></div>
         <div class="card"><h2>Últimos 6 meses</h2><p class="hint">Verde = receitas, vermelho = despesas (só o efetivado). Clique num mês pra abrir.</p><div id="fin-meses" class="fin-meses"></div></div>
       </div>
-      <div class="card" style="margin-top: 20px;">
+      <div class="card" style="margin-top: 20px;" id="orcamento-card">
         <h2>📋 Orçamento do mês</h2>
         <p class="hint">Quanto você planeja em cada rubrica × quanto <strong>de fato</strong> entrou ou saiu no mês que está aberto acima. As rubricas viram as categorias dos lançamentos — barra vermelha é estouro. Estrutura baseada na planilha de organização financeira que você usa.</p>
         <div id="orc-resumo" class="orc-resumo"></div>
@@ -285,9 +294,9 @@
           <button type="button" class="btn" style="flex:1" onclick="criarOrcamentoModelo()">📋 Usar o modelo (cria as rubricas)</button>
         </div>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>🔁 Recorrentes</h2>
-        <p class="hint">Contas e entradas que se repetem todo mês (aluguel, internet, salário CLT, assinaturas). No começo de cada mês o lançamento é gerado como pendente — você só confirma com 💵 quando pagar/receber.</p>
+      <div class="card" style="margin-top: 20px;" id="recorrentes-card">
+        <h2>🔁 Recorrentes <small class="rec-mes-rot">· <span id="rec-mes"></span></small></h2>
+        <p class="hint">Contas e entradas que se repetem todo mês (aluguel, internet, salário CLT, assinaturas). No começo de cada mês o lançamento é gerado como pendente — dá baixa aqui mesmo com o 💵 quando pagar/receber. O selo mostra a situação do <strong>mês que está na tela</strong>; se você navegar para outro mês, o card acompanha. Pagar atrasado nunca muda o mês do lançamento.</p>
         <form id="rec-form">
           <input type="hidden" id="rec-id">
           <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
@@ -349,7 +358,7 @@
       <div class="card" style="margin-top: 20px;">
         <ul id="task-list" class="transaction-list task-list"></ul>
       </div>
-      <div class="card" style="margin-top: 20px;">
+      <div class="card" style="margin-top: 20px;" id="rotinas-card">
         <h2>🔄 Rotinas</h2>
         <p class="hint">Coisas que voltam sempre: o app cria a tarefa sozinho na data certa (e some do caminho até lá). Ao concluir, a próxima já fica agendada. Tarefas de rotina aparecem com 🔄 na lista.</p>
         <form id="rot-form">
@@ -410,7 +419,7 @@
         <div id="note-labels" class="chips"></div>
         <div id="note-list"></div>
       </div>
-      <div class="card" style="margin-top: 20px;">
+      <div class="card" style="margin-top: 20px;" id="entregas-card">
         <h2>📦 Compras e entregas</h2>
         <p class="hint">Nas listas de compras, o 🛒 de cada item manda ele pra cá e tira da lista. Aqui você acompanha até chegar — ▶ avança o status (🛒 comprado → 🚚 a caminho → 📦 entregue).</p>
         <div id="entrega-resumo" class="summary-row"></div>
@@ -811,6 +820,91 @@
       </div>
     </div>
 
+    <!-- Módulo 13: Clínica -->
+    <div id="clinic" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="clinica-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoClinica('painel', this)">📊 Painel</span>
+        <span onclick="verSecaoClinica('funil', this)">🌱 Funil</span>
+        <span onclick="verSecaoClinica('servicos', this)">✨ Serviços</span>
+      </div>
+
+      <div id="sec-cl-painel" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;">
+          <h2>📊 A clínica este mês</h2>
+          <p class="hint">Tudo aqui sai sozinho do funil e do catálogo: o que foi marcado como <strong>feito</strong> vira faturamento, o custo e a comissão do serviço são descontados, e o que ainda está em negociação aparece separado.</p>
+          <div id="clinica-painel"></div>
+          <div id="clinica-detalhe" style="margin-top:16px"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>💸 Repasses e comissões</h2>
+          <p class="hint">Quando um serviço com <strong>% de comissão</strong> é marcado como feito e tem responsável, a comissão entra aqui sozinha. O 💵 paga e lança a despesa em Finanças.</p>
+          <div id="repasse-resumo" class="summary-row"></div>
+          <ul id="repasse-lista" class="transaction-list"></ul>
+        </div>
+      </div>
+
+      <div id="sec-cl-funil" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🌱 Quem está chegando</h2>
+          <p class="hint">Do primeiro contato até o procedimento feito. Ao marcar <strong>feito</strong>, o valor vira receita em Finanças e a comissão vira repasse. Se você puser uma próxima data, ela aparece no seu calendário.</p>
+          <form id="pac-form">
+            <input type="hidden" id="pac-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr 1.2fr; gap: 10px;">
+              <div><label for="pac-nome">Nome:</label><input type="text" id="pac-nome" placeholder="Nome da pessoa" required></div>
+              <div><label for="pac-tel">Telefone:</label><input type="text" id="pac-tel" placeholder="(31) 9…"></div>
+              <div><label for="pac-origem">Como chegou:</label><select id="pac-origem"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1.2fr; gap: 10px;">
+              <div><label for="pac-servico">Serviço de interesse:</label><select id="pac-servico"></select></div>
+              <div><label for="pac-valor">Valor combinado:</label><input type="number" id="pac-valor" step="0.01" min="0" placeholder="usa o do serviço"></div>
+              <div><label for="pac-etapa">Etapa:</label><select id="pac-etapa"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 10px;">
+              <div><label for="pac-data">Próxima data:</label><input type="date" id="pac-data"></div>
+              <div><label for="pac-hora">Hora:</label><input type="time" id="pac-hora"></div>
+              <div><label for="pac-resp">Quem vai executar:</label><input type="text" id="pac-resp" placeholder="para gerar a comissão"></div>
+            </div>
+            <div><label for="pac-notas">Observações:</label><input type="text" id="pac-notas" placeholder="o que conversaram, o que prometeu"></div>
+            <div style="display:flex; gap:10px;"><button type="submit" id="pac-submit" style="flex:1">Adicionar ao funil</button><button type="button" id="pac-cancel" class="btn" hidden onclick="cancelarEdicaoPaciente()">Cancelar</button></div>
+          </form>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>Funil</h2>
+          <div class="focus-header-tabs filter-row" id="funil-filtros">
+            <span class="active" onclick="filtrarFunil('ativos', this)">🔥 Em aberto</span>
+            <span onclick="filtrarFunil('feito', this)">✅ Feitos</span>
+            <span onclick="filtrarFunil('retorno', this)">🔄 Retornos</span>
+            <span onclick="filtrarFunil('perdido', this)">✖️ Perdidos</span>
+            <span onclick="filtrarFunil('todos', this)">📋 Todos</span>
+          </div>
+          <div id="funil-lista"></div>
+        </div>
+      </div>
+
+      <div id="sec-cl-servicos" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>✨ O que a clínica vende</h2>
+          <p class="hint">Cadastre <strong>preço e custo</strong> de cada serviço — a margem sai sozinha e alimenta o painel. Se alguém ganha comissão, ponha o % aqui: o repasse passa a ser gerado sozinho a cada atendimento feito.</p>
+          <form id="serv-form">
+            <input type="hidden" id="serv-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.4fr; gap: 10px;">
+              <div><label for="serv-nome">Serviço:</label><input type="text" id="serv-nome" placeholder="Implante capilar — 2.000 fios" required></div>
+              <div><label for="serv-tipo">Tipo:</label><select id="serv-tipo" onchange="alternarCamposServico()"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="serv-preco">Preço (R$):</label><input type="number" id="serv-preco" step="0.01" min="0" required></div>
+              <div><label for="serv-custo">Custo (R$):</label><input type="number" id="serv-custo" step="0.01" min="0" placeholder="material, sala"></div>
+              <div id="serv-sessoes-box" hidden><label for="serv-sessoes">Sessões:</label><input type="number" id="serv-sessoes" min="1" placeholder="10"></div>
+              <div><label for="serv-comissao">Comissão (%):</label><input type="number" id="serv-comissao" step="0.5" min="0" max="100" placeholder="0"></div>
+            </div>
+            <div><label for="serv-notas">Observações:</label><input type="text" id="serv-notas" placeholder="o que está incluso, tempo de sala"></div>
+            <div style="display:flex; gap:10px;"><button type="submit" id="serv-submit" style="flex:1">Adicionar serviço</button><button type="button" id="serv-cancel" class="btn" hidden onclick="cancelarEdicaoServico()">Cancelar</button></div>
+          </form>
+          <ul id="serv-lista" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+    </div>
+
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
       <div class="card" style="margin-top: 20px;">
@@ -818,6 +912,9 @@
         <p class="hint">Tema de cores, onde ficam as abas e quais aparecem. Vale <strong>só neste aparelho</strong> — o PC pode ficar com as abas na lateral e o celular no topo.</p>
         <label>Tema:</label>
         <div id="temas-lista" class="temas-lista"></div>
+        <label style="margin-top:14px">Quantidade de cor:</label>
+        <div class="focus-header-tabs" id="modo-cor" style="border:none; padding:0;"></div>
+        <p class="hint" style="margin-top:4px">No <strong>neutro</strong>, a cor fica só onde ela avisa alguma coisa — tarefa atrasada, conta a pagar, dinheiro entrando e saindo. Etiquetas, chips, cores de nota e barrinhas ficam em tom discreto.</p>
         <label class="check-line" style="margin-top:14px"><input type="checkbox" id="arte-ligado" onchange="alternarArte()"> 🖼️ Mostrar a obra do dia no Painel</label>
         <div class="focus-header-tabs" id="arte-fonte" style="border:none; padding:0;">
           <span data-fonte="local" onclick="escolherFonteArte('local')">📚 Coleção do app (21 obras)</span>
@@ -851,7 +948,7 @@
         <label class="check-line"><input type="checkbox" id="av-sistema" onchange="salvarAvisos()"> Notificação do sistema (fora da aba)</label>
         <label class="check-line"><input type="checkbox" id="av-som" onchange="salvarAvisos()"> Tocar som no aviso</label>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
-          <div><label for="av-plantao">Avisar plantão (min antes):</label><input type="number" id="av-plantao" min="5" max="1440" step="5" onchange="salvarAvisos()"></div>
+          <div><label for="av-plantao" data-vt="avisoLabel">Avisar plantão (min antes):</label><input type="number" id="av-plantao" min="5" max="1440" step="5" onchange="salvarAvisos()"></div>
           <div><label for="av-evento">Avisar compromisso (min antes):</label><input type="number" id="av-evento" min="5" max="480" step="5" onchange="salvarAvisos()"></div>
           <div><label for="av-hora">Resumo da noite (hora):</label><input type="number" id="av-hora" min="12" max="23" onchange="salvarAvisos()"></div>
         </div>
@@ -859,7 +956,23 @@
         <div id="avisos-permissao" style="font-size: 0.85rem; text-align: center; margin-top: 10px;"></div>
       </div>
       <div class="card" style="margin-top: 20px;">
+        <h2>🛟 Cópias de segurança</h2>
+        <p class="hint">O app guarda sozinho uma cópia por dia <strong>neste aparelho</strong>, e outra sempre que uma lista cheia fica vazia de uma vez — que é o acidente que a sincronização espalharia para o seu outro aparelho. Serve para <strong>voltar atrás</strong>. Não substitui o backup em arquivo: o 💾 aqui do lado baixa qualquer cópia como <code>.json</code>.</p>
+        <div id="copias-info" class="hint" style="margin-bottom:8px"></div>
+        <ul id="copias-lista" class="transaction-list"></ul>
+        <button class="btn" type="button" style="width:100%" onclick="copiaManual()">🛟 Guardar uma cópia agora</button>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>🪟 Janelas flutuantes</h2>
+        <p class="hint">Pequenas janelas que <strong>seguem você em qualquer aba</strong> — feitas para o bloco de anotações ficar aberto enquanto você usa o resto do app. Na tela larga do PC elas ocupam as margens que ficavam vazias dos dois lados; em tela menor empilham no canto. <strong>Arraste pelo título</strong> para colocar onde quiser.</p>
+        <div id="flut-config"></div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
         <h2>👤 Perfil</h2>
+        <label style="margin-top:4px">Como você chama o seu trabalho:</label>
+        <div class="focus-header-tabs" id="perfil-trabalho" style="border:none; padding:0;"></div>
+        <p class="hint" id="perfil-trabalho-dica" style="margin:4px 0 12px 0"></p>
+        <p class="hint" style="margin-bottom:12px">Isto muda só as <strong>palavras e o ícone</strong> da aba de trabalho — nenhum dado é alterado. Quem lança plantão, obra, atendimento ou lote de produção usa exatamente os mesmos campos.</p>
         <p class="hint">Como o app fala com você. O nome aparece no cumprimento do Painel; as iniciais (ou um apelido curto) no cabeçalho. Sincroniza entre seus aparelhos.</p>
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
           <div><label for="profile-name">Seu nome:</label><input type="text" id="profile-name" placeholder="Ex: Ana" autocomplete="off"></div>
@@ -919,6 +1032,40 @@
       </div>
     </div>
   </div>
+  <div id="anexo-modal" class="modal">
+    <div class="modal-content" style="max-width: 460px;">
+      <div class="modal-body">
+        <h3 style="font-size:1rem">📎 Anexos de <span id="anexo-titulo" style="color:var(--acento)"></span></h3>
+        <form onsubmit="anexarLink(event)" style="display:flex; gap:8px; margin:0">
+          <input type="text" id="anexo-link" placeholder="cole um link (Drive, foto, documento…)" autocomplete="off" style="flex:1">
+          <button type="submit">🔗 Anexar</button>
+        </form>
+        <p class="hint" style="margin:0">O <strong>link</strong> é o jeito recomendado: é leve e vai junto para os seus outros aparelhos. A <strong>imagem do aparelho</strong> fica só aqui — ela não cabe na planilha da sincronização.</p>
+        <input type="file" id="anexo-arquivo" accept="image/*" hidden onchange="anexarImagem(this)">
+        <button type="button" class="btn" style="margin:0" onclick="document.getElementById('anexo-arquivo').click()">🖼️ Enviar imagem deste aparelho</button>
+        <ul id="anexo-lista" class="transaction-list" style="margin:0"></ul>
+        <small id="anexo-espaco" class="hint"></small>
+        <div class="modal-actions"><button class="btn" style="width:100%; margin:0" onclick="fecharAnexos()">Fechar</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="lupa-modal" class="modal" onclick="fecharLupa()">
+    <div class="lupa-caixa" onclick="event.stopPropagation()">
+      <img id="lupa-img" alt="">
+      <div class="lupa-pe"><span id="lupa-nome"></span><button class="mini-btn" onclick="fecharLupa()">✕</button></div>
+    </div>
+  </div>
+  <button id="aba-cfg-btn" class="aba-cfg-btn" title="Ajustes desta aba" onclick="abrirConfigAba()">⚙</button>
+  <div id="aba-config-modal" class="modal">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-body">
+        <h3 style="font-size:1rem">⚙ <span id="aba-config-titulo" style="color:var(--acento)"></span></h3>
+        <div id="aba-config-corpo"></div>
+        <div class="modal-actions"><button class="btn" style="width:100%; margin:0" onclick="fecharConfigAba()">Fechar</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="paineis" hidden></div>
   <div id="mini-player" class="mini-player" hidden>
     <button class="mp-btn" onclick="faixaAnterior()" title="Anterior">⏮</button>
     <button class="mp-btn" id="mp-play" onclick="mpPlayPause()" title="Tocar/pausar">▶️</button>
@@ -938,7 +1085,7 @@
       <div class="modal-header"><h3 id="modal-date-title">Data</h3><button class="close-modal" onclick="closeModal()">✕</button></div>
       <div class="modal-body">
         <h4>📅 Neste dia:</h4><ul id="modal-shift-list" class="transaction-list"></ul>
-        <div class="modal-actions" style="display:flex; gap:10px;"><button onclick="goToAddShift()">🚑 + Plantão</button><button onclick="goToAddEvent()">📅 + Compromisso</button></div>
+        <div class="modal-actions" style="display:flex; gap:10px;"><button onclick="goToAddShift()" id="modal-add-shift">🚑 + Plantão</button><button onclick="goToAddEvent()">📅 + Compromisso</button></div>
       </div>
     </div>
   </div>

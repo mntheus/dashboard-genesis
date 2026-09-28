@@ -7,23 +7,74 @@
   --bg: #f1f5f9; --bg2: #ffffff; --card: #ffffff; --borda: #d8dee7; --borda2: #cbd5e1; --borda3: #b6c0cd; --borda4: #94a3b8;
   --txt: #1e293b; --txt2: #334155; --txt3: #64748b; --txt4: #94a3b8; --txt-forte: #0f172a; --acento: #16a34a; --sombra: rgba(15,23,42,0.18);
 }
+/* --- família clara: do mais claro ao menos claro, com matizes diferentes --- */
+[data-tema="papel"] {
+  --bg: #f7f2e7; --bg2: #fffdf7; --card: #fffdf7; --borda: #e2d8c3; --borda2: #d6c9ae; --borda3: #c3b394; --borda4: #a19070;
+  --txt: #3d3526; --txt2: #554b39; --txt3: #7d7059; --txt4: #9c8f79; --txt-forte: #262117; --acento: #b45309; --sombra: rgba(61,53,38,0.16);
+}
+[data-tema="nevoa"] {
+  --bg: #dfe6ee; --bg2: #eef3f8; --card: #eef3f8; --borda: #c2cedb; --borda2: #aebdcd; --borda3: #93a5b8; --borda4: #74889e;
+  --txt: #24313f; --txt2: #354556; --txt3: #5b6c7e; --txt4: #7c8c9d; --txt-forte: #131e29; --acento: #0369a1; --sombra: rgba(36,49,63,0.18);
+}
+[data-tema="menta"] {
+  --bg: #e3ede6; --bg2: #f2f8f3; --card: #f2f8f3; --borda: #c5d8ca; --borda2: #aec7b5; --borda3: #92b09b; --borda4: #71917c;
+  --txt: #22362a; --txt2: #33493c; --txt3: #5a7263; --txt4: #7d9285; --txt-forte: #12231a; --acento: #047857; --sombra: rgba(34,54,42,0.16);
+}
+/* médio agora é realmente do meio — bem separado do escuro e do profissional */
 [data-tema="medio"] {
-  --bg: #232830; --bg2: #1b1f26; --card: #2c323c; --borda: #3a4250; --borda2: #454e5e; --borda3: #5a6474; --borda4: #7b8698;
-  --txt: #e8edf4; --txt2: #cfd8e3; --txt3: #9fabbb; --txt4: #7a8595; --txt-forte: #ffffff; --acento: #34d399; --sombra: rgba(0,0,0,0.45);
-}
-[data-tema="colorido"] {
-  --bg: #1a1430; --bg2: #140f26; --card: #241b42; --borda: #3a2d66; --borda2: #493a7d; --borda3: #5c4a9c; --borda4: #7b68c0;
-  --txt: #ede9fe; --txt2: #ddd6fe; --txt3: #a99fd6; --txt4: #8478b8; --txt-forte: #ffffff; --acento: #f472b6; --sombra: rgba(0,0,0,0.5);
-}
-[data-tema="gamificado"] {
-  --bg: #07110d; --bg2: #040a08; --card: #0e1f18; --borda: #1c3a2c; --borda2: #245038; --borda3: #2f6b4a; --borda4: #3f8f63;
-  --txt: #d6ffe9; --txt2: #a8f5cd; --txt3: #6fcfa0; --txt4: #4f9e7a; --txt-forte: #eaffe9; --acento: #00e676; --sombra: rgba(0,230,118,0.18);
+  --bg: #3a414d; --bg2: #2e343e; --card: #454d5b; --borda: #566070; --borda2: #667184; --borda3: #7c8799; --borda4: #9aa4b4;
+  --txt: #eef2f7; --txt2: #d9e0e9; --txt3: #b0bac8; --txt4: #919cad; --txt-forte: #ffffff; --acento: #34d399; --sombra: rgba(0,0,0,0.35);
 }
 [data-tema="profissional"] {
-  --bg: #0f172a; --bg2: #0a1120; --card: #17233c; --borda: #24324f; --borda2: #2f4062; --borda3: #3e5178; --borda4: #5a6e96;
-  --txt: #e6ecf5; --txt2: #c8d3e4; --txt3: #90a0b8; --txt4: #6d7c93; --txt-forte: #ffffff; --acento: #3b82f6; --sombra: rgba(0,0,0,0.45);
+  --bg: #18243d; --bg2: #101a2e; --card: #203050; --borda: #2d4068; --borda2: #3a5080; --borda3: #4b6499; --borda4: #6a84b8;
+  --txt: #eaf0f9; --txt2: #ccd8ea; --txt3: #9aacc6; --txt4: #7b8ea8; --txt-forte: #ffffff; --acento: #60a5fa; --sombra: rgba(0,0,0,0.45);
 }
-[data-tema="gamificado"] .card, [data-tema="gamificado"] .tab-btn { box-shadow: 0 0 0 1px rgba(0,230,118,0.08); }
+[data-tema="violeta"] {
+  --bg: #2b1f4d; --bg2: #21173c; --card: #382a63; --borda: #4c3b85; --borda2: #5d489f; --borda3: #7158bd; --borda4: #9280d4;
+  --txt: #ede9fe; --txt2: #ddd6fe; --txt3: #a99fd6; --txt4: #8478b8; --txt-forte: #ffffff; --acento: #f472b6; --sombra: rgba(0,0,0,0.5);
+}
+[data-tema="gamer"] {
+  --bg: #04140c; --bg2: #010805; --card: #0a2417; --borda: #1c3a2c; --borda2: #245038; --borda3: #2f6b4a; --borda4: #3f8f63;
+  --txt: #d6ffe9; --txt2: #a8f5cd; --txt3: #6fcfa0; --txt4: #4f9e7a; --txt-forte: #eaffe9; --acento: #00e676; --sombra: rgba(0,230,118,0.18);
+}
+[data-tema="gamer"] .card, [data-tema="gamer"] .tab-btn { box-shadow: 0 0 0 1px rgba(0,230,118,0.08); }
+
+/* os temas claros novos precisam dos mesmos acertos de contraste do "claro" */
+[data-tema="papel"] .card, [data-tema="nevoa"] .card, [data-tema="menta"] .card { box-shadow: 0 1px 3px var(--sombra); }
+[data-tema="papel"] input, [data-tema="papel"] select, [data-tema="papel"] textarea,
+[data-tema="nevoa"] input, [data-tema="nevoa"] select, [data-tema="nevoa"] textarea,
+[data-tema="menta"] input, [data-tema="menta"] select, [data-tema="menta"] textarea { background-color: var(--bg2); color: var(--txt); }
+[data-tema="papel"] .naipe, [data-tema="nevoa"] .naipe, [data-tema="menta"] .naipe { border-color: var(--borda3); }
+[data-tema="papel"] .toast, [data-tema="nevoa"] .toast, [data-tema="menta"] .toast { box-shadow: 0 8px 24px var(--sombra); }
+[data-tema="papel"] .aviso.p1, [data-tema="nevoa"] .aviso.p1, [data-tema="menta"] .aviso.p1 { color: #991b1b; }
+[data-tema="papel"] .aviso.p2, [data-tema="nevoa"] .aviso.p2, [data-tema="menta"] .aviso.p2 { color: #92400e; }
+[data-tema="papel"] .note-card, [data-tema="nevoa"] .note-card, [data-tema="menta"] .note-card { box-shadow: 0 1px 2px var(--sombra); }
+[data-tema="papel"] .life-os-header p, [data-tema="nevoa"] .life-os-header p, [data-tema="menta"] .life-os-header p { color: var(--txt); }
+
+/* ===== MODO DE COR: colorido (padrão) × neutro =====
+   No neutro a cor fica só onde ela AVISA: atraso, conta a pagar, dinheiro
+   entrando e saindo, e os avisos vermelho/amarelo. O resto — etiquetas, chips,
+   cores de nota, barrinhas, bolinhas do calendário — vira tom discreto. */
+body[data-cores="neutro"] .stat-tile,
+body[data-cores="neutro"] .note-card,
+body[data-cores="neutro"] .category-badge,
+body[data-cores="neutro"] .chip,
+body[data-cores="neutro"] .anexo-chip,
+body[data-cores="neutro"] .cat-bar div,
+body[data-cores="neutro"] .day-dot,
+body[data-cores="neutro"] .shift-dot,
+body[data-cores="neutro"] .semana-cards,
+body[data-cores="neutro"] .mes-bar,
+body[data-cores="neutro"] .rot-tag,
+body[data-cores="neutro"] .task-list-tag,
+body[data-cores="neutro"] .color-dot,
+body[data-cores="neutro"] .pf-arte,
+body[data-cores="neutro"] .life-os-banner { filter: saturate(0.15); }
+body[data-cores="neutro"] .note-card:hover { filter: saturate(0.45); }
+/* o que continua colorido de propósito */
+body[data-cores="neutro"] .aviso.p1, body[data-cores="neutro"] .aviso.p2,
+body[data-cores="neutro"] .due.due-late, body[data-cores="neutro"] .due.due-today,
+body[data-cores="neutro"] .badge-topay, body[data-cores="neutro"] .badge-unpaid { filter: none; }
 [data-tema="claro"] .card { box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
 [data-tema="claro"] input, [data-tema="claro"] select, [data-tema="claro"] textarea { background-color: #ffffff; color: #1e293b; }
 [data-tema="claro"] .naipe { border-color: #94a3b8; }
@@ -434,7 +485,7 @@ input.calculado { background: var(--bg2); color: var(--txt3); border-style: dash
 [data-tema="claro"] .tab-btn.active { color: #ffffff; }
 [data-tema="claro"] .toast { background: #ffffff; color: #0f172a; }
 [data-tema="claro"] .note-card { box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
-[data-tema="medio"] .life-os-banner, [data-tema="colorido"] .life-os-banner, [data-tema="gamificado"] .life-os-banner, [data-tema="profissional"] .life-os-banner { background: linear-gradient(to bottom, rgba(0,0,0,0.1), var(--bg)), url('https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop') center/cover; }
+[data-tema="medio"] .life-os-banner, [data-tema="violeta"] .life-os-banner, [data-tema="gamer"] .life-os-banner, [data-tema="profissional"] .life-os-banner { background: linear-gradient(to bottom, rgba(0,0,0,0.1), var(--bg)), url('https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop') center/cover; }
 
 /* --- Fase Q parte 2: relógios, pomodoro h/m/s, edição inline --- */
 .big-clock.rel-minimalista { background: none !important; border: none !important; box-shadow: none !important; font-weight: 200; letter-spacing: 2px; padding: 0 !important; }
@@ -558,3 +609,132 @@ input.calculado { background: var(--bg2); color: var(--txt3); border-style: dash
 /* o aviso sobe quando o player está na tela (e o player ocupa a linha no celular) */
 body:has(.mini-player:not([hidden])) .toast { bottom: 80px; }
 @media (max-width: 600px) { .mini-player { right: 8px; left: 8px; justify-content: center; } }
+
+/* Recorrentes: situacao do mes que esta na tela */
+.rec-mes-rot { font-size: 0.8rem; font-weight: 500; color: var(--txt3); }
+.rec-chip { font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; margin-left: 4px; vertical-align: middle; }
+.rec-chip.ok { color: #22c55e; background: rgba(34,197,94,0.12); }
+.rec-chip.nao { color: var(--txt4); background: var(--borda2); }
+
+/* ===== JANELAS FLUTUANTES (Config → Janelas flutuantes) =====
+   Na tela larga elas ocupam as margens que sobravam; sem margem, empilham
+   no canto; no celular ficam rentes ao rodapé, encolhidas. */
+#paineis { position: fixed; inset: 0; pointer-events: none; z-index: 1700; }
+.pf { position: fixed; width: 310px; max-height: 70vh; display: flex; flex-direction: column; pointer-events: auto;
+  background: var(--card); border: 1px solid var(--borda2); border-radius: 12px; box-shadow: 0 10px 30px var(--sombra); overflow: hidden; }
+.pf.arrastando { opacity: 0.92; box-shadow: 0 16px 40px var(--sombra); border-color: var(--acento); }
+.pf-top { display: flex; align-items: center; gap: 7px; padding: 8px 8px 8px 11px; background: var(--bg2);
+  border-bottom: 1px solid var(--borda); cursor: grab; touch-action: none; user-select: none; }
+.pf.arrastando .pf-top { cursor: grabbing; }
+.pf-top strong { flex: 1; font-size: 0.82rem; color: var(--txt2); font-weight: 600; }
+.pf-ic { font-size: 0.9rem; }
+.pf-acoes { display: flex; gap: 2px; }
+.pf-corpo { padding: 10px 11px 11px 11px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; }
+.pf.encolhido .pf-corpo { display: none; }
+
+.pf-linha { display: flex; gap: 6px; }
+.pf-linha input[type="text"] { flex: 1; min-width: 0; padding: 7px 9px; font-size: 0.82rem; }
+.pf-linha button { padding: 6px 11px; font-size: 0.9rem; }
+.pf-sel { width: 100%; padding: 5px 7px; font-size: 0.74rem; }
+.pf-itens { display: flex; flex-direction: column; gap: 3px; }
+.pf-item { display: flex; align-items: flex-start; gap: 7px; font-size: 0.8rem; color: var(--txt2); line-height: 1.35; padding: 2px 0; }
+.pf-item.clicavel { cursor: pointer; }
+.pf-item.clicavel:hover { color: var(--txt-forte); }
+.pf-item input[type="checkbox"] { margin-top: 2px; flex: none; }
+.pf-titulo { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--txt4); margin-top: 3px; }
+.pf-titulo.vermelho { color: #ef4444; }
+.pf-vazio { font-size: 0.78rem; color: var(--txt4); padding: 4px 0; }
+.pf-rodape { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.72rem; color: var(--txt4); border-top: 1px solid var(--borda); padding-top: 6px; }
+.pf-botoes { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.pf-timer { font-size: 2rem; font-weight: 700; color: var(--txt-forte); text-align: center; font-variant-numeric: tabular-nums; }
+.pf-timer.rodando { color: var(--acento); }
+.pf-timer-sub { text-align: center; font-size: 0.72rem; color: var(--txt4); margin-top: -4px; }
+
+.pf-arte { display: block; width: 100%; height: 170px; border-radius: 8px; overflow: hidden; }
+.pf-arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-arte-info { display: flex; flex-direction: column; gap: 1px; }
+.pf-arte-info strong { font-size: 0.82rem; color: var(--txt-forte); }
+.pf-arte-info small { font-size: 0.72rem; color: var(--txt4); }
+
+.pf-faixa { font-size: 0.8rem; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-prog { height: 4px; background: var(--borda); border-radius: 3px; overflow: hidden; }
+.pf-prog > div { height: 100%; background: var(--acento); transition: width 0.25s linear; }
+
+/* sem margem lateral: empilha no canto, mais baixinho pra não cobrir a tela */
+#paineis[data-modo="canto"] .pf { max-height: 46vh; }
+
+/* celular / tela estreita: rentes ao rodapé, largura cheia */
+#paineis[data-modo="celular"] .pf { position: static; width: auto; max-height: 45vh; margin-top: 6px; border-radius: 12px; }
+#paineis[data-modo="celular"] { inset: auto 8px 8px 8px; display: flex; flex-direction: column; justify-content: flex-end; max-height: 70vh; }
+#paineis[data-modo="celular"] .pf-top { cursor: pointer; }
+
+/* o toast e o player sobem quando há janela no canto de baixo */
+body:has(#paineis[data-modo="canto"]:not([hidden])) .toast,
+body:has(#paineis[data-modo="celular"]:not([hidden])) .toast { bottom: 96px; }
+
+/* ===== Baixa de plantões em lote + turnos sugeridos ===== */
+.baixa-card { background: var(--bg2); border: 1px solid var(--borda2); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px; }
+.baixa-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.baixa-topo strong { font-size: 0.92rem; color: var(--txt-forte); }
+.baixa-topo small { font-size: 0.76rem; color: var(--txt3); }
+.baixa-acao { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.baixa-acao label { font-size: 0.78rem; color: var(--txt3); display: flex; align-items: center; gap: 6px; margin: 0; }
+.baixa-acao input[type="date"] { padding: 5px 8px; font-size: 0.8rem; }
+.baixa-acao > button:last-child { margin-left: auto; padding: 7px 14px; font-size: 0.85rem; }
+.mk-plantao { margin-right: 9px; flex: none; width: 17px; height: 17px; accent-color: var(--acento); cursor: pointer; }
+#turnos-sugeridos { margin-bottom: 12px; }
+#turnos-sugeridos .transaction-list li { padding: 7px 10px; }
+@media (max-width: 600px) { .baixa-acao > button:last-child { margin-left: 0; width: 100%; } }
+
+/* botão de dar baixa: visível mesmo sem nada marcado (só claramente inativo) */
+.baixa-acao > button:last-child:disabled { opacity: 1; background: transparent; color: var(--txt3);
+  border: 1px dashed var(--borda3); box-shadow: none; cursor: default; }
+.dias-linha { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ===== ANEXOS (📎) em tarefas e itens de lista ===== */
+.anexos { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-left: 6px; vertical-align: middle; }
+.anexo-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 0.7rem; color: var(--txt2); background: var(--bg);
+  border: 1px solid var(--borda2); border-radius: 10px; padding: 1px 7px; text-decoration: none; max-width: 190px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anexo-chip:hover { border-color: var(--acento); color: var(--txt-forte); }
+.anexo-chip.falta { color: var(--txt4); border-style: dashed; cursor: pointer; }
+.anexo-mini { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; border: 1px solid var(--borda2); cursor: zoom-in; }
+.anexo-mini:hover { border-color: var(--acento); }
+#anexo-lista li { padding: 7px 10px; }
+.lupa-caixa { background: var(--card); border: 1px solid var(--borda2); border-radius: 12px; padding: 10px; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; gap: 8px; }
+#lupa-img { max-width: 88vw; max-height: 78vh; object-fit: contain; border-radius: 8px; display: block; }
+.lupa-pe { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.82rem; color: var(--txt3); }
+
+/* ===== ⚙ por aba + caderno do desenvolvedor ===== */
+.aba-cfg-btn { position: fixed; top: 14px; right: 14px; z-index: 1750; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--card); color: var(--txt3); border: 1px solid var(--borda2); font-size: 0.95rem; cursor: pointer;
+  box-shadow: 0 4px 14px var(--sombra); display: flex; align-items: center; justify-content: center; }
+.aba-cfg-btn:hover { color: var(--txt-forte); border-color: var(--acento); }
+.cfg-bolha { position: absolute; top: -4px; right: -4px; background: var(--acento); color: var(--bg); font-size: 0.6rem;
+  font-weight: 700; min-width: 15px; height: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
+body[data-abas="lateral"] .aba-cfg-btn { top: 14px; right: 14px; }
+.dev-titulo { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--txt4); margin: 12px 0 4px 0; font-weight: 600; }
+.dev-titulo small { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+.dev-lista { list-style: none; display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 240px; overflow-y: auto; }
+.dev-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; color: var(--txt2); padding: 3px 0; line-height: 1.35; }
+.dev-item span { flex: 1; }
+.dev-item.feito span { text-decoration: line-through; color: var(--txt4); }
+.dev-item input[type="checkbox"] { margin-top: 3px; flex: none; }
+.dev-vazio { font-size: 0.82rem; color: var(--txt4); padding: 4px 0; }
+.dev-sep { font-size: 0.7rem; color: var(--txt4); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px; border-top: 1px solid var(--borda); padding-top: 6px; }
+.aba-fixa { margin-left: 4px; font-size: 0.7rem; opacity: 0.6; cursor: help; }
+@media (max-width: 800px) { .aba-cfg-btn { top: auto; bottom: 14px; left: 14px; right: auto; } }
+
+/* ===== CLÍNICA ===== */
+.etapa-bloco { margin-bottom: 14px; }
+.etapa-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  border-left: 3px solid var(--borda3); padding: 4px 10px; background: var(--bg); border-radius: 0 6px 6px 0; margin-bottom: 4px; }
+.etapa-topo strong { font-size: 0.85rem; color: var(--txt-forte); }
+.etapa-topo small { font-size: 0.75rem; color: var(--txt3); }
+.pac-linha { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--borda); }
+.pac-linha:last-child { border-bottom: none; }
+.pac-linha:hover { background: var(--bg); }
+.margem-pct { color: var(--txt4); }
+#serv-lista li { padding: 9px 12px; }
+@media (max-width: 700px) { #pac-form > div[style*="grid"], #serv-form > div[style*="grid"] { grid-template-columns: 1fr 1fr !important; } }

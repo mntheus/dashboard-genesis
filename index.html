@@ -18,6 +18,9 @@
       <button class="tab-btn" id="btn-studies" onclick="changeTab('studies')">📚 Estudos</button>
       <button class="tab-btn" id="btn-business" onclick="changeTab('business')">📈 Negócios</button>
       <button class="tab-btn" id="btn-health" onclick="changeTab('health')">🩺 Saúde</button>
+      <button class="tab-btn" id="btn-leisure" onclick="changeTab('leisure')">🎬 Lazer</button>
+      <button class="tab-btn" id="btn-trips" onclick="changeTab('trips')">✈️ Viagens</button>
+      <button class="tab-btn" id="btn-net" onclick="changeTab('net')">🤝 Rede</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -32,9 +35,17 @@
         </div>
       </div>
 
+      <div class="busca-box">
+        <input type="search" id="busca-global" placeholder="🔍 Buscar em tudo: tarefas, notas, agenda, plantões, finanças…  (Ctrl+K)" oninput="renderBusca(this.value)" autocomplete="off">
+        <div id="busca-res" class="busca-res" hidden></div>
+      </div>
       <div class="card avisos-card" id="avisos-card">
         <div class="habits-quick-head"><span>🔔 Avisos <small id="avisos-contador"></small></span><span class="item-date">com o app aberto</span></div>
         <div id="avisos-lista" class="avisos-lista"></div>
+      </div>
+      <div class="card arte-card" id="arte-card">
+        <div class="habits-quick-head"><span>🖼️ Obra do dia</span><button class="mini-btn xs" onclick="renderArte(true)" title="Ver outra">↻</button></div>
+        <div id="arte-conteudo" class="arte-conteudo"></div>
       </div>
       <div class="card habits-quick-card"><div class="habits-quick-head"><span>🎮 Hábitos de hoje</span><span id="progress-text-mini"></span></div><div id="habits-quick" class="habits-quick"></div></div>
       <div class="life-os-grid">
@@ -58,8 +69,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h2 id="pomodoro-title" style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
               <div style="display:flex; align-items:center; gap:5px;">
-                <input type="number" id="pomodoro-input" value="50" min="1" max="180" onchange="updatePomodoroTime()">
-                <span style="font-size: 0.8rem; color:#94a3b8;">min</span>
+                <input type="number" id="pomodoro-h" value="0" min="0" max="12" onchange="updatePomodoroTime()" title="horas" class="tempo-campo"><span class="tempo-sep">h</span><input type="number" id="pomodoro-input" value="50" min="0" max="180" onchange="updatePomodoroTime()" title="minutos" class="tempo-campo"><span class="tempo-sep">m</span><input type="number" id="pomodoro-s" value="0" min="0" max="59" onchange="updatePomodoroTime()" title="segundos" class="tempo-campo"><span class="tempo-sep">s</span>
               </div>
             </div>
             <div class="focus-header-tabs" id="pomodoro-modo" style="border:none; padding:0 0 8px; gap:6px; font-size:0.78rem;"><span class="active" onclick="alternarModoPomodoro('foco', this)">⏱ Foco</span><span onclick="alternarModoPomodoro('meditacao', this)">🧘 Meditação</span></div>
@@ -69,6 +79,7 @@
               <button onclick="startTimer()" id="btn-start-timer">▶ Iniciar</button>
               <button onclick="pauseTimer()" id="btn-pause-timer" style="display:none;">⏸ Pausar</button>
               <button onclick="resetTimer()">🔄 Reset</button>
+              <button onclick="musicaDeFoco()" title="Abrir a playlist de foco">🎵</button>
             </div>
             <div class="study-stats">Estudo Hoje: <strong id="study-time-today">0h 0m</strong></div>
             <div class="pomodoro-prefs">
@@ -678,8 +689,161 @@
       </div>
     </div>
 
+    <!-- Módulo 10: Lazer -->
+    <div id="leisure" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="lazer-secoes">
+        <span class="active" onclick="verSecaoLazer('midia', this)">🎬 Filmes e séries</span>
+        <span onclick="verSecaoLazer('musica', this)">🎵 Música</span>
+      </div>
+      <div id="sec-midia" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎬 Filmes, séries e documentários</h2>
+          <p class="hint">Aquilo que te indicaram e você não quer esquecer. Dê a nota clicando nas estrelas; em série, os botões − ep + marcam onde você parou.</p>
+          <form id="midia-form">
+            <input type="hidden" id="midia-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+              <div><label for="midia-title">Título:</label><input type="text" id="midia-title" placeholder="O Poço" required></div>
+              <div><label for="midia-kind">Tipo:</label><select id="midia-kind"></select></div>
+              <div><label for="midia-status">Status:</label><select id="midia-status"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="midia-where">Onde assistir:</label><input type="text" id="midia-where" placeholder="Netflix, cinema..."></div>
+              <div><label for="midia-who">Quem indicou:</label><input type="text" id="midia-who" placeholder="opcional"></div>
+              <div><label for="midia-season">Temporada:</label><input type="number" id="midia-season" min="0" placeholder="1"></div>
+              <div><label for="midia-ep">Episódio:</label><input type="number" id="midia-ep" min="0" placeholder="0"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
+              <div><label for="midia-url">Link (trailer, ficha, streaming):</label><input type="text" id="midia-url" placeholder="opcional"></div>
+              <div><label for="midia-rating">Nota (0-5):</label><input type="number" id="midia-rating" min="0" max="5" placeholder="0"></div>
+            </div>
+            <label for="midia-comment">Comentário:</label><input type="text" id="midia-comment" placeholder="o que achou">
+            <div style="display:flex; gap:10px;"><button type="submit" id="midia-submit" style="flex:1">Adicionar</button><button type="button" id="midia-cancel" class="btn" hidden onclick="cancelarEdicaoMidia()">Cancelar</button></div>
+          </form>
+          <div id="midia-resumo" class="summary-row" style="margin-top:14px"></div>
+          <div class="focus-header-tabs filter-row" id="midia-filtros">
+            <span class="active" onclick="filtrarMidia('quero', this)">🔖 Quero ver</span>
+            <span onclick="filtrarMidia('assistindo', this)">▶️ Assistindo</span>
+            <span onclick="filtrarMidia('visto', this)">✅ Vistos</span>
+            <span onclick="filtrarMidia('todos', this)">🗂️ Todos</span>
+          </div>
+          <ul id="midia-lista" class="transaction-list"></ul>
+        </div>
+      </div>
+      <div id="sec-musica" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎵 Playlists por momento</h2>
+          <p class="hint">Atalhos para as suas playlists (Spotify, YouTube, o que usar). Um toque abre no app de música.</p>
+          <form id="play-form">
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 10px;">
+              <div><label for="play-name">Nome:</label><input type="text" id="play-name" placeholder="Lo-fi para plantão" required></div>
+              <div><label for="play-moment">Momento:</label><select id="play-moment"></select></div>
+            </div>
+            <label for="play-url">Link:</label><input type="text" id="play-url" placeholder="https://open.spotify.com/playlist/..." required>
+            <button type="submit">Salvar playlist</button>
+          </form>
+          <div id="play-lista" style="margin-top: 16px;"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>▶️ Tocar do aparelho</h2>
+          <p class="hint">Escolha músicas guardadas neste aparelho e toque sem sair do app. Elas valem para esta sessão — o navegador não guarda arquivos, então da próxima vez é só escolher de novo.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button type="button" class="btn" onclick="document.getElementById('faixas-arquivo').click()">🎵 Escolher músicas</button>
+            <input type="file" id="faixas-arquivo" accept="audio/*" multiple hidden onchange="carregarFaixas(this)">
+            <button type="button" class="mini-btn" onclick="faixaAnterior()">⏮</button>
+            <button type="button" class="mini-btn" onclick="faixaProxima()">⏭</button>
+            <span id="faixa-atual" class="item-date"></span>
+          </div>
+          <audio id="audio-player" controls style="width:100%; margin-top:12px;" onended="faixaProxima()"></audio>
+          <div id="faixas-lista" class="faixas-lista"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Módulo 11: Viagens -->
+    <div id="trips" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>✈️ Viagens</h2>
+        <p class="hint">Cada viagem já nasce com lista de mala e de documentos. Clique na viagem para abrir, marcar itens e guardar reservas. O 📅 põe ida e volta na sua agenda.</p>
+        <form id="trip-form">
+          <input type="hidden" id="trip-id">
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
+            <div><label for="trip-destino">Destino:</label><input type="text" id="trip-destino" placeholder="Governador Valadares" required></div>
+            <div><label for="trip-inicio">Ida:</label><input type="date" id="trip-inicio"></div>
+            <div><label for="trip-fim">Volta:</label><input type="date" id="trip-fim"></div>
+            <div><label for="trip-status">Situação:</label><select id="trip-status"></select></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 10px;">
+            <div><label for="trip-orcamento">Orçamento (R$):</label><input type="number" id="trip-orcamento" step="0.01" min="0"></div>
+            <div><label for="trip-notas">Notas:</label><input type="text" id="trip-notas" placeholder="com quem, por quê, links"></div>
+          </div>
+          <div style="display:flex; gap:10px;"><button type="submit" id="trip-submit" style="flex:1">Criar viagem</button><button type="button" id="trip-cancel" class="btn" hidden onclick="cancelarEdicaoViagem()">Cancelar</button></div>
+        </form>
+        <ul id="trip-lista" class="transaction-list" style="margin-top: 15px;"></ul>
+      </div>
+    </div>
+
+    <!-- Módulo 12: Rede -->
+    <div id="net" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>🤝 Rede</h2>
+        <p class="hint">As pessoas que você conhece do trabalho, dos negócios e da vida. O 💬 marca que você falou hoje; se passar do intervalo que você definir, ela aparece em "falar".</p>
+        <form id="rede-form">
+          <input type="hidden" id="rede-id">
+          <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 10px;">
+            <div><label for="rede-nome">Nome:</label><input type="text" id="rede-nome" placeholder="Dr. João" required></div>
+            <div><label for="rede-papel">O que faz:</label><input type="text" id="rede-papel" placeholder="contador, sócio, plantonista"></div>
+            <div><label for="rede-onde">Onde conheci:</label><input type="text" id="rede-onde" placeholder="PSMI, congresso, faculdade"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 10px;">
+            <div><label for="rede-tel">Telefone:</label><input type="text" id="rede-tel"></div>
+            <div><label for="rede-email">E-mail:</label><input type="text" id="rede-email"></div>
+            <div><label for="rede-links">Links (LinkedIn, Instagram):</label><input type="text" id="rede-links"></div>
+            <div><label for="rede-lembrar">Lembrar a cada (dias):</label><input type="number" id="rede-lembrar" min="0" placeholder="90"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 10px;">
+            <div><label for="rede-tags">Marcadores:</label><input type="text" id="rede-tags" placeholder="plantão, negócios, família"></div>
+            <div><label for="rede-notas">Notas:</label><input type="text" id="rede-notas" placeholder="do que conversaram, como ajudar"></div>
+          </div>
+          <div style="display:flex; gap:10px;"><button type="submit" id="rede-submit" style="flex:1">Salvar contato</button><button type="button" id="rede-cancel" class="btn" hidden onclick="cancelarEdicaoContato()">Cancelar</button></div>
+        </form>
+        <div id="rede-chips" class="chips" style="margin-top: 14px;"></div>
+        <ul id="rede-lista" class="transaction-list"></ul>
+      </div>
+    </div>
+
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
+      <div class="card" style="margin-top: 20px;">
+        <h2>🎨 Aparência</h2>
+        <p class="hint">Tema de cores, onde ficam as abas e quais aparecem. Vale <strong>só neste aparelho</strong> — o PC pode ficar com as abas na lateral e o celular no topo.</p>
+        <label>Tema:</label>
+        <div id="temas-lista" class="temas-lista"></div>
+        <label class="check-line" style="margin-top:14px"><input type="checkbox" id="arte-ligado" onchange="alternarArte()"> 🖼️ Mostrar a obra do dia no Painel</label>
+        <div class="focus-header-tabs" id="arte-fonte" style="border:none; padding:0;">
+          <span data-fonte="local" onclick="escolherFonteArte('local')">📚 Coleção do app (21 obras)</span>
+          <span data-fonte="museu" onclick="escolherFonteArte('museu')">🏛️ Museu online</span>
+        </div>
+        <p class="hint" style="margin-top:4px">A coleção é uma lista dentro do app; as imagens vêm do Wikimedia Commons. O "museu online" busca uma obra diferente todo dia no Art Institute of Chicago (serviço público, sem cadastro) — precisa de internet e é uma consulta externa.</p>
+        <label style="margin-top:14px; display:block;">Foto de capa:</label>
+        <div id="capas-lista" class="capas-lista"></div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="mini-btn" onclick="document.getElementById('capa-arquivo').click()">🖼️ Enviar uma foto minha</button>
+          <input type="file" id="capa-arquivo" accept="image/*" hidden onchange="enviarCapa(this)">
+          <small class="item-date">A foto enviada fica só neste aparelho (reduzida). O link e as prontas valem em qualquer um.</small>
+        </div>
+        <label style="margin-top:14px; display:block;">Relógio do Painel:</label>
+        <div class="focus-header-tabs" id="relogios-lista" style="border:none; padding:0;"></div>
+        <label class="check-line"><input type="checkbox" id="rel-segundos" onchange="alternarSegundos()"> Mostrar segundos</label>
+        <label style="margin-top:14px; display:block;">Abas:</label>
+        <div class="focus-header-tabs" id="abas-posicao" style="border:none; padding:0;">
+          <span data-pos="topo" onclick="escolherPosicaoAbas('topo')">⬆️ No topo</span>
+          <span data-pos="lateral" onclick="escolherPosicaoAbas('lateral')">⬅️ Na lateral</span>
+        </div>
+        <p class="hint" style="margin-top:6px">Na lateral só em telas largas (no celular ficam sempre no topo).</p>
+        <label style="margin-top:10px; display:block;">Ordem e visibilidade:</label>
+        <ul id="abas-ordem" class="abas-ordem"></ul>
+        <button type="button" class="btn" style="width:100%; margin-top:10px" onclick="restaurarAparencia()">↺ Restaurar padrão</button>
+      </div>
       <div class="card" style="margin-top: 20px;">
         <h2>🔔 Avisos e lembretes</h2>
         <p class="hint">O app confere a cada minuto e avisa: plantão chegando, compromisso ou reunião, tarefas atrasadas e de hoje, contas a pagar, plantões sem baixa e, à noite, hábitos e água. <strong>Funciona enquanto o app estiver aberto</strong> (um app sem servidor não consegue avisar fechado) — para o celular tocar mesmo fechado, use os lembretes da agenda "Genesis" no Google Calendar.</p>
@@ -754,6 +918,18 @@
         <div class="modal-actions" style="display:flex; gap:10px;"><button onclick="confirmarCompra()">📦 Mandar para Entregas</button><button class="btn" onclick="fecharCompra()">Cancelar</button></div>
       </div>
     </div>
+  </div>
+  <div id="mini-player" class="mini-player" hidden>
+    <button class="mp-btn" onclick="faixaAnterior()" title="Anterior">⏮</button>
+    <button class="mp-btn" id="mp-play" onclick="mpPlayPause()" title="Tocar/pausar">▶️</button>
+    <button class="mp-btn" onclick="faixaProxima()" title="Próxima">⏭</button>
+    <div class="mp-info" onclick="mpIrParaMusica()" title="Abrir a aba de música">
+      <span id="mp-nome"></span>
+      <div class="mp-barra"><div id="mp-prog"></div></div>
+    </div>
+    <small id="mp-tempo" class="mp-tempo"></small>
+    <input type="range" min="0" max="100" value="100" class="mp-vol" oninput="mpVolume(this.value)" title="Volume">
+    <button class="mp-btn" onclick="mpFechar()" title="Fechar">✕</button>
   </div>
   <div id="toast" class="toast"></div>
 

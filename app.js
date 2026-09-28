@@ -35,6 +35,10 @@ let budget = JSON.parse(localStorage.getItem('lifeos_budget')) || { items: [], a
 let tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || [{ id: 'padrao', name: 'Minhas tarefas' }]; // listas de tarefas
 let routines = JSON.parse(localStorage.getItem('lifeos_routines')) || []; // rotinas: tarefas que voltam sozinhas
 let orders = JSON.parse(localStorage.getItem('lifeos_orders')) || []; // compras a caminho (entregas)
+let media = JSON.parse(localStorage.getItem('lifeos_media')) || [];         // filmes, séries, docs
+let playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || []; // atalhos de música
+let trips = JSON.parse(localStorage.getItem('lifeos_trips')) || [];         // viagens
+let contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];   // rede de contatos
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -95,27 +99,39 @@ let pomodoroModo = 'foco'; // 'foco' (estudo) | 'meditacao'
 function alternarModoPomodoro(modo, el) {
   if (timerInterval) { toast('Pause ou zere o timer antes de trocar o modo.'); return; }
   pomodoroModo = modo; document.querySelectorAll('#pomodoro-modo span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active');
-  const input = document.getElementById('pomodoro-input'); input.value = modo === 'meditacao' ? (prefs.meditacaoMin || 10) : (prefs.focoMin || 50);
+  const g = modo === 'meditacao' ? (prefs.meditacao || { h: 0, m: prefs.meditacaoMin || 10, s: 0 }) : (prefs.foco || { h: 0, m: prefs.focoMin || 50, s: 0 });
+  document.getElementById('pomodoro-h').value = g.h || 0; document.getElementById('pomodoro-input').value = g.m || 0; document.getElementById('pomodoro-s').value = g.s || 0;
   document.getElementById('pomodoro-topic').hidden = modo === 'meditacao';
   document.getElementById('pomodoro-title').innerText = modo === 'meditacao' ? '🧘 MEDITAÇÃO' : '⏱ POMODORO';
   updatePomodoroTime();
 }
 
+/** Duração escolhida no formulário, em segundos (horas + minutos + segundos). */
+function duracaoDoForm() {
+  const h = parseInt(document.getElementById('pomodoro-h').value) || 0;
+  const m = parseInt(document.getElementById('pomodoro-input').value) || 0;
+  const s = parseInt(document.getElementById('pomodoro-s').value) || 0;
+  return h * 3600 + m * 60 + s;
+}
 function updatePomodoroTime() {
-  const inputVal = parseInt(document.getElementById('pomodoro-input').value);
-  if (inputVal > 0 && !timerInterval) {
-    if (pomodoroModo === 'meditacao') prefs.meditacaoMin = inputVal; else prefs.focoMin = inputVal; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
-    pomodoroDuration = inputVal * 60;
+  const total = duracaoDoForm();
+  if (total > 0 && !timerInterval) {
+    const guardar = { h: parseInt(document.getElementById('pomodoro-h').value) || 0, m: parseInt(document.getElementById('pomodoro-input').value) || 0, s: parseInt(document.getElementById('pomodoro-s').value) || 0 };
+    if (pomodoroModo === 'meditacao') prefs.meditacao = guardar; else prefs.foco = guardar;
+    localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+    pomodoroDuration = total;
     timerTimeLeft = pomodoroDuration;
     updateTimerDisplay();
   }
 }
 
 function updateTimerDisplay() {
-  const m = Math.floor(timerTimeLeft / 60).toString().padStart(2, '0');
+  const h = Math.floor(timerTimeLeft / 3600);
+  const m = Math.floor((timerTimeLeft % 3600) / 60).toString().padStart(2, '0');
   const s = (timerTimeLeft % 60).toString().padStart(2, '0');
-  document.getElementById('timer-display').innerText = `${m}:${s}`;
-  document.title = timerInterval ? `${m}:${s} · Genesis` : 'Dashboard Genesis';
+  const txt = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+  document.getElementById('timer-display').innerText = txt;
+  document.title = timerInterval ? `${txt} · Genesis` : 'Dashboard Genesis';
 }
 
 function updateStudyStats() {
@@ -129,7 +145,7 @@ function startTimer() {
   prepararAudio(); // o navegador só libera som depois de um clique — este é o clique
   document.getElementById('btn-start-timer').style.display = 'none';
   document.getElementById('btn-pause-timer').style.display = 'inline-block';
-  document.getElementById('pomodoro-input').disabled = true;
+  ['pomodoro-h', 'pomodoro-input', 'pomodoro-s'].forEach(i => document.getElementById(i).disabled = true);
   timerEnd = Date.now() + timerTimeLeft * 1000;
   timerInterval = setInterval(() => {
     timerTimeLeft = Math.max(0, Math.round((timerEnd - Date.now()) / 1000));
@@ -149,14 +165,14 @@ function pauseTimer() {
 
 function resetTimer() {
   pauseTimer();
-  let inputVal = parseInt(document.getElementById('pomodoro-input').value);
-  if (isNaN(inputVal) || inputVal <= 0) inputVal = pomodoroModo === 'meditacao' ? 10 : 50;
-  pomodoroDuration = inputVal * 60; timerTimeLeft = pomodoroDuration;
-  document.getElementById('pomodoro-input').disabled = false; updateTimerDisplay();
+  let total = duracaoDoForm();
+  if (!total) { total = (pomodoroModo === 'meditacao' ? 10 : 50) * 60; document.getElementById('pomodoro-input').value = pomodoroModo === 'meditacao' ? 10 : 50; }
+  pomodoroDuration = total; timerTimeLeft = pomodoroDuration;
+  ['pomodoro-h', 'pomodoro-input', 'pomodoro-s'].forEach(i => document.getElementById(i).disabled = false); updateTimerDisplay();
 }
 
 function completePomodoro() {
-  const mins = Math.round(pomodoroDuration / 60);
+  const mins = Math.max(1, Math.round(pomodoroDuration / 60));
   if (pomodoroModo === 'meditacao') {
     resetTimer(); tocarAlarme('sino');
     const idx = habits.findIndex(h => /medita/i.test(h.text));
@@ -205,47 +221,263 @@ function testarAlarme() { salvarPrefs(); tocarAlarme(); }
 // --- RELÓGIO PRINCIPAL E SAUDAÇÃO ---
 function updateMainClock() {
   const now = new Date();
-  document.getElementById('big-clock').innerText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const c = cfgAparencia(); const el = document.getElementById('big-clock');
+  const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0'), ss = String(now.getSeconds()).padStart(2, '0');
+  el.className = 'big-clock rel-' + (c.relogio || 'digital');
+  if (c.relogio === 'analogico') el.innerHTML = relogioAnalogico(now);
+  else if (c.relogio === 'texto') { const t = horaPorExtenso(now.getHours(), now.getMinutes()); el.innerHTML = `<span class="rel-texto">${t.charAt(0).toUpperCase() + t.slice(1)}</span>`; }
+  else el.innerHTML = `${hh}:${mm}${c.segundos ? `<span class="rel-seg">${ss}</span>` : ''}`;
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
   let dateStr = now.toLocaleDateString('pt-BR', options);
   dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
   document.getElementById('big-date').innerText = dateStr.replace('-feira', '').replace(',', ' |');
 }
-setInterval(updateMainClock, 1000); updateMainClock();
 
-const FRASES = [
-  'O que você faz todos os dias importa mais do que o que você faz de vez em quando.',
-  'Disciplina é escolher entre o que você quer agora e o que você quer mais.',
-  'Não é sobre ter tempo. É sobre fazer tempo.',
-  'Cuide do processo; o resultado cuida de si.',
-  'Um plantão de cada vez, um paciente de cada vez.',
-  'Comece onde você está. Use o que você tem. Faça o que você pode.',
-  'A melhor hora pra plantar uma árvore foi há 20 anos. A segunda melhor é agora.',
-  'Pequenos passos todos os dias somam mais que grandes saltos de vez em quando.',
-  'Primeiro a reserva, depois o risco.',
-  'Saber e não fazer é ainda não saber.',
-  'Você não precisa ver a escada inteira. Só o primeiro degrau.',
-  'Simplifique. Depois simplifique de novo.',
-  'Descanso também é produtividade.',
-  'Quem estuda um pouco todo dia não precisa estudar muito nunca.',
-  'Dinheiro é consequência de valor entregue.',
-  'Faça hoje o que o você de amanhã vai agradecer.',
-  'A consistência vence a intensidade.',
-  'Menos pressa, mais direção.',
-  'Não compare o seu capítulo 1 com o capítulo 20 de alguém.',
-  'Termine o que começou antes de começar o próximo.',
-  'Clareza vem da ação, não do pensamento.',
-  'Trabalhe em silêncio; deixe o resultado fazer barulho.',
-  'O corpo é o primeiro investimento.',
-  'Uma boa noite de sono resolve metade dos problemas.',
-  'Dizer não é dizer sim para o que importa.',
-  'Errar rápido, aprender rápido, ajustar rápido.',
-  'O que é medido, melhora.',
-  'Foco é dizer não a cem boas ideias.',
-  'Grandes coisas nascem de hábitos pequenos.',
-  'Hoje é um bom dia pra ser melhor que ontem.'
+// ============================================================================
+// CAPA (foto do topo do Painel) — combina com o tema ou você escolhe a sua
+// prefs.aparencia.capa = 'auto' | id de CAPAS | 'url' | 'arquivo' | 'nenhuma'
+// prefs.aparencia.capaUrl  = link colado    (só neste aparelho)
+// prefs.aparencia.capaData = imagem enviada, já reduzida (só neste aparelho)
+// ============================================================================
+const U = 'https://images.unsplash.com/photo-';
+const Q = '?q=80&w=1400&auto=format&fit=crop';
+const CAPAS = {
+  floresta:  ['🌲', 'Floresta',   U + '1511497584788-876760111969' + Q],
+  praia:     ['🏖️', 'Praia',      U + '1507525428034-b723cf961d3e' + Q],
+  montanha:  ['🏔️', 'Montanha',   U + '1470071459604-3b5ec3a7fe05' + Q],
+  nebulosa:  ['🌌', 'Nebulosa',   U + '1534796636912-3b95b3ab5986' + Q],
+  neon:      ['🎮', 'Neon',       U + '1542751371-adc38448a05e' + Q],
+  cidade:    ['🌆', 'Cidade',     U + '1486406146926-c627a92ad1ab' + Q],
+  escritorio:['💼', 'Escritório', U + '1497366216548-37526070297c' + Q],
+  folhas:    ['🌿', 'Folhas',     U + '1466692476868-aef1dfb1e735' + Q]
+};
+const CAPA_DO_TEMA = { escuro: 'floresta', claro: 'praia', medio: 'montanha', colorido: 'nebulosa', gamificado: 'neon', profissional: 'cidade' };
+
+function urlDaCapa() {
+  const c = cfgAparencia();
+  if (c.capa === 'nenhuma') return '';
+  if (c.capa === 'arquivo') return c.capaData || '';
+  if (c.capa === 'url') return c.capaUrl || '';
+  const id = (!c.capa || c.capa === 'auto') ? (CAPA_DO_TEMA[c.tema] || 'floresta') : c.capa;
+  return (CAPAS[id] || CAPAS.floresta)[2];
+}
+function aplicarCapa() {
+  const el = document.querySelector('.life-os-banner'); if (!el) return;
+  const url = urlDaCapa();
+  const escuro = cfgAparencia().tema !== 'claro';
+  const veu = escuro ? 'linear-gradient(to bottom, rgba(0,0,0,0.10), var(--bg))' : 'linear-gradient(to bottom, rgba(15,23,42,0.05), rgba(15,23,42,0.45))';
+  el.style.background = url ? `${veu}, url('${url}') center/cover` : 'var(--card)';
+  el.style.borderBottom = url ? 'none' : '1px solid var(--borda)';
+}
+function escolherCapa(id) {
+  const c = cfgAparencia();
+  if (id === 'url') {
+    const v = prompt('Cole o link da imagem (https://...):', c.capaUrl || ''); if (v === null) return;
+    if (!v.trim()) { c.capa = 'auto'; } else { c.capaUrl = v.trim(); c.capa = 'url'; }
+  } else c.capa = id;
+  salvarAparencia();
+}
+/** Imagem do aparelho: reduz para no máximo 1400px de largura antes de guardar. */
+function enviarCapa(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  if (!/^image\//.test(f.type)) { toast('Escolha um arquivo de imagem.'); return; }
+  const fr = new FileReader();
+  fr.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1400; const escala = Math.min(1, max / img.width);
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const dados = cv.toDataURL('image/jpeg', 0.72);
+      const kb = Math.round(dados.length * 0.75 / 1024);
+      if (kb > 1800) { toast(`Imagem muito grande (${kb} KB). Tente uma menor ou use um link.`, 7000); return; }
+      const c = cfgAparencia(); c.capaData = dados; c.capa = 'arquivo'; salvarAparencia();
+      toast(`🖼️ Capa trocada (${kb} KB, guardada só neste aparelho).`, 5000);
+    };
+    img.onerror = () => toast('Não consegui ler essa imagem.');
+    img.src = e.target.result;
+  };
+  fr.readAsDataURL(f); input.value = '';
+}
+function renderCapas() {
+  const el = document.getElementById('capas-lista'); if (!el) return;
+  const c = cfgAparencia();
+  const chip = (id, icone, nome, fundo) => `<button type="button" class="capa-chip ${c.capa === id || (!c.capa && id === 'auto') ? 'sel' : ''}" onclick="escolherCapa('${id}')" title="${nome}" ${fundo ? `style="background-image:url('${fundo}')"` : ''}><span>${icone}</span><small>${nome}</small></button>`;
+  el.innerHTML = chip('auto', '🎨', 'Do tema', CAPAS[CAPA_DO_TEMA[c.tema] || 'floresta'][2])
+    + Object.entries(CAPAS).map(([k, v]) => chip(k, v[0], v[1], v[2])).join('')
+    + chip('url', '🔗', 'Link', c.capaUrl || '')
+    + (c.capaData ? chip('arquivo', '🖼️', 'Minha foto', c.capaData) : '')
+    + chip('nenhuma', '🚫', 'Sem capa', '');
+}
+
+// ============================================================================
+// OBRA DO DIA (ArtDaily) — card no Painel
+// Duas fontes, escolhidas em Config → Aparência:
+//  · "coleção do app": a lista abaixo (18 obras de domínio público). As imagens
+//    vêm do Wikimedia Commons — o app não envia nada, só pede a imagem.
+//  · "museu": Art Institute of Chicago (api.artic.edu), API pública sem cadastro.
+// A obra do dia fica guardada em lifeos_arte_dia até virar o dia.
+// ============================================================================
+const WM = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+const OBRAS = [
+  ['A Noite Estrelada', 'Vincent van Gogh', 1889, 'Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg'],
+  ['A Grande Onda de Kanagawa', 'Katsushika Hokusai', 1831, 'Tsunami_by_hokusai_19th_century.jpg'],
+  ['Mona Lisa', 'Leonardo da Vinci', 1503, 'Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg'],
+  ['Moça com Brinco de Pérola', 'Johannes Vermeer', 1665, 'Meisje_met_de_parel.jpg'],
+  ['O Beijo', 'Gustav Klimt', 1908, 'The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg'],
+  ['Impressão, Nascer do Sol', 'Claude Monet', 1872, 'Monet_-_Impression,_Sunrise.jpg'],
+  ['O Grito', 'Edvard Munch', 1893, 'The_Scream.jpg'],
+  ['Os Girassóis', 'Vincent van Gogh', 1889, 'Vincent_van_Gogh_-_Sunflowers_-_VGM_F458.jpg'],
+  ['O Nascimento de Vênus', 'Sandro Botticelli', 1485, 'Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg'],
+  ['A Ronda Noturna', 'Rembrandt', 1642, 'The_Night_Watch_-_HD.jpg'],
+  ['As Meninas', 'Diego Velázquez', 1656, 'Las_Meninas_01.jpg'],
+  ['A Criação de Adão', 'Michelangelo', 1512, 'Michelangelo_-_Creation_of_Adam_(cropped).jpg'],
+  ['O Jardim das Delícias', 'Hieronymus Bosch', 1505, 'The_Garden_of_earthly_delights.jpg'],
+  ['Caminhante sobre o Mar de Névoa', 'Caspar David Friedrich', 1818, 'Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg'],
+  ['Almoço dos Barqueiros', 'Pierre-Auguste Renoir', 1881, 'Pierre-Auguste_Renoir_-_Luncheon_of_the_Boating_Party_-_Google_Art_Project.jpg'],
+  ['Terraço do Café à Noite', 'Vincent van Gogh', 1888, 'Vincent_Willem_van_Gogh_-_Cafe_Terrace_at_Night_(Yorck).jpg'],
+  ['A Liberdade Guiando o Povo', 'Eugène Delacroix', 1830, 'Eug%C3%A8ne_Delacroix_-_La_libert%C3%A9_guidant_le_peuple.jpg'],
+  ['A Leiteira', 'Johannes Vermeer', 1658, 'Johannes_Vermeer_-_Het_melkmeisje_-_Google_Art_Project.jpg'],
+  ['Os Jogadores de Cartas', 'Paul Cézanne', 1893, 'Paul_C%C3%A9zanne%2C_Les_joueurs_de_carte_%281892-95%29.jpg'],
+  ['Nenúfares', 'Claude Monet', 1906, 'Claude_Monet_-_Water_Lilies_-_1906,_Ryerson.jpg'],
+  ['American Gothic', 'Grant Wood', 1930, 'Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg']
 ];
-function fraseDoDia() { const d = new Date(); const dia = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); return FRASES[dia % FRASES.length]; }
+function obraLocal(i) {
+  const [titulo, autor, ano, arq] = OBRAS[((i % OBRAS.length) + OBRAS.length) % OBRAS.length];
+  return { titulo, autor, ano, img: WM + arq + '?width=1000', fonte: 'Wikimedia Commons', link: 'https://commons.wikimedia.org/wiki/File:' + arq };
+}
+function cfgArte() { prefs.arte = Object.assign({ ligado: true, fonte: 'local' }, prefs.arte || {}); return prefs.arte; }
+function salvarArte() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); renderArte(); renderAparencia(); }
+function alternarArte() { const c = cfgArte(); c.ligado = !c.ligado; salvarArte(); }
+function escolherFonteArte(f) { cfgArte().fonte = f; localStorage.removeItem('lifeos_arte_dia'); salvarArte(); }
+
+/** Busca uma obra no Art Institute of Chicago (API pública, sem cadastro). */
+async function obraDoMuseu() {
+  const campos = 'id,title,artist_title,date_display,image_id';
+  const pag = 1 + Math.floor(Math.random() * 40);
+  const r = await fetch(`https://api.artic.edu/api/v1/artworks?page=${pag}&limit=20&fields=${campos}`);
+  const j = await r.json();
+  const cand = (j.data || []).filter(o => o.image_id && o.title);
+  if (!cand.length) throw new Error('sem obras');
+  const o = cand[Math.floor(Math.random() * cand.length)];
+  return { titulo: o.title, autor: o.artist_title || 'Autor desconhecido', ano: o.date_display || '', img: `${j.config.iiif_url}/${o.image_id}/full/843,/0/default.jpg`, fonte: 'Art Institute of Chicago', link: `https://www.artic.edu/artworks/${o.id}` };
+}
+async function carregarObraDoDia(forcar) {
+  const c = cfgArte(); if (!c.ligado) return null;
+  const guardado = JSON.parse(localStorage.getItem('lifeos_arte_dia') || 'null');
+  if (!forcar && guardado && guardado.data === hojeISO() && guardado.fonte === c.fonte) return guardado.obra;
+  let obra;
+  if (c.fonte === 'museu') {
+    try { obra = await obraDoMuseu(); }
+    catch (e) { obra = obraLocal(diaDoAno() + (forcar ? Math.floor(Math.random() * 7) : 0)); obra.aviso = 'sem internet — obra da coleção do app'; }
+  } else {
+    obra = obraLocal(diaDoAno() + (forcar ? Math.floor(Math.random() * OBRAS.length) : 0));
+  }
+  localStorage.setItem('lifeos_arte_dia', JSON.stringify({ data: hojeISO(), fonte: c.fonte, obra }));
+  return obra;
+}
+function diaDoAno() { const d = new Date(); return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); }
+async function renderArte(forcar) {
+  const card = document.getElementById('arte-card'); if (!card) return;
+  const c = cfgArte();
+  if (!c.ligado) { card.hidden = true; return; }
+  card.hidden = false;
+  const el = document.getElementById('arte-conteudo');
+  const obra = await carregarObraDoDia(forcar);
+  if (!obra) { el.innerHTML = ''; return; }
+  el.innerHTML = `<a href="${esc(obra.link)}" target="_blank" rel="noopener" class="arte-img" title="Ver no ${esc(obra.fonte)}"><img src="${esc(obra.img)}" alt="${esc(obra.titulo)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'arte-erro\\'>🖼️ imagem indisponível (sem internet?)</div>'"></a>
+    <div class="arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small><small class="item-date">${esc(obra.fonte)}${obra.aviso ? ' · ' + esc(obra.aviso) : ''}</small></div>`;
+}
+
+// --- RELÓGIO: modelos (Config → Aparência) ---
+const RELOGIOS = { digital: ['🔢', 'Digital'], minimalista: ['◻️', 'Minimalista'], analogico: ['🕐', 'Analógico'], texto: ['🔤', 'Por extenso'] };
+function escolherRelogio(r) { cfgAparencia().relogio = r; salvarAparencia(); updateMainClock(); }
+function alternarSegundos() { const c = cfgAparencia(); c.segundos = !c.segundos; salvarAparencia(); updateMainClock(); }
+const NUM_EXT = ['meia-noite', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'meio-dia'];
+function horaPorExtenso(h, m) {
+  const hh = h % 12 === 0 ? (h === 0 ? 0 : 12) : h % 12;
+  let base = h === 0 ? NUM_EXT[0] : h === 12 ? NUM_EXT[12] : NUM_EXT[hh];
+  if (m === 0) return base + (h === 0 || h === 12 ? '' : ' em ponto');
+  if (m === 30) return base + ' e meia';
+  return base + ' e ' + m + (m === 1 ? ' minuto' : ' minutos');
+}
+function relogioAnalogico(d) {
+  const s = d.getSeconds(), m = d.getMinutes(), h = d.getHours() % 12;
+  const ang = (v, t) => (v / t) * 360 - 90;
+  const p = (a, r) => [50 + r * Math.cos(a * Math.PI / 180), 50 + r * Math.sin(a * Math.PI / 180)];
+  const [hx, hy] = p(ang(h + m / 60, 12), 24), [mx, my] = p(ang(m + s / 60, 60), 34), [sx, sy] = p(ang(s, 60), 38);
+  const marcas = Array.from({ length: 12 }, (_, i) => { const a = ang(i, 12); const [x1, y1] = p(a, 40), [x2, y2] = p(a, 45); return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--txt3)" stroke-width="${i % 3 === 0 ? 2.5 : 1}"/>`; }).join('');
+  return `<svg viewBox="0 0 100 100" class="relogio-svg"><circle cx="50" cy="50" r="47" fill="var(--bg)" stroke="var(--borda)" stroke-width="2"/>${marcas}
+    <line x1="50" y1="50" x2="${hx}" y2="${hy}" stroke="var(--txt-forte)" stroke-width="4" stroke-linecap="round"/>
+    <line x1="50" y1="50" x2="${mx}" y2="${my}" stroke="var(--txt)" stroke-width="2.5" stroke-linecap="round"/>
+    ${cfgAparencia().segundos ? `<line x1="50" y1="50" x2="${sx}" y2="${sy}" stroke="var(--acento)" stroke-width="1.2" stroke-linecap="round"/>` : ''}
+    <circle cx="50" cy="50" r="2.5" fill="var(--acento)"/>
+    <text x="50" y="64" text-anchor="middle" font-size="11" font-weight="700" fill="var(--txt-forte)">${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</text>
+    <text x="50" y="74" text-anchor="middle" font-size="6.5" fill="var(--txt3)">${DIAS_LONGO[d.getDay()]}</text></svg>`;
+}
+
+// --- FRASES por período do dia (manhã / tarde / noite) ---
+const FRASES_PERIODO = {
+  manha: [
+    'Como você começa a manhã dá o tom do dia inteiro.',
+    'O que você faz todos os dias importa mais do que o que faz de vez em quando.',
+    'Comece onde você está. Use o que você tem. Faça o que você pode.',
+    'A primeira hora do dia é a mais sua.',
+    'Disciplina é escolher entre o que você quer agora e o que você quer mais.',
+    'Hoje é um bom dia pra ser melhor que ontem.',
+    'Pequenos passos todos os dias somam mais que grandes saltos de vez em quando.',
+    'Faça hoje o que o você de amanhã vai agradecer.',
+    'Clareza vem da ação, não do pensamento.',
+    'Quem estuda um pouco todo dia não precisa estudar muito nunca.',
+    'A melhor hora pra plantar uma árvore foi há 20 anos. A segunda melhor é agora.',
+    'Você não precisa ver a escada inteira. Só o primeiro degrau.'
+  ],
+  tarde: [
+    'Foco é dizer não a cem boas ideias.',
+    'Termine o que começou antes de começar o próximo.',
+    'Não é sobre ter tempo. É sobre fazer tempo.',
+    'Cuide do processo; o resultado cuida de si.',
+    'Um plantão de cada vez, um paciente de cada vez.',
+    'Menos pressa, mais direção.',
+    'Simplifique. Depois simplifique de novo.',
+    'O que é medido, melhora.',
+    'Trabalhe em silêncio; deixe o resultado fazer barulho.',
+    'Dinheiro é consequência de valor entregue.',
+    'Errar rápido, aprender rápido, ajustar rápido.',
+    'Dizer não é dizer sim para o que importa.'
+  ],
+  noite: [
+    'Descanso também é produtividade.',
+    'Uma boa noite de sono resolve metade dos problemas.',
+    'O corpo é o primeiro investimento.',
+    'Feche o dia: o que ficou pra amanhã já está anotado.',
+    'A consistência vence a intensidade.',
+    'Saber e não fazer é ainda não saber.',
+    'Não compare o seu capítulo 1 com o capítulo 20 de alguém.',
+    'Grandes coisas nascem de hábitos pequenos.',
+    'Primeiro a reserva, depois o risco.',
+    'O dia rendeu se você avançou um passo que importa.',
+    'Amanhã começa com o que você decide agora.',
+    'Gratidão pelo que deu certo; plano pro que não deu.'
+  ]
+};
+function periodoDoDia() { const h = new Date().getHours(); return h < 12 ? 'manha' : h < 18 ? 'tarde' : 'noite'; }
+function fraseDoDia() {
+  const p = periodoDoDia(); const lista = FRASES_PERIODO[p];
+  const d = new Date(); const dia = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return lista[dia % lista.length];
+}
+
+// --- Ícone conforme o tipo de link ---
+const ICONES_LINK = [
+  [/youtube\.com|youtu\.be/, '▶️'], [/spotify\.com|deezer\.com|music\.apple/, '🎵'],
+  [/docs\.google|drive\.google|dropbox|onedrive/, '📄'], [/maps\.google|goo\.gl\/maps|waze/, '🗺️'],
+  [/instagram\.com|facebook\.com|tiktok\.com|x\.com|twitter\.com/, '📸'], [/whatsapp|wa\.me|t\.me|telegram/, '💬'],
+  [/github\.com|gitlab/, '💻'], [/scholar\.google|pubmed|ncbi|medscape|uptodate|sbp\.com/, '🔬'],
+  [/netflix|primevideo|disneyplus|hbomax|globoplay/, '🎬'], [/gov\.br|prefeitura|receita/, '🏛️'],
+  [/mercadolivre|amazon|magazineluiza|americanas|casasbahia|shopee|aliexpress|kabum|submarino|shoptime|carrefour|extra\.com|leroymerlin|madeiramadeira|shein|magalu/, '🛒']
+];
+function iconeDoLink(url) { const u = String(url || '').toLowerCase(); const m = ICONES_LINK.find(([re]) => re.test(u)); return m ? m[1] : '🔗'; }
 function renderHabitosRapidos() {
   const el = document.getElementById('habits-quick'); if (!el) return;
   const mini = document.getElementById('progress-text-mini'); if (mini) mini.innerText = habits.length ? `${habits.filter(h => h.done).length}/${habits.length}` : '';
@@ -424,6 +656,37 @@ function periodoIntervalo(p) {
 
 function dataTransacao(t) { return t.date || (t.id ? isoDe(new Date(t.id)) : hojeISO()); }
 
+const CORES_DIA = ['#f472b6', '#fbbf24', '#fb923c', '#22c55e', '#38bdf8', '#a78bfa', '#0ea5e9'];
+const DIAS_LONGO = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+/** Os 7 dias como cartões: progresso dos hábitos + o que tem no dia. */
+function cardsDaSemana(ini, fim) {
+  const hoje = hojeISO();
+  const dias = []; for (let i = 0; i < 7; i++) dias.push(somaDias(ini, i));
+  return '<div class="semana-cards">' + dias.map((d, idx) => {
+    const reg = habitLog.dias[d];
+    let pct = 0, total = habits.length, feitos = 0;
+    if (d === hoje) { feitos = habits.filter(h => h.done).length; }
+    else if (reg) { feitos = (reg.feitos || []).length; total = reg.total || habits.length; }
+    pct = total ? Math.round(feitos / total * 100) : 0;
+    const pl = shifts.filter(s => s.date === d);
+    const ev = events.filter(e => e.date === d && !e.done);
+    const tf = tasks.filter(t => !t.done && t.due === d);
+    const cor = CORES_DIA[idx];
+    const futuro = d > hoje;
+    const linhas = [
+      ...pl.map(s => `<div class="dia-item"><span>🚑</span> ${esc(s.time || '')} ${esc(s.desc)}</div>`),
+      ...ev.slice(0, 3).map(e => `<div class="dia-item"><span>${tipoEvento(e.type).icone}</span> ${esc(e.time || '')} ${esc(e.title)}</div>`),
+      ...tf.slice(0, 3).map(t => `<div class="dia-item ${d < hoje ? 'atrasada' : ''}"><span>${t.starred ? '★' : '✅'}</span> ${esc(t.text)}</div>`)
+    ];
+    const extras = (pl.length + ev.length + tf.length) - linhas.length;
+    return `<div class="dia-card ${d === hoje ? 'hoje' : ''} ${futuro ? 'futuro' : ''}" onclick="openDayModal(${d.split('-')[0]}, ${Number(d.split('-')[1])}, ${Number(d.split('-')[2])})" title="Ver o dia">
+      <div class="dia-faixa" style="background: linear-gradient(135deg, ${cor}, ${cor}55)"></div>
+      <div class="dia-topo"><strong>${DIAS_LONGO[idx]}</strong><small>${isoParaBR(d).slice(0, 5)}${d === hoje ? ' · hoje' : ''}</small></div>
+      <div class="dia-prog"><div class="cat-bar"><div style="width:${pct}%; background:${pct >= 100 ? '#22c55e' : cor}"></div></div><small>${feitos}/${total} hábitos</small></div>
+      <div class="dia-itens">${linhas.join('') || '<div class="dia-item vazio">livre</div>'}${extras > 0 ? `<div class="dia-item vazio">+${extras}</div>` : ''}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
 function renderJournal() {
   const content = document.getElementById('journal-content'); if (!content) return;
   const [ini, fim] = periodoIntervalo(currentJournal);
@@ -469,11 +732,16 @@ function renderJournal() {
     html += '</div>';
   }
   if (currentJournal === 'week' || currentJournal === 'month') {
+    if (currentJournal === 'week') html += cardsDaSemana(ini, fim);
     const lista = [...pl].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
     const evs = events.filter(e => dentro(e.date) && !e.done).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
     html += '<div class="stat-lists">';
     html += `<div><h5>🚑 Plantões ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>📅 Compromissos ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${evs.length ? evs.slice(0, 12).map(e => `<div class="stat-line ${e.date < hoje ? 'muted' : ''}">${tipoEvento(e.type).icone} <strong>${diaSemanaCurto(e.date)} ${isoParaBR(e.date).slice(0, 5)}</strong> · ${esc(e.time || '')} ${esc(e.title)}</div>`).join('') + (evs.length > 12 ? `<div class="stat-line muted">+${evs.length - 12} mais</div>` : '') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    const tw = tasks.filter(t => !t.done && t.due && dentro(t.due)).sort((a, b) => a.due.localeCompare(b.due));
+    const semPrazo = tarefasPrioritarias(20).filter(t => !t.due).slice(0, 4);
+    const feitas = tasks.filter(t => t.done && t.doneAt && dentro(t.doneAt.slice(0, 10)));
+    html += `<div><h5>✅ Tarefas ${currentJournal === 'week' ? 'da semana' : 'do mês'} <small>${feitas.length} concluída${feitas.length === 1 ? '' : 's'}</small></h5>${tw.length ? tw.slice(0, 12).map(t => `<div class="stat-line ${t.due < hoje ? 'atrasada' : ''}">${t.starred ? '★' : '•'} <strong>${diaSemanaCurto(t.due)} ${isoParaBR(t.due).slice(0, 5)}</strong> ${esc(t.text)}${t.routineId ? ' 🔄' : ''}</div>`).join('') + (tw.length > 12 ? `<div class="stat-line muted">+${tw.length - 12} mais</div>` : '') : '<div class="stat-line muted">nenhuma com prazo</div>'}${semPrazo.length ? `<div class="stat-line muted" style="margin-top:6px">sem prazo: ${semPrazo.map(t => esc(t.text)).join(' · ')}</div>` : ''}</div>`;
     html += '</div>';
   }
   if (currentJournal === 'quarter' || currentJournal === 'year') {
@@ -1343,7 +1611,7 @@ function linhaTarefa(t) {
       </div>
       <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
     </div>
-    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})"> ${textoComLink(s.text)}</label>`).join('')}</div>` : ''}
+    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<div class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarSubtarefa(${t.id}, ${i}, this)" title="Clique para editar o texto">${textoComLink(s.text)}</span></div>`).join('')}</div>` : ''}
   </li>`;
 }
 function adiarTarefa(id, dias) {
@@ -1604,11 +1872,11 @@ function normalizarNotas() {
   return mudou;
 }
 /** Transforma URLs (num texto já escapado) em links clicáveis. */
-function linkify(s) { return String(s).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u.length > 48 ? u.slice(0, 45) + '…' : u}</a>`); }
+function linkify(s) { return String(s).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${iconeDoLink(u)} ${u.length > 44 ? u.slice(0, 41) + '…' : u}</a>`); }
 function adicionarItemNota(id, input) {
   const n = notes.find(x => x.id === id); const v = (input.value || '').trim(); if (!n || !v) return;
   if (!Array.isArray(n.checklist)) n.checklist = [];
-  n.checklist.push({ text: v, done: false }); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
+  n.checklist.push({ text: v, done: false, nivel: n.checklist.length ? (n.checklist[n.checklist.length - 1].nivel || 0) : 0 }); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
   const novo = document.querySelector(`.note-card[data-id="${id}"] .note-add input`); if (novo) novo.focus();
 }
 function desmarcarTodosNota(id) { const n = notes.find(x => x.id === id); if (!n || !n.checklist) return; n.checklist.forEach(i => i.done = false); n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
@@ -1677,6 +1945,33 @@ function editarNota(id) {
 }
 function fixarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.pinned = !n.pinned; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
 function arquivarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.archived = !n.archived; if (n.archived) n.pinned = false; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); toast(n.archived ? '🗄️ Nota arquivada.' : '📤 Nota desarquivada.'); }
+/** Troca o texto do item por um campo; Enter ou sair salva, Esc cancela. */
+function edicaoInline(span, valorAtual, aoSalvar) {
+  if (span.querySelector('input')) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.value = valorAtual; inp.className = 'inline-edit';
+  span.replaceChildren(inp); inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);
+  let fim = false;
+  const salvar = () => { if (fim) return; fim = true; const v = inp.value.trim(); aoSalvar(v); };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } if (e.key === 'Escape') { fim = true; renderNotes(); renderTasks(); } });
+  inp.addEventListener('click', e => e.stopPropagation());
+  inp.addEventListener('blur', salvar);
+}
+function editarItemNota(id, i, span) {
+  const n = notes.find(x => x.id === id); if (!n || !n.checklist || !n.checklist[i]) return;
+  edicaoInline(span, n.checklist[i].text, v => {
+    if (!v) { if (confirm('Apagar este item?')) n.checklist.splice(i, 1); }
+    else n.checklist[i].text = v;
+    n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
+  });
+}
+function editarSubtarefa(id, i, span) {
+  const t = tasks.find(x => x.id === id); if (!t || !t.subtasks || !t.subtasks[i]) return;
+  edicaoInline(span, t.subtasks[i].text, v => {
+    if (!v) t.subtasks.splice(i, 1); else t.subtasks[i].text = v;
+    salvar('tasks', tasks); renderTasks();
+  });
+}
 function toggleItemNota(id, i) { const n = notes.find(x => x.id === id); if (!n || !n.checklist || !n.checklist[i]) return; n.checklist[i].done = !n.checklist[i].done; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
 function removeNote(id) {
   const n = notes.find(x => x.id === id); if (!n || !confirm(`Apagar a nota "${n.title || '(sem título)'}"?`)) return;
@@ -1703,7 +1998,7 @@ function cardNota(n) {
   const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   return `<div class="note-card" data-id="${n.id}" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
     <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
-    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1)).map(({ i, k }) => `<label class="subtask ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})"> <span class="sub-txt">${textoComLink(i.text)}</span><button class="mini-btn xs comprei" title="Comprei — mandar para Entregas" onclick="event.preventDefault(); event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></label>`).join('')}
+    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (n.checklist.some(x => x.nivel) ? a.k - b.k : (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1))).map(({ i, k }) => `<div class="subtask nivel-${i.nivel || 0} ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarItemNota(${n.id}, ${k}, this)" title="Clique para editar o texto">${textoComLink(i.text)}</span><span class="item-tools"><button class="mini-btn xs" title="Recuar (subitem)" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, 1)">⇥</button><button class="mini-btn xs" title="Avançar" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, -1)">⇤</button><button class="mini-btn xs" title="Virar tarefa" onclick="event.stopPropagation(); itemViraTarefa(${n.id}, ${k})">✅</button><button class="mini-btn xs" title="Comprei — mandar para Entregas" onclick="event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></span></div>`).join('')}
       <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
       <div class="note-tools"><small class="item-date">${feitos}/${n.checklist.length} feitos</small>${feitos ? `<button class="mini-btn xs" onclick="desmarcarTodosNota(${n.id})" title="Desmarcar todos (lista reutilizável)">↺ desmarcar</button><button class="mini-btn xs" onclick="limparFeitosNota(${n.id})" title="Apagar os marcados">🧹 limpar feitos</button>` : ''}</div></div>` : (n.content ? `<div class="note-body">${linkify(esc(n.content))}</div>` : '')}
     <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
@@ -2329,6 +2624,82 @@ function preencherSelectsSaude() {
 function renderSaude() { preencherSelectsSaude(); renderPainelSaude(); renderTreinos(); renderMedidas(); renderRefeicoes(); renderMedico(); }
 
 // ============================================================================
+// APARÊNCIA (Config): tema de cores, abas no topo ou na lateral, ordem e
+// quais abas aparecem. Fica em `prefs` — é por aparelho (o PC widescreen e o
+// celular podem ter layouts diferentes).
+// ============================================================================
+const TEMAS = {
+  escuro:       ['🌑', 'Escuro', '#121212', '#22c55e'],
+  claro:        ['☀️', 'Claro', '#f1f5f9', '#16a34a'],
+  medio:        ['🌗', 'Médio', '#232830', '#34d399'],
+  colorido:     ['🎨', 'Colorido', '#1a1430', '#f472b6'],
+  gamificado:   ['🎮', 'Gamificado', '#07110d', '#00e676'],
+  profissional: ['💼', 'Profissional', '#0f172a', '#3b82f6']
+};
+const ABAS_INFO = [
+  ['btn-focus', '🎯 Painel Central'], ['btn-home', '📅 Agenda'], ['btn-finances', '💰 Finanças'],
+  ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
+  ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-settings', '⚙️ Config']
+];
+const APARENCIA_PADRAO = { tema: 'escuro', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+function cfgAparencia() {
+  prefs.aparencia = Object.assign({}, APARENCIA_PADRAO, prefs.aparencia || {});
+  const ids = ABAS_INFO.map(a => a[0]);
+  prefs.aparencia.ordem = [...new Set([...(prefs.aparencia.ordem || []).filter(i => ids.includes(i)), ...ids])];
+  prefs.aparencia.ocultas = (prefs.aparencia.ocultas || []).filter(i => ids.includes(i) && i !== 'btn-settings');
+  return prefs.aparencia;
+}
+function salvarAparencia() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarAparencia(); }
+function aplicarAparencia() {
+  const c = cfgAparencia();
+  document.documentElement.dataset.tema = c.tema;
+  aplicarCapa();
+  document.body.dataset.abas = c.abas;
+  const nav = document.querySelector('.tabs');
+  if (nav) c.ordem.forEach(id => { const b = document.getElementById(id); if (b) { nav.appendChild(b); b.hidden = c.ocultas.includes(id); } });
+  // se a aba aberta foi escondida, volta pro Painel
+  const ativa = document.querySelector('.tab-btn.active');
+  if (ativa && ativa.hidden) changeTab('focus');
+  renderAparencia();
+}
+function escolherTema(t) { cfgAparencia().tema = t; salvarAparencia(); toast(`${TEMAS[t][0]} Tema ${TEMAS[t][1]}.`); }
+function escolherPosicaoAbas(p) { cfgAparencia().abas = p; salvarAparencia(); }
+function moverAba(id, dir) {
+  const c = cfgAparencia(); const i = c.ordem.indexOf(id); const j = i + dir;
+  if (i < 0 || j < 0 || j >= c.ordem.length) return;
+  c.ordem.splice(j, 0, c.ordem.splice(i, 1)[0]); salvarAparencia();
+}
+function alternarAbaVisivel(id) {
+  const c = cfgAparencia();
+  if (id === 'btn-settings') return;
+  c.ocultas = c.ocultas.includes(id) ? c.ocultas.filter(x => x !== id) : [...c.ocultas, id];
+  salvarAparencia();
+}
+function restaurarAparencia() { prefs.aparencia = Object.assign({}, APARENCIA_PADRAO); salvarAparencia(); toast('🎨 Aparência restaurada.'); }
+function renderAparencia() {
+  const c = cfgAparencia();
+  const paleta = document.getElementById('temas-lista');
+  if (paleta) paleta.innerHTML = Object.entries(TEMAS).map(([k, t]) => `<button type="button" class="tema-chip ${c.tema === k ? 'sel' : ''}" onclick="escolherTema('${k}')" style="background:${t[2]}; border-color:${t[3]}"><span>${t[0]}</span><small style="color:${t[3]}">${t[1]}</small></button>`).join('');
+  document.querySelectorAll('#abas-posicao span').forEach(s => s.classList.toggle('active', s.dataset.pos === c.abas));
+  const fa = document.getElementById('arte-fonte'); if (fa) fa.querySelectorAll('span').forEach(s => s.classList.toggle('active', s.dataset.fonte === cfgArte().fonte));
+  const al = document.getElementById('arte-ligado'); if (al) al.checked = cfgArte().ligado;
+  renderCapas();
+  const rel = document.getElementById('relogios-lista');
+  if (rel) rel.innerHTML = Object.entries(RELOGIOS).map(([k, r]) => `<span class="${(c.relogio || 'digital') === k ? 'active' : ''}" onclick="escolherRelogio('${k}')">${r[0]} ${r[1]}</span>`).join('');
+  const seg = document.getElementById('rel-segundos'); if (seg) seg.checked = !!c.segundos;
+  const lista = document.getElementById('abas-ordem');
+  if (lista) lista.innerHTML = c.ordem.map((id, i) => {
+    const nome = (ABAS_INFO.find(a => a[0] === id) || [id, id])[1]; const oculta = c.ocultas.includes(id); const fixa = id === 'btn-settings';
+    return `<li class="aba-linha ${oculta ? 'oculta' : ''}"><span class="aba-nome">${nome}</span>
+      <span class="item-actions">
+        <button class="mini-btn xs" title="Subir" onclick="moverAba('${id}', -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="mini-btn xs" title="Descer" onclick="moverAba('${id}', 1)" ${i === c.ordem.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="mini-btn xs ${oculta ? '' : 'on'}" title="${fixa ? 'Config não pode ser escondida' : (oculta ? 'Mostrar' : 'Esconder')}" onclick="alternarAbaVisivel('${id}')" ${fixa ? 'disabled' : ''}>${oculta ? '🙈' : '👁️'}</button>
+      </span></li>`;
+  }).join('');
+}
+
+// ============================================================================
 // AVISOS (com o app aberto)
 // O app confere a cada minuto o que está pra acontecer e mostra no card 🔔 do
 // Painel. Quando chega a hora, dispara notificação do sistema + som (se ligado).
@@ -2397,6 +2768,11 @@ function calcularAvisos() {
     const meta = hydration.goal || 2500;
     if ((hydration.ml || 0) < meta) add('agua:noite', '💧', `Água: ${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L de ${(meta / 1000).toFixed(1).replace('.', ',')} L hoje`, 3, true, "changeTab('health');");
   }
+  // Viagem chegando e gente pra retomar contato
+  const vg = trips.filter(t => t.inicio && t.status !== 'feita' && t.inicio >= hoje && minutosAte(t.inicio, '08:00') <= 7 * 1440);
+  if (vg.length) add('viagem:proxima', '✈️', `Viagem ${vg[0].destino} ${rotuloData(vg[0].inicio)} · 🧳 ${(vg[0].mala || []).filter(x => x.done).length}/${(vg[0].mala || []).length} na mala`, 2, agora.getHours() >= 9, "changeTab('trips');");
+  const rede = contacts.filter(precisaFalar);
+  if (rede.length) add('rede:falar', '🤝', `${rede.length} pessoa${rede.length > 1 ? 's' : ''} pra retomar contato: ${rede.slice(0, 2).map(c => c.nome).join(', ')}`, 3, agora.getHours() >= 10, "changeTab('net'); filtrarRede('__lembrar');");
   // Entregas previstas para hoje ou atrasadas
   const entHoje = orders.filter(o => o.status !== 'entregue' && o.eta === hoje);
   if (entHoje.length) add('entrega:hoje', '📦', `Entrega prevista para hoje: ${entHoje.map(o => o.item).slice(0, 2).join(', ')}${entHoje.length > 2 ? '…' : ''}`, 2, agora.getHours() >= 9, "changeTab('notes');");
@@ -2497,7 +2873,7 @@ function separarLink(texto) {
 function textoComLink(texto) {
   const { titulo, url, loja } = separarLink(texto);
   if (!url) return esc(titulo);
-  return `${esc(titulo)} <a class="link-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(url)}">🔗${loja ? ' ' + esc(loja) : ''}</a>`;
+  return `${esc(titulo)} <a class="link-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(url)}">${iconeDoLink(url)}${loja ? ' ' + esc(loja) : ''}</a>`;
 }
 
 // --- Comprei: item da lista vira entrega ---
@@ -2535,7 +2911,7 @@ function confirmarCompra() {
     const n = notes.find(x => x.id === compraCtx.noteId);
     if (n && n.checklist) { n.checklist.splice(compraCtx.index, 1); n.updatedAt = Date.now(); salvar('notes', notes); }
   }
-  fecharCompra(); renderNotes(); renderEntregas(); renderAvisos();
+  fecharCompra(); renderNotes(); renderEntregas(); redesenharLazer(); renderViagens(); renderRede(); renderAvisos();
   toast(`🛒 ${item} → Entregas${valor ? ' · ' + formatCurrency(valor) : ''}`, 5000);
 }
 /** Compra avulsa (sem vir de uma lista). */
@@ -2602,15 +2978,379 @@ function renderEntregas() {
     const st = STATUS_ENTREGA[o.status] || STATUS_ENTREGA.comprado;
     const atrasada = o.status !== 'entregue' && o.eta && o.eta < hoje;
     ul.innerHTML += `<li class="entrega-item" style="border-left-color:${st[2]}"><div class="transaction-info" style="flex:1">
-        <span>${st[0]} ${esc(o.item)} ${o.url ? `<a class="link-chip" href="${esc(o.url)}" target="_blank" rel="noopener">🔗${o.store ? ' ' + esc(o.store) : ''}</a>` : (o.store ? `<small class="item-date">${esc(o.store)}</small>` : '')}</span>
+        <span>${st[0]} ${esc(o.item)} ${o.url ? `<a class="link-chip" href="${esc(o.url)}" target="_blank" rel="noopener">${iconeDoLink(o.url)}${o.store ? ' ' + esc(o.store) : ''}</a>` : (o.store ? `<small class="item-date">${esc(o.store)}</small>` : '')}</span>
         <small class="item-date">${st[1]}${o.amount ? ' · ' + formatCurrency(o.amount) : ''} · comprado ${isoParaBR(o.boughtAt)}${o.eta ? ` · previsão <strong style="color:${atrasada ? '#ef4444' : '#cbd5e1'}">${rotuloData(o.eta)}</strong>` : ''}${o.deliveredAt ? ` · entregue ${isoParaBR(o.deliveredAt)}` : ''}</small>
         ${o.tracking ? `<small class="item-notes">🔎 ${esc(o.tracking)}</small>` : ''}</div>
       <div class="item-actions">${o.status !== 'entregue' ? `<button class="mini-btn" title="Avançar status" onclick="avancarEntrega(${o.id})">▶</button>` : ''}<button class="mini-btn ${o.status === 'problema' ? 'on' : ''}" title="Marcar problema" onclick="problemaEntrega(${o.id})">⚠️</button><button class="mini-btn" title="Previsão e rastreio" onclick="editarEntrega(${o.id})">✎</button><button class="mini-btn" title="Voltar para a lista de compras" onclick="devolverParaLista(${o.id})">↩️</button><button class="mini-btn" title="Apagar" onclick="removerEntrega(${o.id})">✕</button></div></li>`;
   });
 }
+// ============================================================================
+// ESTRUTURA: busca global, item de lista → tarefa, subitens (indentação)
+// ============================================================================
+
+/** Procura em tarefas, notas, compromissos, plantões, lançamentos, entregas, materiais e projetos. */
+function buscarTudo(termo) {
+  const q = (termo || '').trim().toLowerCase(); if (q.length < 2) return [];
+  const bate = (...campos) => campos.filter(Boolean).join(' ').toLowerCase().includes(q);
+  const r = [];
+  tasks.filter(t => bate(t.text, t.notes, (t.subtasks || []).map(s => s.text).join(' '))).forEach(t => r.push({ ic: t.done ? '☑️' : '✅', tipo: 'Tarefa', txt: t.text, sub: `${listaNome(t.list)}${t.due ? ' · ' + rotuloData(t.due) : ''}${t.done ? ' · concluída' : ''}`, acao: `changeTab('tasks'); verLista('${t.list}'); editarTarefa(${t.id});` }));
+  notes.forEach(n => {
+    if (bate(n.title, n.content, (n.labels || []).join(' '))) r.push({ ic: '📝', tipo: 'Nota', txt: n.title || '(sem título)', sub: (n.labels || []).join(', ') || (n.content || '').slice(0, 40), acao: `changeTab('notes'); editarNota(${n.id});` });
+    (n.checklist || []).forEach((i, k) => { if (bate(i.text)) r.push({ ic: i.done ? '☑️' : '🔲', tipo: 'Item de lista', txt: separarLink(i.text).titulo, sub: `em "${n.title || 'lista'}"`, acao: `changeTab('notes'); editarNota(${n.id});` }); });
+  });
+  events.filter(e => bate(e.title, e.notes, e.people, e.minutes)).forEach(e => r.push({ ic: tipoEvento(e.type).icone, tipo: e.type === 'reuniao' ? 'Reunião' : 'Compromisso', txt: e.title, sub: `${rotuloData(e.date)}${e.time ? ' ' + e.time : ''}`, acao: `editarEvento(${e.id});` }));
+  shifts.filter(s => bate(s.desc, s.notes, s.swap)).forEach(s => r.push({ ic: '🚑', tipo: 'Plantão', txt: s.desc, sub: `${rotuloData(s.date)} · ${formatCurrency(s.amount)}${s.paid ? ' · pago' : ' · a receber'}`, acao: `editarPlantao(${s.id});` }));
+  transactions.filter(t => bate(t.desc, t.category, t.notes)).forEach(t => r.push({ ic: t.type === 'income' ? '💰' : '💸', tipo: 'Lançamento', txt: t.desc, sub: `${isoParaBR(dataTransacao(t))} · ${formatCurrency(t.amount)}${t.pending ? ' · pendente' : ''}`, acao: `changeTab('finances');` }));
+  orders.filter(o => bate(o.item, o.store, o.tracking)).forEach(o => r.push({ ic: '📦', tipo: 'Entrega', txt: o.item, sub: `${(STATUS_ENTREGA[o.status] || [])[1] || ''}${o.store ? ' · ' + o.store : ''}`, acao: `changeTab('notes');` }));
+  materials.filter(m => bate(m.title, m.notes)).forEach(m => r.push({ ic: '📖', tipo: 'Material', txt: m.title, sub: `${temaNome(m.topicId)} · ${m.progress || 0}%`, acao: `changeTab('studies');` }));
+  projects.filter(p => bate(p.name, p.desc, p.notes, p.contacts)).forEach(p => r.push({ ic: '🚀', tipo: 'Projeto', txt: p.name, sub: (ESTAGIOS_PROJETO[p.stage] || [])[1] || '', acao: `changeTab('business'); editarProjeto(${p.id});` }));
+  trips.filter(t => bate(t.destino, t.notas)).forEach(t => r.push({ ic: '✈️', tipo: 'Viagem', txt: t.destino, sub: `${(STATUS_VIAGEM[t.status] || [])[1] || ''}${t.inicio ? ' · ' + isoParaBR(t.inicio) : ''}`, acao: `changeTab('trips'); abrirViagem(${t.id});` }));
+  contacts.filter(c => bate(c.nome, c.onde, c.papel, c.notas, (c.tags || []).join(' '))).forEach(c => r.push({ ic: '🤝', tipo: 'Contato', txt: c.nome, sub: [c.papel, c.onde].filter(Boolean).join(' · '), acao: `changeTab('net'); editarContato(${c.id});` }));
+  routines.filter(x => bate(x.text)).forEach(x => r.push({ ic: '🔄', tipo: 'Rotina', txt: x.text, sub: descricaoRotina(x), acao: `changeTab('tasks'); editarRotina(${x.id});` }));
+  return r.slice(0, 40);
+}
+function renderBusca(termo) {
+  const box = document.getElementById('busca-res'); if (!box) return;
+  const res = buscarTudo(termo);
+  if (!termo || termo.trim().length < 2) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  if (!res.length) { box.innerHTML = '<div class="stat-line muted" style="padding:10px">Nada encontrado.</div>'; return; }
+  box.innerHTML = res.map(x => `<div class="busca-item" onclick="fecharBusca(); ${x.acao}"><span>${x.ic}</span><div><strong>${esc(x.txt)}</strong><small>${esc(x.tipo)}${x.sub ? ' · ' + esc(x.sub) : ''}</small></div></div>`).join('');
+}
+function fecharBusca() { const i = document.getElementById('busca-global'); if (i) i.value = ''; const b = document.getElementById('busca-res'); if (b) { b.hidden = true; b.innerHTML = ''; } }
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); changeTab('focus'); const i = document.getElementById('busca-global'); if (i) { i.focus(); i.select(); } }
+  if (e.key === 'Escape') fecharBusca();
+});
+
+/** Item de lista de uma nota vira tarefa (some da lista se você quiser). */
+function itemViraTarefa(noteId, i) {
+  const n = notes.find(x => x.id === noteId); if (!n || !n.checklist || !n.checklist[i]) return;
+  const texto = n.checklist[i].text;
+  const lista = tasklists.find(l => l.name.toLowerCase() === (n.title || '').toLowerCase()) || tasklists.find(l => l.id === 'padrao') || tasklists[0];
+  tasks.push({ id: novoId(), text: texto, done: false, list: lista.id, due: '', notes: `Veio da nota "${n.title || 'lista'}"`, starred: false, subtasks: [], createdAt: Date.now() });
+  n.checklist.splice(i, 1); n.updatedAt = Date.now();
+  salvar('tasks', tasks); salvar('notes', notes);
+  renderNotes(); renderTaskLists(); renderTasks(); renderJournal(); atualizarSaudacao(); renderAvisos();
+  toast(`✅ "${separarLink(texto).titulo.slice(0, 28)}" virou tarefa em ${lista.name}.`, 5000);
+}
+/** Subitens: cada item de lista tem um nível (0, 1 ou 2) que o desloca para a direita. */
+function indentarItem(noteId, i, dir) {
+  const n = notes.find(x => x.id === noteId); if (!n || !n.checklist || !n.checklist[i]) return;
+  const item = n.checklist[i];
+  const anterior = i > 0 ? (n.checklist[i - 1].nivel || 0) : -1;
+  const novo = Math.max(0, Math.min(2, (item.nivel || 0) + dir, anterior + 1));
+  item.nivel = novo;
+  // ninguém pode ficar mais de um nível à frente do item acima
+  n.checklist.forEach((it, k) => { it.nivel = k === 0 ? 0 : Math.min(it.nivel || 0, (n.checklist[k - 1].nivel || 0) + 1); });
+  n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
+}
+// ============================================================================
+// LAZER: 🎬 filmes e séries  +  🎵 música
+// media:     [{ id, title, kind, where, who, status, rating, comment, season, episode, url, addedAt, watchedAt }]
+// playlists: [{ id, name, moment, url }]
+// O player toca arquivos do próprio aparelho, escolhidos na hora (o navegador
+// não deixa guardar o caminho, então a lista de nomes fica só como lembrete).
+// ============================================================================
+const TIPOS_MIDIA = { filme: ['🎬', 'Filme'], serie: ['📺', 'Série'], doc: ['🎥', 'Documentário'], anime: ['🌸', 'Anime'], outro: ['🍿', 'Outro'] };
+const STATUS_MIDIA = { quero: ['🔖', 'Quero ver', '#38bdf8'], assistindo: ['▶️', 'Assistindo', '#f59e0b'], visto: ['✅', 'Visto', '#22c55e'], largado: ['🚫', 'Larguei', '#64748b'] };
+const MOMENTOS = { foco: ['🎯', 'Foco / estudo'], treino: ['🏋️', 'Treino'], plantao: ['🚑', 'Plantão'], relax: ['🌙', 'Relaxar'], viagem: ['🚗', 'Estrada'], festa: ['🎉', 'Festa'], outro: ['🎵', 'Outro'] };
+let midiaFiltro = 'quero';
+let lazerSecao = 'midia';
+
+function verSecaoLazer(s, el) {
+  lazerSecao = s;
+  document.querySelectorAll('#lazer-secoes span').forEach(x => x.classList.remove('active')); if (el) el.classList.add('active');
+  document.getElementById('sec-midia').hidden = s !== 'midia';
+  document.getElementById('sec-musica').hidden = s !== 'musica';
+}
+function preencherSelectsLazer() {
+  const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
+  f('midia-kind', TIPOS_MIDIA); f('midia-status', STATUS_MIDIA); f('play-moment', MOMENTOS);
+}
+// --- Filmes e séries ---
+document.getElementById('midia-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('midia-id').value;
+  const dados = {
+    title: document.getElementById('midia-title').value.trim(), kind: document.getElementById('midia-kind').value,
+    status: document.getElementById('midia-status').value, where: document.getElementById('midia-where').value.trim(),
+    who: document.getElementById('midia-who').value.trim(), url: document.getElementById('midia-url').value.trim(),
+    season: parseInt(document.getElementById('midia-season').value) || 0, episode: parseInt(document.getElementById('midia-ep').value) || 0,
+    rating: parseInt(document.getElementById('midia-rating').value) || 0, comment: document.getElementById('midia-comment').value.trim()
+  };
+  if (!dados.title) return;
+  if (dados.status === 'visto' && !dados.rating) dados.rating = 0;
+  if (id) { const m = media.find(x => String(x.id) === id); if (m) { Object.assign(m, dados); if (dados.status === 'visto' && !m.watchedAt) m.watchedAt = hojeISO(); } }
+  else media.push({ id: novoId(), addedAt: hojeISO(), watchedAt: dados.status === 'visto' ? hojeISO() : '', ...dados });
+  salvar('media', media); cancelarEdicaoMidia(); renderMidia(); toast(id ? '🎬 Atualizado.' : '🎬 Adicionado à lista.');
+});
+function cancelarEdicaoMidia() {
+  document.getElementById('midia-form').reset(); document.getElementById('midia-id').value = '';
+  document.getElementById('midia-submit').innerText = 'Adicionar'; document.getElementById('midia-cancel').hidden = true;
+}
+function editarMidia(id) {
+  const m = media.find(x => x.id === id); if (!m) return;
+  changeTab('leisure'); verSecaoLazer('midia');
+  ['title', 'where', 'who', 'url', 'comment'].forEach(k => document.getElementById('midia-' + (k === 'title' ? 'title' : k)).value = m[k] || '');
+  document.getElementById('midia-id').value = m.id; document.getElementById('midia-kind').value = m.kind || 'filme';
+  document.getElementById('midia-status').value = m.status || 'quero'; document.getElementById('midia-season').value = m.season || '';
+  document.getElementById('midia-ep').value = m.episode || ''; document.getElementById('midia-rating').value = m.rating || '';
+  document.getElementById('midia-submit').innerText = 'Salvar'; document.getElementById('midia-cancel').hidden = false;
+  document.getElementById('midia-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function avancarStatusMidia(id) {
+  const m = media.find(x => x.id === id); if (!m) return;
+  const ordem = ['quero', 'assistindo', 'visto'];
+  const i = ordem.indexOf(m.status); m.status = ordem[Math.min(i + 1, 2)] || 'quero';
+  if (m.status === 'visto') m.watchedAt = hojeISO();
+  salvar('media', media); renderMidia(); toast(`${STATUS_MIDIA[m.status][0]} ${m.title}: ${STATUS_MIDIA[m.status][1]}`);
+}
+function proximoEpisodio(id, d) {
+  const m = media.find(x => x.id === id); if (!m) return;
+  m.episode = Math.max(0, (m.episode || 0) + d); if (!m.season) m.season = 1;
+  if (m.status === 'quero') m.status = 'assistindo';
+  salvar('media', media); renderMidia();
+}
+function notaMidia(id, n) { const m = media.find(x => x.id === id); if (!m) return; m.rating = m.rating === n ? 0 : n; if (m.status !== 'visto') { m.status = 'visto'; m.watchedAt = hojeISO(); } salvar('media', media); renderMidia(); }
+function removerMidia(id) { const m = media.find(x => x.id === id); if (!m || !confirm(`Apagar "${m.title}"?`)) return; media = media.filter(x => x.id !== id); salvar('media', media); renderMidia(); }
+function filtrarMidia(f, el) { midiaFiltro = f; document.querySelectorAll('#midia-filtros span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderMidia(); }
+function estrelas(m) { return [1, 2, 3, 4, 5].map(n => `<span class="estrela ${(m.rating || 0) >= n ? 'on' : ''}" onclick="event.stopPropagation(); notaMidia(${m.id}, ${n})" title="${n} de 5">★</span>`).join(''); }
+function renderMidia() {
+  const ul = document.getElementById('midia-lista'); if (!ul) return; ul.innerHTML = '';
+  let lista = [...media];
+  if (midiaFiltro !== 'todos') lista = lista.filter(m => m.status === midiaFiltro);
+  lista.sort((a, b) => (b.watchedAt || b.addedAt || '').localeCompare(a.watchedAt || a.addedAt || ''));
+  const resumo = document.getElementById('midia-resumo');
+  if (resumo) {
+    const vistos = media.filter(m => m.status === 'visto');
+    const nota = vistos.filter(m => m.rating).reduce((a, m, _, arr) => a + m.rating / arr.length, 0);
+    resumo.innerHTML = `<span>🔖 ${media.filter(m => m.status === 'quero').length} na fila</span><span>▶️ ${media.filter(m => m.status === 'assistindo').length} assistindo</span><span>✅ ${vistos.length} vistos</span>${nota ? `<span>⭐ nota média ${nota.toFixed(1).replace('.', ',')}</span>` : ''}`;
+  }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada aqui ainda. Anote aquele filme que te indicaram.</li>'; return; }
+  lista.forEach(m => {
+    const t = TIPOS_MIDIA[m.kind] || TIPOS_MIDIA.outro; const s = STATUS_MIDIA[m.status] || STATUS_MIDIA.quero;
+    const serie = m.kind === 'serie' || m.kind === 'anime';
+    ul.innerHTML += `<li class="midia-item" style="border-left-color:${s[2]}"><div class="transaction-info" style="flex:1">
+        <span>${t[0]} ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(m.title)} ${iconeDoLink(m.url)}</a>` : esc(m.title)} <small class="category-badge" style="color:${s[2]}; background:${s[2]}22">${s[1]}</small></span>
+        <small class="item-date">${t[1]}${m.where ? ' · ' + esc(m.where) : ''}${m.who ? ' · indicou: ' + esc(m.who) : ''}${serie && m.season ? ` · T${m.season}E${m.episode || 0}` : ''}${m.watchedAt ? ' · visto ' + isoParaBR(m.watchedAt) : ''}</small>
+        <div class="midia-nota">${estrelas(m)}${serie ? `<span class="ep-ctrl"><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, -1)">−</button><small>ep</small><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, 1)">+</button></span>` : ''}</div>
+        ${m.comment ? `<small class="item-notes">${esc(m.comment)}</small>` : ''}</div>
+      <div class="item-actions">${m.status !== 'visto' ? `<button class="mini-btn" title="Avançar status" onclick="avancarStatusMidia(${m.id})">▶</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarMidia(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMidia(${m.id})">✕</button></div></li>`;
+  });
+}
+
+// --- Música: atalhos de playlist ---
+document.getElementById('play-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const nome = document.getElementById('play-name').value.trim(); const url = document.getElementById('play-url').value.trim();
+  if (!nome || !url) return;
+  playlists.push({ id: novoId(), name: nome, url, moment: document.getElementById('play-moment').value });
+  salvar('playlists', playlists); document.getElementById('play-form').reset(); renderPlaylists(); toast('🎵 Playlist salva.');
+});
+function removerPlaylist(id) { const p = playlists.find(x => x.id === id); if (!p || !confirm(`Apagar "${p.name}"?`)) return; playlists = playlists.filter(x => x.id !== id); salvar('playlists', playlists); renderPlaylists(); }
+function renderPlaylists() {
+  const el = document.getElementById('play-lista'); if (!el) return;
+  if (!playlists.length) { el.innerHTML = '<div class="stat-line muted">Cole aqui os links das suas playlists (Spotify, YouTube, o que usar) e organize por momento.</div>'; return; }
+  const porMomento = {};
+  playlists.forEach(p => { (porMomento[p.moment] = porMomento[p.moment] || []).push(p); });
+  el.innerHTML = Object.entries(MOMENTOS).filter(([k]) => porMomento[k]).map(([k, mm]) => `<div class="play-grupo"><h5>${mm[0]} ${mm[1]}</h5><div class="play-chips">${porMomento[k].map(p => `<span class="play-chip"><a href="${esc(p.url)}" target="_blank" rel="noopener">${iconeDoLink(p.url)} ${esc(p.name)}</a><button class="mini-btn xs" title="Apagar" onclick="removerPlaylist(${p.id})">✕</button></span>`).join('')}</div></div>`).join('');
+}
+
+// --- Música: tocador de arquivos do aparelho ---
+let faixas = []; let faixaAtual = -1;
+function carregarFaixas(input) {
+  const arquivos = [...(input.files || [])].filter(f => /^audio\//.test(f.type) || /\.(mp3|m4a|ogg|wav|flac)$/i.test(f.name));
+  if (!arquivos.length) { toast('Escolha arquivos de música.'); return; }
+  faixas.forEach(f => URL.revokeObjectURL(f.url));
+  faixas = arquivos.map(f => ({ nome: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) }));
+  faixaAtual = -1; renderFaixas(); tocarFaixa(0);
+  toast(`🎵 ${faixas.length} faixa${faixas.length > 1 ? 's' : ''} carregada${faixas.length > 1 ? 's' : ''} nesta sessão.`, 5000);
+  input.value = '';
+}
+function tocarFaixa(i) {
+  if (!faixas[i]) return;
+  faixaAtual = i; const a = document.getElementById('audio-player');
+  a.src = faixas[i].url; a.play().catch(() => {}); renderFaixas();
+  const mp = document.getElementById('mini-player'); if (mp) mp.dataset.fechado = '0';
+  atualizarMiniPlayer();
+  document.getElementById('faixa-atual').innerText = '🎵 ' + faixas[i].nome;
+}
+function faixaAnterior() { if (faixaAtual > 0) tocarFaixa(faixaAtual - 1); }
+function faixaProxima() { if (faixaAtual < faixas.length - 1) tocarFaixa(faixaAtual + 1); else { document.getElementById('audio-player').pause(); } }
+function renderFaixas() {
+  const el = document.getElementById('faixas-lista'); if (!el) return;
+  if (!faixas.length) { el.innerHTML = '<div class="stat-line muted">Nenhuma faixa carregada. Escolha músicas do aparelho — elas tocam agora, mas o navegador não guarda os arquivos: na próxima vez é só escolher de novo.</div>'; return; }
+  el.innerHTML = faixas.map((f, i) => `<div class="faixa ${i === faixaAtual ? 'tocando' : ''}" onclick="tocarFaixa(${i})">${i === faixaAtual ? '▶️' : '🎵'} ${esc(f.nome)}</div>`).join('');
+}
+// --- MINI PLAYER flutuante: segue você em qualquer aba ---
+function atualizarMiniPlayer() {
+  const mp = document.getElementById('mini-player'); const a = document.getElementById('audio-player'); if (!mp || !a) return;
+  const ativo = faixas.length && faixaAtual >= 0;
+  mp.hidden = !ativo || mp.dataset.fechado === '1';
+  if (!ativo) return;
+  document.getElementById('mp-nome').innerText = faixas[faixaAtual] ? faixas[faixaAtual].nome : '';
+  document.getElementById('mp-play').innerText = a.paused ? '▶️' : '⏸️';
+  const prog = document.getElementById('mp-prog');
+  if (prog && a.duration) prog.style.width = Math.round(a.currentTime / a.duration * 100) + '%';
+  document.getElementById('mp-tempo').innerText = fmtSeg(a.currentTime) + (a.duration ? ' / ' + fmtSeg(a.duration) : '');
+}
+function fmtSeg(s) { s = Math.floor(s || 0); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function mpPlayPause() { const a = document.getElementById('audio-player'); if (a.paused) a.play().catch(() => {}); else a.pause(); atualizarMiniPlayer(); }
+function mpFechar() { const mp = document.getElementById('mini-player'); mp.dataset.fechado = '1'; document.getElementById('audio-player').pause(); mp.hidden = true; }
+function mpIrParaMusica() { changeTab('leisure'); verSecaoLazer('musica', document.querySelectorAll('#lazer-secoes span')[1]); }
+function mpVolume(v) { document.getElementById('audio-player').volume = Math.max(0, Math.min(1, v / 100)); }
+/** Atalho do Pomodoro: leva pra música de foco (ou abre a playlist de foco). */
+function musicaDeFoco() {
+  const p = playlists.find(x => x.moment === 'foco') || playlists[0];
+  if (p) { window.open(p.url, '_blank', 'noopener'); toast(`🎵 Abrindo "${p.name}".`); }
+  else { mpIrParaMusica(); toast('Cadastre uma playlist de foco na aba Lazer → Música.'); }
+}
+
+function redesenharLazer() { preencherSelectsLazer(); renderMidia(); renderPlaylists(); renderFaixas(); }
+// ============================================================================
+// VIAGENS  +  REDE (networking)
+// trips:    [{ id, destino, inicio, fim, status, orcamento, gasto, notas,
+//              mala: [{text,done}], docs: [{text,done}], roteiro: [{dia,texto}],
+//              reservas: [{tipo,desc,url,valor,data}] }]
+// contacts: [{ id, nome, onde, papel, tags[], tel, email, links, notas,
+//              ultimo, lembrar (dias), favorito }]
+// ============================================================================
+const STATUS_VIAGEM = { ideia: ['💭', 'Ideia', '#94a3b8'], planejando: ['🗺️', 'Planejando', '#38bdf8'], confirmada: ['✅', 'Confirmada', '#22c55e'], indo: ['✈️', 'Em viagem', '#f59e0b'], feita: ['📸', 'Já fui', '#64748b'] };
+const TIPOS_RESERVA = { voo: '✈️', hotel: '🏨', carro: '🚗', passeio: '🎟️', restaurante: '🍽️', outro: '📌' };
+const MALA_PADRAO = ['Documentos (RG/CNH)', 'Carregador', 'Remédios', 'Escova de dentes', 'Roupa íntima', 'Roupa de banho', 'Tênis confortável', 'Fone de ouvido'];
+const DOCS_PADRAO = ['Identidade em dia', 'Cartão de vacinas', 'Seguro viagem', 'Reserva impressa/salva', 'Dinheiro trocado'];
+let viagemAberta = null;
+
+function diasDeViagem(t) { if (!t.inicio || !t.fim) return 0; const [y1, m1, d1] = t.inicio.split('-').map(Number), [y2, m2, d2] = t.fim.split('-').map(Number); return Math.max(1, Math.round((new Date(y2, m2 - 1, d2) - new Date(y1, m1 - 1, d1)) / 86400000) + 1); }
+document.getElementById('trip-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('trip-id').value;
+  const dados = { destino: document.getElementById('trip-destino').value.trim(), inicio: document.getElementById('trip-inicio').value, fim: document.getElementById('trip-fim').value, status: document.getElementById('trip-status').value, orcamento: parseFloat(document.getElementById('trip-orcamento').value) || 0, notas: document.getElementById('trip-notas').value.trim() };
+  if (!dados.destino) return;
+  if (id) { const t = trips.find(x => String(x.id) === id); if (t) Object.assign(t, dados); }
+  else trips.push({ id: novoId(), gasto: 0, mala: MALA_PADRAO.map(x => ({ text: x, done: false })), docs: DOCS_PADRAO.map(x => ({ text: x, done: false })), roteiro: [], reservas: [], createdAt: Date.now(), ...dados });
+  salvar('trips', trips); cancelarEdicaoViagem(); renderViagens(); toast(id ? '✈️ Viagem atualizada.' : '✈️ Viagem criada com mala e documentos prontos.');
+});
+function cancelarEdicaoViagem() { document.getElementById('trip-form').reset(); document.getElementById('trip-id').value = ''; document.getElementById('trip-submit').innerText = 'Criar viagem'; document.getElementById('trip-cancel').hidden = true; }
+function editarViagem(id) {
+  const t = trips.find(x => x.id === id); if (!t) return;
+  document.getElementById('trip-id').value = t.id; document.getElementById('trip-destino').value = t.destino; document.getElementById('trip-inicio').value = t.inicio || ''; document.getElementById('trip-fim').value = t.fim || ''; document.getElementById('trip-status').value = t.status || 'ideia'; document.getElementById('trip-orcamento').value = t.orcamento || ''; document.getElementById('trip-notas').value = t.notas || '';
+  document.getElementById('trip-submit').innerText = 'Salvar'; document.getElementById('trip-cancel').hidden = false; document.getElementById('trip-destino').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function removerViagem(id) { const t = trips.find(x => x.id === id); if (!t || !confirm(`Apagar a viagem "${t.destino}"?`)) return; trips = trips.filter(x => x.id !== id); if (viagemAberta === id) viagemAberta = null; salvar('trips', trips); renderViagens(); }
+function abrirViagem(id) { viagemAberta = viagemAberta === id ? null : id; renderViagens(); }
+function itemViagem(id, lista, i) { const t = trips.find(x => x.id === id); if (!t || !t[lista] || !t[lista][i]) return; t[lista][i].done = !t[lista][i].done; salvar('trips', trips); renderViagens(); }
+function addItemViagem(id, lista, input) {
+  const t = trips.find(x => x.id === id); const v = (input.value || '').trim(); if (!t || !v) return;
+  (t[lista] = t[lista] || []).push({ text: v, done: false }); salvar('trips', trips); renderViagens();
+  const novo = document.querySelector(`.viagem-det[data-id="${id}"] .add-${lista} input`); if (novo) novo.focus();
+}
+function removerItemViagem(id, lista, i) { const t = trips.find(x => x.id === id); if (!t) return; t[lista].splice(i, 1); salvar('trips', trips); renderViagens(); }
+function addReserva(id) {
+  const t = trips.find(x => x.id === id); if (!t) return;
+  const desc = prompt('O quê? (ex: Voo CNF→GRU, Hotel Centro)'); if (!desc || !desc.trim()) return;
+  const tipo = (prompt('Tipo: voo, hotel, carro, passeio, restaurante ou outro', 'hotel') || 'outro').toLowerCase();
+  const valor = parseFloat((prompt('Valor (R$, opcional)', '') || '').replace(',', '.')) || 0;
+  const url = prompt('Link ou código da reserva (opcional)', '') || '';
+  (t.reservas = t.reservas || []).push({ tipo: TIPOS_RESERVA[tipo] ? tipo : 'outro', desc: desc.trim(), valor, url: url.trim(), data: '' });
+  t.gasto = (t.reservas || []).reduce((a, r) => a + (Number(r.valor) || 0), 0);
+  salvar('trips', trips); renderViagens();
+}
+function removerReserva(id, i) { const t = trips.find(x => x.id === id); if (!t) return; t.reservas.splice(i, 1); t.gasto = t.reservas.reduce((a, r) => a + (Number(r.valor) || 0), 0); salvar('trips', trips); renderViagens(); }
+/** Cria os compromissos de ida e volta na agenda. */
+function viagemNaAgenda(id) {
+  const t = trips.find(x => x.id === id); if (!t || !t.inicio) { toast('Preencha as datas primeiro.'); return; }
+  const ja = events.filter(e => e.tripId === t.id).length;
+  if (ja) { toast('Esta viagem já está na agenda.'); return; }
+  events.push({ id: novoId(), title: `✈️ Ida — ${t.destino}`, date: t.inicio, time: '', endTime: '', type: 'pessoal', notes: t.notas || '', done: false, tripId: t.id });
+  if (t.fim && t.fim !== t.inicio) events.push({ id: novoId(), title: `🏠 Volta — ${t.destino}`, date: t.fim, time: '', endTime: '', type: 'pessoal', notes: '', done: false, tripId: t.id });
+  salvar('events', events); redesenharAgenda(); toast('📅 Ida e volta criadas na agenda.');
+}
+function renderViagens() {
+  const ul = document.getElementById('trip-lista'); if (!ul) return; ul.innerHTML = '';
+  const sel = document.getElementById('trip-status'); if (sel && !sel.options.length) sel.innerHTML = Object.entries(STATUS_VIAGEM).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+  if (!trips.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma viagem ainda. Crie uma — a mala e os documentos já vêm com uma lista básica.</li>'; return; }
+  [...trips].sort((a, b) => (a.inicio || '9999').localeCompare(b.inicio || '9999')).forEach(t => {
+    const s = STATUS_VIAGEM[t.status] || STATUS_VIAGEM.ideia; const aberta = viagemAberta === t.id;
+    const mala = t.mala || []; const docs = t.docs || [];
+    const faltam = t.inicio ? Math.round((new Date(t.inicio) - new Date(hojeISO())) / 86400000) : null;
+    ul.innerHTML += `<li class="viagem-item" style="border-left-color:${s[2]}"><div style="width:100%">
+      <div class="viagem-topo" onclick="abrirViagem(${t.id})">
+        <div class="transaction-info" style="flex:1"><span>${s[0]} ${esc(t.destino)} <small class="category-badge" style="color:${s[2]}; background:${s[2]}22">${s[1]}</small></span>
+          <small class="item-date">${t.inicio ? isoParaBR(t.inicio) : 'sem data'}${t.fim ? ' a ' + isoParaBR(t.fim) : ''}${t.inicio && t.fim ? ` · ${diasDeViagem(t)} dias` : ''}${faltam !== null && faltam > 0 && t.status !== 'feita' ? ` · faltam ${faltam} dias` : ''}${t.orcamento ? ` · orçamento ${formatCurrency(t.orcamento)}` : ''}${t.gasto ? ` · reservado ${formatCurrency(t.gasto)}` : ''}</small>
+          <small class="item-date">🧳 ${mala.filter(x => x.done).length}/${mala.length} · 📄 ${docs.filter(x => x.done).length}/${docs.length} · 🎟️ ${(t.reservas || []).length} reservas</small></div>
+        <div class="item-actions"><button class="mini-btn" title="Pôr ida e volta na agenda" onclick="event.stopPropagation(); viagemNaAgenda(${t.id})">📅</button><button class="mini-btn" title="Editar" onclick="event.stopPropagation(); editarViagem(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="event.stopPropagation(); removerViagem(${t.id})">✕</button><button class="mini-btn">${aberta ? '▲' : '▼'}</button></div>
+      </div>
+      ${aberta ? `<div class="viagem-det" data-id="${t.id}">
+        ${t.notas ? `<small class="item-notes">${linkify(esc(t.notas))}</small>` : ''}
+        <div class="viagem-cols">
+          ${['mala', 'docs'].map(lista => `<div><h5>${lista === 'mala' ? '🧳 Mala' : '📄 Documentos'}</h5>
+            ${(t[lista] || []).map((it, i) => `<div class="subtask ${it.done ? 'done' : ''}"><input type="checkbox" ${it.done ? 'checked' : ''} onclick="itemViagem(${t.id}, '${lista}', ${i})"><span class="sub-txt">${esc(it.text)}</span><button class="mini-btn xs" onclick="removerItemViagem(${t.id}, '${lista}', ${i})">✕</button></div>`).join('')}
+            <div class="note-add add-${lista}"><input type="text" placeholder="+ item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); addItemViagem(${t.id}, '${lista}', this); }"><button class="mini-btn" onclick="addItemViagem(${t.id}, '${lista}', this.previousElementSibling)">＋</button></div></div>`).join('')}
+          <div><h5>🎟️ Reservas</h5>
+            ${(t.reservas || []).map((r, i) => `<div class="reserva">${TIPOS_RESERVA[r.tipo] || '📌'} ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.desc)} ${iconeDoLink(r.url)}</a>` : esc(r.desc)}${r.valor ? ` <small>${formatCurrency(r.valor)}</small>` : ''}<button class="mini-btn xs" onclick="removerReserva(${t.id}, ${i})">✕</button></div>`).join('') || '<div class="stat-line muted">nenhuma</div>'}
+            <button class="mini-btn" style="margin-top:6px" onclick="addReserva(${t.id})">＋ reserva</button></div>
+        </div></div>` : ''}
+    </div></li>`;
+  });
+}
+
+// --- REDE (networking) ---
+let redeFiltro = '';
+function contatosFiltrados() {
+  let l = [...contacts];
+  if (redeFiltro === '__fav') l = l.filter(c => c.favorito);
+  else if (redeFiltro === '__lembrar') l = l.filter(c => precisaFalar(c));
+  else if (redeFiltro) l = l.filter(c => (c.tags || []).includes(redeFiltro));
+  return l.sort((a, b) => (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0) || a.nome.localeCompare(b.nome));
+}
+function precisaFalar(c) { if (!c.lembrar) return false; if (!c.ultimo) return true; return Math.round((new Date(hojeISO()) - new Date(c.ultimo)) / 86400000) >= Number(c.lembrar); }
+function tagsDaRede() { const s = new Set(); contacts.forEach(c => (c.tags || []).forEach(t => s.add(t))); return [...s].sort((a, b) => a.localeCompare(b)); }
+document.getElementById('rede-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('rede-id').value;
+  const dados = { nome: document.getElementById('rede-nome').value.trim(), onde: document.getElementById('rede-onde').value.trim(), papel: document.getElementById('rede-papel').value.trim(), tags: document.getElementById('rede-tags').value.split(',').map(s => s.trim()).filter(Boolean), tel: document.getElementById('rede-tel').value.trim(), email: document.getElementById('rede-email').value.trim(), links: document.getElementById('rede-links').value.trim(), notas: document.getElementById('rede-notas').value.trim(), lembrar: parseInt(document.getElementById('rede-lembrar').value) || 0 };
+  if (!dados.nome) return;
+  if (id) { const c = contacts.find(x => String(x.id) === id); if (c) Object.assign(c, dados); }
+  else contacts.push({ id: novoId(), favorito: false, ultimo: '', createdAt: Date.now(), ...dados });
+  salvar('contacts', contacts); cancelarEdicaoContato(); renderRede(); toast(id ? '🤝 Contato atualizado.' : '🤝 Contato salvo.');
+});
+function cancelarEdicaoContato() { document.getElementById('rede-form').reset(); document.getElementById('rede-id').value = ''; document.getElementById('rede-submit').innerText = 'Salvar contato'; document.getElementById('rede-cancel').hidden = true; }
+function editarContato(id) {
+  const c = contacts.find(x => x.id === id); if (!c) return;
+  document.getElementById('rede-id').value = c.id;
+  ['nome', 'onde', 'papel', 'tel', 'email', 'links', 'notas'].forEach(k => document.getElementById('rede-' + k).value = c[k] || '');
+  document.getElementById('rede-tags').value = (c.tags || []).join(', '); document.getElementById('rede-lembrar').value = c.lembrar || '';
+  document.getElementById('rede-submit').innerText = 'Salvar'; document.getElementById('rede-cancel').hidden = false; document.getElementById('rede-nome').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function favoritarContato(id) { const c = contacts.find(x => x.id === id); if (!c) return; c.favorito = !c.favorito; salvar('contacts', contacts); renderRede(); }
+function faleiCom(id) { const c = contacts.find(x => x.id === id); if (!c) return; c.ultimo = hojeISO(); salvar('contacts', contacts); renderRede(); toast(`🤝 Contato com ${c.nome} registrado hoje.`); }
+function removerContato(id) { const c = contacts.find(x => x.id === id); if (!c || !confirm(`Apagar ${c.nome}?`)) return; contacts = contacts.filter(x => x.id !== id); salvar('contacts', contacts); renderRede(); }
+function filtrarRede(t) { redeFiltro = redeFiltro === t ? '' : t; renderRede(); }
+function renderRede() {
+  const ul = document.getElementById('rede-lista'); if (!ul) return; ul.innerHTML = '';
+  const chips = document.getElementById('rede-chips');
+  const lembrar = contacts.filter(precisaFalar).length;
+  if (chips) chips.innerHTML = `<span class="chip ${redeFiltro === '' ? 'sel' : ''}" onclick="filtrarRede('')">todos (${contacts.length})</span><span class="chip ${redeFiltro === '__fav' ? 'sel' : ''}" onclick="filtrarRede('__fav')">⭐ favoritos</span>${lembrar ? `<span class="chip ${redeFiltro === '__lembrar' ? 'sel' : ''}" onclick="filtrarRede('__lembrar')">⏰ falar (${lembrar})</span>` : ''}` + tagsDaRede().map(t => `<span class="chip ${redeFiltro === t ? 'sel' : ''}" onclick="filtrarRede('${esc(t).replace(/'/g, '&#39;')}')">🏷️ ${esc(t)}</span>`).join('');
+  const lista = contatosFiltrados();
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Guarde aqui quem você conhece do trabalho, dos negócios e da vida — com onde conheceu e quando falou pela última vez.</li>'; return; }
+  lista.forEach(c => {
+    const falar = precisaFalar(c);
+    const dias = c.ultimo ? Math.round((new Date(hojeISO()) - new Date(c.ultimo)) / 86400000) : null;
+    ul.innerHTML += `<li class="rede-item ${falar ? 'lembrar' : ''}"><div class="transaction-info" style="flex:1">
+        <span>${c.favorito ? '⭐ ' : '👤 '}${esc(c.nome)}${c.papel ? ` <small class="category-badge">${esc(c.papel)}</small>` : ''}${falar ? ' <span class="badge-unpaid">falar</span>' : ''}</span>
+        <small class="item-date">${c.onde ? 'conheci: ' + esc(c.onde) : ''}${dias !== null ? ` · último contato há ${dias} dia${dias === 1 ? '' : 's'}` : ' · sem contato registrado'}${c.lembrar ? ` · lembrar a cada ${c.lembrar}d` : ''}</small>
+        ${(c.tags || []).length ? `<div class="note-foot">${c.tags.map(t => `<span class="chip small">🏷️ ${esc(t)}</span>`).join('')}</div>` : ''}
+        ${c.tel || c.email ? `<small class="item-date">${c.tel ? '📞 ' + esc(c.tel) : ''}${c.email ? ' · ✉️ ' + esc(c.email) : ''}</small>` : ''}
+        ${c.links ? `<small class="item-notes">${linkify(esc(c.links))}</small>` : ''}
+        ${c.notas ? `<small class="item-notes">${esc(c.notas)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Falei hoje" onclick="faleiCom(${c.id})">💬</button><button class="mini-btn ${c.favorito ? 'on' : ''}" title="Favorito" onclick="favoritarContato(${c.id})">⭐</button><button class="mini-btn" title="Editar" onclick="editarContato(${c.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerContato(${c.id})">✕</button></div></li>`;
+  });
+}
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); location.reload(); } catch (error) { alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
@@ -2621,7 +3361,7 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -2749,6 +3489,8 @@ function redesenharTudo() {
   tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || tasklists; normalizarTarefas();
   routines = JSON.parse(localStorage.getItem('lifeos_routines')) || [];
   orders = JSON.parse(localStorage.getItem('lifeos_orders')) || [];
+  media = JSON.parse(localStorage.getItem('lifeos_media')) || []; playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || [];
+  trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
@@ -2830,8 +3572,12 @@ renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategoria
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();
+renderViagens(); renderRede();
+redesenharLazer(); verSecaoLazer('midia');
+['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarMiniPlayer));
 renderEntregas();
 preencherFreqs(); camposPorFrequencia(); gerarRotinas(true); renderRotinas();
+aplicarAparencia(); renderArte(); setInterval(updateMainClock, 1000); updateMainClock();
 carregarAvisosNaTela(); verificarAvisos();
 verSecaoAgenda('cal'); document.getElementById('event-type').addEventListener('change', alternarCamposReuniao);
 document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); ['workout-date', 'measure-date', 'meal-date'].forEach(i => document.getElementById(i).value = hojeISO()); renderSaude(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();

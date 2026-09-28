@@ -22,6 +22,7 @@
       <button class="tab-btn" id="btn-trips" onclick="changeTab('trips')">✈️ Viagens</button>
       <button class="tab-btn" id="btn-net" onclick="changeTab('net')">🤝 Rede</button>
       <button class="tab-btn" id="btn-clinic" onclick="changeTab('clinic')">🏥 Clínica</button>
+      <button class="tab-btn" id="btn-prod" onclick="changeTab('prod')">🖨️ Produção</button>
       <button class="tab-btn" id="btn-settings" onclick="changeTab('settings')">⚙️ Config <span id="sync-dot" class="sync-dot"></span></button>
     </nav>
 
@@ -36,6 +37,7 @@
         </div>
       </div>
 
+      <div class="janelas-atalho" id="janelas-atalho" title="Janelas flutuantes: ligue as que quer hoje"></div>
       <div class="busca-box" id="busca-card">
         <input type="search" id="busca-global" placeholder="🔍 Buscar em tudo: tarefas, notas, agenda, plantões, finanças…  (Ctrl+K)" oninput="renderBusca(this.value)" autocomplete="off">
         <div id="busca-res" class="busca-res" hidden></div>
@@ -905,6 +907,154 @@
       </div>
     </div>
 
+    <!-- Módulo 14: Produção / impressão 3D -->
+    <div id="prod" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="producao-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoProducao('painel', this)">📊 Painel</span>
+        <span onclick="verSecaoProducao('fila', this)">📋 Fila</span>
+        <span onclick="verSecaoProducao('catalogo', this)">🧩 Produtos</span>
+        <span onclick="verSecaoProducao('estoque', this)">🧵 Estoque</span>
+        <span onclick="verSecaoProducao('vendas', this)">💰 Vendas</span>
+        <span onclick="verSecaoProducao('config', this)">🖨️ Máquinas</span>
+      </div>
+
+      <div id="sec-pr-painel" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;">
+          <h2>📊 A oficina este mês</h2>
+          <p class="hint">O número que interessa é o <strong>verde</strong>: o que sobrou depois da taxa da plataforma, do frete e do custo real da peça. Tudo sai sozinho das vendas e do catálogo.</p>
+          <div id="producao-painel"></div>
+          <div id="producao-detalhe" style="margin-top:16px"></div>
+        </div>
+      </div>
+
+      <div id="sec-pr-fila" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>📋 Nova ordem</h2>
+          <p class="hint">Ao sair de "imprimindo", o app <strong>baixa o filamento do estoque</strong> e soma as horas na impressora — inclusive quando dá ruim, porque o material foi embora do mesmo jeito.</p>
+          <form id="ord-form">
+            <input type="hidden" id="vnd-ordem-dummy">
+            <div style="display: grid; grid-template-columns: 2fr 0.7fr 1.3fr; gap: 10px;">
+              <div><label for="ord-produto">Produto:</label><select id="ord-produto"></select></div>
+              <div><label for="ord-qtd">Qtd:</label><input type="number" id="ord-qtd" min="1" value="1"></div>
+              <div><label for="ord-maquina">Impressora:</label><select id="ord-maquina"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr 2fr; gap: 10px;">
+              <div><label for="ord-cliente">Cliente:</label><input type="text" id="ord-cliente" placeholder="opcional"></div>
+              <div><label for="ord-prazo">Prazo:</label><input type="date" id="ord-prazo"></div>
+              <div><label for="ord-notas">Observações:</label><input type="text" id="ord-notas" placeholder="cor, personalização"></div>
+            </div>
+            <button type="submit">Mandar para a fila</button>
+          </form>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>Fila de produção</h2>
+          <div id="ord-lista"></div>
+        </div>
+      </div>
+
+      <div id="sec-pr-catalogo" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🧩 Produtos e custo real</h2>
+          <p class="hint">Aqui está a conta que quase ninguém faz direito: <strong>filamento gasto + horas de máquina (energia e desgaste) + tempo de acabamento + extras</strong>. Preencha e veja o custo se formar embaixo, com o preço sugerido pela margem que você quer.</p>
+          <form id="prd-form">
+            <input type="hidden" id="prd-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="prd-nome">Peça:</label><input type="text" id="prd-nome" placeholder="Suporte de fone personalizado" required></div>
+              <div><label for="prd-gramas">Filamento (g):</label><input type="number" id="prd-gramas" step="0.1" min="0" placeholder="45"></div>
+              <div><label for="prd-horas">Horas de máquina:</label><input type="number" id="prd-horas" step="0.1" min="0" placeholder="3.5"></div>
+              <div><label for="prd-acab">Acabamento (min):</label><input type="number" id="prd-acab" step="1" min="0" placeholder="10"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.4fr 1.4fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="prd-filamento">Qual filamento:</label><select id="prd-filamento"></select></div>
+              <div><label for="prd-maquina">Qual impressora:</label><select id="prd-maquina"></select></div>
+              <div><label for="prd-extra">Extras (R$):</label><input type="number" id="prd-extra" step="0.01" min="0" placeholder="embalagem"></div>
+              <div><label for="prd-margem">Margem (%):</label><input type="number" id="prd-margem" step="1" min="0" max="95" placeholder="60"></div>
+              <div><label for="prd-preco">Preço (R$):</label><input type="number" id="prd-preco" step="0.01" min="0" placeholder="sugerido"></div>
+            </div>
+            <div><label for="prd-notas">Observações:</label><input type="text" id="prd-notas" placeholder="camadas, bico, tempo real medido"></div>
+            <div id="prd-previa" class="previa-linha"></div>
+            <button type="submit" id="prd-submit">Adicionar produto</button>
+          </form>
+          <ul id="prd-lista" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+
+      <div id="sec-pr-estoque" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🧵 Estoque de filamento</h2>
+          <p class="hint">O preço do rolo dividido pelos gramas dele é o que alimenta o custo de cada peça. O ↻ repõe o rolo e pode lançar a compra em Finanças.</p>
+          <div id="fil-resumo" class="summary-row"></div>
+          <form id="fil-form">
+            <input type="hidden" id="fil-id">
+            <div style="display: grid; grid-template-columns: 1fr 1.2fr 1.2fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="fil-material">Material:</label><select id="fil-material"></select></div>
+              <div><label for="fil-cor">Cor:</label><input type="text" id="fil-cor" placeholder="Preto"></div>
+              <div><label for="fil-marca">Marca:</label><input type="text" id="fil-marca" placeholder="opcional"></div>
+              <div><label for="fil-preco">Preço do rolo:</label><input type="number" id="fil-preco" step="0.01" min="0" placeholder="120"></div>
+              <div><label for="fil-gramas">Gramas do rolo:</label><input type="number" id="fil-gramas" min="1" placeholder="1000"></div>
+              <div><label for="fil-resta">Resta (g):</label><input type="number" id="fil-resta" min="0" placeholder="cheio"></div>
+            </div>
+            <button type="submit" id="fil-submit">Adicionar rolo</button>
+          </form>
+          <ul id="fil-lista" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+
+      <div id="sec-pr-vendas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>💰 Registrar venda</h2>
+          <p class="hint">A taxa vem preenchida pela plataforma escolhida (você pode mudar). Em Finanças entra o <strong>líquido</strong> — bruto menos taxa e frete —, que é o que realmente cai na sua conta.</p>
+          <form id="vnd-form">
+            <input type="hidden" id="vnd-ordem">
+            <div style="display: grid; grid-template-columns: 2fr 1.3fr 0.7fr 1fr; gap: 10px;">
+              <div><label for="vnd-produto">Produto:</label><select id="vnd-produto"></select></div>
+              <div><label for="vnd-plataforma">Onde vendeu:</label><select id="vnd-plataforma" onchange="aplicarTaxaPlataforma()"></select></div>
+              <div><label for="vnd-qtd">Qtd:</label><input type="number" id="vnd-qtd" min="1" value="1"></div>
+              <div><label for="vnd-preco">Preço unitário:</label><input type="number" id="vnd-preco" step="0.01" min="0" required></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px;">
+              <div><label for="vnd-taxa">Taxa (%):</label><input type="number" id="vnd-taxa" step="0.1" min="0" max="100"></div>
+              <div><label for="vnd-frete">Frete que você pagou:</label><input type="number" id="vnd-frete" step="0.01" min="0" placeholder="0"></div>
+              <div><label for="vnd-data">Data:</label><input type="date" id="vnd-data"></div>
+            </div>
+            <div id="vnd-previa" class="previa-linha"></div>
+            <button type="submit">Registrar venda</button>
+          </form>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>Vendas</h2>
+          <div id="vnd-resumo" class="summary-row"></div>
+          <ul id="vnd-lista" class="transaction-list"></ul>
+        </div>
+      </div>
+
+      <div id="sec-pr-config" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🖨️ Impressoras</h2>
+          <p class="hint">O custo por hora sai da <strong>potência × preço do kWh</strong> mais o desgaste que você estimar (peças, bico, manutenção diluídos por hora). O app soma as horas rodadas e avisa quando chega a revisão.</p>
+          <form id="maq-form">
+            <input type="hidden" id="maq-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1.2fr 1.2fr; gap: 10px;">
+              <div><label for="maq-nome">Impressora:</label><input type="text" id="maq-nome" placeholder="Ender 3 V2" required></div>
+              <div><label for="maq-w">Potência (W):</label><input type="number" id="maq-w" min="0" placeholder="350"></div>
+              <div><label for="maq-desgaste">Desgaste (R$/h):</label><input type="number" id="maq-desgaste" step="0.01" min="0" placeholder="0.50"></div>
+              <div><label for="maq-manut">Revisar a cada (h):</label><input type="number" id="maq-manut" min="0" placeholder="300"></div>
+            </div>
+            <button type="submit" id="maq-submit">Adicionar impressora</button>
+          </form>
+          <ul id="maq-lista" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>⚙️ Bases de cálculo</h2>
+          <p class="hint">Dois números que entram em toda peça. Sincronizam com os seus outros aparelhos.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label for="prod-kwh">Preço do kWh (R$):</label><input type="number" id="prod-kwh" step="0.01" min="0" onchange="salvarCfgProducao()"></div>
+            <div><label for="prod-mao">Sua hora de acabamento (R$):</label><input type="number" id="prod-mao" step="0.01" min="0" onchange="salvarCfgProducao()"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
       <div class="card" style="margin-top: 20px;">
@@ -1076,6 +1226,7 @@
     </div>
     <small id="mp-tempo" class="mp-tempo"></small>
     <input type="range" min="0" max="100" value="100" class="mp-vol" oninput="mpVolume(this.value)" title="Volume">
+    <button class="mp-btn" onclick="mpVirarJanela()" title="Virar janela flutuante">🪟</button>
     <button class="mp-btn" onclick="mpFechar()" title="Fechar">✕</button>
   </div>
   <div id="toast" class="toast"></div>

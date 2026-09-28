@@ -738,3 +738,99 @@ body[data-abas="lateral"] .aba-cfg-btn { top: 14px; right: 14px; }
 .margem-pct { color: var(--txt4); }
 #serv-lista li { padding: 9px 12px; }
 @media (max-width: 700px) { #pac-form > div[style*="grid"], #serv-form > div[style*="grid"] { grid-template-columns: 1fr 1fr !important; } }
+
+/* ===== PRODUÇÃO / IMPRESSÃO 3D ===== */
+.previa-linha { font-size: 0.82rem; color: var(--txt2); background: var(--bg); border: 1px dashed var(--borda2);
+  border-radius: 8px; padding: 8px 11px; margin: 10px 0; line-height: 1.5; }
+.previa-linha:empty { display: none; }
+#fil-lista li, #prd-lista li, #maq-lista li, #vnd-lista li { padding: 9px 12px; }
+#fil-lista .cat-bar { width: 100%; max-width: 220px; }
+
+/* ⚙ agora mora dentro da aba aberta, alinhado à direita */
+.aba-cfg-btn { position: static; float: right; width: auto; height: auto; border-radius: 16px;
+  padding: 5px 12px; margin: 14px 0 0 10px; font-size: 0.78rem; gap: 6px; }
+.cfg-aba-nome { font-weight: 600; }
+.cfg-bolha { position: static; margin-left: 2px; }
+@media (max-width: 800px) { .aba-cfg-btn { top: auto; bottom: auto; left: auto; right: auto; } .cfg-aba-nome { display: none; } }
+.dev-mover { font-size: 0.68rem; padding: 1px 4px; max-width: 110px; border-radius: 6px; }
+.dev-item .dev-mover { opacity: 0.35; }
+.dev-item:hover .dev-mover { opacity: 1; }
+
+/* contraste: os temas claros estavam lavados demais para ler */
+[data-tema="claro"] { --txt: #0f172a; --txt2: #1e293b; --txt3: #475569; --txt4: #64748b; }
+[data-tema="papel"] { --txt: #2b2417; --txt2: #3f3626; --txt3: #63563f; --txt4: #837458; }
+[data-tema="menta"] { --txt: #16261c; --txt2: #26382c; --txt3: #47604f; --txt4: #66806e; }
+[data-tema="nevoa"] { --txt: #16222f; --txt2: #26364a; --txt3: #47596e; --txt4: #67788c; }
+
+/* cards recolhíveis (Config, Produção, Clínica) */
+.card-toggle { float: right; background: transparent; border: none; color: var(--txt4); font-size: 0.9rem;
+  cursor: pointer; padding: 0 2px; line-height: 1; }
+.card-toggle:hover { color: var(--txt-forte); }
+.card.recolhido > *:not(h2) { display: none; }
+.card.recolhido { padding-bottom: 14px; }
+.card.recolhido h2 { margin-bottom: 0; }
+.recolher-barra { display: flex; gap: 6px; justify-content: flex-end; margin: 10px 0 -6px; }
+.recolher-barra button { background: transparent; border: 1px solid var(--borda2); color: var(--txt3);
+  font-size: 0.72rem; padding: 3px 9px; border-radius: 10px; cursor: pointer; }
+.recolher-barra button:hover { color: var(--txt-forte); border-color: var(--borda4); }
+
+/* atalho das janelas flutuantes, no Painel */
+.janelas-atalho { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 10px 0 0; }
+.jan-chip { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border-radius: 8px; border: 1px solid var(--borda2); background: var(--bg); cursor: pointer; font-size: 0.85rem; }
+.jan-chip:hover { border-color: var(--borda4); }
+.jan-chip.sel { background: var(--borda); border-color: var(--acento); }
+.jan-sep { width: 1px; height: 18px; background: var(--borda2); margin: 0 3px; }
+
+/* ===== modais que se movem e se redimensionam ===== */
+.modal-grip { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 10px 7px 13px; background: var(--bg2); border-bottom: 1px solid var(--borda);
+  border-radius: 14px 14px 0 0; cursor: grab; touch-action: none; user-select: none;
+  font-size: 0.78rem; color: var(--txt3); font-weight: 600; }
+.modal-content.arrastando .modal-grip, .lupa-caixa.arrastando .modal-grip { cursor: grabbing; }
+.modal-content[data-movel], .lupa-caixa[data-movel] { resize: both; overflow: auto; min-width: 260px; min-height: 160px; }
+.modal-content.arrastando, .lupa-caixa.arrastando { opacity: 0.94; border-color: var(--acento); }
+.grip-acoes { display: flex; gap: 2px; }
+@media (max-width: 700px) { .modal-content[data-movel], .lupa-caixa[data-movel] { resize: none; } }
+
+/* ===== obra do dia: imagem ao lado do texto na janela larga ===== */
+.pf-arte-wrap { display: flex; flex-direction: column; gap: 8px; }
+.pf-arte-wrap.larga { flex-direction: row; align-items: flex-start; }
+.pf-arte-wrap.larga .pf-arte { width: 46%; flex: none; height: 150px; }
+.pf-arte-wrap.larga .pf-arte-info { flex: 1; min-width: 0; }
+.pf-arte-sobre { font-size: 0.76rem; color: var(--txt3); line-height: 1.45; margin: 4px 0 2px; }
+#arte-card .pf-arte-sobre { font-size: 0.82rem; }
+
+/* ===== modo neutro: tons discretos, mas ainda distinguíveis entre si =====
+   Era saturate(0.15) e virava tudo cinza igual. Em 0.32 um marcador vermelho
+   continua lendo como quente e um azul como frio — diferencia sem gritar. */
+body[data-cores="neutro"] .stat-tile,
+body[data-cores="neutro"] .category-badge,
+body[data-cores="neutro"] .chip,
+body[data-cores="neutro"] .anexo-chip,
+body[data-cores="neutro"] .cat-bar div,
+body[data-cores="neutro"] .day-dot,
+body[data-cores="neutro"] .shift-dot,
+body[data-cores="neutro"] .semana-cards,
+body[data-cores="neutro"] .mes-bar,
+body[data-cores="neutro"] .rot-tag,
+body[data-cores="neutro"] .task-list-tag,
+body[data-cores="neutro"] .etapa-topo { filter: saturate(0.32); }
+/* a cor da nota É a organização dela, então fica um pouco mais viva */
+body[data-cores="neutro"] .note-card, body[data-cores="neutro"] .color-dot { filter: saturate(0.45); }
+body[data-cores="neutro"] .pf-arte, body[data-cores="neutro"] .life-os-banner { filter: saturate(0.2); }
+
+/* ===== editor de lista (texto × lista) ===== */
+.ed-toggle { float: right; background: transparent; border: 1px solid var(--borda2); color: var(--txt4);
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; cursor: pointer; margin: 0 0 3px 6px; }
+.ed-toggle:hover { color: var(--txt-forte); border-color: var(--borda4); }
+.ed-lista { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.ed-linha { display: flex; align-items: center; gap: 6px; }
+.ed-marca { color: var(--txt4); font-size: 0.9rem; flex: none; width: 10px; text-align: center; }
+.ed-linha input { flex: 1; min-width: 0; padding: 6px 9px; font-size: 0.85rem; }
+.ed-tools { display: flex; gap: 1px; opacity: 0; transition: opacity 0.15s; }
+.ed-linha:hover .ed-tools, .ed-linha:focus-within .ed-tools { opacity: 1; }
+.ed-add { align-self: flex-start; background: transparent; border: 1px dashed var(--borda2); color: var(--txt3);
+  font-size: 0.75rem; padding: 4px 11px; border-radius: 8px; cursor: pointer; margin-top: 2px; }
+.ed-add:hover { color: var(--txt-forte); border-color: var(--acento); }
+@media (max-width: 800px) { .ed-tools { opacity: 0.55; } }

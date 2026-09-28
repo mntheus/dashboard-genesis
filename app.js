@@ -44,6 +44,11 @@ let devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};   // c
 let servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || [];   // catálogo da clínica
 let pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; // funil da clínica
 let repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];   // comissões a pagar
+let maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || [];     // impressoras
+let filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; // estoque de material
+let produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || [];     // catálogo com custo real
+let ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || [];         // fila de produção
+let vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || [];         // vendas de marketplace
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -348,9 +353,35 @@ const OBRAS = [
   ['Nenúfares', 'Claude Monet', 1906, 'Claude_Monet_-_Water_Lilies_-_1906,_Ryerson.jpg'],
   ['American Gothic', 'Grant Wood', 1930, 'Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg']
 ];
+// Uma linha sobre cada obra da coleção do app — é o que preenche a lateral
+// vazia da janela no PC e no Fold aberto. Texto próprio, sem consulta externa.
+const OBRA_SOBRE = {
+  'A Noite Estrelada': 'Pintada de memória no quarto do sanatório de Saint-Rémy, onde Van Gogh estava internado. A vila embaixo é imaginada; só o céu era o que ele via.',
+  'A Grande Onda de Kanagawa': 'Uma gravura em madeira feita para ser barata e vendida aos montes. O Monte Fuji está ao fundo, minúsculo, quase engolido pela onda.',
+  'Mona Lisa': 'Leonardo carregou o quadro consigo por anos e nunca o entregou a quem encomendou. A fama mundial só veio depois de ser roubada do Louvre em 1911.',
+  'Moça com Brinco de Pérola': 'Não é um retrato de alguém: é um "tronie", um estudo de expressão. A pérola provavelmente era de vidro envernizado.',
+  'O Beijo': 'Feito com folha de ouro de verdade, no período em que Klimt reagia ao ouro dos mosaicos bizantinos que tinha visto em Ravena.',
+  'Impressão, Nascer do Sol': 'Um crítico usou o título para zombar — "impressionismo" — e o apelido pegou, batizando o movimento inteiro.',
+  'O Grito': 'Munch escreveu que sentiu "um grito infinito atravessando a natureza" ao ver o céu ficar vermelho-sangue. A figura não grita: ela tapa os ouvidos.',
+  'Os Girassóis': 'Van Gogh pintou a série para decorar o quarto onde Gauguin ficaria hospedado em Arles. O amarelo era, para ele, a cor da amizade.',
+  'O Nascimento de Vênus': 'Uma das primeiras telas em grande escala do Renascimento a mostrar um nu pagão — e não um tema religioso.',
+  'A Ronda Noturna': 'Não se passa à noite: o verniz escureceu com o tempo. E o quadro foi cortado nas bordas no século 18 para caber numa parede.',
+  'As Meninas': 'Velázquez se pintou trabalhando, e o rei e a rainha aparecem só refletidos no espelho ao fundo — quem olha o quadro ocupa o lugar deles.',
+  'A Criação de Adão': 'Está no teto da Capela Sistina. O manto vermelho em volta de Deus tem o contorno de um cérebro humano, o que rende debate até hoje.',
+  'O Jardim das Delícias': 'Um tríptico: fecha como um mundo em preto e branco e abre em três painéis — paraíso, excesso e castigo.',
+  'Caminhante sobre o Mar de Névoa': 'O homem está de costas de propósito, para você ocupar o lugar dele. Virou a imagem-símbolo do Romantismo alemão.',
+  'Almoço dos Barqueiros': 'Os modelos eram amigos de Renoir. A moça brincando com o cachorro viraria sua esposa.',
+  'Terraço do Café à Noite': 'Uma das primeiras vezes que Van Gogh pintou um céu noturno estrelado. O café ainda existe em Arles.',
+  'A Liberdade Guiando o Povo': 'Não é a Revolução Francesa de 1789, e sim a de 1830. A figura é uma alegoria, não uma pessoa real.',
+  'A Leiteira': 'Vermeer pintou uma criada numa tarefa banal com a solenidade que se reservava a santos. O fio de leite caindo é o centro de tudo.',
+  'Os Jogadores de Cartas': 'Cézanne fez cinco versões, com trabalhadores da fazenda do pai como modelos — jogando de verdade, em silêncio.',
+  'Nenúfares': 'Monet pintou o próprio jardim em Giverny mais de 250 vezes, já com catarata, o que mudou as cores que ele enxergava.',
+  'American Gothic': 'Os modelos são a irmã do pintor e o dentista dele. A casa ao fundo existe em Eldon, Iowa — Grant Wood a viu e imaginou quem moraria ali.'
+};
 function obraLocal(i) {
   const [titulo, autor, ano, arq] = OBRAS[((i % OBRAS.length) + OBRAS.length) % OBRAS.length];
-  return { titulo, autor, ano, img: WM + arq + '?width=1000', fonte: 'Wikimedia Commons', link: 'https://commons.wikimedia.org/wiki/File:' + arq };
+  return { titulo, autor, ano, img: WM + arq + '?width=1000', fonte: 'Wikimedia Commons',
+    sobre: OBRA_SOBRE[titulo] || '', link: 'https://commons.wikimedia.org/wiki/File:' + arq };
 }
 function cfgArte() { prefs.arte = Object.assign({ ligado: true, fonte: 'local' }, prefs.arte || {}); return prefs.arte; }
 function salvarArte() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); renderArte(); renderAparencia(); }
@@ -393,7 +424,7 @@ async function renderArte(forcar) {
   const obra = await carregarObraDoDia(forcar);
   if (!obra) { el.innerHTML = ''; return; }
   el.innerHTML = `<a href="${esc(obra.link)}" target="_blank" rel="noopener" class="arte-img" title="Ver no ${esc(obra.fonte)}"><img src="${esc(obra.img)}" alt="${esc(obra.titulo)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'arte-erro\\'>🖼️ imagem indisponível (sem internet?)</div>'"></a>
-    <div class="arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small><small class="item-date">${esc(obra.fonte)}${obra.aviso ? ' · ' + esc(obra.aviso) : ''}</small></div>`;
+    <div class="arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small>${obra.sobre ? `<p class="pf-arte-sobre">${esc(obra.sobre)}</p>` : ""}<small class="item-date">${esc(obra.fonte)}${obra.aviso ? ' · ' + esc(obra.aviso) : ''}</small></div>`;
 }
 
 // --- RELÓGIO: modelos (Config → Aparência) ---
@@ -978,8 +1009,8 @@ function redesenharAgenda() { renderCalendar(); renderEvents(); renderShifts(); 
 
 // --- FINANÇAS ---
 const CATEGORIAS = {
-  income:  ['Plantão', 'Salário CLT', 'Consulta / Particular', 'Clínica', 'Faturamento CNPJ', 'Investimentos', 'Reembolso', 'Outros'],
-  expense: ['Custos Fixos', 'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Assinaturas', 'Educação', 'Lazer', 'Investimentos', 'Impostos', 'Empresa', 'Repasses / Comissões', 'Outros']
+  income:  ['Plantão', 'Salário CLT', 'Consulta / Particular', 'Clínica', 'Produção / Vendas', 'Faturamento CNPJ', 'Investimentos', 'Reembolso', 'Outros'],
+  expense: ['Custos Fixos', 'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Assinaturas', 'Educação', 'Lazer', 'Investimentos', 'Impostos', 'Empresa', 'Repasses / Comissões', 'Insumos de produção', 'Outros']
 };
 let finMonth = hojeISO().slice(0, 7); // 'aaaa-mm' do mês em exibição
 let finModo = 'mes';                  // 'mes' | 'tudo'
@@ -2821,7 +2852,7 @@ const MODOS_COR = { colorido: ['🎨', 'Colorido'], neutro: ['🩶', 'Neutro'] }
 const ABAS_INFO = [
   ['btn-focus', '🎯 Painel Central'], ['btn-home', '📅 Agenda'], ['btn-finances', '💰 Finanças'],
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
-  ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-settings', '⚙️ Config']
+  ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
 const APARENCIA_PADRAO = { tema: 'escuro', cores: 'colorido', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
@@ -3119,7 +3150,7 @@ function confirmarCompra() {
     const n = notes.find(x => x.id === compraCtx.noteId);
     if (n && n.checklist) { n.checklist.splice(compraCtx.index, 1); n.updatedAt = Date.now(); salvar('notes', notes); }
   }
-  fecharCompra(); renderNotes(); renderEntregas(); redesenharLazer(); renderViagens(); renderRede(); renderClinica(); renderAvisos();
+  fecharCompra(); renderNotes(); renderEntregas(); redesenharLazer(); renderViagens(); renderRede(); renderClinica(); renderProducao(); renderAvisos();
   toast(`🛒 ${item} → Entregas${valor ? ' · ' + formatCurrency(valor) : ''}`, 5000);
 }
 /** Compra avulsa (sem vir de uma lista). */
@@ -3560,8 +3591,8 @@ function renderRede() {
   });
 }
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // PERFIL DE TRABALHO — o app deixa de ser "de médico"
@@ -3633,7 +3664,7 @@ function definirPerfilTrabalho() {
 function escolherPerfilTrabalho(p) {
   if (!PERFIS_TRABALHO[p]) return;
   profile.trabalho = p; salvar('profile', profile);
-  aplicarVocabulario(); renderPerfilTrabalho(); redesenharAgenda(); ajustarAbaClinica();
+  aplicarVocabulario(); renderPerfilTrabalho(); redesenharAgenda(); ajustarAbaClinica(); ajustarAbaProducao();
   toast(`${vt().ic} Agora o app chama isso de "${vt().um}".`, 5000);
 }
 
@@ -3780,7 +3811,9 @@ function renderConfigAba() {
   const lista = notasDev(id);
   const abertas = lista.filter(x => !x.done); const feitas = lista.filter(x => x.done);
   const linha = n => `<li class="dev-item ${n.done ? 'feito' : ''}"><input type="checkbox" ${n.done ? 'checked' : ''} onclick="marcarNotaDev('${id}', ${n.id})">
-      <span>${esc(n.text)}</span><button class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`;
+      <span>${esc(n.text)}</span>
+      <select class="dev-mover" title="Mover para outra aba" onchange="moverNotaDev('${id}', ${n.id}, this.value)">${opcoesAbas(id)}</select>
+      <button class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`;
   el.innerHTML = `
     ${ajustes.length ? `<h4 class="dev-titulo">Ajustes desta aba</h4>
       ${ajustes.map(a => `<label class="check-line"><input type="checkbox" ${c[a.k] ? 'checked' : ''} onchange="alternarAjusteAba('${id}', '${a.k}')"> ${esc(a.nome)}</label>`).join('')}`
@@ -3794,14 +3827,331 @@ function renderConfigAba() {
     <ul class="dev-lista">${abertas.map(linha).join('') || '<li class="dev-vazio">Nada anotado ainda.</li>'}${feitas.length ? `<li class="dev-sep">resolvidos (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
     <div class="pf-botoes" style="margin-top:8px"><button class="mini-btn" onclick="limparFeitosDev()">🧹 limpar resolvidos (todas as abas)</button><button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings');">⚙️ Config geral</button></div>`;
 }
-/** O ⚙ flutuante muda de dono conforme a aba aberta. */
+// ============================================================================
+// EDITOR DE LISTA (pedido 10 do caderno)
+// "Tudo que está escrito como uma linha por item deve virar uma forma mais
+//  intuitiva de fazer lista... talvez um marcador discreto que opta por texto
+//  ou por lista."
+// Feito sem tocar em nenhum formulário existente: a <textarea> continua sendo
+// a fonte da verdade (todos os submits seguem lendo `.value` como sempre); o
+// editor de lista só escreve de volta nela. Se algo aqui falhar, o campo velho
+// continua funcionando.
+// ============================================================================
+const CAMPOS_LISTA = {
+  'task-subtasks':    'subtarefa',
+  'rot-subtasks':     'subtarefa',
+  'event-agenda':     'ponto da pauta',
+  'event-followups':  'encaminhamento',
+  'project-steps':    'próximo passo',
+  'ritual-roadmap':   'item do roteiro',
+  'workout-exercises':'exercício'
+};
+function modoLista(id) {
+  prefs.listaModo = prefs.listaModo || {};
+  if (!prefs.listaModo[id]) prefs.listaModo[id] = 'lista';   // o jeito novo é o padrão
+  return prefs.listaModo[id];
+}
+function alternarModoLista(id) {
+  prefs.listaModo = prefs.listaModo || {};
+  prefs.listaModo[id] = modoLista(id) === 'lista' ? 'texto' : 'lista';
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarModoLista(id);
+}
+// A textarea nunca guarda linha vazia (senão os formulários criariam itens em
+// branco). Mas o editor PRECISA mostrar a linha vazia que o Enter acabou de
+// abrir, senão ela some antes de você digitar. Então o que está na tela vive
+// num rascunho, e só o que tem texto desce para a textarea.
+const _listaRascunho = {};
+function linhasDe(id) {
+  const t = document.getElementById(id); if (!t) return [];
+  return (t.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+}
+/** O que o editor mostra: o rascunho, se ele ainda bate com a textarea. */
+function linhasNaTela(id) {
+  const reais = linhasDe(id);
+  const r = _listaRascunho[id];
+  if (r && r.filter(s => s.trim()).join('\n') === reais.join('\n')) return r;
+  _listaRascunho[id] = reais.slice();
+  return _listaRascunho[id];
+}
+/** Escreve a lista de volta na textarea — é ela que os formulários leem. */
+function gravarLinhas(id, arr) {
+  const t = document.getElementById(id); if (!t) return;
+  _listaRascunho[id] = arr.slice();
+  t.value = arr.filter(s => s.trim()).join('\n');
+  t.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function addLinhaLista(id, texto) {
+  const arr = linhasNaTela(id).slice(); arr.push(texto || '');
+  gravarLinhas(id, arr); desenharLista(id, arr.length - 1);
+}
+function removerLinhaLista(id, i) {
+  const arr = linhasNaTela(id).slice(); arr.splice(i, 1); gravarLinhas(id, arr); desenharLista(id);
+}
+function moverLinhaLista(id, i, dir) {
+  const arr = linhasNaTela(id).slice(); const j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  arr.splice(j, 0, arr.splice(i, 1)[0]); gravarLinhas(id, arr); desenharLista(id, j);
+}
+function editarLinhaLista(id, i, valor) {
+  const arr = linhasNaTela(id).slice();
+  if (!valor.trim() && arr.length > 1) { arr.splice(i, 1); } else { arr[i] = valor.trim(); }
+  gravarLinhas(id, arr); desenharLista(id);
+}
+/** Enter cria o próximo item (como numa lista de verdade); Backspace no vazio apaga. */
+function teclaLinhaLista(ev, id, i) {
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    const arr = linhasNaTela(id).slice();
+    arr[i] = ev.target.value.trim();
+    arr.splice(i + 1, 0, '');
+    gravarLinhas(id, arr); desenharLista(id, i + 1);
+  } else if (ev.key === 'Backspace' && !ev.target.value && linhasNaTela(id).length > 1) {
+    ev.preventDefault(); removerLinhaLista(id, i); desenharLista(id, Math.max(0, i - 1));
+  }
+}
+function desenharLista(id, focar) {
+  const cx = document.getElementById('ed-' + id); if (!cx) return;
+  const arr = linhasNaTela(id);
+  const nome = CAMPOS_LISTA[id] || 'item';
+  cx.innerHTML = arr.map((s, i) => `<div class="ed-linha"><span class="ed-marca">•</span>
+      <input type="text" value="${esc(s)}" placeholder="${esc(nome)}"
+        onchange="editarLinhaLista('${id}', ${i}, this.value)"
+        onkeydown="teclaLinhaLista(event, '${id}', ${i})">
+      <span class="ed-tools"><button type="button" class="mini-btn xs" title="Subir" onclick="moverLinhaLista('${id}', ${i}, -1)">↑</button><button type="button" class="mini-btn xs" title="Descer" onclick="moverLinhaLista('${id}', ${i}, 1)">↓</button><button type="button" class="mini-btn xs" title="Tirar" onclick="removerLinhaLista('${id}', ${i})">✕</button></span></div>`).join('')
+    + `<button type="button" class="ed-add" onclick="addLinhaLista('${id}')">＋ ${esc(nome)}</button>`;
+  if (focar !== undefined) {
+    const campos = cx.querySelectorAll('input');
+    if (campos[focar]) { campos[focar].focus(); campos[focar].select(); }
+  }
+}
+function aplicarModoLista(id) {
+  const t = document.getElementById(id); if (!t) return;
+  const emLista = modoLista(id) === 'lista';
+  t.hidden = emLista;
+  const cx = document.getElementById('ed-' + id); if (cx) cx.hidden = !emLista;
+  const b = document.getElementById('bt-' + id);
+  if (b) { b.innerText = emLista ? '📝 texto' : '☰ lista'; b.title = emLista ? 'Editar como texto corrido' : 'Editar como lista'; }
+  if (emLista) desenharLista(id);
+}
+/** Monta o editor ao lado de cada campo que hoje é "uma linha por item". */
+function prepararListas() {
+  Object.keys(CAMPOS_LISTA).forEach(id => {
+    const t = document.getElementById(id); if (!t || t.dataset.ed) return;
+    t.dataset.ed = '1';
+    t.insertAdjacentHTML('beforebegin', `<button type="button" class="ed-toggle" id="bt-${id}" onclick="alternarModoLista('${id}')">☰ lista</button>`);
+    t.insertAdjacentHTML('afterend', `<div class="ed-lista" id="ed-${id}"></div>`);
+    // quando o formulário preenche a textarea por código, a lista acompanha
+    t.addEventListener('focus', () => desenharLista(id));
+    aplicarModoLista(id);
+  });
+}
+function redesenharListas() { Object.keys(CAMPOS_LISTA).forEach(id => { if (modoLista(id) === 'lista') desenharLista(id); }); }
+/** Os formulários (editar tarefa, rotina, projeto, reunião…) escrevem direto na
+ *  textarea por código, e isso não dispara evento nenhum. Em vez de caçar cada
+ *  função que faz isso, a lista confere sozinha se o texto mudou e se redesenha.
+ *  São 7 campos e uma comparação de string — custo irrelevante. */
+const _listaUltimo = {};
+function sincronizarListas() {
+  Object.keys(CAMPOS_LISTA).forEach(id => {
+    const t = document.getElementById(id); if (!t) return;
+    if (_listaUltimo[id] === t.value) return;
+    _listaUltimo[id] = t.value;
+    if (modoLista(id) === 'lista' && document.activeElement !== t
+        && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#ed-' + id))) {
+      desenharLista(id);
+    }
+  });
+}
+setInterval(sincronizarListas, 700);
+
+// ============================================================================
+// JANELAS MÓVEIS E AJUSTÁVEIS (pedido 4 e 5 do caderno)
+// "Certas janelas são fixas do dashboard e dão sua característica; mas as de
+// uso e posicionamento devem ser fáceis e intuitivas de mudar." — então todo
+// modal (anexos, ⚙ da aba, compra, lupa) vira uma janela que se arrasta pela
+// barra de cima e se redimensiona pelo canto. A posição fica guardada por
+// aparelho, porque uma tela de 21:9 e um Fold não querem o mesmo lugar.
+// ============================================================================
+const MODAIS_MOVEIS = {
+  'anexo-modal': '📎 Anexos',
+  'aba-config-modal': '⚙ Ajustes da aba',
+  'compra-modal': '🛒 Comprei',
+  'lupa-modal': '🖼️ Imagem'
+};
+function cfgModais() { prefs.modais = prefs.modais || {}; return prefs.modais; }
+
+/** Põe a barra de arrastar e liga o redimensionamento em cada modal. */
+function tornarModaisMoveis() {
+  Object.entries(MODAIS_MOVEIS).forEach(([id, nome]) => {
+    const m = document.getElementById(id); if (!m) return;
+    const cont = m.querySelector('.modal-content, .lupa-caixa'); if (!cont || cont.dataset.movel) return;
+    cont.dataset.movel = id;
+    cont.insertAdjacentHTML('afterbegin',
+      `<div class="modal-grip" onpointerdown="pegarModal(event, '${id}')"><span>${nome}</span>
+        <span class="grip-acoes"><button class="mini-btn xs" title="Centralizar de novo" onclick="centralizarModal('${id}')">⌖</button></span></div>`);
+    aplicarPosModal(id);
+  });
+}
+function aplicarPosModal(id) {
+  const m = document.getElementById(id); if (!m) return;
+  const cont = m.querySelector('[data-movel]'); if (!cont) return;
+  const p = cfgModais()[id];
+  if (!p) { cont.style.position = ''; cont.style.left = ''; cont.style.top = ''; cont.style.margin = ''; if (p === null) {} return; }
+  cont.style.position = 'absolute';
+  cont.style.left = Math.max(4, Math.min(window.innerWidth - 80, p.x)) + 'px';
+  cont.style.top = Math.max(4, Math.min(window.innerHeight - 50, p.y)) + 'px';
+  cont.style.margin = '0';
+  if (p.w) cont.style.width = p.w + 'px';
+  if (p.h) cont.style.height = p.h + 'px';
+}
+function centralizarModal(id) {
+  delete cfgModais()[id];
+  const cont = document.querySelector(`#${id} [data-movel]`);
+  if (cont) { cont.style.cssText = ''; cont.dataset.movel = id; }
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  toast('⌖ Janela de volta ao centro.');
+}
+let modalArrasto = null;
+function pegarModal(ev, id) {
+  if (ev.target.closest('button')) return;
+  const cont = document.querySelector(`#${id} [data-movel]`); if (!cont) return;
+  const r = cont.getBoundingClientRect();
+  cont.style.position = 'absolute'; cont.style.margin = '0';
+  cont.style.left = r.left + 'px'; cont.style.top = r.top + 'px';
+  cont.style.width = r.width + 'px';
+  modalArrasto = { id, cont, dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+  cont.classList.add('arrastando');
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  ev.preventDefault();
+}
+function moverModal(ev) {
+  if (!modalArrasto) return;
+  const { cont, dx, dy } = modalArrasto;
+  cont.style.left = Math.max(4, Math.min(window.innerWidth - 80, ev.clientX - dx)) + 'px';
+  cont.style.top = Math.max(4, Math.min(window.innerHeight - 50, ev.clientY - dy)) + 'px';
+}
+function soltarModal() {
+  if (!modalArrasto) return;
+  const { id, cont } = modalArrasto; cont.classList.remove('arrastando');
+  cfgModais()[id] = { x: parseInt(cont.style.left, 10) || 0, y: parseInt(cont.style.top, 10) || 0,
+    w: Math.round(cont.offsetWidth), h: 0 };
+  modalArrasto = null;
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+}
+document.addEventListener('pointermove', moverModal);
+document.addEventListener('pointerup', soltarModal);
+document.addEventListener('pointercancel', soltarModal);
+/** O tamanho vem do `resize` do CSS: guarda quando o usuário larga o canto. */
+function guardarTamanhoModais() {
+  Object.keys(MODAIS_MOVEIS).forEach(id => {
+    const cont = document.querySelector(`#${id} [data-movel]`); if (!cont) return;
+    const m = document.getElementById(id);
+    if (!m || m.style.display !== 'flex') return;
+    const p = cfgModais()[id] || {};
+    const w = Math.round(cont.offsetWidth), h = Math.round(cont.offsetHeight);
+    if (p.w === w && p.h === h) return;
+    cfgModais()[id] = Object.assign({}, p, { w, h,
+      x: p.x !== undefined ? p.x : Math.round(cont.getBoundingClientRect().left),
+      y: p.y !== undefined ? p.y : Math.round(cont.getBoundingClientRect().top) });
+    localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  });
+}
+setInterval(guardarTamanhoModais, 1500);
+
+// ============================================================================
+// USABILIDADE (pedidos do caderno do desenvolvedor, 28/09 à noite)
+//  · A Config tinha virado uma página enorme: agora cada card recolhe, e o
+//    estado de aberto/fechado fica guardado por aparelho.
+//  · As janelas flutuantes passam a ser escolhidas do próprio Painel, com
+//    "arrumar nas margens" ali do lado — ir até a Config anulava a utilidade
+//    delas, que é justamente não sair da aba.
+// ============================================================================
+/** Recolhe/abre um card. O estado mora em prefs.recolhidos (por aparelho). */
+function alternarCard(id) {
+  prefs.recolhidos = prefs.recolhidos || {};
+  prefs.recolhidos[id] = !prefs.recolhidos[id];
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarRecolhidos();
+}
+function aplicarRecolhidos() {
+  const r = prefs.recolhidos || {};
+  document.querySelectorAll('.card[data-recolhivel]').forEach(c => {
+    const on = !!r[c.dataset.recolhivel];
+    c.classList.toggle('recolhido', on);
+    const b = c.querySelector('.card-toggle'); if (b) { b.innerText = on ? '▸' : '▾'; b.title = on ? 'Abrir' : 'Recolher'; }
+  });
+}
+/** Torna recolhível todo card que tenha <h2>, dentro dos containers pedidos. */
+function prepararCardsRecolhiveis() {
+  let n = 0;
+  document.querySelectorAll('#settings .card, #prod .card, #clinic .card').forEach(c => {
+    const h = c.querySelector('h2'); if (!h || c.dataset.recolhivel) return;
+    c.dataset.recolhivel = 'c' + (++n) + '-' + (c.closest('.tab-content') || {}).id;
+    h.insertAdjacentHTML('beforeend', `<button type="button" class="card-toggle" onclick="alternarCard('${c.dataset.recolhivel}')" title="Recolher">▾</button>`);
+    h.style.cursor = 'pointer';
+    h.addEventListener('click', e => { if (e.target.closest('button')) return; alternarCard(c.dataset.recolhivel); });
+  });
+  aplicarRecolhidos();
+}
+function recolherTodos(qual) {
+  prefs.recolhidos = prefs.recolhidos || {};
+  document.querySelectorAll(`${qual} .card[data-recolhivel]`).forEach(c => { prefs.recolhidos[c.dataset.recolhivel] = true; });
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarRecolhidos();
+}
+function abrirTodos(qual) {
+  prefs.recolhidos = prefs.recolhidos || {};
+  document.querySelectorAll(`${qual} .card[data-recolhivel]`).forEach(c => { delete prefs.recolhidos[c.dataset.recolhivel]; });
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarRecolhidos();
+}
+
+/** Barra no Painel: liga/desliga cada janela sem ir à Config. */
+function renderAtalhoJanelas() {
+  const el = document.getElementById('janelas-atalho'); if (!el) return;
+  const c = cfgFlut();
+  const estreito = window.innerWidth < 900;
+  el.innerHTML = Object.keys(PAINEIS).map(k => {
+    const on = (c.ativos || []).includes(k);
+    return `<span class="jan-chip${on ? ' sel' : ''}" title="${esc(PAINEIS[k].nome)}" onclick="alternarPainelAtalho('${k}')">${PAINEIS[k].ic}</span>`;
+  }).join('') +
+    `<span class="jan-sep"></span>` +
+    `<span class="jan-chip" title="Arrumar todas nas margens" onclick="arrumarPaineis()">↔</span>` +
+    (estreito ? `<span class="jan-chip${c.celular ? ' sel' : ''}" title="Mostrar janelas nesta tela estreita" onclick="alternarFlutCelular(); renderAtalhoJanelas();">📱</span>` : '') +
+    `<span class="jan-chip${c.ligado ? ' sel' : ''}" title="${c.ligado ? 'Desligar as janelas' : 'Ligar as janelas'}" onclick="alternarFlutuantes(); renderAtalhoJanelas();">🪟</span>`;
+}
+function alternarPainelAtalho(k) {
+  const c = cfgFlut();
+  if (!c.ligado) { c.ligado = true; }
+  if (window.innerWidth < 900 && !c.celular) c.celular = true;
+  alternarPainel(k); renderAtalhoJanelas();
+}
+
+/** O ⚙ mora DENTRO da aba aberta, no topo dela — não é mais um botão solto na
+ *  janela. Assim fica claro de qual aba são os ajustes e o caderno, que era o
+ *  motivo das anotações caírem na aba errada. */
 function atualizarBotaoConfigAba() {
   const b = document.getElementById('aba-cfg-btn'); if (!b) return;
   const id = ABA_ATUAL();
   const n = notasDev(id).filter(x => !x.done).length;
   b.hidden = id === 'btn-settings';
   b.title = `Ajustes e caderno de ${ABA_NOME(id)}`;
-  b.innerHTML = `⚙${n ? `<span class="cfg-bolha">${n}</span>` : ''}`;
+  b.innerHTML = `⚙ <span class="cfg-aba-nome">${esc(ABA_NOME(id))}</span>${n ? `<span class="cfg-bolha">${n}</span>` : ''}`;
+  // leva o botão para dentro do conteúdo da aba que está aberta
+  const alvo = document.querySelector('.tab-content.active');
+  if (alvo && b.parentElement !== alvo) alvo.insertBefore(b, alvo.firstChild);
+}
+/** Manda uma anotação para outra aba (conserta o que foi anotado no lugar errado). */
+function moverNotaDev(de, itemId, para) {
+  if (!para || de === para) return;
+  const n = notasDev(de).find(x => x.id === itemId); if (!n) return;
+  devnotes[de] = notasDev(de).filter(x => x.id !== itemId);
+  notasDev(para).push(n);
+  salvar('devnotes', devnotes); renderConfigAba(); tocarPaineis('dev'); atualizarBotaoConfigAba();
+  toast(`🛠️ Movido para ${ABA_NOME(para)}.`, 4000);
+}
+function opcoesAbas(atual) {
+  return ABAS_INFO.filter(a => a[0] !== 'btn-settings')
+    .map(a => `<option value="${a[0]}"${a[0] === atual ? ' selected' : ''}>${esc(a[1])}</option>`).join('');
 }
 
 // --- a janela flutuante 🛠️ ---------------------------------------------------
@@ -4259,7 +4609,7 @@ function cfgFlut() {
 function gravarFlut() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); }
 
 /** Liga/desliga o sistema todo. */
-function alternarFlutuantes() { const c = cfgFlut(); c.ligado = !c.ligado; gravarFlut(); montarPaineis(); renderConfigFlut(); }
+function alternarFlutuantes() { const c = cfgFlut(); c.ligado = !c.ligado; gravarFlut(); montarPaineis(); renderConfigFlut(); if (typeof renderAtalhoJanelas === 'function') renderAtalhoJanelas(); }
 /** No celular as janelas só aparecem se você pedir. */
 function alternarFlutCelular() { const c = cfgFlut(); c.celular = !c.celular; gravarFlut(); montarPaineis(); renderConfigFlut(); }
 function mudarLarguraFlut(v) { const c = cfgFlut(); c.largura = Number(v) || 310; gravarFlut(); recolocarPaineis(); }
@@ -4268,6 +4618,7 @@ function alternarPainel(k) {
   const c = cfgFlut(); c.ativos = c.ativos || [];
   if (c.ativos.includes(k)) c.ativos = c.ativos.filter(x => x !== k); else c.ativos.push(k);
   gravarFlut(); montarPaineis(); renderConfigFlut();
+  if (typeof renderAtalhoJanelas === 'function') renderAtalhoJanelas();
 }
 function fecharPainel(k) { alternarPainel(k); toast(`Janela "${PAINEIS[k].nome}" fechada. Pra voltar: Config → Janelas flutuantes.`, 5000); }
 function encolherPainel(k) {
@@ -4484,8 +4835,14 @@ function corpoAvisos(el) {
 async function corpoArte(el) {
   const obra = await carregarObraDoDia(false);
   if (!obra) { el.innerHTML = '<div class="pf-vazio">Obra do dia desligada em Config → Aparência.</div>'; return; }
-  el.innerHTML = `<a href="${esc(obra.link)}" target="_blank" rel="noopener" class="pf-arte"><img src="${esc(obra.img)}" alt="${esc(obra.titulo)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'pf-vazio\\'>🖼️ imagem indisponível</div>'"></a>
-    <div class="pf-arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small></div>
+  // Numa janela larga (PC, Fold aberto) a imagem fica ao lado do texto, que era
+  // o espaço vazio que sobrava. Na estreita, empilha como antes.
+  const larga = el.offsetWidth >= 330;
+  el.innerHTML = `<div class="pf-arte-wrap${larga ? ' larga' : ''}">
+    <a href="${esc(obra.link)}" target="_blank" rel="noopener" class="pf-arte"><img src="${esc(obra.img)}" alt="${esc(obra.titulo)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'pf-vazio\\'>🖼️ imagem indisponível</div>'"></a>
+    <div class="pf-arte-info"><strong>${esc(obra.titulo)}</strong><small>${esc(obra.autor)}${obra.ano ? ' · ' + esc(String(obra.ano)) : ''}</small>
+      ${obra.sobre ? `<p class="pf-arte-sobre">${esc(obra.sobre)}</p>` : ''}
+      <small class="item-date">${esc(obra.fonte)}${obra.aviso ? ' · ' + esc(obra.aviso) : ''}</small></div></div>
     <div class="pf-botoes"><button class="mini-btn" onclick="renderArte(true); tocarPaineis('arte');">↻ outra</button></div>`;
 }
 
@@ -4496,12 +4853,25 @@ function corpoMusica(el) {
     el.innerHTML = `<div class="pf-vazio">Nenhuma faixa tocando.</div><div class="pf-botoes"><button class="mini-btn" onclick="mpIrParaMusica()">escolher música</button></div>`;
     return;
   }
+  const vol = Math.round((a ? a.volume : 1) * 100);
   el.innerHTML = `<div class="pf-faixa">${esc(faixas[faixaAtual].nome)}</div>
     <div class="pf-prog"><div id="pf-mus-prog" style="width:${a && a.duration ? Math.round(a.currentTime / a.duration * 100) : 0}%"></div></div>
+    <div class="pf-rodape" style="border:none; padding-top:2px"><span>${fmtSeg(a ? a.currentTime : 0)}${a && a.duration ? ' / ' + fmtSeg(a.duration) : ''}</span><span>${faixaAtual + 1} de ${faixas.length}</span></div>
     <div class="pf-botoes"><button class="mini-btn" onclick="tocarFaixa(faixaAtual - 1); tocarPaineis('musica');">⏮</button>
       <button class="mini-btn" onclick="mpPlayPause(); tocarPaineis('musica');">${a && a.paused ? '▶️' : '⏸️'}</button>
       <button class="mini-btn" onclick="tocarFaixa(faixaAtual + 1); tocarPaineis('musica');">⏭</button>
-      <button class="mini-btn" onclick="mpIrParaMusica()">lista</button></div>`;
+      <button class="mini-btn" onclick="mpIrParaMusica()">lista</button></div>
+    <div class="pf-linha" style="align-items:center; gap:7px"><small>🔊</small><input type="range" min="0" max="100" value="${vol}" oninput="mpVolume(this.value)" style="flex:1"></div>`;
+}
+/** O ✕ do mini player e a janela 🎵 são a MESMA coisa em dois lugares.
+ *  Este botão junta: manda o player para a janela flutuante e fecha a barrinha. */
+function mpVirarJanela() {
+  const c = cfgFlut();
+  c.ligado = true;
+  if (!(c.ativos || []).includes('musica')) c.ativos = [...(c.ativos || []), 'musica'];
+  if (window.innerWidth < 900) c.celular = true;   // senão a janela não teria onde aparecer
+  gravarFlut(); montarPaineis();
+  toast('🎵 O player virou janela flutuante. Pra desfazer: Config → Janelas flutuantes.', 6000);
 }
 
 // --- card da Config ---------------------------------------------------------
@@ -4885,6 +5255,546 @@ document.getElementById('pac-servico').addEventListener('change', function () {
 });
 
 // ============================================================================
+// PRODUÇÃO / IMPRESSÃO 3D — para quem fabrica e vende (perfil "producao")
+// O amigo engenheiro imprime objetos personalizados e vende em marketplace.
+// O que ninguém calcula direito nesse ramo é o CUSTO REAL: filamento gasto,
+// horas de máquina (energia + desgaste), tempo de acabamento e, na venda, a
+// taxa da plataforma e o frete. Esse módulo faz essas duas contas e mostra o
+// que sobra de verdade em cada peça.
+// 5 módulos sincronizados: maquinas, filamentos, produtos, ordens, vendas.
+// ============================================================================
+const MATERIAIS = {
+  pla:   ['🟢', 'PLA'],    petg: ['🔵', 'PETG'], abs: ['🔴', 'ABS'],
+  tpu:   ['🟣', 'TPU'],    resina: ['🟡', 'Resina'], outro: ['⚪', 'Outro']
+};
+const STATUS_ORDEM = {
+  fila:      ['📋', 'Na fila', '#94a3b8'],
+  imprimindo:['🖨️', 'Imprimindo', '#38bdf8'],
+  acabamento:['🧽', 'Acabamento', '#fbbf24'],
+  pronto:    ['📦', 'Pronto', '#22c55e'],
+  entregue:  ['🚚', 'Entregue', '#64748b'],
+  falhou:    ['💥', 'Falhou', '#ef4444']
+};
+const FLUXO_ORDEM = ['fila', 'imprimindo', 'acabamento', 'pronto', 'entregue'];
+// Taxa média de cada canal — o usuário pode mudar em cada venda.
+const PLATAFORMAS = {
+  mercadolivre: ['🛒', 'Mercado Livre', 16],
+  shopee:       ['🧡', 'Shopee', 14],
+  elo7:         ['🎨', 'Elo7', 12],
+  amazon:       ['📦', 'Amazon', 15],
+  direto:       ['🤝', 'Venda direta', 0]
+};
+const CAT_PRODUCAO = 'Produção / Vendas';
+const CAT_INSUMO = 'Insumos de produção';
+
+function cfgProducao() {
+  const c = profile.producao = profile.producao || {};
+  if (c.custoKwh === undefined) c.custoKwh = 0.95;   // R$/kWh — média Brasil, ele ajusta
+  if (c.maoHora === undefined) c.maoHora = 25;       // quanto vale a hora dele no acabamento
+  return c;
+}
+function salvarCfgProducao() {
+  const c = cfgProducao();
+  c.custoKwh = parseFloat(document.getElementById('prod-kwh').value) || 0;
+  c.maoHora = parseFloat(document.getElementById('prod-mao').value) || 0;
+  salvar('profile', profile); renderProducao();
+}
+
+// --- máquinas ---------------------------------------------------------------
+function maquinaPorId(id) { return maquinas.find(m => m.id === Number(id)) || null; }
+/** Quanto custa 1 hora de máquina: energia + desgaste que ele estimar. */
+function custoHoraMaquina(m) {
+  if (!m) return 0;
+  const energia = ((Number(m.potenciaW) || 0) / 1000) * cfgProducao().custoKwh;
+  return energia + (Number(m.desgasteHora) || 0);
+}
+function maquinaPadrao() { return maquinas.find(m => m.ativo !== false) || null; }
+function precisaManutencao(m) {
+  const cada = Number(m.manutencaoCadaH) || 0;
+  if (!cada) return false;
+  return (Number(m.horasRodadas) || 0) - (Number(m.horasNaUltimaManut) || 0) >= cada;
+}
+function renderMaquinas() {
+  const ul = document.getElementById('maq-lista'); if (!ul) return;
+  ul.innerHTML = maquinas.length ? maquinas.map(m => {
+    const ch = custoHoraMaquina(m); const alerta = precisaManutencao(m);
+    return `<li style="${m.ativo === false ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
+      <span>🖨️ ${esc(m.nome)}${alerta ? ' <span class="badge-topay">manutenção</span>' : ''}</span>
+      <small class="item-date">${m.potenciaW || 0} W · ${formatCurrency(ch)}/h${m.manutencaoCadaH ? ` · ${Math.round(m.horasRodadas || 0)}h rodadas (revisar a cada ${m.manutencaoCadaH}h)` : ` · ${Math.round(m.horasRodadas || 0)}h rodadas`}</small></div>
+      <div class="item-actions">${alerta ? `<button class="mini-btn" title="Marcar manutenção feita" onclick="manutencaoFeita(${m.id})">🔧</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarMaquina(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMaquina(${m.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma impressora. Cadastre uma para o custo por hora entrar no preço.</li>';
+}
+function manutencaoFeita(id) {
+  const m = maquinaPorId(id); if (!m) return;
+  m.horasNaUltimaManut = Number(m.horasRodadas) || 0; m.ultimaManutencao = hojeISO();
+  salvar('maquinas', maquinas); renderProducao(); toast('🔧 Manutenção registrada.');
+}
+function editarMaquina(id) {
+  const m = maquinaPorId(id); if (!m) return;
+  changeTab('prod'); verSecaoProducao('config');
+  document.getElementById('maq-id').value = m.id; document.getElementById('maq-nome').value = m.nome;
+  document.getElementById('maq-w').value = m.potenciaW || ''; document.getElementById('maq-desgaste').value = m.desgasteHora || '';
+  document.getElementById('maq-manut').value = m.manutencaoCadaH || '';
+  document.getElementById('maq-submit').innerText = 'Salvar impressora'; document.getElementById('maq-nome').focus();
+}
+function removerMaquina(id) {
+  const m = maquinaPorId(id); if (!m || !confirm(`Apagar a impressora "${m.nome}"?`)) return;
+  maquinas = maquinas.filter(x => x.id !== id); salvar('maquinas', maquinas); renderProducao();
+}
+
+// --- filamentos (estoque) ---------------------------------------------------
+function filamentoPorId(id) { return filamentos.find(f => f.id === Number(id)) || null; }
+function custoPorGrama(f) {
+  if (!f) return 0;
+  const g = Number(f.gramasRolo) || 1000;
+  return (Number(f.precoRolo) || 0) / g;
+}
+function nomeFilamento(f) {
+  if (!f) return '';
+  const mat = MATERIAIS[f.material] || MATERIAIS.outro;
+  return `${mat[1]} ${f.cor || ''}`.trim();
+}
+function filamentoBaixo(f) { return (Number(f.gramasRestantes) || 0) < (Number(f.gramasRolo) || 1000) * 0.15; }
+function renderFilamentos() {
+  const ul = document.getElementById('fil-lista'); if (!ul) return;
+  const total = filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0), 0);
+  const resumo = document.getElementById('fil-resumo');
+  if (resumo) resumo.innerHTML = filamentos.length
+    ? `<span>🧵 Em estoque: <strong>${(total / 1000).toFixed(2)} kg</strong> em ${plural(filamentos.length, 'rolo', 'rolos')}</span><span>💰 Valor: <strong>${formatCurrency(filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0) * custoPorGrama(f), 0))}</strong></span>`
+    : '<span>Nenhum rolo cadastrado.</span>';
+  ul.innerHTML = filamentos.length ? [...filamentos].sort((a, b) => (Number(a.gramasRestantes) || 0) - (Number(b.gramasRestantes) || 0)).map(f => {
+    const mat = MATERIAIS[f.material] || MATERIAIS.outro;
+    const pct = Math.max(0, Math.min(100, Math.round((Number(f.gramasRestantes) || 0) / (Number(f.gramasRolo) || 1000) * 100)));
+    const baixo = filamentoBaixo(f);
+    return `<li><div class="transaction-info" style="flex:1">
+      <span>${mat[0]} ${esc(nomeFilamento(f))}${f.marca ? ` <small class="item-date">${esc(f.marca)}</small>` : ''}${baixo ? ' <span class="badge-topay">acabando</span>' : ''}</span>
+      <small class="item-date">${Math.round(Number(f.gramasRestantes) || 0)} g de ${f.gramasRolo || 1000} g · ${formatCurrency(custoPorGrama(f) * 1000)}/kg</small>
+      <div class="cat-bar" style="margin-top:4px"><div style="width:${pct}%; background:${baixo ? '#ef4444' : '#22c55e'}"></div></div></div>
+      <div class="item-actions"><button class="mini-btn" title="Repor o rolo (volta ao cheio)" onclick="reporFilamento(${f.id})">↻</button><button class="mini-btn" title="Editar" onclick="editarFilamento(${f.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerFilamento(${f.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre os rolos: é daqui que sai o custo por grama de cada peça.</li>';
+}
+function reporFilamento(id) {
+  const f = filamentoPorId(id); if (!f) return;
+  if (!confirm(`Repor "${nomeFilamento(f)}" para ${f.gramasRolo || 1000} g?\n\nLança a compra de ${formatCurrency(f.precoRolo)} em Finanças?`)) {
+    f.gramasRestantes = Number(f.gramasRolo) || 1000; salvar('filamentos', filamentos); renderProducao(); return;
+  }
+  f.gramasRestantes = Number(f.gramasRolo) || 1000; f.comprado = hojeISO();
+  transactions.push({ id: novoId(), date: hojeISO(), desc: `Filamento: ${nomeFilamento(f)}`, amount: Number(f.precoRolo) || 0, type: 'expense', category: CAT_INSUMO, notes: '', pending: false, paidAt: hojeISO() });
+  salvar('filamentos', filamentos); salvar('finances', transactions);
+  renderProducao(); updateFinanceValues(); renderFinances();
+  toast(`🧵 Rolo reposto e ${formatCurrency(f.precoRolo)} lançados em Finanças.`, 5000);
+}
+function editarFilamento(id) {
+  const f = filamentoPorId(id); if (!f) return;
+  changeTab('prod'); verSecaoProducao('estoque');
+  document.getElementById('fil-id').value = f.id; document.getElementById('fil-material').value = f.material;
+  document.getElementById('fil-cor').value = f.cor || ''; document.getElementById('fil-marca').value = f.marca || '';
+  document.getElementById('fil-preco').value = f.precoRolo || ''; document.getElementById('fil-gramas').value = f.gramasRolo || '';
+  document.getElementById('fil-resta').value = f.gramasRestantes || '';
+  document.getElementById('fil-submit').innerText = 'Salvar rolo'; document.getElementById('fil-cor').focus();
+}
+function removerFilamento(id) {
+  const f = filamentoPorId(id); if (!f || !confirm(`Apagar o rolo "${nomeFilamento(f)}"?`)) return;
+  filamentos = filamentos.filter(x => x.id !== id); salvar('filamentos', filamentos); renderProducao();
+}
+
+// --- produtos (o custo real) ------------------------------------------------
+function produtoPorId(id) { return produtos.find(p => p.id === Number(id)) || null; }
+/** A conta que o ramo inteiro erra: filamento + máquina + acabamento + extras. */
+function custoProduto(p) {
+  const f = filamentoPorId(p.filamentoId) || filamentos[0];
+  const m = maquinaPorId(p.maquinaId) || maquinaPadrao();
+  const filamento = (Number(p.gramas) || 0) * custoPorGrama(f);
+  const maquina = (Number(p.horas) || 0) * custoHoraMaquina(m);
+  const mao = ((Number(p.minAcabamento) || 0) / 60) * cfgProducao().maoHora;
+  const extra = Number(p.custoExtra) || 0;
+  const total = filamento + maquina + mao + extra;
+  return { filamento, maquina, mao, extra, total };
+}
+function precoSugerido(p) {
+  const c = custoProduto(p).total; const margem = Number(p.margemAlvo) || 0;
+  return margem > 0 && margem < 100 ? c / (1 - margem / 100) : c * 2;
+}
+/** Lucro de uma venda já descontando taxa da plataforma e frete. */
+function liquidoVenda(v) {
+  const bruto = (Number(v.preco) || 0) * (Number(v.qtd) || 1);
+  const taxa = bruto * ((Number(v.taxaPct) || 0) / 100);
+  const frete = Number(v.frete) || 0;
+  const custo = (Number(v.custoUnit) || 0) * (Number(v.qtd) || 1);
+  return { bruto, taxa, frete, custo, liquido: bruto - taxa - frete - custo };
+}
+function preencherSelectsProducao() {
+  const m = document.getElementById('prd-material');
+  if (m && !m.options.length) m.innerHTML = Object.entries(MATERIAIS).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+  const fm = document.getElementById('fil-material');
+  if (fm && !fm.options.length) fm.innerHTML = Object.entries(MATERIAIS).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+  const pf = document.getElementById('prd-filamento');
+  if (pf) { const a = pf.value; pf.innerHTML = '<option value="">— filamento —</option>' + filamentos.map(f => `<option value="${f.id}">${esc(nomeFilamento(f))} · ${formatCurrency(custoPorGrama(f) * 1000)}/kg</option>`).join(''); if (a) pf.value = a; }
+  const pm = document.getElementById('prd-maquina');
+  if (pm) { const a = pm.value; pm.innerHTML = '<option value="">— impressora —</option>' + maquinas.map(x => `<option value="${x.id}">${esc(x.nome)} · ${formatCurrency(custoHoraMaquina(x))}/h</option>`).join(''); if (a) pm.value = a; }
+  const op = document.getElementById('ord-produto');
+  if (op) { const a = op.value; op.innerHTML = '<option value="">— produto —</option>' + produtos.filter(p => p.ativo !== false).map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join(''); if (a) op.value = a; }
+  const om = document.getElementById('ord-maquina');
+  if (om) { const a = om.value; om.innerHTML = '<option value="">— impressora —</option>' + maquinas.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join(''); if (a) om.value = a; }
+  const vp = document.getElementById('vnd-produto');
+  if (vp) { const a = vp.value; vp.innerHTML = '<option value="">— produto —</option>' + produtos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join(''); if (a) vp.value = a; }
+  const vl = document.getElementById('vnd-plataforma');
+  if (vl && !vl.options.length) vl.innerHTML = Object.entries(PLATAFORMAS).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+}
+/** Enquanto ele digita, mostra a conta se formando. */
+function previaCusto() {
+  const el = document.getElementById('prd-previa'); if (!el) return;
+  const p = {
+    gramas: parseFloat(document.getElementById('prd-gramas').value) || 0,
+    horas: parseFloat(document.getElementById('prd-horas').value) || 0,
+    minAcabamento: parseFloat(document.getElementById('prd-acab').value) || 0,
+    custoExtra: parseFloat(document.getElementById('prd-extra').value) || 0,
+    filamentoId: document.getElementById('prd-filamento').value,
+    maquinaId: document.getElementById('prd-maquina').value,
+    margemAlvo: parseFloat(document.getElementById('prd-margem').value) || 0
+  };
+  const c = custoProduto(p);
+  if (!c.total) { el.innerHTML = ''; return; }
+  el.innerHTML = `🧵 ${formatCurrency(c.filamento)} + 🖨️ ${formatCurrency(c.maquina)} + 🧽 ${formatCurrency(c.mao)}${c.extra ? ' + ➕ ' + formatCurrency(c.extra) : ''} = <strong>${formatCurrency(c.total)}</strong> de custo · sugerido <strong style="color:#22c55e">${formatCurrency(precoSugerido(p))}</strong>`;
+}
+function renderProdutos() {
+  const ul = document.getElementById('prd-lista'); if (!ul) return;
+  ul.innerHTML = produtos.length ? [...produtos].map(p => {
+    const c = custoProduto(p); const preco = Number(p.preco) || precoSugerido(p);
+    const lucro = preco - c.total; const pct = preco > 0 ? Math.round(lucro / preco * 100) : 0;
+    return `<li style="${p.ativo === false ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
+      <span>🧩 ${esc(p.nome)}</span>
+      <small class="item-date">${p.gramas || 0} g · ${p.horas || 0}h de máquina${p.minAcabamento ? ' · ' + p.minAcabamento + ' min de acabamento' : ''}</small>
+      <small class="item-notes">custo <strong>${formatCurrency(c.total)}</strong> · vende a <strong>${formatCurrency(preco)}</strong> · sobra <strong style="color:${lucro >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(lucro)}</strong> <span class="margem-pct">(${pct}%)</span></small></div>
+      <div class="item-actions"><button class="mini-btn" title="Mandar para a fila" onclick="ordemDoProduto(${p.id})">▶</button><button class="mini-btn" title="Editar" onclick="editarProduto(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerProduto(${p.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre uma peça com gramas e horas — o app calcula o custo e sugere o preço.</li>';
+}
+function editarProduto(id) {
+  const p = produtoPorId(id); if (!p) return;
+  changeTab('prod'); verSecaoProducao('catalogo'); preencherSelectsProducao();
+  [['prd-id', 'id'], ['prd-nome', 'nome'], ['prd-gramas', 'gramas'], ['prd-horas', 'horas'],
+   ['prd-acab', 'minAcabamento'], ['prd-extra', 'custoExtra'], ['prd-margem', 'margemAlvo'],
+   ['prd-preco', 'preco'], ['prd-notas', 'notas']].forEach(([el, k]) => {
+    const e = document.getElementById(el); if (e) e.value = p[k] === undefined || p[k] === null ? '' : p[k];
+  });
+  document.getElementById('prd-filamento').value = p.filamentoId || '';
+  document.getElementById('prd-maquina').value = p.maquinaId || '';
+  previaCusto();
+  document.getElementById('prd-submit').innerText = 'Salvar produto'; document.getElementById('prd-nome').focus();
+}
+function removerProduto(id) {
+  const p = produtoPorId(id); if (!p || !confirm(`Apagar o produto "${p.nome}"?`)) return;
+  produtos = produtos.filter(x => x.id !== id); salvar('produtos', produtos); renderProducao();
+}
+
+// --- fila de produção -------------------------------------------------------
+function ordemPorId(id) { return ordens.find(o => o.id === Number(id)) || null; }
+function ordemDoProduto(id) {
+  const p = produtoPorId(id); if (!p) return;
+  verSecaoProducao('fila'); preencherSelectsProducao();
+  document.getElementById('ord-produto').value = p.id;
+  document.getElementById('ord-qtd').value = 1;
+  document.getElementById('ord-maquina').value = p.maquinaId || (maquinaPadrao() ? maquinaPadrao().id : '');
+  document.getElementById('ord-cliente').focus();
+}
+function avancarOrdem(id) {
+  const o = ordemPorId(id); if (!o) return;
+  const i = FLUXO_ORDEM.indexOf(o.status);
+  if (i < 0 || i >= FLUXO_ORDEM.length - 1) { toast('Já está no fim do fluxo.'); return; }
+  mudarStatusOrdem(id, FLUXO_ORDEM[i + 1]);
+}
+/** Ao sair de "imprimindo", baixa o filamento e soma horas na máquina. */
+function mudarStatusOrdem(id, status) {
+  const o = ordemPorId(id); if (!o || !STATUS_ORDEM[status]) return;
+  const antes = o.status;
+  o.status = status;
+  const p = produtoPorId(o.produtoId);
+  if (status === 'imprimindo' && !o.inicio) o.inicio = hojeISO();
+  // consome insumos uma única vez, quando a impressão termina (ou falha)
+  const terminou = (status === 'acabamento' || status === 'pronto' || status === 'falhou');
+  if (terminou && !o.consumido && p) {
+    const g = (Number(p.gramas) || 0) * (Number(o.qtd) || 1);
+    const f = filamentoPorId(p.filamentoId);
+    if (f) { f.gramasRestantes = Math.max(0, (Number(f.gramasRestantes) || 0) - g); salvar('filamentos', filamentos); }
+    const m = maquinaPorId(o.maquinaId) || maquinaPadrao();
+    if (m) { m.horasRodadas = (Number(m.horasRodadas) || 0) + (Number(p.horas) || 0) * (Number(o.qtd) || 1); salvar('maquinas', maquinas); }
+    o.consumido = true; o.gramasUsados = g;
+    if (f && filamentoBaixo(f)) toast(`🧵 ${nomeFilamento(f)} está acabando (${Math.round(f.gramasRestantes)} g).`, 7000);
+  }
+  if (status === 'entregue' && !o.fim) o.fim = hojeISO();
+  salvar('ordens', ordens); renderProducao();
+  toast(`${STATUS_ORDEM[status][0]} ${p ? p.nome : 'Ordem'} → ${STATUS_ORDEM[status][1]}${terminou && antes !== status && o.gramasUsados ? ` · −${Math.round(o.gramasUsados)} g de filamento` : ''}`, 5000);
+}
+function removerOrdem(id) {
+  const o = ordemPorId(id); if (!o || !confirm('Apagar esta ordem da fila?')) return;
+  ordens = ordens.filter(x => x.id !== id); salvar('ordens', ordens); renderProducao();
+}
+function renderFila() {
+  const el = document.getElementById('ord-lista'); if (!el) return;
+  const porStatus = {};
+  ordens.forEach(o => { (porStatus[o.status] = porStatus[o.status] || []).push(o); });
+  const ordem = ['imprimindo', 'acabamento', 'fila', 'pronto', 'entregue', 'falhou'];
+  let html = '';
+  ordem.forEach(k => {
+    const lista = porStatus[k] || []; if (!lista.length) return;
+    const st = STATUS_ORDEM[k];
+    html += `<div class="etapa-bloco"><div class="etapa-topo" style="border-left-color:${st[2]}"><strong>${st[0]} ${st[1]}</strong><small>${lista.length}</small></div>`;
+    html += lista.map(o => {
+      const p = produtoPorId(o.produtoId); const m = maquinaPorId(o.maquinaId);
+      const pode = FLUXO_ORDEM.indexOf(o.status) >= 0 && FLUXO_ORDEM.indexOf(o.status) < FLUXO_ORDEM.length - 1;
+      return `<div class="pac-linha"><div class="transaction-info" style="flex:1">
+        <span>${esc(p ? p.nome : 'produto apagado')}${o.qtd > 1 ? ` <small class="item-date">×${o.qtd}</small>` : ''}</span>
+        <small class="item-date">${m ? '🖨️ ' + esc(m.nome) : 'sem impressora'}${o.cliente ? ' · 👤 ' + esc(o.cliente) : ''}${o.gramasUsados ? ' · ' + Math.round(o.gramasUsados) + ' g' : ''}${o.prazo ? ' · 📅 ' + isoParaBR(o.prazo) : ''}</small>
+        ${o.notas ? `<small class="item-notes">${esc(o.notas)}</small>` : ''}</div>
+        <div class="item-actions">${pode ? `<button class="mini-btn" title="Avançar para ${STATUS_ORDEM[FLUXO_ORDEM[FLUXO_ORDEM.indexOf(o.status) + 1]][1]}" onclick="avancarOrdem(${o.id})">▶</button>` : ''}${o.status !== 'falhou' && o.status !== 'entregue' ? `<button class="mini-btn" title="Deu ruim (perdeu o material)" onclick="mudarStatusOrdem(${o.id}, 'falhou')">💥</button>` : ''}${o.status === 'pronto' ? `<button class="mini-btn" title="Registrar a venda" onclick="venderOrdem(${o.id})">💰</button>` : ''}<button class="mini-btn" title="Apagar" onclick="removerOrdem(${o.id})">✕</button></div></div>`;
+    }).join('');
+    html += '</div>';
+  });
+  el.innerHTML = html || '<div class="pf-vazio">Fila vazia. Mande um produto do catálogo pra cá com o ▶.</div>';
+}
+
+// --- vendas (marketplace) ---------------------------------------------------
+function venderOrdem(id) {
+  const o = ordemPorId(id); if (!o) return;
+  const p = produtoPorId(o.produtoId);
+  verSecaoProducao('vendas'); preencherSelectsProducao();
+  document.getElementById('vnd-produto').value = o.produtoId || '';
+  document.getElementById('vnd-qtd').value = o.qtd || 1;
+  document.getElementById('vnd-ordem').value = o.id;
+  if (p) document.getElementById('vnd-preco').value = Number(p.preco) || Math.round(precoSugerido(p) * 100) / 100;
+  aplicarTaxaPlataforma();
+  document.getElementById('vnd-preco').focus();
+}
+function aplicarTaxaPlataforma() {
+  const k = document.getElementById('vnd-plataforma').value;
+  const t = (PLATAFORMAS[k] || PLATAFORMAS.direto)[2];
+  const campo = document.getElementById('vnd-taxa');
+  if (campo && !campo.dataset.tocado) campo.value = t;
+  previaVenda();
+}
+function previaVenda() {
+  const el = document.getElementById('vnd-previa'); if (!el) return;
+  const p = produtoPorId(document.getElementById('vnd-produto').value);
+  const v = {
+    qtd: parseFloat(document.getElementById('vnd-qtd').value) || 1,
+    preco: parseFloat(document.getElementById('vnd-preco').value) || 0,
+    taxaPct: parseFloat(document.getElementById('vnd-taxa').value) || 0,
+    frete: parseFloat(document.getElementById('vnd-frete').value) || 0,
+    custoUnit: p ? custoProduto(p).total : 0
+  };
+  if (!v.preco) { el.innerHTML = ''; return; }
+  const r = liquidoVenda(v);
+  const pct = r.bruto > 0 ? Math.round(r.liquido / r.bruto * 100) : 0;
+  el.innerHTML = `${formatCurrency(r.bruto)} − taxa ${formatCurrency(r.taxa)} − frete ${formatCurrency(r.frete)} − custo ${formatCurrency(r.custo)} = <strong style="color:${r.liquido >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(r.liquido)}</strong> <span class="margem-pct">(${pct}% do que o cliente pagou)</span>`;
+}
+function removerVenda(id) {
+  const v = vendas.find(x => x.id === id); if (!v || !confirm('Apagar esta venda? O lançamento em Finanças sai junto.')) return;
+  transactions = transactions.filter(t => t.vendaId !== v.id);
+  vendas = vendas.filter(x => x.id !== id);
+  salvar('vendas', vendas); salvar('finances', transactions);
+  renderProducao(); updateFinanceValues(); renderFinances();
+}
+function renderVendas() {
+  const ul = document.getElementById('vnd-lista'); if (!ul) return;
+  const ym = hojeISO().slice(0, 7);
+  const doMes = vendas.filter(v => (v.data || '').startsWith(ym));
+  const somaL = doMes.reduce((a, v) => a + liquidoVenda(v).liquido, 0);
+  const somaB = doMes.reduce((a, v) => a + liquidoVenda(v).bruto, 0);
+  const r = document.getElementById('vnd-resumo');
+  if (r) r.innerHTML = doMes.length
+    ? `<span>🧾 Vendido no mês: <strong>${formatCurrency(somaB)}</strong> (${doMes.length})</span><span>💚 Sobrou de verdade: <strong style="color:${somaL >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(somaL)}</strong></span>`
+    : '<span>Nenhuma venda neste mês.</span>';
+  ul.innerHTML = vendas.length ? [...vendas].sort((a, b) => (b.data || '').localeCompare(a.data || '')).slice(0, 30).map(v => {
+    const p = produtoPorId(v.produtoId); const pl = PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto;
+    const c = liquidoVenda(v);
+    return `<li><div class="transaction-info" style="flex:1">
+      <span>${pl[0]} ${esc(p ? p.nome : 'produto apagado')}${v.qtd > 1 ? ` ×${v.qtd}` : ''}</span>
+      <small class="item-date">${esc(pl[1])} · ${isoParaBR(v.data)} · bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)} − custo ${formatCurrency(c.custo)}</small></div>
+      <div class="item-actions"><strong style="margin-right:6px; color:${c.liquido >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(c.liquido)}</strong><button class="mini-btn" title="Apagar" onclick="removerVenda(${v.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">As vendas entram aqui com taxa e frete descontados.</li>';
+}
+
+// --- painel -----------------------------------------------------------------
+function renderPainelProducao() {
+  const el = document.getElementById('producao-painel'); if (!el) return;
+  const ym = hojeISO().slice(0, 7);
+  const doMes = vendas.filter(v => (v.data || '').startsWith(ym)).map(liquidoVenda);
+  const bruto = doMes.reduce((a, r) => a + r.bruto, 0);
+  const liquido = doMes.reduce((a, r) => a + r.liquido, 0);
+  const taxas = doMes.reduce((a, r) => a + r.taxa + r.frete, 0);
+  const naFila = ordens.filter(o => ['fila', 'imprimindo', 'acabamento'].includes(o.status));
+  const horasFila = naFila.reduce((a, o) => { const p = produtoPorId(o.produtoId); return a + (p ? (Number(p.horas) || 0) * (Number(o.qtd) || 1) : 0); }, 0);
+  const falhas = ordens.filter(o => o.status === 'falhou').length;
+  const taxaFalha = ordens.length ? Math.round(falhas / ordens.length * 100) : 0;
+  const estoque = filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0), 0);
+  const acabando = filamentos.filter(filamentoBaixo).length;
+  const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+  el.innerHTML = `<div class="stat-grid">
+    ${tile('🧾', formatCurrency(bruto), `vendido em ${nomeMes(ym).toLowerCase()}`)}
+    ${tile('💚', formatCurrency(liquido), 'sobrou depois de tudo', liquido >= 0 ? '#22c55e' : '#ef4444')}
+    ${tile('✂️', formatCurrency(taxas), 'foi em taxa e frete', taxas ? '#f59e0b' : undefined)}
+    ${tile('📋', naFila.length, `na fila · ${horasFila.toFixed(1)}h de máquina`, '#38bdf8')}
+    ${tile('🧵', (estoque / 1000).toFixed(2) + ' kg', acabando ? `${plural(acabando, 'rolo acabando', 'rolos acabando')}` : 'de filamento', acabando ? '#ef4444' : undefined)}
+    ${tile('💥', taxaFalha + '%', `de falha · ${plural(falhas, 'perda', 'perdas')}`, taxaFalha > 15 ? '#ef4444' : undefined)}
+  </div>`;
+  // lucro por produto no mês
+  const porProduto = {};
+  vendas.filter(v => (v.data || '').startsWith(ym)).forEach(v => {
+    const p = produtoPorId(v.produtoId); const n = p ? p.nome : 'Sem produto';
+    porProduto[n] = (porProduto[n] || 0) + liquidoVenda(v).liquido;
+  });
+  const det = document.getElementById('producao-detalhe');
+  const itens = Object.entries(porProduto).sort((a, b) => b[1] - a[1]);
+  const total = itens.reduce((a, [, x]) => a + Math.abs(x), 0);
+  if (det) det.innerHTML = `<div class="stat-lists"><div><h5>🧩 O que deu lucro este mês</h5>${
+    itens.length ? itens.map(([k, x]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${total ? Math.round(Math.abs(x) / total * 100) : 0}%; background:${x >= 0 ? '#22c55e' : '#ef4444'}"></div></div><span class="cat-val">${formatCurrency(x)}</span></div>`).join('')
+      : '<div class="stat-line muted">nenhuma venda ainda</div>'}</div></div>`;
+}
+
+// --- a aba ------------------------------------------------------------------
+let producaoSecao = 'painel';
+function verSecaoProducao(s, el) {
+  producaoSecao = s;
+  document.querySelectorAll('#producao-secoes span').forEach(x => x.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else { const i = ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].indexOf(s); const sp = document.querySelectorAll('#producao-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].forEach(k => { const d = document.getElementById('sec-pr-' + k); if (d) d.hidden = k !== s; });
+}
+function renderProducao() {
+  preencherSelectsProducao();
+  renderPainelProducao(); renderFila(); renderProdutos(); renderFilamentos(); renderMaquinas(); renderVendas();
+  const k = document.getElementById('prod-kwh'); if (k && !k.value) k.value = cfgProducao().custoKwh;
+  const mo = document.getElementById('prod-mao'); if (mo && !mo.value) mo.value = cfgProducao().maoHora;
+}
+function ajustarAbaProducao() {
+  const b = document.getElementById('btn-prod'); if (!b) return;
+  const c = cfgAparencia();
+  const eh = (profile && profile.trabalho) === 'producao';
+  if (eh) c.ocultas = c.ocultas.filter(x => x !== 'btn-prod');
+  else if (!c.ocultas.includes('btn-prod') && !produtos.length && !ordens.length && !filamentos.length) c.ocultas.push('btn-prod');
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarAparencia();
+}
+
+// --- formulários ------------------------------------------------------------
+document.getElementById('maq-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('maq-id').value;
+  const d = { nome: document.getElementById('maq-nome').value.trim(),
+    potenciaW: parseFloat(document.getElementById('maq-w').value) || 0,
+    desgasteHora: parseFloat(document.getElementById('maq-desgaste').value) || 0,
+    manutencaoCadaH: parseFloat(document.getElementById('maq-manut').value) || 0 };
+  if (!d.nome) return;
+  if (id) { const m = maquinaPorId(id); if (m) Object.assign(m, d); }
+  else maquinas.push({ id: novoId(), ativo: true, horasRodadas: 0, horasNaUltimaManut: 0, criadoEm: Date.now(), ...d });
+  salvar('maquinas', maquinas);
+  document.getElementById('maq-form').reset(); document.getElementById('maq-id').value = '';
+  document.getElementById('maq-submit').innerText = 'Adicionar impressora';
+  renderProducao(); toast(id ? '🖨️ Impressora atualizada.' : '🖨️ Impressora cadastrada.');
+});
+document.getElementById('fil-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('fil-id').value;
+  const g = parseFloat(document.getElementById('fil-gramas').value) || 1000;
+  const r = document.getElementById('fil-resta').value;
+  const d = { material: document.getElementById('fil-material').value,
+    cor: document.getElementById('fil-cor').value.trim(),
+    marca: document.getElementById('fil-marca').value.trim(),
+    precoRolo: parseFloat(document.getElementById('fil-preco').value) || 0,
+    gramasRolo: g, gramasRestantes: r === '' ? g : parseFloat(r) };
+  if (id) { const f = filamentoPorId(id); if (f) Object.assign(f, d); }
+  else filamentos.push({ id: novoId(), comprado: hojeISO(), criadoEm: Date.now(), ...d });
+  salvar('filamentos', filamentos);
+  document.getElementById('fil-form').reset(); document.getElementById('fil-id').value = '';
+  document.getElementById('fil-submit').innerText = 'Adicionar rolo';
+  renderProducao(); toast(id ? '🧵 Rolo atualizado.' : '🧵 Rolo no estoque.');
+});
+document.getElementById('prd-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('prd-id').value;
+  const pv = document.getElementById('prd-preco').value;
+  const d = { nome: document.getElementById('prd-nome').value.trim(),
+    gramas: parseFloat(document.getElementById('prd-gramas').value) || 0,
+    horas: parseFloat(document.getElementById('prd-horas').value) || 0,
+    minAcabamento: parseFloat(document.getElementById('prd-acab').value) || 0,
+    custoExtra: parseFloat(document.getElementById('prd-extra').value) || 0,
+    margemAlvo: parseFloat(document.getElementById('prd-margem').value) || 0,
+    filamentoId: document.getElementById('prd-filamento').value ? Number(document.getElementById('prd-filamento').value) : '',
+    maquinaId: document.getElementById('prd-maquina').value ? Number(document.getElementById('prd-maquina').value) : '',
+    notas: document.getElementById('prd-notas').value.trim() };
+  if (!d.nome) return;
+  d.preco = pv === '' ? 0 : parseFloat(pv);
+  let p;
+  if (id) { p = produtoPorId(id); if (!p) return; Object.assign(p, d); }
+  else { p = { id: novoId(), ativo: true, criadoEm: Date.now(), ...d }; produtos.push(p); }
+  if (!p.preco) p.preco = Math.round(precoSugerido(p) * 100) / 100;
+  salvar('produtos', produtos);
+  document.getElementById('prd-form').reset(); document.getElementById('prd-id').value = '';
+  document.getElementById('prd-submit').innerText = 'Adicionar produto'; previaCusto();
+  renderProducao();
+  toast(id ? '🧩 Produto atualizado.' : `🧩 ${p.nome} — custo ${formatCurrency(custoProduto(p).total)}, vende a ${formatCurrency(p.preco)}.`, 6000);
+});
+document.getElementById('ord-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const pid = document.getElementById('ord-produto').value;
+  if (!pid) { toast('Escolha o produto.'); return; }
+  ordens.push({ id: novoId(), produtoId: Number(pid),
+    qtd: parseInt(document.getElementById('ord-qtd').value) || 1,
+    maquinaId: document.getElementById('ord-maquina').value ? Number(document.getElementById('ord-maquina').value) : '',
+    cliente: document.getElementById('ord-cliente').value.trim(),
+    prazo: document.getElementById('ord-prazo').value,
+    notas: document.getElementById('ord-notas').value.trim(),
+    status: 'fila', consumido: false, criadoEm: Date.now() });
+  salvar('ordens', ordens);
+  document.getElementById('ord-form').reset();
+  renderProducao(); toast('📋 Na fila.');
+});
+document.getElementById('vnd-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const pid = document.getElementById('vnd-produto').value;
+  if (!pid) { toast('Escolha o produto.'); return; }
+  const p = produtoPorId(pid);
+  const v = { id: novoId(), produtoId: Number(pid),
+    ordemId: document.getElementById('vnd-ordem').value ? Number(document.getElementById('vnd-ordem').value) : '',
+    plataforma: document.getElementById('vnd-plataforma').value,
+    qtd: parseInt(document.getElementById('vnd-qtd').value) || 1,
+    preco: parseFloat(document.getElementById('vnd-preco').value) || 0,
+    taxaPct: parseFloat(document.getElementById('vnd-taxa').value) || 0,
+    frete: parseFloat(document.getElementById('vnd-frete').value) || 0,
+    custoUnit: p ? custoProduto(p).total : 0,
+    data: document.getElementById('vnd-data').value || hojeISO(), financeId: null, criadoEm: Date.now() };
+  const c = liquidoVenda(v);
+  // Em Finanças entra o LÍQUIDO da plataforma: é o que de fato cai na conta dele.
+  const t = { id: novoId(), date: v.data,
+    desc: `Venda: ${p ? p.nome : 'produto'}${v.qtd > 1 ? ' ×' + v.qtd : ''} (${(PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto)[1]})`,
+    amount: Math.round((c.bruto - c.taxa - c.frete) * 100) / 100, type: 'income', category: CAT_PRODUCAO,
+    notes: `bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)}`,
+    pending: false, paidAt: v.data, vendaId: v.id };
+  transactions.push(t); v.financeId = t.id;
+  vendas.push(v);
+  if (v.ordemId) { const o = ordemPorId(v.ordemId); if (o && o.status !== 'entregue') mudarStatusOrdem(o.id, 'entregue'); }
+  salvar('vendas', vendas); salvar('finances', transactions);
+  document.getElementById('vnd-form').reset(); document.getElementById('vnd-ordem').value = '';
+  const tx = document.getElementById('vnd-taxa'); if (tx) delete tx.dataset.tocado;
+  aplicarTaxaPlataforma();
+  renderProducao(); updateFinanceValues(); renderFinances();
+  toast(`💰 Venda registrada. Sobrou ${formatCurrency(c.liquido)} depois de taxa, frete e custo.`, 7000);
+});
+['prd-gramas', 'prd-horas', 'prd-acab', 'prd-extra', 'prd-margem'].forEach(id => {
+  const e = document.getElementById(id); if (e) e.addEventListener('input', previaCusto);
+});
+['prd-filamento', 'prd-maquina'].forEach(id => {
+  const e = document.getElementById(id); if (e) e.addEventListener('change', previaCusto);
+});
+['vnd-qtd', 'vnd-preco', 'vnd-frete'].forEach(id => {
+  const e = document.getElementById(id); if (e) e.addEventListener('input', previaVenda);
+});
+const _vndTaxa = document.getElementById('vnd-taxa');
+if (_vndTaxa) _vndTaxa.addEventListener('input', function () { this.dataset.tocado = '1'; previaVenda(); });
+const _vndProd = document.getElementById('vnd-produto');
+if (_vndProd) _vndProd.addEventListener('change', previaVenda);
+
+// ============================================================================
 // SINCRONIZAÇÃO (Google Sheets via Apps Script — ver sync/Code.gs)
 // Como funciona: cada módulo (habits, shifts, ...) tem um carimbo de hora
 // "updatedAt" da última vez que foi salvo neste aparelho. Ao sincronizar, o
@@ -4893,7 +5803,7 @@ document.getElementById('pac-servico').addEventListener('change', function () {
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -5027,6 +5937,7 @@ function redesenharTudo() {
   trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
   devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};
   servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || []; pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];
+  maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || []; filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || []; ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || []; vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
@@ -5110,6 +6021,8 @@ fotoDoDia(); renderCopias(); limparImagensOrfas();
 aplicarAjustesAba(); atualizarBotaoConfigAba();
 definirPerfilTrabalho(); aplicarVocabulario(); renderPerfilTrabalho();
 renderClinica(); verSecaoClinica('painel'); ajustarAbaClinica();
+renderProducao(); verSecaoProducao('painel'); ajustarAbaProducao();
+prepararCardsRecolhiveis(); renderAtalhoJanelas(); tornarModaisMoveis(); prepararListas();
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();

@@ -834,3 +834,112 @@ body[data-cores="neutro"] .pf-arte, body[data-cores="neutro"] .life-os-banner { 
   font-size: 0.75rem; padding: 4px 11px; border-radius: 8px; cursor: pointer; margin-top: 2px; }
 .ed-add:hover { color: var(--txt-forte); border-color: var(--acento); }
 @media (max-width: 800px) { .ed-tools { opacity: 0.55; } }
+
+/* ===== CORREÇÃO CRÍTICA (29/09) =====
+   Os modais novos nasceram com class="modal", mas a classe de overlay deste
+   projeto sempre foi .modal-overlay. Sem regra nenhuma, eles ficavam PARADOS
+   no meio da página, ocupando espaço e empurrando o conteúdo para a esquerda.
+   Era isso que deixava o Painel descentralizado e a tela "cheia de pop-ups"
+   ao abrir. Agora .modal vale o mesmo que .modal-overlay. */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.7); z-index: 1900; justify-content: center; align-items: center;
+  padding: 20px; backdrop-filter: blur(4px); }
+
+/* ===== barrinha de janelas (notebook e celular: sem margem sobrando) ===== */
+#paineis[data-modo="canto"], #paineis[data-modo="celular"] {
+  inset: auto 14px 14px auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  max-height: calc(100vh - 28px); pointer-events: none; }
+#paineis[data-modo="canto"] .pf, #paineis[data-modo="celular"] .pf {
+  position: static; width: min(330px, calc(100vw - 28px)); max-height: 52vh; pointer-events: auto; }
+.pf-dock { display: flex; gap: 4px; align-items: center; pointer-events: auto; order: 2;
+  background: var(--card); border: 1px solid var(--borda2); border-radius: 22px; padding: 5px 8px;
+  box-shadow: 0 6px 20px var(--sombra); }
+.dock-ic { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.95rem; border: 1px solid transparent; }
+.dock-ic:hover { background: var(--bg); border-color: var(--borda3); }
+.dock-ic.sel { background: var(--borda); border-color: var(--acento); }
+.dock-x { font-size: 0.75rem; color: var(--txt4); }
+#paineis[data-modo="canto"] .pf, #paineis[data-modo="celular"] .pf { order: 1; }
+#paineis[data-modo="celular"] { inset: auto 8px 8px 8px; align-items: stretch; }
+#paineis[data-modo="celular"] .pf { width: auto; max-height: 45vh; }
+#paineis[data-modo="celular"] .pf-dock { align-self: center; }
+/* o toast e o player sobem para não brigar com a barrinha */
+body:has(#paineis[data-modo="canto"]:not([hidden])) .toast,
+body:has(#paineis[data-modo="celular"]:not([hidden])) .toast { bottom: 100px; }
+body:has(#paineis[data-modo="canto"]:not([hidden])) .mini-player { bottom: 64px; }
+
+/* ===== AGENDA: agora/a seguir, tempo livre e linha do tempo ===== */
+.agora-card { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.agora-bloco { flex: 1 1 220px; background: var(--card); border: 1px solid var(--borda);
+  border-left: 4px solid var(--borda3); border-radius: 12px; padding: 11px 14px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; }
+.agora-bloco:hover { border-color: var(--borda4); }
+.agora-bloco small { font-size: 0.68rem; color: var(--txt4); text-transform: uppercase; letter-spacing: 0.06em; }
+.agora-bloco small:last-child { text-transform: none; letter-spacing: 0; font-size: 0.78rem; color: var(--txt3); }
+.agora-bloco strong { font-size: 0.98rem; color: var(--txt-forte); }
+.agora-bloco.livre { cursor: default; }
+.agora-vazio { color: var(--txt3); font-size: 0.9rem; padding: 10px 2px; }
+
+.ag-barra { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ag-nav { display: flex; align-items: center; gap: 5px; }
+.ag-nav strong { font-size: 0.88rem; color: var(--txt2); margin-left: 6px; }
+.ag-livres { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 0.78rem;
+  color: var(--txt3); margin-bottom: 10px; padding-bottom: 9px; border-bottom: 1px solid var(--borda); }
+.livre-tit { color: var(--txt4); }
+.livre-chip { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #22c55e;
+  border-radius: 10px; padding: 2px 9px; cursor: pointer; }
+.livre-chip:hover { background: rgba(34,197,94,0.2); }
+.livre-tot { margin-left: auto; color: var(--txt4); }
+.livre-nada { color: var(--txt4); }
+
+.ag-grade { display: grid; grid-template-columns: 52px 1fr; grid-template-rows: auto 1fr; gap: 0; }
+.ag-canto { grid-column: 1; grid-row: 1; }
+.ag-cabecalhos { grid-column: 2; grid-row: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; margin-bottom: 4px; }
+.ag-grade.dia .ag-cabecalhos { grid-auto-columns: 1fr; }
+.ag-col-cab { text-align: center; padding: 5px 2px; border-radius: 8px; cursor: pointer; background: var(--bg); border: 1px solid transparent; }
+.ag-col-cab:hover { border-color: var(--borda2); }
+.ag-col-cab.hoje { background: rgba(34,197,94,0.1); border-color: var(--acento); }
+.ag-col-cab small { display: block; font-size: 0.66rem; color: var(--txt4); text-transform: uppercase; }
+.ag-col-cab strong { font-size: 1rem; color: var(--txt-forte); }
+.ag-sem-hora { display: flex; justify-content: center; gap: 2px; font-size: 0.62rem; margin-top: 2px; }
+.ag-horas { grid-column: 1; grid-row: 2; position: relative; }
+.ag-hora { border-top: 1px solid var(--borda); position: relative; }
+.ag-hora span { position: absolute; top: -8px; right: 6px; font-size: 0.64rem; color: var(--txt4); background: var(--card); padding: 0 2px; }
+.ag-colunas { grid-column: 2; grid-row: 2; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; }
+.ag-col { position: relative; border-left: 1px solid var(--borda);
+  background: repeating-linear-gradient(var(--bg) 0 1px, transparent 1px 46px); }
+.ag-bloco { position: absolute; border-left: 3px solid; border-radius: 5px; padding: 3px 6px; overflow: hidden;
+  cursor: pointer; font-size: 0.72rem; color: var(--txt2); }
+.ag-bloco:hover { filter: brightness(1.25); z-index: 5; }
+.ag-bloco strong { display: block; font-size: 0.74rem; color: var(--txt-forte); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-bloco small { font-size: 0.66rem; color: var(--txt3); }
+.ag-bloco.feito { opacity: 0.45; text-decoration: line-through; }
+.ag-bloco.conflito { outline: 1px solid #ef4444; }
+.ag-agora { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #ef4444; z-index: 6; pointer-events: none; }
+.ag-agora span { position: absolute; left: 2px; top: -8px; font-size: 0.6rem; background: #ef4444; color: #fff;
+  border-radius: 6px; padding: 0 4px; }
+@media (max-width: 700px) {
+  .ag-grade { grid-template-columns: 40px 1fr; }
+  .ag-bloco small { display: none; }
+  .livre-tot { margin-left: 0; width: 100%; }
+}
+
+/* arrastar bloco + vista de lista + "onde" do compromisso */
+.ag-bloco { touch-action: none; }
+.ag-bloco.arrastando { opacity: 0.85; z-index: 20; outline: 2px solid var(--acento); cursor: grabbing; }
+.ag-lista { display: flex; flex-direction: column; gap: 14px; }
+.ag-lista-dia { }
+.ag-lista-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  border-bottom: 1px solid var(--borda); padding-bottom: 5px; margin-bottom: 6px; }
+.ag-lista-cab strong { font-size: 0.92rem; color: var(--txt-forte); }
+.ag-lista-cab small { font-size: 0.74rem; color: var(--txt4); }
+.ag-lista-item { display: flex; gap: 10px; align-items: flex-start; padding: 5px 4px; cursor: pointer; border-radius: 7px; }
+.ag-lista-item:hover { background: var(--bg); }
+.ag-lista-item.feito { opacity: 0.45; text-decoration: line-through; }
+.ag-lista-item.sem-hora { cursor: default; }
+.ag-lista-hora { flex: none; width: 44px; font-size: 0.78rem; color: var(--txt4); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.ag-lista-item > span:last-child { flex: 1; border-left: 3px solid var(--borda3); padding-left: 9px;
+  font-size: 0.87rem; color: var(--txt2); display: flex; flex-direction: column; gap: 2px; }
+.ag-lista-item small { font-size: 0.72rem; color: var(--txt4); }
+.ag-previa { display: block; font-size: 0.7rem; font-weight: 700; color: var(--acento); }

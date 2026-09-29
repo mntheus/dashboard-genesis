@@ -819,7 +819,9 @@ function rotuloDataLonga(iso) { const r = rotuloData(iso); return (r === 'Hoje' 
 function itensDoDia(iso) {
   const itens = [];
   shifts.filter(s => s.date === iso).forEach(s => itens.push({ kind: 'shift', time: s.time || '', obj: s }));
-  events.filter(e => e.date === iso).forEach(e => itens.push({ kind: 'event', time: e.time || '', obj: e }));
+  // eventosNoDia expande as repetições, então o calendário e o modal do dia
+  // mostram o compromisso em todas as datas em que ele acontece.
+  eventosNoDia(iso).forEach(e => itens.push({ kind: 'event', time: e.time || '', obj: e }));
   tasks.filter(t => t.due === iso && !t.done).forEach(t => itens.push({ kind: 'task', time: '', obj: t }));
   return itens.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
 }
@@ -937,7 +939,11 @@ document.getElementById('event-form').addEventListener('submit', (e) => {
     notes: document.getElementById('event-notes').value.trim(),
     people: document.getElementById('event-people').value.trim(),
     minutes: document.getElementById('event-minutes').value.trim(),
-    followups: document.getElementById('event-followups').value.split('\n').map(s => s.trim()).filter(Boolean)
+    followups: document.getElementById('event-followups').value.split('\n').map(s => s.trim()).filter(Boolean),
+    repete: document.getElementById('event-repete').value,
+    ate: document.getElementById('event-ate').value || '',
+    local: document.getElementById('event-local').value.trim(),
+    avisoMin: document.getElementById('event-aviso').value === '' ? null : (parseInt(document.getElementById('event-aviso').value) || 0)
   };
   if (!dados.title || !dados.date) return;
   const pauta = document.getElementById('event-agenda').value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -962,6 +968,12 @@ function editarEvento(id) {
   document.getElementById('event-time').value = ev.time || ''; document.getElementById('event-end').value = ev.endTime || '';
   document.getElementById('event-type').value = ev.type || 'outro'; document.getElementById('event-notes').value = ev.notes || '';
   document.getElementById('event-people').value = ev.people || ''; document.getElementById('event-minutes').value = ev.minutes || '';
+  preencherRepeteEvento();
+  document.getElementById('event-repete').value = ev.repete || 'nao';
+  document.getElementById('event-ate').value = ev.ate || '';
+  document.getElementById('event-local').value = ev.local || '';
+  document.getElementById('event-aviso').value = (ev.avisoMin === null || ev.avisoMin === undefined) ? '' : ev.avisoMin;
+  alternarRepeteEvento();
   document.getElementById('event-agenda').value = (ev.agenda || []).map(a => a.text).join('\n'); document.getElementById('event-followups').value = (ev.followups || []).join('\n');
   alternarCamposReuniao();
   document.getElementById('event-form-title').innerText = 'Editar compromisso';
@@ -1005,7 +1017,10 @@ function renderEvents() {
     </li>`;
   });
 }
-function redesenharAgenda() { renderCalendar(); renderEvents(); renderShifts(); renderJournal(); atualizarSaudacao(); }
+function redesenharAgenda() {
+  renderCalendar(); renderEvents(); renderShifts(); renderJournal(); atualizarSaudacao();
+  if (typeof renderAgendaVista === 'function') { renderAgendaVista(); renderAgora(); }
+}
 
 // --- FINANÇAS ---
 const CATEGORIAS = {
@@ -2981,12 +2996,18 @@ function calcularAvisos() {
     add(`plantao:${s.id}`, '🚑', `Plantão ${s.desc} ${textoEmMinutos(min)}${s.time ? ' (' + s.time + ')' : ''}${s.swap ? ' · 🔁 ' + s.swap : ''}`, min <= 60 ? 1 : 2, true, "changeTab('home'); verSecaoAgenda('plantoes');");
   });
   // Compromissos e reuniões
-  events.filter(e => !e.done && e.date >= hoje).forEach(e => {
+  // Inclui as repetições dos próximos dias, e cada compromisso pode ter a sua
+  // própria antecedência (e.avisoMin); sem ela, vale o padrão da Config.
+  const proximos = [];
+  for (let i = 0; i <= 2; i++) { const d = somaDias(hoje, i); eventosNoDia(d).forEach(e => proximos.push({ e, dia: d })); }
+  proximos.filter(x => !x.e.done).forEach(({ e, dia }) => {
     const tp = tipoEvento(e.type);
-    if (!e.time) { if (e.date === hoje && !avisosVistos[`evento:${e.id}`]) add(`evento:${e.id}`, tp.icone, `Hoje: ${e.title}`, 2, true, `editarEvento(${e.id});`); return; }
-    const min = minutosAte(e.date, e.time);
-    if (min === null || min > c.eventoMin || min < -30) return;
-    add(`evento:${e.id}`, tp.icone, `${e.title} ${textoEmMinutos(min)} (${e.time})`, min <= 15 ? 1 : 2, true, `editarEvento(${e.id});`);
+    const chave = `evento:${e.id}:${dia}`;
+    const anteced = (e.avisoMin === null || e.avisoMin === undefined) ? c.eventoMin : e.avisoMin;
+    if (!e.time) { if (dia === hoje && !avisosVistos[chave]) add(chave, tp.icone, `Hoje: ${e.title}`, 2, true, `editarEvento(${e.id});`); return; }
+    const min = minutosAte(dia, e.time);
+    if (min === null || min > anteced || min < -30) return;
+    add(chave, tp.icone, `${e.title} ${textoEmMinutos(min)} (${e.time})`, min <= 15 ? 1 : 2, true, `editarEvento(${e.id});`);
   });
   // Tarefas: atrasadas e de hoje
   const atrasadas = tasks.filter(t => !t.done && t.due && t.due < hoje);
@@ -3552,7 +3573,7 @@ function tagsDaRede() { const s = new Set(); contacts.forEach(c => (c.tags || []
 document.getElementById('rede-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const id = document.getElementById('rede-id').value;
-  const dados = { nome: document.getElementById('rede-nome').value.trim(), onde: document.getElementById('rede-onde').value.trim(), papel: document.getElementById('rede-papel').value.trim(), tags: document.getElementById('rede-tags').value.split(',').map(s => s.trim()).filter(Boolean), tel: document.getElementById('rede-tel').value.trim(), email: document.getElementById('rede-email').value.trim(), links: document.getElementById('rede-links').value.trim(), notas: document.getElementById('rede-notas').value.trim(), lembrar: parseInt(document.getElementById('rede-lembrar').value) || 0 };
+  const dados = { nome: document.getElementById('rede-nome').value.trim(), onde: document.getElementById('rede-onde').value.trim(), papel: document.getElementById('rede-papel').value.trim(), tags: document.getElementById('rede-tags').value.split(',').map(s => s.trim()).filter(Boolean), tel: document.getElementById('rede-tel').value.trim(), email: document.getElementById('rede-email').value.trim(), links: document.getElementById('rede-links').value.trim(), notas: document.getElementById('rede-notas').value.trim(), lembrar: parseInt(document.getElementById('rede-lembrar').value) || 0, nascimento: document.getElementById('rede-nascimento').value || '' };
   if (!dados.nome) return;
   if (id) { const c = contacts.find(x => String(x.id) === id); if (c) Object.assign(c, dados); }
   else contacts.push({ id: novoId(), favorito: false, ultimo: '', createdAt: Date.now(), ...dados });
@@ -3563,7 +3584,7 @@ function editarContato(id) {
   const c = contacts.find(x => x.id === id); if (!c) return;
   document.getElementById('rede-id').value = c.id;
   ['nome', 'onde', 'papel', 'tel', 'email', 'links', 'notas'].forEach(k => document.getElementById('rede-' + k).value = c[k] || '');
-  document.getElementById('rede-tags').value = (c.tags || []).join(', '); document.getElementById('rede-lembrar').value = c.lembrar || '';
+  document.getElementById('rede-tags').value = (c.tags || []).join(', '); document.getElementById('rede-lembrar').value = c.lembrar || ''; document.getElementById('rede-nascimento').value = c.nascimento || '';
   document.getElementById('rede-submit').innerText = 'Salvar'; document.getElementById('rede-cancel').hidden = false; document.getElementById('rede-nome').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function favoritarContato(id) { const c = contacts.find(x => x.id === id); if (!c) return; c.favorito = !c.favorito; salvar('contacts', contacts); renderRede(); }
@@ -3689,6 +3710,439 @@ function renderPerfilTrabalho() {
     `<span class="${atual === k ? 'active' : ''}" onclick="escolherPerfilTrabalho('${k}')" title="${esc(p.dica)}">${p.ic} ${esc(p.nome)}</span>`).join('');
   const d = document.getElementById('perfil-trabalho-dica');
   if (d) d.innerText = vt().dica;
+}
+
+// ============================================================================
+// AGENDA VIVA — vistas de dia e semana, "agora e a seguir", conflitos,
+// tempo livre e compromissos que se repetem.
+// O calendário do mês com bolinhas continua igual; ele responde "em que dia?".
+// O que faltava era responder "como é o meu dia?" — e para isso é preciso ver
+// as horas, não os dias.
+// ============================================================================
+const AG_H_INI = 6, AG_H_FIM = 23;      // faixa mostrada na linha do tempo
+const AG_PX_HORA = 46;                  // altura de uma hora
+const REPETE_EVENTO = {
+  nao:       'Não repete',
+  semanal:   'Toda semana',
+  quinzenal: 'A cada 15 dias',
+  mensal:    'Todo mês (mesmo dia)',
+  anual:     'Todo ano'
+};
+
+function hm(min) { return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`; }
+function minDe(hhmm) { const [h, m] = (hhmm || '').split(':').map(Number); return isNaN(h) ? null : h * 60 + (m || 0); }
+function agoraMin() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+function diffDias(a, b) { return Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000); }
+
+/** Um compromisso que se repete acontece neste dia? */
+function eventoCaiEm(e, iso) {
+  if (!e.date) return false;
+  if ((e.skips || []).includes(iso)) return false;
+  const rep = e.repete || 'nao';
+  if (rep === 'nao') return e.date === iso;
+  if (iso < e.date) return false;
+  if (e.ate && iso > e.ate) return false;
+  const d = diffDias(e.date, iso);
+  if (rep === 'semanal') return d % 7 === 0;
+  if (rep === 'quinzenal') return d % 14 === 0;
+  if (rep === 'mensal') return iso.slice(8) === e.date.slice(8);
+  if (rep === 'anual') return iso.slice(5) === e.date.slice(5);
+  return false;
+}
+/** Os compromissos de um dia, já com as repetições expandidas.
+ *  Cada ocorrência é uma cópia leve com `occur`; o original nunca é duplicado. */
+function eventosNoDia(iso) {
+  return events.filter(e => eventoCaiEm(e, iso)).map(e => Object.assign({}, e, {
+    occur: iso,
+    virtual: (e.repete && e.repete !== 'nao' && e.date !== iso),
+    done: (e.repete && e.repete !== 'nao') ? (e.feitos || []).includes(iso) : !!e.done
+  }));
+}
+/** Aniversários da Rede entram na agenda sozinhos — você já tem as pessoas. */
+function aniversariosNoDia(iso) {
+  return contacts.filter(c => c.nascimento && c.nascimento.slice(5) === iso.slice(5)).map(c => ({
+    tipo: 'aniversario', id: c.id, titulo: `${c.nome}`, cor: '#f472b6', icone: '🎂',
+    ini: null, fim: null, idade: Number(iso.slice(0, 4)) - Number(c.nascimento.slice(0, 4))
+  }));
+}
+
+/** Tudo que ocupa hora num dia, em minutos, pronto para a linha do tempo. */
+function blocosDoDia(iso) {
+  const b = [];
+  shifts.filter(s => s.date === iso).forEach(s => {
+    const ini = minDe(s.time); if (ini === null) return;
+    b.push({ tipo: 'shift', id: s.id, titulo: s.desc, sub: formatCurrency(s.amount),
+      ini, fim: ini + Math.round((Number(s.hours) || 1) * 60), cor: '#f59e0b', icone: vt().ic, obj: s });
+  });
+  eventosNoDia(iso).forEach(e => {
+    const t = TIPOS_EVENTO[e.type] || TIPOS_EVENTO.outro;
+    const ini = minDe(e.time);
+    const fim = minDe(e.endTime);
+    b.push({ tipo: 'event', id: e.id, occur: iso, titulo: e.title, sub: e.notes || '',
+      ini, fim: fim !== null && fim > ini ? fim : (ini === null ? null : ini + 60),
+      cor: t.cor, icone: t.icone, done: e.done, repete: e.repete && e.repete !== 'nao', obj: e });
+  });
+  return b.sort((a, x) => (a.ini === null ? 1e9 : a.ini) - (x.ini === null ? 1e9 : x.ini));
+}
+/** Coisas sem hora marcada (o "dia inteiro"): tarefas com prazo e aniversários. */
+function semHoraNoDia(iso) {
+  const l = aniversariosNoDia(iso);
+  tasks.filter(t => t.due === iso && !t.done).forEach(t => l.push({
+    tipo: 'task', id: t.id, titulo: t.text, cor: t.starred ? '#fbbf24' : '#38bdf8', icone: t.starred ? '⭐' : '☐' }));
+  blocosDoDia(iso).filter(x => x.ini === null).forEach(x => l.push(x));
+  return l;
+}
+
+/** Duas coisas no mesmo horário. Devolve os ids envolvidos. */
+function conflitosDoDia(iso) {
+  const b = blocosDoDia(iso).filter(x => x.ini !== null && !x.done);
+  const ids = new Set();
+  for (let i = 0; i < b.length; i++) {
+    for (let j = i + 1; j < b.length; j++) {
+      if (b[i].ini < b[j].fim && b[j].ini < b[i].fim) { ids.add(b[i].id); ids.add(b[j].id); }
+    }
+  }
+  return ids;
+}
+/** Os buracos do dia — o que quase nenhum app mostra e é o mais útil. */
+function livresDoDia(iso, deMin, ateMin, minimo) {
+  const ini = deMin === undefined ? 8 * 60 : deMin;
+  const fim = ateMin === undefined ? 22 * 60 : ateMin;
+  const min = minimo === undefined ? 30 : minimo;
+  const ocupados = blocosDoDia(iso).filter(x => x.ini !== null && !x.done)
+    .map(x => ({ a: Math.max(ini, x.ini), b: Math.min(fim, x.fim) }))
+    .filter(x => x.b > x.a).sort((p, q) => p.a - q.a);
+  const juntos = [];
+  ocupados.forEach(o => {
+    const u = juntos[juntos.length - 1];
+    if (u && o.a <= u.b) u.b = Math.max(u.b, o.b); else juntos.push({ a: o.a, b: o.b });
+  });
+  const vagos = []; let cursor = ini;
+  juntos.forEach(o => { if (o.a - cursor >= min) vagos.push({ ini: cursor, fim: o.a }); cursor = Math.max(cursor, o.b); });
+  if (fim - cursor >= min) vagos.push({ ini: cursor, fim });
+  return vagos;
+}
+
+/** O que está acontecendo agora e o que vem depois. */
+function agoraESeguir() {
+  const hoje = hojeISO(); const ag = agoraMin();
+  const b = blocosDoDia(hoje).filter(x => x.ini !== null && !x.done);
+  const agora = b.find(x => x.ini <= ag && ag < x.fim) || null;
+  const proximo = b.find(x => x.ini > ag) || null;
+  let amanha = null;
+  if (!proximo) {
+    for (let i = 1; i <= 7 && !amanha; i++) {
+      const d = somaDias(hoje, i);
+      const p = blocosDoDia(d).filter(x => x.ini !== null && !x.done)[0];
+      if (p) amanha = { dia: d, bloco: p };
+    }
+  }
+  return { agora, proximo, amanha, ag };
+}
+
+// --- a linha do tempo -------------------------------------------------------
+let agVista = 'semana';          // dia | semana | mes
+let agDia = hojeISO();           // dia de referência das vistas dia/semana
+
+function agIrPara(delta) {
+  agDia = somaDias(agDia, agVista === 'dia' ? delta : delta * 7);
+  renderAgendaVista();
+}
+function agHoje() { agDia = hojeISO(); renderAgendaVista(); }
+function agMudarVista(v, el) {
+  agVista = v;
+  document.querySelectorAll('#ag-vistas span').forEach(s => s.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderAgendaVista();
+}
+function inicioDaSemana(iso) { return somaDias(iso, -diaDaSemanaISO(iso)); }
+
+/** Divide os blocos que se sobrepõem em colunas, para nenhum tapar o outro. */
+function colunasDeBlocos(blocos) {
+  const b = blocos.filter(x => x.ini !== null).sort((a, c) => a.ini - c.ini || a.fim - c.fim);
+  const grupos = []; let atual = [];
+  let fimGrupo = -1;
+  b.forEach(x => {
+    if (atual.length && x.ini >= fimGrupo) { grupos.push(atual); atual = []; fimGrupo = -1; }
+    atual.push(x); fimGrupo = Math.max(fimGrupo, x.fim);
+  });
+  if (atual.length) grupos.push(atual);
+  grupos.forEach(g => {
+    const cols = [];
+    g.forEach(x => {
+      let i = cols.findIndex(c => c[c.length - 1].fim <= x.ini);
+      if (i < 0) { cols.push([x]); i = cols.length - 1; } else cols[i].push(x);
+      x._col = i;
+    });
+    g.forEach(x => { x._cols = cols.length; });
+  });
+  return b;
+}
+
+function colunaDoDia(iso, compacta) {
+  const blocos = colunasDeBlocos(blocosDoDia(iso));
+  const conf = conflitosDoDia(iso);
+  const topo = AG_H_INI * 60;
+  return blocos.map(x => {
+    const ini = Math.max(x.ini, topo), fim = Math.min(x.fim, AG_H_FIM * 60);
+    if (fim <= ini) return '';
+    const t = (ini - topo) / 60 * AG_PX_HORA;
+    const h = Math.max(20, (fim - ini) / 60 * AG_PX_HORA - 2);
+    const larg = 100 / (x._cols || 1); const esq = (x._col || 0) * larg;
+    const conflito = conf.has(x.id);
+    const acao = x.tipo === 'shift' ? `editarPlantao(${x.id})` : `editarEvento(${x.id})`;
+    return `<div class="ag-bloco${x.done ? ' feito' : ''}${conflito ? ' conflito' : ''}" onclick="if(!agArrastou) { ${acao} }"
+      onpointerdown="agPegarBloco(event, '${x.tipo}', ${x.id}, '${iso}')"
+      style="top:${t}px; height:${h}px; left:${esq}%; width:calc(${larg}% - 3px); border-left-color:${x.cor}; background:${x.cor}22"
+      title="${esc(x.titulo)} · ${hm(x.ini)}–${hm(x.fim)}${conflito ? ' · CHOQUE DE HORÁRIO' : ''}">
+      <strong>${conflito ? '⚠️ ' : ''}${x.repete ? '🔁 ' : ''}${x.icone} ${esc(x.titulo)}</strong>
+      ${compacta ? '' : `<small>${hm(x.ini)}–${hm(x.fim)}${x.sub ? ' · ' + esc(String(x.sub)) : ''}</small>`}</div>`;
+  }).join('');
+}
+function faixaAgora(iso) {
+  if (iso !== hojeISO()) return '';
+  const ag = agoraMin(); const topo = AG_H_INI * 60;
+  if (ag < topo || ag > AG_H_FIM * 60) return '';
+  return `<div class="ag-agora" style="top:${(ag - topo) / 60 * AG_PX_HORA}px"><span>${hm(ag)}</span></div>`;
+}
+function linhaHoras() {
+  let h = '';
+  for (let i = AG_H_INI; i <= AG_H_FIM; i++) h += `<div class="ag-hora" style="height:${AG_PX_HORA}px"><span>${String(i).padStart(2, '0')}:00</span></div>`;
+  return h;
+}
+
+function renderAgendaVista() {
+  const el = document.getElementById('ag-vista'); if (!el) return;
+  const rot = document.getElementById('ag-rotulo');
+  const alturaGrade = (AG_H_FIM - AG_H_INI + 1) * AG_PX_HORA;
+  if (agVista === 'mes') { el.innerHTML = ''; el.hidden = true; document.getElementById('sec-cal-mes').hidden = false; if (rot) rot.innerText = ''; return; }
+  document.getElementById('sec-cal-mes').hidden = true; el.hidden = false;
+  if (agVista === 'lista') { if (rot) rot.innerText = 'próximos 7 dias'; renderListaProximos(); renderLivres(hojeISO()); return; }
+  const dias = agVista === 'dia' ? [agDia] : Array.from({ length: 7 }, (_, i) => somaDias(inicioDaSemana(agDia), i));
+  if (rot) rot.innerText = agVista === 'dia'
+    ? `${DIAS_LONGO[diaDaSemanaISO(agDia)]}, ${isoParaBR(agDia)}`
+    : `${isoParaBR(dias[0]).slice(0, 5)} a ${isoParaBR(dias[6]).slice(0, 5)}`;
+  const cabec = dias.map(d => {
+    const hoje = d === hojeISO();
+    const n = semHoraNoDia(d);
+    return `<div class="ag-col-cab${hoje ? ' hoje' : ''}" onclick="agDia='${d}'; agMudarVista('dia', document.querySelectorAll('#ag-vistas span')[0]);">
+      <small>${DIAS_SEM[diaDaSemanaISO(d)]}</small><strong>${Number(d.slice(8))}</strong>
+      ${n.length ? `<div class="ag-sem-hora">${n.slice(0, 3).map(x => `<span title="${esc(x.titulo)}">${x.icone}</span>`).join('')}${n.length > 3 ? '<span>+' + (n.length - 3) + '</span>' : ''}</div>` : ''}</div>`;
+  }).join('');
+  const colunas = dias.map(d => `<div class="ag-col" data-dia="${d}" style="height:${alturaGrade}px">${colunaDoDia(d, agVista === 'semana')}${faixaAgora(d)}</div>`).join('');
+  el.innerHTML = `<div class="ag-grade ${agVista}">
+      <div class="ag-canto"></div><div class="ag-cabecalhos">${cabec}</div>
+      <div class="ag-horas" style="height:${alturaGrade}px">${linhaHoras()}</div>
+      <div class="ag-colunas">${colunas}</div>
+    </div>`;
+  renderLivres(agVista === 'dia' ? agDia : hojeISO());
+}
+
+/** Os buracos do dia, em linguagem de gente. */
+function renderLivres(iso) {
+  const el = document.getElementById('ag-livres'); if (!el) return;
+  const vagos = livresDoDia(iso);
+  const ocupado = blocosDoDia(iso).filter(x => x.ini !== null && !x.done)
+    .reduce((a, x) => a + (x.fim - x.ini), 0);
+  if (!vagos.length) { el.innerHTML = `<span class="livre-nada">Dia cheio — sem buraco de 30 min entre 08:00 e 22:00.</span>`; return; }
+  const total = vagos.reduce((a, v) => a + (v.fim - v.ini), 0);
+  el.innerHTML = `<span class="livre-tit">🕳️ Livre em ${iso === hojeISO() ? 'hoje' : isoParaBR(iso).slice(0, 5)}:</span>` +
+    vagos.map(v => `<span class="livre-chip" title="${Math.round((v.fim - v.ini) / 60 * 10) / 10}h livres" onclick="usarLivre('${iso}', ${v.ini}, ${v.fim})">${hm(v.ini)}–${hm(v.fim)}</span>`).join('') +
+    `<span class="livre-tot">${Math.round(total / 6) / 10}h livres · ${Math.round(ocupado / 6) / 10}h ocupadas</span>`;
+}
+/** Clicar num buraco já abre o formulário com o horário preenchido. */
+function usarLivre(iso, ini, fim) {
+  verSecaoAgenda('compromissos');
+  document.getElementById('event-date').value = iso;
+  document.getElementById('event-time').value = hm(ini);
+  document.getElementById('event-end').value = hm(Math.min(fim, ini + 60));
+  document.getElementById('event-title').focus();
+  toast(`🕳️ ${hm(ini)}–${hm(fim)} livre. Preencha o que vai fazer.`, 5000);
+}
+
+// --- agora e a seguir -------------------------------------------------------
+function renderAgora() {
+  const el = document.getElementById('ag-agora-card'); if (!el) return;
+  const { agora, proximo, amanha, ag } = agoraESeguir();
+  const falta = m => { const d = m - ag; return d >= 60 ? `${Math.floor(d / 60)}h${d % 60 ? String(d % 60).padStart(2, '0') : ''}` : `${d} min`; };
+  let html = '';
+  if (agora) {
+    const resta = agora.fim - ag;
+    html += `<div class="agora-bloco" style="border-left-color:${agora.cor}" onclick="${agora.tipo === 'shift' ? `editarPlantao(${agora.id})` : `editarEvento(${agora.id})`}">
+      <small>AGORA</small><strong>${agora.icone} ${esc(agora.titulo)}</strong>
+      <small>até ${hm(agora.fim)} · faltam ${resta >= 60 ? Math.floor(resta / 60) + 'h' + (resta % 60 ? String(resta % 60).padStart(2, '0') : '') : resta + ' min'}</small></div>`;
+  }
+  if (proximo) {
+    html += `<div class="agora-bloco" style="border-left-color:${proximo.cor}" onclick="${proximo.tipo === 'shift' ? `editarPlantao(${proximo.id})` : `editarEvento(${proximo.id})`}">
+      <small>${agora ? 'DEPOIS' : 'A SEGUIR'}</small><strong>${proximo.icone} ${esc(proximo.titulo)}</strong>
+      <small>${hm(proximo.ini)} · em ${falta(proximo.ini)}</small></div>`;
+  } else if (amanha) {
+    html += `<div class="agora-bloco" style="border-left-color:${amanha.bloco.cor}">
+      <small>PRÓXIMO COMPROMISSO</small><strong>${amanha.bloco.icone} ${esc(amanha.bloco.titulo)}</strong>
+      <small>${rotuloData(amanha.dia)} às ${hm(amanha.bloco.ini)}</small></div>`;
+  }
+  if (!agora && !proximo && !amanha) html = '<div class="agora-vazio">Nada marcado nos próximos dias. 🌤️</div>';
+  else if (!agora) {
+    const v = livresDoDia(hojeISO(), Math.max(ag, 8 * 60), 22 * 60, 30);
+    if (v.length) html = `<div class="agora-bloco livre" style="border-left-color:#22c55e"><small>AGORA</small><strong>🕳️ Livre</strong><small>até ${hm(v[0].fim)}</small></div>` + html;
+  }
+  el.innerHTML = html;
+}
+
+
+// --- arrastar um bloco para reagendar ---------------------------------------
+// Clicar abre; arrastar reagenda. A diferença é o limiar de 6px, senão um
+// clique trêmulo viraria uma mudança de horário sem a pessoa querer.
+let agArrasto = null;
+let agArrastou = false;   // ligado por um instante depois de arrastar, para o clique não abrir a edição
+function agPegarBloco(ev, tipo, id, iso) {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  const el = ev.currentTarget;
+  agArrasto = { tipo, id, iso, el, x0: ev.clientX, y0: ev.clientY, moveu: false,
+    topo0: parseFloat(el.style.top) || 0, alt: el.offsetHeight };
+  try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+}
+function agMoverBloco(ev) {
+  if (!agArrasto) return;
+  const dx = ev.clientX - agArrasto.x0, dy = ev.clientY - agArrasto.y0;
+  if (!agArrasto.moveu && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+  agArrasto.moveu = true;
+  agArrasto.el.classList.add('arrastando');
+  agArrasto.el.style.top = (agArrasto.topo0 + dy) + 'px';
+  // Mostra o horário que vai ficar, enquanto arrasta. Na vista de semana o
+  // bloco não tem <small> (é compacto), então a prévia ganha um espaço próprio.
+  const novo = agHoraDoPixel(agArrasto.topo0 + dy);
+  let p = agArrasto.el.querySelector('.ag-previa');
+  if (!p) { p = document.createElement('span'); p.className = 'ag-previa'; agArrasto.el.appendChild(p); }
+  p.innerText = '→ ' + hm(novo);
+  // qual coluna (dia) está embaixo do cursor
+  const col = document.elementFromPoint(ev.clientX, ev.clientY);
+  const c = col && col.closest ? col.closest('.ag-col') : null;
+  agArrasto.destino = c ? c.dataset.dia : null;
+}
+/** Converte a posição em pixels para uma hora, arredondando de 15 em 15 min. */
+function agHoraDoPixel(px) {
+  const min = AG_H_INI * 60 + Math.round((px / AG_PX_HORA) * 60 / 15) * 15;
+  return Math.max(AG_H_INI * 60, Math.min(AG_H_FIM * 60 - 15, min));
+}
+function agSoltarBloco(ev) {
+  if (!agArrasto) return;
+  const a = agArrasto; agArrasto = null;
+  if (!a.moveu) return;                      // foi clique, não arrasto
+  a.el.classList.remove('arrastando');
+  agArrastou = true; setTimeout(() => { agArrastou = false; }, 300);
+  const novaHora = agHoraDoPixel(parseFloat(a.el.style.top) || 0);
+  const novoDia = a.destino || a.iso;
+  if (a.tipo === 'shift') {
+    const s = shifts.find(x => x.id === a.id); if (!s) { renderAgendaVista(); return; }
+    s.date = novoDia; s.time = hm(novaHora);
+    sincronizarLancamentoPlantao(s); salvar('shifts', shifts); salvar('finances', transactions);
+    redesenharAgenda(); updateFinanceValues(); renderFinances();
+    toast(`${vt().ic} ${s.desc} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, 5000);
+    return;
+  }
+  const e = events.find(x => x.id === a.id); if (!e) { renderAgendaVista(); return; }
+  const dur = (minDe(e.endTime) || 0) - (minDe(e.time) || 0);
+  const repetindo = e.repete && e.repete !== 'nao';
+  if (repetindo) {
+    const serie = confirm(`"${e.title}" se repete.\n\nOK = mudar a SÉRIE inteira (todas as datas andam junto)\nCancelar = mudar SÓ o dia ${isoParaBR(a.iso)}`);
+    if (!serie) {                            // tira este dia e cria um avulso no lugar
+      e.skips = e.skips || []; if (!e.skips.includes(a.iso)) e.skips.push(a.iso);
+      events.push(Object.assign({}, e, { id: novoId(), date: novoDia, time: hm(novaHora),
+        endTime: dur > 0 ? hm(novaHora + dur) : '', repete: 'nao', ate: '', skips: [], feitos: [] }));
+      salvar('events', events); redesenharAgenda();
+      toast(`📅 Só ${isoParaBR(a.iso)} mudou. A repetição continua nos outros dias.`, 6000);
+      return;
+    }
+    e.date = somaDias(e.date, diffDias(a.iso, novoDia));   // a série inteira anda junto
+  } else {
+    e.date = novoDia;
+  }
+  e.time = hm(novaHora);
+  if (dur > 0) e.endTime = hm(novaHora + dur);
+  salvar('events', events); redesenharAgenda();
+  toast(`📅 ${e.title} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, 5000);
+}
+document.addEventListener('pointermove', agMoverBloco);
+document.addEventListener('pointerup', agSoltarBloco);
+document.addEventListener('pointercancel', () => { if (agArrasto) { agArrasto = null; renderAgendaVista(); } });
+
+// --- local e link do compromisso --------------------------------------------
+/** O "onde": link de reunião vira botão de entrar; endereço vira link de mapa. */
+function ondeDoEvento(e) {
+  const onde = (e.local || '').trim(); if (!onde) return '';
+  const s = separarLink(onde);
+  if (s.url) return `<a class="anexo-chip" href="${esc(s.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${iconeDoLink(s.url)} ${esc(s.titulo || 'entrar')}</a>`;
+  return `<a class="anexo-chip" href="https://www.google.com/maps/search/${encodeURIComponent(onde)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir no mapa">🗺️ ${esc(onde)}</a>`;
+}
+
+// --- vista de lista: os próximos 7 dias -------------------------------------
+function renderListaProximos() {
+  const el = document.getElementById('ag-vista');
+  const dias = Array.from({ length: 7 }, (_, i) => somaDias(hojeISO(), i));
+  let html = '<div class="ag-lista">';
+  let vazios = 0;
+  dias.forEach(d => {
+    const blocos = blocosDoDia(d);
+    const outros = semHoraNoDia(d).filter(x => x.tipo !== 'event' || x.ini === null);
+    if (!blocos.length && !outros.length) { vazios++; return; }
+    const livre = livresDoDia(d);
+    const horas = Math.round(livre.reduce((a, v) => a + (v.fim - v.ini), 0) / 6) / 10;
+    html += `<div class="ag-lista-dia"><div class="ag-lista-cab"><strong>${rotuloData(d)}</strong>
+      <small>${isoParaBR(d).slice(0, 5)} · ${horas}h livres</small></div>`;
+    outros.forEach(x => { html += `<div class="ag-lista-item sem-hora"><span class="ag-lista-hora">—</span>
+      <span style="border-left-color:${x.cor}">${x.icone} ${esc(x.titulo)}${x.idade !== undefined ? ` <small>(${x.idade} anos)</small>` : ''}</span></div>`; });
+    blocos.filter(x => x.ini !== null).forEach(x => {
+      const acao = x.tipo === 'shift' ? `editarPlantao(${x.id})` : `editarEvento(${x.id})`;
+      html += `<div class="ag-lista-item${x.done ? ' feito' : ''}" onclick="${acao}">
+        <span class="ag-lista-hora">${hm(x.ini)}</span>
+        <span style="border-left-color:${x.cor}">${x.repete ? '🔁 ' : ''}${x.icone} ${esc(x.titulo)}
+          <small>${hm(x.ini)}–${hm(x.fim)}${x.sub ? ' · ' + esc(String(x.sub)) : ''}</small>
+          ${x.obj && x.obj.local ? ondeDoEvento(x.obj) : ''}</span></div>`;
+    });
+    html += '</div>';
+  });
+  if (vazios === 7) html += '<div class="pf-vazio">Nada marcado nos próximos 7 dias.</div>';
+  el.innerHTML = html + '</div>';
+}
+
+// --- compromisso que se repete ---------------------------------------------
+function alternarRepeteEvento() {
+  const v = document.getElementById('event-repete').value;
+  document.getElementById('event-ate-box').hidden = (v === 'nao');
+}
+function preencherRepeteEvento() {
+  const s = document.getElementById('event-repete');
+  if (s && !s.options.length) s.innerHTML = Object.entries(REPETE_EVENTO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+}
+/** Tirar UM dia de um compromisso que se repete (a série continua). */
+function pularEvento(id, iso) {
+  const e = events.find(x => x.id === id); if (!e) return;
+  e.skips = e.skips || []; if (!e.skips.includes(iso)) e.skips.push(iso);
+  salvar('events', events); redesenharAgenda();
+  toast(`📅 ${isoParaBR(iso)} tirado de "${e.title}". A repetição continua nos outros dias.`, 6000);
+}
+/** Concluir a ocorrência de hoje sem concluir a série inteira. */
+function concluirOcorrencia(id, iso) {
+  const e = events.find(x => x.id === id); if (!e) return;
+  if (!e.repete || e.repete === 'nao') { alternarEventoFeito(id); return; }
+  e.feitos = e.feitos || [];
+  const i = e.feitos.indexOf(iso);
+  if (i >= 0) e.feitos.splice(i, 1); else e.feitos.push(iso);
+  salvar('events', events); redesenharAgenda();
+}
+/** Reservar tempo na agenda para uma tarefa (time blocking). */
+function reservarTempo(taskId) {
+  const t = tasks.find(x => x.id === taskId); if (!t) return;
+  const dia = t.due || hojeISO();
+  const v = livresDoDia(dia, 8 * 60, 22 * 60, 30);
+  if (!v.length) { toast(`Não achei 30 min livres em ${isoParaBR(dia)}. Escolha o horário à mão.`, 6000); changeTab('home'); verSecaoAgenda('compromissos'); return; }
+  const ini = v[0].ini; const fim = Math.min(v[0].fim, ini + 60);
+  events.push({ id: novoId(), done: false, agenda: [], title: t.text, date: dia,
+    time: hm(ini), endTime: hm(fim), type: 'trabalho', notes: 'Bloco reservado para a tarefa',
+    people: '', minutes: '', followups: [], repete: 'nao', taskId: t.id });
+  salvar('events', events); redesenharAgenda();
+  toast(`📅 Reservei ${hm(ini)}–${hm(fim)} de ${rotuloData(dia)} para "${t.text.slice(0, 30)}".`, 7000);
 }
 
 // ============================================================================
@@ -4170,7 +4624,7 @@ function corpoDev(el) {
 
 // ============================================================================
 // ANEXOS em tarefas e em itens de lista — 📎
-// Decisão do Matheus (27/09): os DOIS jeitos.
+// Os DOIS jeitos, por escolha de quem usa:
 //  · LINK (Drive, foto, documento, qualquer endereço) — é o padrão, é leve e
 //    SINCRONIZA normalmente, porque é só texto.
 //  · IMAGEM do aparelho — reduzida na hora e guardada em `lifeos_imgs`, que é
@@ -4630,27 +5084,69 @@ function encolherPainel(k) {
   recolocarPaineis();
 }
 /** Devolve todas as janelas para as margens (desfaz os arrastos). */
-function arrumarPaineis() { const c = cfgFlut(); c.pos = {}; gravarFlut(); recolocarPaineis(); toast('🪟 Janelas de volta para as margens.'); }
+function arrumarPaineis() {
+  const c = cfgFlut(); const tinha = Object.keys(c.pos || {}).length;
+  c.pos = {}; c.aberta = null; gravarFlut(); montarPaineis();
+  const esp = medirEspaco();
+  if (esp.modo === 'margem') toast(tinha ? '🪟 Janelas de volta para as margens.' : '🪟 As janelas já estão nas margens.');
+  else if (esp.modo === 'celular') toast('📱 Nesta tela as janelas ficam na barrinha do rodapé — toque num ícone para abrir uma.', 6000);
+  else toast(`🪟 Esta tela não tem margem sobrando (${esp.esq}px de cada lado, e uma janela precisa de ${esp.L}px). Elas ficam na barrinha do canto, uma de cada vez — assim não cobrem o conteúdo.`, 8000);
+}
 
 // --- montagem ---------------------------------------------------------------
 /** Cria/remove as cascas das janelas. Chamar quando a lista ou o modo muda. */
+/** Quanto espaço sobra de cada lado do conteúdo, e o que cabe ali.
+ *  Um notebook de 1366px deixa ~115px de margem: não cabe janela nenhuma.
+ *  Nesse caso elas NÃO podem flutuar por cima do conteúdo — viram uma
+ *  barrinha de ícones no canto, com uma aberta por vez. */
+function medirEspaco() {
+  const c = cfgFlut(); const L = Math.max(230, Math.min(460, c.largura || 310));
+  const cont = document.querySelector('.container');
+  const r = cont ? cont.getBoundingClientRect() : { left: 0, right: window.innerWidth };
+  const dir = Math.max(0, window.innerWidth - r.right), esq = Math.max(0, r.left);
+  const estreito = window.innerWidth < 900;
+  const cabeDir = !estreito && dir >= L + 22, cabeEsq = !estreito && esq >= L + 22;
+  return { L, r, dir, esq, cabeDir, cabeEsq, estreito,
+    modo: estreito ? 'celular' : ((cabeDir || cabeEsq) ? 'margem' : 'canto'),
+    // quantas janelas cabem empilhadas nas margens que existem
+    cabem: (cabeDir ? Math.floor((window.innerHeight - 28) / 190) : 0) + (cabeEsq ? Math.floor((window.innerHeight - 28) / 190) : 0) };
+}
+/** No modo barrinha, só uma janela fica aberta. */
+function abrirNoDock(k) {
+  const c = cfgFlut();
+  c.aberta = (c.aberta === k) ? null : k;
+  gravarFlut(); montarPaineis();
+}
+function renderDock(ativos) {
+  const c = cfgFlut();
+  return `<div class="pf-dock" id="pf-dock">${ativos.map(k =>
+    `<span class="dock-ic${c.aberta === k ? ' sel' : ''}" title="${esc(PAINEIS[k].nome)}" onclick="abrirNoDock('${k}')">${PAINEIS[k].ic}</span>`).join('')}
+    <span class="dock-ic dock-x" title="Fechar as janelas" onclick="alternarFlutuantes(); renderAtalhoJanelas();">✕</span></div>`;
+}
+
 function montarPaineis() {
   const wrap = document.getElementById('paineis'); if (!wrap) return;
   const c = cfgFlut();
-  const estreito = window.innerWidth < 900;
-  const mostrar = c.ligado && (!estreito || c.celular);
+  const esp = medirEspaco();
+  const mostrar = c.ligado && (!esp.estreito || c.celular);
   const rascunho = (document.getElementById('pf-notas-input') || {}).value || '';
   if (!mostrar) { wrap.innerHTML = ''; wrap.hidden = true; document.body.classList.remove('com-paineis'); atualizarMiniPlayer(); return; }
   wrap.hidden = false; document.body.classList.add('com-paineis');
+  wrap.dataset.modo = esp.modo;
   const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
-  wrap.innerHTML = ativos.map(k => {
-    const p = PAINEIS[k]; const enc = (c.encolhidos || []).includes(k);
+  // Sem margem para caber janela, elas viram barrinha de ícones com uma aberta
+  // por vez — nunca cobrindo o conteúdo de quem está num notebook.
+  const dock = esp.modo !== 'margem';
+  if (dock && c.aberta && !ativos.includes(c.aberta)) c.aberta = null;
+  const visiveis = dock ? (c.aberta ? [c.aberta] : []) : ativos;
+  wrap.innerHTML = (dock ? renderDock(ativos) : '') + visiveis.map(k => {
+    const p = PAINEIS[k]; const enc = !dock && (c.encolhidos || []).includes(k);
     return `<section class="pf${enc ? ' encolhido' : ''}" id="pf-${k}" data-k="${k}">
       <header class="pf-top" onpointerdown="pegarPainel(event, '${k}')"><span class="pf-ic">${p.ic}</span><strong>${esc(p.nome)}</strong>
-        <span class="pf-acoes"><button class="mini-btn pf-encolher" title="Encolher / abrir" onclick="encolherPainel('${k}')">${enc ? '▸' : '▾'}</button><button class="mini-btn" title="Fechar esta janela" onclick="fecharPainel('${k}')">✕</button></span></header>
+        <span class="pf-acoes">${dock ? '' : `<button class="mini-btn pf-encolher" title="Encolher / abrir" onclick="encolherPainel('${k}')">${enc ? '▸' : '▾'}</button>`}<button class="mini-btn" title="${dock ? 'Fechar' : 'Fechar esta janela'}" onclick="${dock ? `abrirNoDock('${k}')` : `fecharPainel('${k}')`}">✕</button></span></header>
       <div class="pf-corpo" id="pf-${k}-corpo"></div></section>`;
   }).join('');
-  ativos.forEach(k => atualizarPainel(k));
+  visiveis.forEach(k => atualizarPainel(k));
   const inp = document.getElementById('pf-notas-input'); if (inp && rascunho) inp.value = rascunho;
   recolocarPaineis(); atualizarMiniPlayer();
 }
@@ -4676,17 +5172,14 @@ function tocarPaineis(...quais) {
 /** Calcula a posição: margem da direita, depois da esquerda, senão canto. */
 function recolocarPaineis() {
   const wrap = document.getElementById('paineis'); if (!wrap || wrap.hidden) return;
-  const c = cfgFlut(); const L = Math.max(230, Math.min(460, c.largura || 310));
-  const estreito = window.innerWidth < 900;
-  const cont = document.querySelector('.container');
-  const r = cont ? cont.getBoundingClientRect() : { left: 0, right: window.innerWidth };
-  const folgaDir = Math.max(0, window.innerWidth - r.right), folgaEsq = Math.max(0, r.left);
-  const cabeDir = !estreito && folgaDir >= L + 22;
-  const cabeEsq = !estreito && folgaEsq >= L + 22;
-  wrap.dataset.modo = estreito ? 'celular' : ((cabeDir || cabeEsq) ? 'margem' : 'canto');
+  const c = cfgFlut(); const esp = medirEspaco(); const L = esp.L;
+  wrap.dataset.modo = esp.modo;
   const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
-  if (estreito) { ativos.forEach(k => { const el = document.getElementById('pf-' + k); if (el) el.removeAttribute('style'); }); return; }
-  let yDir = 14, yEsq = 14, yCanto = 14;
+  if (esp.modo !== 'margem') {   // barrinha: o CSS posiciona, sem style inline
+    ativos.forEach(k => { const el = document.getElementById('pf-' + k); if (el) el.removeAttribute('style'); });
+    return;
+  }
+  let yDir = 14, yEsq = 14;
   const limite = window.innerHeight - 14;
   ativos.forEach(k => {
     const el = document.getElementById('pf-' + k); if (!el) return;
@@ -4699,22 +5192,21 @@ function recolocarPaineis() {
       return;
     }
     const alt = el.offsetHeight + 12;
-    // Com as duas margens livres, cada janela vai para a coluna mais curta:
-    // assim elas se dividem sozinhas entre esquerda e direita em vez de
-    // empilhar tudo de um lado só.
-    const preferEsq = cabeEsq && (!cabeDir || yEsq < yDir);
+    // com as duas margens livres, cada janela vai para a coluna mais curta
+    const preferEsq = esp.cabeEsq && (!esp.cabeDir || yEsq < yDir);
     if (preferEsq && yEsq + alt <= limite) {
       el.style.right = 'auto'; el.style.bottom = 'auto';
-      el.style.left = Math.round(Math.max(6, (folgaEsq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
-    } else if (cabeDir && yDir + alt <= limite) {
+      el.style.left = Math.round(Math.max(6, (esp.esq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
+    } else if (esp.cabeDir && yDir + alt <= limite) {
       el.style.right = 'auto'; el.style.bottom = 'auto';
-      el.style.left = Math.round(r.right + (folgaDir - L) / 2) + 'px'; el.style.top = yDir + 'px'; yDir += alt;
-    } else if (cabeEsq && yEsq + alt <= limite) {
+      el.style.left = Math.round(esp.r.right + (esp.dir - L) / 2) + 'px'; el.style.top = yDir + 'px'; yDir += alt;
+    } else if (esp.cabeEsq && yEsq + alt <= limite) {
       el.style.right = 'auto'; el.style.bottom = 'auto';
-      el.style.left = Math.round(Math.max(6, (folgaEsq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
-    } else {       // sem margem: empilha no canto de baixo, como o player
+      el.style.left = Math.round(Math.max(6, (esp.esq - L) / 2)) + 'px'; el.style.top = yEsq + 'px'; yEsq += alt;
+    } else {       // encheu as margens: o resto encolhe no rodapé, sem cobrir nada
       el.style.left = 'auto'; el.style.top = 'auto';
-      el.style.right = '16px'; el.style.bottom = yCanto + 'px'; yCanto += alt;
+      el.style.right = '16px'; el.style.bottom = '14px';
+      el.classList.add('encolhido');
     }
   });
 }
@@ -6023,6 +6515,7 @@ definirPerfilTrabalho(); aplicarVocabulario(); renderPerfilTrabalho();
 renderClinica(); verSecaoClinica('painel'); ajustarAbaClinica();
 renderProducao(); verSecaoProducao('painel'); ajustarAbaProducao();
 prepararCardsRecolhiveis(); renderAtalhoJanelas(); tornarModaisMoveis(); prepararListas();
+preencherRepeteEvento(); renderAgendaVista(); renderAgora(); setInterval(renderAgora, 60000);
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();

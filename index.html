@@ -8,6 +8,14 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+<div id="aviso-abertura" style="display:none; position:fixed; inset:0; z-index:99999; background:#121212; color:#e2e8f0; overflow:auto; padding:28px 18px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6;">
+  <div style="max-width:620px; margin:0 auto;">
+    <div style="font-size:1.5rem; letter-spacing:5px; text-align:center; margin-bottom:6px;">A<span style="color:#ef4444">&#9829;</span> A&#9824; A<span style="color:#ef4444">&#9830;</span></div>
+    <h1 id="aviso-tit" style="font-size:1.4rem; color:#fff; text-align:center; margin-bottom:18px;"></h1>
+    <div id="aviso-txt" style="background:#1c1c1c; border:1px solid #2a2a2a; border-left:4px solid #f59e0b; border-radius:12px; padding:18px 20px; color:#cbd5e1;"></div>
+    <button id="aviso-ok" style="display:none; margin:18px auto 0; background:#2a2a2a; color:#e2e8f0; border:1px solid #3a3a3a; border-radius:8px; padding:10px 20px; font-size:0.9rem; cursor:pointer;">Entendi, quero continuar assim mesmo</button>
+  </div>
+</div>
   <div class="container">
     <nav class="tabs">
       <button class="tab-btn active" id="btn-focus" onclick="changeTab('focus')">🎯 Painel Central</button>
@@ -129,6 +137,26 @@
         <span id="aba-plantoes" onclick="verSecaoAgenda('plantoes', this)">🚑 Plantões</span>
       </div>
       <div id="sec-cal" class="agenda-sec">
+      <div id="ag-agora-card" class="agora-card"></div>
+      <div class="card" style="margin-top: 14px;">
+        <div class="ag-barra">
+          <div class="focus-header-tabs" id="ag-vistas" style="border:none; padding:0; margin:0;">
+            <span onclick="agMudarVista('dia', this)">📆 Dia</span>
+            <span class="active" onclick="agMudarVista('semana', this)">🗓️ Semana</span>
+            <span onclick="agMudarVista('mes', this)">📅 Mês</span>
+            <span onclick="agMudarVista('lista', this)">📋 Próximos 7 dias</span>
+          </div>
+          <div class="ag-nav">
+            <button type="button" class="mini-btn" onclick="agIrPara(-1)">‹</button>
+            <button type="button" class="mini-btn" onclick="agHoje()">hoje</button>
+            <button type="button" class="mini-btn" onclick="agIrPara(1)">›</button>
+            <strong id="ag-rotulo"></strong>
+          </div>
+        </div>
+        <div id="ag-livres" class="ag-livres"></div>
+        <div id="ag-vista"></div>
+      </div>
+      <div id="sec-cal-mes" hidden>
       <div class="card" style="margin-top: 20px;">
         <div class="calendar-header"><button id="prev-month">&lt;</button><h2 id="month-year">Mês Ano</h2><button id="next-month">&gt;</button></div>
         <div class="calendar-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
@@ -137,6 +165,7 @@
           <button type="button" class="mini-btn" onclick="irParaHoje()">📍 Hoje</button>
           <span><i style="background:#f59e0b"></i><span data-vt="listaTitulo">Plantão</span></span><span><i style="background:#38bdf8"></i>Trabalho</span><span><i style="background:#a78bfa"></i>Pessoal</span><span><i style="background:#22c55e"></i>Saúde</span><span><i style="background:#f472b6"></i>Estudo</span><span><i style="background:#fbbf24"></i>Negócios</span><span><i style="background:#fb923c"></i>Social</span>
         </div>
+      </div>
       </div>
       </div>
       <div id="sec-compromissos" class="agenda-sec">
@@ -149,6 +178,14 @@
             <div><label for="event-date">Data:</label><input type="date" id="event-date" required></div>
             <div><label for="event-time">Início:</label><input type="time" id="event-time"></div>
             <div><label for="event-end">Fim:</label><input type="time" id="event-end"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
+            <div><label for="event-repete">Repete:</label><select id="event-repete" onchange="alternarRepeteEvento()"></select></div>
+            <div id="event-ate-box" hidden><label for="event-ate">Até (opcional):</label><input type="date" id="event-ate"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 10px;">
+            <div><label for="event-local">Onde (endereço ou link da chamada):</label><input type="text" id="event-local" placeholder="Rua X, 100 — ou https://meet.google.com/..."></div>
+            <div><label for="event-aviso">Avisar (min antes):</label><input type="number" id="event-aviso" min="0" max="1440" step="5" placeholder="usa o padrão"></div>
           </div>
           <label for="event-type">Tipo:</label><select id="event-type"></select>
           <label for="event-notes">Observações:</label><textarea id="event-notes" rows="2" placeholder="endereço, o que levar, link..."></textarea>
@@ -803,13 +840,14 @@
           <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 10px;">
             <div><label for="rede-nome">Nome:</label><input type="text" id="rede-nome" placeholder="Dr. João" required></div>
             <div><label for="rede-papel">O que faz:</label><input type="text" id="rede-papel" placeholder="contador, sócio, plantonista"></div>
-            <div><label for="rede-onde">Onde conheci:</label><input type="text" id="rede-onde" placeholder="PSMI, congresso, faculdade"></div>
+            <div><label for="rede-onde">Onde conheci:</label><input type="text" id="rede-onde" placeholder="trabalho, congresso, faculdade"></div>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 10px;">
             <div><label for="rede-tel">Telefone:</label><input type="text" id="rede-tel"></div>
             <div><label for="rede-email">E-mail:</label><input type="text" id="rede-email"></div>
             <div><label for="rede-links">Links (LinkedIn, Instagram):</label><input type="text" id="rede-links"></div>
             <div><label for="rede-lembrar">Lembrar a cada (dias):</label><input type="number" id="rede-lembrar" min="0" placeholder="90"></div>
+            <div><label for="rede-nascimento">Aniversário:</label><input type="date" id="rede-nascimento" title="Aparece sozinho na sua agenda todo ano"></div>
           </div>
           <div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 10px;">
             <div><label for="rede-tags">Marcadores:</label><input type="text" id="rede-tags" placeholder="plantão, negócios, família"></div>
@@ -1244,6 +1282,48 @@
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  </script>
+  <script>
+    /* Rede de proteção para a hora de instalar/atualizar. Dois enganos comuns:
+       1) abrir o index.html de DENTRO do .zip — o Windows extrai só esse arquivo,
+          o style.css e o app.js ficam para trás e a tela vira texto cru;
+       2) abrir a cópia local por file:// achando que é o app de sempre — os dados
+          do file:// são de outro endereço, então parece que tudo sumiu. Não sumiu. */
+    (function () {
+      var cssOk = getComputedStyle(document.body).display === 'flex';
+      var noZip = /\.zip[\\/.]/i.test(location.pathname) || /Temp[\\/][0-9a-f-]{8,}/i.test(location.pathname);
+      var tela = document.getElementById('aviso-abertura');
+      var tit = document.getElementById('aviso-tit');
+      var txt = document.getElementById('aviso-txt');
+      var ok = document.getElementById('aviso-ok');
+      function mostrar(titulo, html, deixarPassar) {
+        tit.innerHTML = titulo; txt.innerHTML = html;
+        tela.style.display = 'block';
+        if (deixarPassar) { ok.style.display = 'block'; ok.onclick = function () { tela.style.display = 'none'; }; }
+      }
+      if (!cssOk || noZip) {
+        mostrar('Falta extrair o arquivo',
+          '<p style="margin-bottom:12px"><strong>O que aconteceu:</strong> este arquivo foi aberto de dentro do <code>.zip</code>. O Windows abre só o arquivo que você clicou e deixa os outros lá dentro — por isso a tela está sem formatação.</p>' +
+          '<p style="margin-bottom:12px"><strong>Como resolver, em 3 passos:</strong></p>' +
+          '<ol style="margin:0 0 12px 20px"><li>Feche esta janela.</li>' +
+          '<li>Clique com o <strong>botão direito no arquivo .zip</strong> &rarr; <strong>Extrair tudo</strong> &rarr; escolha uma pasta (a Área de Trabalho serve).</li>' +
+          '<li>Abra o <code>index.html</code> <strong>de dentro da pasta extraída</strong>.</li></ol>' +
+          '<p style="margin-bottom:0; color:#94a3b8"><strong>Se você já usa o Genesis:</strong> você provavelmente nem precisa abrir este arquivo. Veja o <code>LEIA-ME.html</code> — na maioria dos casos basta fechar e reabrir o seu app duas vezes.</p>');
+        return;
+      }
+      if (location.protocol === 'file:') {
+        var temDados = false;
+        try { temDados = !!(localStorage.getItem('lifeos_tasks') || localStorage.getItem('lifeos_notes') || localStorage.getItem('lifeos_finances')); } catch (e) {}
+        if (!temDados) {
+          mostrar('Esta é uma cópia em branco &mdash; os seus dados estão a salvo',
+            '<p style="margin-bottom:12px">Você abriu o Genesis <strong>direto de uma pasta do computador</strong>. Isso funciona, mas é um <strong>endereço diferente</strong> daquele em que você usa o app todo dia &mdash; e cada endereço tem a sua própria memória.</p>' +
+            '<p style="margin-bottom:12px"><strong>Nada foi perdido.</strong> As suas anotações continuam no endereço de sempre (o link do navegador ou o atalho que você usa) e na sua planilha do Google.</p>' +
+            '<p style="margin-bottom:12px"><strong>O que fazer:</strong> feche isto e abra o Genesis do jeito de sempre. Se era só para atualizar, o <code>LEIA-ME.html</code> explica: quem usa o link compartilhado só precisa fechar e reabrir o app duas vezes.</p>' +
+            '<p style="margin-bottom:0; color:#94a3b8">Se a sua intenção era mesmo come&ccedil;ar uma c&oacute;pia nova aqui, pode seguir &mdash; &eacute; s&oacute; p&ocirc;r o seu link e a sua senha na aba Config que tudo volta pela sincroniza&ccedil;&atilde;o.</p>',
+            true);
+        }
+      }
+    })();
   </script>
 </body>
 </html>

@@ -943,3 +943,50 @@ body:has(#paineis[data-modo="canto"]:not([hidden])) .mini-player { bottom: 64px;
   font-size: 0.87rem; color: var(--txt2); display: flex; flex-direction: column; gap: 2px; }
 .ag-lista-item small { font-size: 0.72rem; color: var(--txt4); }
 .ag-previa { display: block; font-size: 0.7rem; font-weight: 700; color: var(--acento); }
+
+/* ===== SAÚDE: fichas de treino e planos alimentares ===== */
+.ficha { background: var(--bg); border: 1px solid var(--borda); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+.ficha.aberta { border-color: var(--borda3); }
+.ficha-cab { display: flex; align-items: center; gap: 10px; padding: 10px 13px; cursor: pointer; flex-wrap: wrap; }
+.ficha-cab:hover { background: var(--card); }
+.ficha-cab strong { font-size: 0.92rem; color: var(--txt-forte); }
+.ficha-cab small { font-size: 0.74rem; color: var(--txt4); flex: 1; }
+.ficha-dias { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 13px 8px; }
+.dia-chip-f { font-size: 0.76rem; color: var(--txt2); background: var(--card); border: 1px solid var(--borda2);
+  border-radius: 12px; padding: 3px 11px; cursor: pointer; }
+.dia-chip-f small { color: var(--txt4); margin-left: 3px; }
+.dia-chip-f.sel { background: var(--borda); border-color: var(--acento); color: var(--txt-forte); }
+.ficha-acoes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 13px 10px; align-items: center; }
+.btn-treinar { margin-left: auto; background: var(--acento); color: var(--bg); border: none; border-radius: 8px;
+  padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btn-treinar:hover { filter: brightness(1.12); }
+.ex-lista { padding: 0 13px; }
+.ex-linha { display: grid; grid-template-columns: 26px 1fr 78px 118px auto; gap: 8px; align-items: center;
+  padding: 7px 0; border-top: 1px solid var(--borda); font-size: 0.84rem; }
+.ex-ic { font-size: 1.05rem; text-align: center; }
+.ex-nome { display: flex; flex-direction: column; min-width: 0; }
+.ex-nome strong { font-size: 0.86rem; color: var(--txt-forte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-nome small { font-size: 0.68rem; color: var(--txt4); }
+.ex-series { color: var(--txt3); font-size: 0.8rem; text-align: center; }
+.ex-carga { display: flex; align-items: center; gap: 4px; justify-content: center; }
+.ex-carga strong { font-size: 0.82rem; color: var(--txt-forte); min-width: 52px; text-align: center; }
+.ex-novo { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 13px; border-top: 1px solid var(--borda); align-items: center; }
+.ex-novo input, .ex-novo select { padding: 6px 8px; font-size: 0.8rem; max-width: 130px; }
+.ex-novo input[type="number"] { max-width: 78px; }
+.ref-bloco { border-top: 1px solid var(--borda); padding: 9px 13px; }
+.ref-cab { display: flex; align-items: center; gap: 8px; }
+.ref-cab strong { font-size: 0.86rem; color: var(--txt-forte); }
+.ref-cab small { font-size: 0.72rem; color: var(--txt4); flex: 1; }
+.ref-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--txt2); padding: 3px 0 3px 8px; }
+.ref-item > span:first-child { flex: 1; }
+.ref-item small { color: var(--txt4); }
+.ref-macros { font-size: 0.72rem; color: var(--txt4); }
+.ref-novo { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; padding-left: 8px; }
+.ref-novo input { padding: 5px 8px; font-size: 0.78rem; max-width: 150px; }
+.peso-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; flex: 1; }
+.peso-bar { width: 60%; background: var(--acento); border-radius: 3px 3px 0 0; min-height: 4px; }
+.peso-col small { font-size: 0.6rem; color: var(--txt4); }
+@media (max-width: 700px) {
+  .ex-linha { grid-template-columns: 22px 1fr auto; }
+  .ex-series, .ex-carga { grid-column: 2 / -1; justify-self: start; }
+}

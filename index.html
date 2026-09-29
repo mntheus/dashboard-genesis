@@ -662,10 +662,43 @@
 
     <!-- Módulo 9: Saúde -->
     <div id="health" class="tab-content">
-      <div class="card" style="margin-top: 20px;">
-        <h2>🩺 Saúde</h2>
-        <div id="health-dash"></div>
+      <div class="focus-header-tabs agenda-tabs" id="saude-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoSaude('painel', this)">📊 Painel</span>
+        <span onclick="verSecaoSaude('treinos', this)">🏋️ Treino</span>
+        <span onclick="verSecaoSaude('medidas', this)">⚖️ Corpo</span>
+        <span onclick="verSecaoSaude('comida', this)">🥗 Comida</span>
+        <span onclick="verSecaoSaude('medico', this)">🩺 Médico</span>
       </div>
+      <div id="sec-sa-painel" class="agenda-sec"></div>
+      <div id="sec-sa-treinos" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>📋 Fichas de treino</h2>
+          <p class="hint">Uma ficha guarda o <strong>plano</strong>: os dias, os exercícios, séries × repetições e a carga. Ajuste a carga com − e ＋ direto aqui, que é o que muda toda semana. Depois é só <strong>🏋️ Treinar por este dia</strong> e o registro já vem preenchido.</p>
+          <button class="btn" type="button" style="width:100%; margin-bottom:12px" onclick="novaFicha()">＋ Nova ficha</button>
+          <div id="fichas-lista"></div>
+        </div>
+      </div>
+      <div id="sec-sa-medidas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>📊 O seu corpo hoje</h2>
+          <p class="hint">A altura fica guardada no perfil (muda pouco). Com ela o app calcula <strong>IMC</strong>, a faixa de peso da sua altura e a relação cintura/quadril. Os pontos de corte são os de referência da OMS — servem de referência, não de diagnóstico.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-bottom: 12px;">
+            <div><label for="corpo-altura">Altura (cm):</label><input type="number" id="corpo-altura" min="0" step="0.5" placeholder="175" onchange="salvarPerfilCorpo()"></div>
+            <div><label for="corpo-sexo">Referência para os cortes:</label><select id="corpo-sexo" onchange="salvarPerfilCorpo()">
+              <option value="">— não informar —</option><option value="m">Masculina</option><option value="f">Feminina</option></select></div>
+          </div>
+          <div id="corpo-painel"></div>
+        </div>
+      </div>
+      <div id="sec-sa-comida" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🥗 Planos alimentares</h2>
+          <p class="hint">Um plano é o que você <strong>combinou comer</strong>. Monte uma vez e depois marque <strong>✅ Segui o plano hoje</strong> — um clique em vez de digitar tudo. O diário de refeições continua abaixo, para o dia que fugiu do plano.</p>
+          <button class="btn" type="button" style="width:100%; margin-bottom:12px" onclick="novaDieta()">＋ Novo plano</button>
+          <div id="dietas-lista"></div>
+        </div>
+      </div>
+      <div id="sec-sa-medico" class="agenda-sec" hidden></div>
       <div class="fin-two-col">
         <div class="card">
           <h2>🏋️ Treinos</h2>
@@ -688,14 +721,31 @@
           <h2>⚖️ Peso e medidas</h2>
           <div id="weight-chart" style="margin-bottom: 12px;"></div>
           <form id="measure-form">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+            <input type="hidden" id="measure-id">
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; gap: 10px;">
               <div><label for="measure-date">Data:</label><input type="date" id="measure-date"></div>
-              <div><label for="measure-weight">Peso (kg):</label><input type="number" id="measure-weight" step="0.1" min="0" placeholder="80,5"></div>
-              <div><label for="measure-waist">Cintura (cm):</label><input type="number" id="measure-waist" step="0.5" min="0"></div>
-              <div><label for="measure-fat">Gordura (%):</label><input type="number" id="measure-fat" step="0.1" min="0"></div>
+              <div><label for="measure-weight">⚖️ Peso (kg):</label><input type="number" id="measure-weight" step="0.1" min="0" placeholder="80,5"></div>
+              <div><label for="measure-fat">🔥 Gordura (%):</label><input type="number" id="measure-fat" step="0.1" min="0"></div>
+              <div><label for="measure-waist">📏 Cintura (cm):</label><input type="number" id="measure-waist" step="0.5" min="0"></div>
+              <div><label for="measure-hip">📐 Quadril (cm):</label><input type="number" id="measure-hip" step="0.5" min="0"></div>
             </div>
+            <details style="margin-top:8px">
+              <summary style="cursor:pointer; font-size:0.82rem; color:var(--txt3)">Mais medidas (peito, braço, coxa, panturrilha, pescoço, pressão, batimento)</summary>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; margin-top:8px;">
+                <div><label for="measure-chest">🎽 Peito:</label><input type="number" id="measure-chest" step="0.5" min="0"></div>
+                <div><label for="measure-arm">💪 Braço:</label><input type="number" id="measure-arm" step="0.5" min="0"></div>
+                <div><label for="measure-thigh">🦵 Coxa:</label><input type="number" id="measure-thigh" step="0.5" min="0"></div>
+                <div><label for="measure-calf">🧦 Panturrilha:</label><input type="number" id="measure-calf" step="0.5" min="0"></div>
+                <div><label for="measure-neck">🧣 Pescoço:</label><input type="number" id="measure-neck" step="0.5" min="0"></div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top:8px;">
+                <div><label for="measure-sis">🩺 Pressão sistólica:</label><input type="number" id="measure-sis" min="0" placeholder="120"></div>
+                <div><label for="measure-dia">🩺 Pressão diastólica:</label><input type="number" id="measure-dia" min="0" placeholder="80"></div>
+                <div><label for="measure-bpm">💓 Batimento em repouso:</label><input type="number" id="measure-bpm" min="0" placeholder="65"></div>
+              </div>
+            </details>
             <label for="measure-note">Observação:</label><input type="text" id="measure-note" placeholder="opcional">
-            <button type="submit">Registrar medida</button>
+            <button type="submit" id="measure-submit">Registrar medida</button>
           </form>
           <ul id="measure-list" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>

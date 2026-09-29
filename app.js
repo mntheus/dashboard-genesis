@@ -49,6 +49,8 @@ let filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; //
 let produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || [];     // catálogo com custo real
 let ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || [];         // fila de produção
 let vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || [];         // vendas de marketplace
+let fichas = JSON.parse(localStorage.getItem('lifeos_fichas')) || [];         // fichas de treino
+let dietas = JSON.parse(localStorage.getItem('lifeos_dietas')) || [];         // planos alimentares
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -2742,24 +2744,501 @@ function renderTreinos() {
 // --- Peso e medidas ---
 document.getElementById('measure-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const dados = { date: document.getElementById('measure-date').value || hojeISO(), weight: parseFloat(document.getElementById('measure-weight').value) || 0, waist: parseFloat(document.getElementById('measure-waist').value) || 0, bodyfat: parseFloat(document.getElementById('measure-fat').value) || 0, note: document.getElementById('measure-note').value.trim() };
-  if (!dados.weight && !dados.waist && !dados.bodyfat) return;
-  measures.push({ id: novoId(), ...dados }); salvar('measures', measures);
-  document.getElementById('measure-form').reset(); document.getElementById('measure-date').value = hojeISO(); renderSaude(); toast('⚖️ Medida registrada.');
+  const n = id => parseFloat(document.getElementById('measure-' + id).value) || 0;
+  const id = document.getElementById('measure-id').value;
+  const dados = { date: document.getElementById('measure-date').value || hojeISO(),
+    weight: n('weight'), waist: n('waist'), hip: n('hip'), chest: n('chest'), arm: n('arm'),
+    thigh: n('thigh'), calf: n('calf'), neck: n('neck'),
+    fat: n('fat'), bodyfat: n('fat'),          // bodyfat era o nome antigo; mantido para não quebrar dado velho
+    sis: n('sis'), dia: n('dia'), bpm: n('bpm'),
+    note: document.getElementById('measure-note').value.trim() };
+  if (!CAMPOS_MEDIDA.some(f => dados[f[0]]) && !dados.sis && !dados.bpm) { toast('Preencha pelo menos uma medida.'); return; }
+  if (id) { const m = measures.find(x => String(x.id) === id); if (m) Object.assign(m, dados); }
+  else measures.push({ id: novoId(), ...dados });
+  salvar('measures', measures);
+  document.getElementById('measure-form').reset(); document.getElementById('measure-id').value = '';
+  document.getElementById('measure-submit').innerText = 'Registrar medida';
+  document.getElementById('measure-date').value = hojeISO(); renderSaude();
+  toast(id ? '⚖️ Medida atualizada.' : '⚖️ Medida registrada.');
 });
-function removerMedida(id) { if (!confirm('Apagar esta medida?')) return; measures = measures.filter(x => x.id !== id); salvar('measures', measures); renderSaude(); }
+
+
+// ============================================================================
+// SAÚDE — medidas completas, fichas de treino e planos alimentares
+// Pedido do caderno: "peso e medidas tem poucas informações, nem altura e IMC
+// tem"; "na parte de treino vamos adicionar e salvar os exercícios para montar
+// fichas e ter ícones — esse método de lista não funciona para esse módulo";
+// "na parte de refeições ter a opção de dietas completas".
+// Os pontos de corte usados aqui são os de referência da OMS. É referência,
+// não diagnóstico — e quem usa o app sabe disso melhor do que eu.
+// ============================================================================
+function perfilCorpo() {
+  const c = profile.corpo = profile.corpo || {};
+  if (c.altura === undefined) c.altura = 0;      // em cm
+  if (c.sexo === undefined) c.sexo = '';         // 'm' | 'f' | ''
+  if (c.nascimento === undefined) c.nascimento = '';
+  return c;
+}
+function salvarPerfilCorpo() {
+  const c = perfilCorpo();
+  c.altura = parseFloat(document.getElementById('corpo-altura').value) || 0;
+  c.sexo = document.getElementById('corpo-sexo').value;
+  salvar('profile', profile); renderSaude();
+}
+function ultimaMedida() { return [...measures].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null; }
+/** Medidas antigas guardavam a gordura em `bodyfat`; o campo passou a ser `fat`. */
+function normalizarMedidas() {
+  let mudou = false;
+  measures.forEach(m => { if (m.fat === undefined && m.bodyfat) { m.fat = m.bodyfat; mudou = true; } });
+  return mudou;
+}
+
+const IMC_FAIXAS = [
+  [0, 18.5, 'Abaixo do peso', '#38bdf8'], [18.5, 25, 'Peso normal', '#22c55e'],
+  [25, 30, 'Sobrepeso', '#fbbf24'], [30, 35, 'Obesidade grau I', '#fb923c'],
+  [35, 40, 'Obesidade grau II', '#ef4444'], [40, 999, 'Obesidade grau III', '#dc2626']
+];
+function calcIMC(peso, alturaCm) {
+  const h = (Number(alturaCm) || 0) / 100;
+  if (!h || !peso) return null;
+  const v = Number(peso) / (h * h);
+  const f = IMC_FAIXAS.find(x => v >= x[0] && v < x[1]) || IMC_FAIXAS[IMC_FAIXAS.length - 1];
+  return { valor: Math.round(v * 10) / 10, rotulo: f[2], cor: f[3] };
+}
+/** Faixa de peso que corresponde ao IMC 18,5–24,9 para a altura da pessoa. */
+function pesoIdeal(alturaCm) {
+  const h = (Number(alturaCm) || 0) / 100; if (!h) return null;
+  return { min: Math.round(18.5 * h * h * 10) / 10, max: Math.round(24.9 * h * h * 10) / 10 };
+}
+/** Cintura/quadril — corte da OMS: risco alto acima de 0,90 (h) e 0,85 (m). */
+function calcRCQ(cintura, quadril, sexo) {
+  if (!cintura || !quadril) return null;
+  const v = Math.round((cintura / quadril) * 100) / 100;
+  const limite = sexo === 'f' ? 0.85 : 0.90;
+  return { valor: v, alto: v > limite, limite };
+}
+/** Cintura isolada — corte da OMS: elevado 94/80, muito elevado 102/88. */
+function riscoCintura(cintura, sexo) {
+  if (!cintura) return null;
+  const [a, b] = sexo === 'f' ? [80, 88] : [94, 102];
+  if (cintura >= b) return { rotulo: 'muito elevado', cor: '#ef4444' };
+  if (cintura >= a) return { rotulo: 'elevado', cor: '#fbbf24' };
+  return { rotulo: 'dentro da faixa', cor: '#22c55e' };
+}
+function composicao(peso, gorduraPct) {
+  if (!peso || !gorduraPct) return null;
+  const gordura = Math.round(peso * gorduraPct / 100 * 10) / 10;
+  return { gordura, magra: Math.round((peso - gordura) * 10) / 10 };
+}
+/** Quanto a medida mudou desde a anterior. */
+function variacao(campo) {
+  const l = [...measures].filter(m => m[campo] > 0).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (l.length < 2) return null;
+  const d = Math.round((l[0][campo] - l[1][campo]) * 10) / 10;
+  return { d, de: l[1].date };
+}
+
+const CAMPOS_MEDIDA = [
+  ['weight', '⚖️', 'Peso', 'kg'], ['fat', '🔥', 'Gordura', '%'],
+  ['waist', '📏', 'Cintura', 'cm'], ['hip', '📐', 'Quadril', 'cm'],
+  ['chest', '🎽', 'Peito', 'cm'], ['arm', '💪', 'Braço', 'cm'],
+  ['thigh', '🦵', 'Coxa', 'cm'], ['calf', '🧦', 'Panturrilha', 'cm'],
+  ['neck', '🧣', 'Pescoço', 'cm']
+];
 function renderMedidas() {
-  const ul = document.getElementById('measure-list'); const ch = document.getElementById('weight-chart'); if (!ul) return; ul.innerHTML = '';
-  const lista = [...measures].sort((a, b) => a.date.localeCompare(b.date));
-  const pesos = lista.filter(m => m.weight > 0).slice(-12);
-  if (ch) {
-    if (pesos.length >= 2) { const min = Math.min(...pesos.map(m => m.weight)) - 1; const max = Math.max(...pesos.map(m => m.weight)) + 1; ch.innerHTML = '<div class="fin-meses" style="grid-template-columns:repeat(' + pesos.length + ',1fr); height:130px">' + pesos.map(m => `<div class="mes-col" title="${isoParaBR(m.date)}: ${m.weight} kg"><div class="mes-bars" style="height:80px"><div class="mes-bar" style="width:60%; height:${Math.round((m.weight - min) / (max - min) * 100)}%; background:#f472b6"></div></div><small>${isoParaBR(m.date).slice(0, 5)}</small><small class="mes-saldo" style="color:#e2e8f0">${m.weight}</small></div>`).join('') + '</div>'; }
-    else ch.innerHTML = '<div class="stat-line muted">Registre pelo menos 2 pesagens pra ver a evolução.</div>';
+  const ul = document.getElementById('measure-list'); const ch = document.getElementById('weight-chart'); if (!ul) return;
+  const c = perfilCorpo();
+  const a = document.getElementById('corpo-altura'); if (a && !a.value && c.altura) a.value = c.altura;
+  const s = document.getElementById('corpo-sexo'); if (s) s.value = c.sexo || '';
+  const u = ultimaMedida();
+  // --- o painel do corpo -----------------------------------------------------
+  const p = document.getElementById('corpo-painel');
+  if (p) {
+    if (!u) p.innerHTML = '<div class="stat-line muted">Registre a primeira medida para ver IMC, faixa de peso e composição.</div>';
+    else {
+      const imc = calcIMC(u.weight, c.altura);
+      const ideal = pesoIdeal(c.altura);
+      const rcq = calcRCQ(u.waist, u.hip, c.sexo);
+      const rc = riscoCintura(u.waist, c.sexo);
+      const comp = composicao(u.weight, u.fat);
+      const vp = variacao('weight');
+      const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+      let h = '<div class="stat-grid">';
+      h += tile('⚖️', (u.weight || '—') + ' kg', vp ? `${vp.d > 0 ? '+' : ''}${vp.d} kg desde ${isoParaBR(vp.de).slice(0, 5)}` : 'peso atual',
+        vp ? (vp.d > 0 ? '#fbbf24' : vp.d < 0 ? '#22c55e' : undefined) : undefined);
+      h += imc ? tile('📊', imc.valor, 'IMC · ' + imc.rotulo, imc.cor)
+               : tile('📊', '—', c.altura ? 'IMC · falta o peso' : 'IMC · informe a altura');
+      if (ideal) h += tile('🎯', `${ideal.min}–${ideal.max}`, 'faixa de peso para a sua altura');
+      if (comp) h += tile('🥩', comp.magra + ' kg', `massa magra · ${comp.gordura} kg de gordura`);
+      if (rcq) h += tile('📐', rcq.valor, `cintura/quadril · ${rcq.alto ? 'acima de ' + rcq.limite : 'dentro da faixa'}`, rcq.alto ? '#ef4444' : '#22c55e');
+      if (rc) h += tile('📏', u.waist + ' cm', 'cintura · risco ' + rc.rotulo, rc.cor);
+      if (u.sis && u.dia) h += tile('🩺', `${u.sis}/${u.dia}`, 'pressão · mmHg', (u.sis >= 140 || u.dia >= 90) ? '#ef4444' : (u.sis >= 130 || u.dia >= 85) ? '#fbbf24' : '#22c55e');
+      if (u.bpm) h += tile('💓', u.bpm, 'batimento em repouso', u.bpm > 100 ? '#fbbf24' : undefined);
+      h += '</div>';
+      if (!c.altura) h += '<p class="hint" style="margin-top:8px">⬆️ Informe a sua altura acima — sem ela não dá para calcular IMC nem faixa de peso.</p>';
+      p.innerHTML = h;
+    }
   }
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma medida ainda.</li>'; return; }
-  [...lista].reverse().slice(0, 10).forEach(m => {
-    ul.innerHTML += `<li class="health-item"><div class="transaction-info" style="flex:1"><span>${m.weight ? `<strong>${m.weight} kg</strong>` : ''}${m.waist ? ` · cintura ${m.waist} cm` : ''}${m.bodyfat ? ` · ${m.bodyfat}% gordura` : ''}</span><small class="item-date">${isoParaBR(m.date)}${m.note ? ' · ' + esc(m.note) : ''}</small></div><div class="item-actions"><button class="mini-btn" title="Apagar" onclick="removerMedida(${m.id})">✕</button></div></li>`;
+  // --- gráfico do peso -------------------------------------------------------
+  const hist = [...measures].filter(m => m.weight > 0).sort((a2, b) => (a2.date || '').localeCompare(b.date || '')).slice(-12);
+  if (ch) {
+    if (hist.length < 2) ch.innerHTML = '<div class="stat-line muted">Duas pesagens e o gráfico aparece.</div>';
+    else {
+      const min = Math.min(...hist.map(m => m.weight)), max = Math.max(...hist.map(m => m.weight));
+      const amp = Math.max(1, max - min);
+      ch.innerHTML = hist.map(m => {
+        const alt = Math.round((m.weight - min) / amp * 70) + 20;
+        return `<div class="peso-col" title="${m.weight} kg em ${isoParaBR(m.date)}"><div class="peso-bar" style="height:${alt}%"></div><small>${isoParaBR(m.date).slice(0, 5)}</small></div>`;
+      }).join('');
+    }
+  }
+  // --- histórico -------------------------------------------------------------
+  const lista = [...measures].sort((a2, b) => (b.date || '').localeCompare(a2.date || '')).slice(0, 15);
+  ul.innerHTML = lista.length ? lista.map(m => {
+    const imc = calcIMC(m.weight, c.altura);
+    const partes = CAMPOS_MEDIDA.filter(f => m[f[0]] > 0).map(f => `${f[1]} ${m[f[0]]}${f[3]}`);
+    if (m.sis && m.dia) partes.push(`🩺 ${m.sis}/${m.dia}`);
+    if (m.bpm) partes.push(`💓 ${m.bpm}`);
+    return `<li><div class="transaction-info" style="flex:1"><span>${isoParaBR(m.date)}${imc ? ` <small class="category-badge" style="color:${imc.cor}">IMC ${imc.valor}</small>` : ''}</span>
+      <small class="item-date">${partes.join(' · ') || 'sem valores'}</small>${m.note ? `<small class="item-notes">${esc(m.note)}</small>` : ''}</div>
+      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarMedida(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMedida(${m.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma medida ainda.</li>';
+}
+function editarMedida(id) {
+  const m = measures.find(x => x.id === id); if (!m) return;
+  changeTab('health'); verSecaoSaude('medidas');
+  document.getElementById('measure-id').value = m.id;
+  document.getElementById('measure-date').value = m.date;
+  CAMPOS_MEDIDA.forEach(f => { const e = document.getElementById('measure-' + f[0]); if (e) e.value = m[f[0]] || ''; });
+  ['sis', 'dia', 'bpm'].forEach(k => { const e = document.getElementById('measure-' + k); if (e) e.value = m[k] || ''; });
+  document.getElementById('measure-note').value = m.note || '';
+  document.getElementById('measure-submit').innerText = 'Salvar medida';
+}
+function removerMedida(id) {
+  if (!confirm('Apagar esta medida?')) return;
+  measures = measures.filter(x => x.id !== id); salvar('measures', measures); renderSaude();
+}
+
+// --- FICHAS DE TREINO -------------------------------------------------------
+// "Esse método de lista não funciona para esse módulo" — e é verdade: treino
+// não é uma linha de texto, é série × repetição × carga, e a carga muda toda
+// semana. A ficha guarda o plano; o treino do dia guarda o que foi feito.
+const GRUPOS_MUSC = {
+  peito:     ['🎽', 'Peito'],      costas:  ['🧗', 'Costas'],
+  ombro:     ['🏐', 'Ombros'],     biceps:  ['💪', 'Bíceps'],
+  triceps:   ['🦾', 'Tríceps'],    perna:   ['🦵', 'Pernas'],
+  gluteo:    ['🍑', 'Glúteos'],    abdomen: ['🧱', 'Abdômen'],
+  cardio:    ['🏃', 'Cardio'],     mobilidade: ['🧘', 'Mobilidade']
+};
+/** Catálogo pronto — para não ter que digitar tudo do zero. */
+const EXERCICIOS = {
+  peito: ['Supino reto', 'Supino inclinado', 'Crucifixo', 'Crossover', 'Flexão de braço', 'Peck deck'],
+  costas: ['Puxada frontal', 'Remada curvada', 'Remada baixa', 'Barra fixa', 'Pulldown', 'Levantamento terra'],
+  ombro: ['Desenvolvimento', 'Elevação lateral', 'Elevação frontal', 'Crucifixo inverso', 'Encolhimento'],
+  biceps: ['Rosca direta', 'Rosca alternada', 'Rosca martelo', 'Rosca scott', 'Rosca concentrada'],
+  triceps: ['Tríceps pulley', 'Tríceps testa', 'Tríceps francês', 'Mergulho', 'Tríceps coice'],
+  perna: ['Agachamento', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Afundo', 'Panturrilha em pé', 'Stiff'],
+  gluteo: ['Elevação pélvica', 'Glúteo no cabo', 'Abdução', 'Agachamento sumô'],
+  abdomen: ['Abdominal supra', 'Prancha', 'Elevação de pernas', 'Abdominal infra', 'Prancha lateral'],
+  cardio: ['Esteira', 'Bicicleta', 'Elíptico', 'Corda', 'Escada', 'Remo'],
+  mobilidade: ['Alongamento geral', 'Yoga', 'Liberação miofascial', 'Mobilidade de quadril']
+};
+function fichaPorId(id) { return fichas.find(f => f.id === Number(id)) || null; }
+function grupoDoExercicio(nome) {
+  const n = (nome || '').toLowerCase();
+  for (const g of Object.keys(EXERCICIOS)) if (EXERCICIOS[g].some(e => e.toLowerCase() === n)) return g;
+  return 'corpo';
+}
+function iconeExercicio(ex) { return (GRUPOS_MUSC[ex.grupo] || ['🏋️'])[0]; }
+
+let fichaAberta = null, diaAberto = 0;
+function novaFicha() {
+  const nome = prompt('Nome da ficha (ex: Treino A/B/C, Hipertrofia, Full body):', 'Treino A');
+  if (!nome) return;
+  const f = { id: novoId(), nome: nome.trim(), objetivo: '', dias: [{ nome: 'Dia 1', exercicios: [] }], criadoEm: Date.now() };
+  fichas.push(f); salvar('fichas', fichas); fichaAberta = f.id; diaAberto = 0; renderSaude();
+}
+function abrirFicha(id) { fichaAberta = (fichaAberta === id ? null : id); diaAberto = 0; renderFichas(); }
+function removerFicha(id) {
+  const f = fichaPorId(id); if (!f || !confirm(`Apagar a ficha "${f.nome}"?`)) return;
+  fichas = fichas.filter(x => x.id !== id); salvar('fichas', fichas); fichaAberta = null; renderSaude();
+}
+function renomearFicha(id) {
+  const f = fichaPorId(id); if (!f) return;
+  const n = prompt('Nome da ficha:', f.nome); if (!n) return;
+  f.nome = n.trim(); salvar('fichas', fichas); renderFichas();
+}
+function addDiaFicha(id) {
+  const f = fichaPorId(id); if (!f) return;
+  f.dias.push({ nome: 'Dia ' + (f.dias.length + 1), exercicios: [] });
+  diaAberto = f.dias.length - 1; salvar('fichas', fichas); renderFichas();
+}
+function renomearDia(id, i) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const n = prompt('Nome do dia (ex: Peito e tríceps, Pernas):', f.dias[i].nome); if (!n) return;
+  f.dias[i].nome = n.trim(); salvar('fichas', fichas); renderFichas();
+}
+function removerDia(id, i) {
+  const f = fichaPorId(id); if (!f || f.dias.length <= 1 || !confirm(`Apagar "${f.dias[i].nome}"?`)) return;
+  f.dias.splice(i, 1); diaAberto = 0; salvar('fichas', fichas); renderFichas();
+}
+function addExercicio(id, i) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const g = document.getElementById('ex-grupo').value;
+  const nome = document.getElementById('ex-nome').value.trim();
+  if (!nome) { toast('Escolha ou escreva o exercício.'); return; }
+  f.dias[i].exercicios.push({ id: novoId(), nome, grupo: g,
+    series: parseInt(document.getElementById('ex-series').value) || 3,
+    reps: document.getElementById('ex-reps').value.trim() || '10',
+    carga: parseFloat(document.getElementById('ex-carga').value) || 0,
+    descanso: parseInt(document.getElementById('ex-descanso').value) || 60, obs: '' });
+  salvar('fichas', fichas);
+  document.getElementById('ex-nome').value = ''; document.getElementById('ex-carga').value = '';
+  renderFichas();
+}
+function removerExercicio(id, i, exId) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  f.dias[i].exercicios = f.dias[i].exercicios.filter(e => e.id !== exId);
+  salvar('fichas', fichas); renderFichas();
+}
+function moverExercicio(id, i, exId, dir) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const l = f.dias[i].exercicios; const k = l.findIndex(e => e.id === exId); const j = k + dir;
+  if (k < 0 || j < 0 || j >= l.length) return;
+  l.splice(j, 0, l.splice(k, 1)[0]); salvar('fichas', fichas); renderFichas();
+}
+/** A carga muda toda semana — dá pra ajustar direto na ficha. */
+function ajustarCarga(id, i, exId, delta) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
+  e.carga = Math.max(0, Math.round(((Number(e.carga) || 0) + delta) * 10) / 10);
+  salvar('fichas', fichas); renderFichas();
+}
+function preencherExercicios() {
+  const g = document.getElementById('ex-grupo'); if (!g) return;
+  if (!g.options.length) g.innerHTML = Object.entries(GRUPOS_MUSC).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
+  const dl = document.getElementById('ex-sugestoes');
+  if (dl) dl.innerHTML = (EXERCICIOS[g.value] || []).map(n => `<option value="${esc(n)}">`).join('');
+}
+/** Treinar por esta ficha: cria o treino do dia já com os exercícios listados. */
+function treinarComFicha(id, i) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const d = f.dias[i];
+  if (!d.exercicios.length) { toast('Esse dia ainda não tem exercício nenhum.'); return; }
+  const linhas = d.exercicios.map(e => `${e.nome} ${e.series}x${e.reps}${e.carga ? ' ' + e.carga + 'kg' : ''}`);
+  verSecaoSaude('treinos');
+  document.getElementById('workout-type').value = 'musculacao';
+  document.getElementById('workout-date').value = hojeISO();
+  document.getElementById('workout-exercises').value = linhas.join('\n');
+  document.getElementById('workout-note').value = `${f.nome} — ${d.nome}`;
+  const min = document.getElementById('workout-minutes'); if (!min.value) min.value = 60;
+  if (typeof redesenharListas === 'function') redesenharListas();
+  f.ultimoUso = hojeISO(); salvar('fichas', fichas);
+  toast(`🏋️ ${d.nome} carregado com ${plural(d.exercicios.length, 'exercício', 'exercícios')}. Ajuste e registre.`, 6000);
+}
+function renderFichas() {
+  const el = document.getElementById('fichas-lista'); if (!el) return;
+  if (!fichas.length) {
+    el.innerHTML = '<div class="pf-vazio">Nenhuma ficha ainda. Crie uma e monte os dias — depois é só clicar em 🏋️ Treinar por ela.</div>';
+    return;
+  }
+  el.innerHTML = fichas.map(f => {
+    const aberta = fichaAberta === f.id;
+    const total = f.dias.reduce((a, d) => a + d.exercicios.length, 0);
+    let h = `<div class="ficha${aberta ? ' aberta' : ''}">
+      <div class="ficha-cab" onclick="abrirFicha(${f.id})">
+        <strong>${aberta ? '▾' : '▸'} 📋 ${esc(f.nome)}</strong>
+        <small>${plural(f.dias.length, 'dia', 'dias')} · ${plural(total, 'exercício', 'exercícios')}${f.ultimoUso ? ' · último ' + isoParaBR(f.ultimoUso).slice(0, 5) : ''}</small>
+        <span class="item-actions" onclick="event.stopPropagation()">
+          <button class="mini-btn" title="Renomear" onclick="renomearFicha(${f.id})">✎</button>
+          <button class="mini-btn" title="Apagar" onclick="removerFicha(${f.id})">✕</button></span></div>`;
+    if (aberta) {
+      h += `<div class="ficha-dias">${f.dias.map((d, i) => `<span class="dia-chip-f${i === diaAberto ? ' sel' : ''}" onclick="diaAberto=${i}; renderFichas();">${esc(d.nome)} <small>${d.exercicios.length}</small></span>`).join('')}
+        <button class="mini-btn" title="Novo dia" onclick="addDiaFicha(${f.id})">＋ dia</button></div>`;
+      const d = f.dias[diaAberto] || f.dias[0];
+      const i = f.dias.indexOf(d);
+      h += `<div class="ficha-acoes">
+        <button class="mini-btn" onclick="renomearDia(${f.id}, ${i})">✎ nome do dia</button>
+        ${f.dias.length > 1 ? `<button class="mini-btn" onclick="removerDia(${f.id}, ${i})">✕ apagar dia</button>` : ''}
+        <button class="btn-treinar" onclick="treinarComFicha(${f.id}, ${i})">🏋️ Treinar por este dia</button></div>`;
+      h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => `
+        <div class="ex-linha">
+          <span class="ex-ic">${iconeExercicio(e)}</span>
+          <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${(GRUPOS_MUSC[e.grupo] || ['', 'Geral'])[1]} · descanso ${e.descanso}s</small></span>
+          <span class="ex-series">${e.series} × ${esc(e.reps)}</span>
+          <span class="ex-carga">
+            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, -2.5)">−</button>
+            <strong>${e.carga ? e.carga + ' kg' : '—'}</strong>
+            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, 2.5)">＋</button></span>
+          <span class="item-actions">
+            <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, -1)">↑</button>
+            <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, 1)">↓</button>
+            <button class="mini-btn xs" onclick="removerExercicio(${f.id}, ${i}, ${e.id})">✕</button></span>
+        </div>`).join('') : '<div class="pf-vazio">Nenhum exercício neste dia.</div>') + '</div>';
+      h += `<div class="ex-novo">
+        <select id="ex-grupo" onchange="preencherExercicios()"></select>
+        <input type="text" id="ex-nome" list="ex-sugestoes" placeholder="exercício"><datalist id="ex-sugestoes"></datalist>
+        <input type="number" id="ex-series" min="1" value="3" title="séries">
+        <input type="text" id="ex-reps" value="10" title="repetições" style="max-width:70px">
+        <input type="number" id="ex-carga" step="0.5" min="0" placeholder="kg">
+        <input type="number" id="ex-descanso" min="0" step="15" value="60" title="descanso (s)">
+        <button class="mini-btn" onclick="addExercicio(${f.id}, ${i})">＋</button></div>`;
+    }
+    return h + '</div>';
+  }).join('');
+  // Depois de montar o HTML, e não antes: o innerHTML acima recria o
+  // #ex-grupo, então preencher antes deixaria o seletor vazio.
+  preencherExercicios();
+}
+
+// --- PLANOS ALIMENTARES -----------------------------------------------------
+// "Ter a opção de dietas completas e não só de adicionar refeições, pois isso
+// toma muito tempo (apesar de que deve existir, é muito útil para certos
+// usuários)." Então os dois convivem: o plano é o que você combinou comer; o
+// diário continua existindo para o dia que fugiu do plano.
+let dietaAberta = null;
+function dietaPorId(id) { return dietas.find(d => d.id === Number(id)) || null; }
+function novaDieta() {
+  const nome = prompt('Nome do plano (ex: Dia de treino, Low carb, Off):', 'Plano padrão');
+  if (!nome) return;
+  const d = { id: novoId(), nome: nome.trim(), ativo: !dietas.some(x => x.ativo),
+    refeicoes: [ { nome: 'Café da manhã', hora: '07:00', itens: [] },
+                 { nome: 'Almoço', hora: '12:00', itens: [] },
+                 { nome: 'Lanche', hora: '16:00', itens: [] },
+                 { nome: 'Jantar', hora: '20:00', itens: [] } ], criadoEm: Date.now() };
+  dietas.push(d); salvar('dietas', dietas); dietaAberta = d.id; renderDietas();
+}
+function abrirDieta(id) { dietaAberta = (dietaAberta === id ? null : id); renderDietas(); }
+function removerDieta(id) {
+  const d = dietaPorId(id); if (!d || !confirm(`Apagar o plano "${d.nome}"?`)) return;
+  dietas = dietas.filter(x => x.id !== id); salvar('dietas', dietas); dietaAberta = null; renderDietas();
+}
+function ativarDieta(id) {
+  dietas.forEach(d => { d.ativo = (d.id === Number(id)); });
+  salvar('dietas', dietas); renderDietas();
+  toast(`🥗 "${dietaPorId(id).nome}" é o plano do momento.`);
+}
+function addRefeicaoPlano(id) {
+  const d = dietaPorId(id); if (!d) return;
+  const nome = prompt('Nome da refeição:', 'Ceia'); if (!nome) return;
+  d.refeicoes.push({ nome: nome.trim(), hora: '', itens: [] });
+  salvar('dietas', dietas); renderDietas();
+}
+function removerRefeicaoPlano(id, i) {
+  const d = dietaPorId(id); if (!d || !confirm(`Apagar "${d.refeicoes[i].nome}" do plano?`)) return;
+  d.refeicoes.splice(i, 1); salvar('dietas', dietas); renderDietas();
+}
+function addItemDieta(id, i) {
+  const d = dietaPorId(id); if (!d || !d.refeicoes[i]) return;
+  const ali = document.getElementById(`di-ali-${i}`).value.trim();
+  if (!ali) return;
+  d.refeicoes[i].itens.push({ id: novoId(), alimento: ali,
+    qtd: document.getElementById(`di-qtd-${i}`).value.trim(),
+    kcal: parseFloat(document.getElementById(`di-kcal-${i}`).value) || 0,
+    prot: parseFloat(document.getElementById(`di-prot-${i}`).value) || 0 });
+  salvar('dietas', dietas); renderDietas();
+}
+function removerItemDieta(id, i, itemId) {
+  const d = dietaPorId(id); if (!d || !d.refeicoes[i]) return;
+  d.refeicoes[i].itens = d.refeicoes[i].itens.filter(x => x.id !== itemId);
+  salvar('dietas', dietas); renderDietas();
+}
+function somaDieta(d) {
+  let kcal = 0, prot = 0, itens = 0;
+  (d.refeicoes || []).forEach(r => (r.itens || []).forEach(i => { kcal += Number(i.kcal) || 0; prot += Number(i.prot) || 0; itens++; }));
+  return { kcal: Math.round(kcal), prot: Math.round(prot), itens };
+}
+/** Marcar uma refeição do plano como cumprida hoje — sem redigitar nada. */
+function segui(id, i) {
+  const d = dietaPorId(id); if (!d || !d.refeicoes[i]) return;
+  const r = d.refeicoes[i];
+  const jaTem = meals.some(m => m.date === hojeISO() && m.planoRef === `${d.id}:${i}`);
+  if (jaTem) { toast('Essa refeição já está marcada hoje.'); return; }
+  meals.push({ id: novoId(), date: hojeISO(), time: r.hora || '',
+    type: /caf|manh/i.test(r.nome) ? 'cafe' : /almo/i.test(r.nome) ? 'almoco' : /jant/i.test(r.nome) ? 'jantar' : 'lanche',
+    quality: 'boa', desc: `${r.nome}: ${(r.itens || []).map(x => x.alimento).join(', ') || 'conforme o plano'}`,
+    planoRef: `${d.id}:${i}` });
+  salvar('meals', meals); renderSaude();
+  toast(`🥗 ${r.nome} marcada como feita.`);
+}
+/** Segui o plano inteiro hoje — um clique só. */
+function seguiTudo(id) {
+  const d = dietaPorId(id); if (!d) return;
+  let n = 0;
+  d.refeicoes.forEach((r, i) => {
+    if (meals.some(m => m.date === hojeISO() && m.planoRef === `${d.id}:${i}`)) return;
+    segui(id, i); n++;
   });
+  if (!n) toast('O plano de hoje já estava todo marcado.');
+}
+function renderDietas() {
+  const el = document.getElementById('dietas-lista'); if (!el) return;
+  if (!dietas.length) {
+    el.innerHTML = '<div class="pf-vazio">Nenhum plano ainda. Monte um com as refeições que você combinou comer — depois é um clique por dia em vez de digitar tudo.</div>';
+    return;
+  }
+  el.innerHTML = dietas.map(d => {
+    const aberta = dietaAberta === d.id; const s = somaDieta(d);
+    const feitasHoje = d.refeicoes.filter((r, i) => meals.some(m => m.date === hojeISO() && m.planoRef === `${d.id}:${i}`)).length;
+    let h = `<div class="ficha${aberta ? ' aberta' : ''}">
+      <div class="ficha-cab" onclick="abrirDieta(${d.id})">
+        <strong>${aberta ? '▾' : '▸'} 🥗 ${esc(d.nome)}${d.ativo ? ' <span class="badge-paid">em uso</span>' : ''}</strong>
+        <small>${plural(d.refeicoes.length, 'refeição', 'refeições')} · ${s.kcal ? s.kcal + ' kcal' : 'sem kcal'}${s.prot ? ' · ' + s.prot + 'g proteína' : ''}${feitasHoje ? ` · ✅ ${feitasHoje}/${d.refeicoes.length} hoje` : ''}</small>
+        <span class="item-actions" onclick="event.stopPropagation()">
+          ${d.ativo ? '' : `<button class="mini-btn" title="Usar este plano" onclick="ativarDieta(${d.id})">▶</button>`}
+          <button class="mini-btn" title="Apagar" onclick="removerDieta(${d.id})">✕</button></span></div>`;
+    if (aberta) {
+      h += `<div class="ficha-acoes"><button class="btn-treinar" onclick="seguiTudo(${d.id})">✅ Segui o plano hoje</button>
+        <button class="mini-btn" onclick="addRefeicaoPlano(${d.id})">＋ refeição</button></div>`;
+      h += d.refeicoes.map((r, i) => {
+        const feita = meals.some(m => m.date === hojeISO() && m.planoRef === `${d.id}:${i}`);
+        const sk = (r.itens || []).reduce((a, x) => a + (Number(x.kcal) || 0), 0);
+        return `<div class="ref-bloco">
+          <div class="ref-cab"><strong>${feita ? '✅' : '🍽️'} ${esc(r.nome)}</strong>
+            <small>${r.hora ? esc(r.hora) : ''}${sk ? ' · ' + Math.round(sk) + ' kcal' : ''}</small>
+            <span class="item-actions">${feita ? '' : `<button class="mini-btn xs" title="Marcar como feita hoje" onclick="segui(${d.id}, ${i})">✅</button>`}<button class="mini-btn xs" title="Tirar do plano" onclick="removerRefeicaoPlano(${d.id}, ${i})">✕</button></span></div>
+          ${(r.itens || []).map(x => `<div class="ref-item"><span>• ${esc(x.alimento)}${x.qtd ? ` <small>${esc(x.qtd)}</small>` : ''}</span>
+            <span class="ref-macros">${x.kcal ? x.kcal + ' kcal' : ''}${x.prot ? ' · ' + x.prot + 'g P' : ''}</span>
+            <button class="mini-btn xs" onclick="removerItemDieta(${d.id}, ${i}, ${x.id})">✕</button></div>`).join('')}
+          <div class="ref-novo">
+            <input type="text" id="di-ali-${i}" placeholder="alimento">
+            <input type="text" id="di-qtd-${i}" placeholder="qtd" style="max-width:80px">
+            <input type="number" id="di-kcal-${i}" placeholder="kcal" style="max-width:80px">
+            <input type="number" id="di-prot-${i}" placeholder="prot" style="max-width:70px">
+            <button class="mini-btn" onclick="addItemDieta(${d.id}, ${i})">＋</button></div></div>`;
+      }).join('');
+    }
+    return h + '</div>';
+  }).join('');
+}
+
+// --- seções da aba Saúde ----------------------------------------------------
+let saudeSecao = 'painel';
+function verSecaoSaude(s, el) {
+  saudeSecao = s;
+  document.querySelectorAll('#saude-secoes span').forEach(x => x.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  ['painel', 'treinos', 'medidas', 'comida', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
+}
+
+/** Move os cards que já existiam para dentro das seções novas, pelo título.
+ *  Feito por JS de propósito: evita cirurgia no HTML e, se um card mudar de
+ *  lugar amanhã, continua funcionando. */
+function organizarSaude() {
+  const destino = [
+    [/🩺 Saúde/, 'painel'], [/🏋️ Treinos/, 'treinos'], [/⚖️ Peso e medidas/, 'medidas'],
+    [/🍽️ Refeições/, 'comida'], [/Consultas, exames/, 'medico']
+  ];
+  const aba = document.getElementById('health'); if (!aba) return;
+  [...aba.querySelectorAll('.card')].forEach(card => {
+    if (card.closest('.agenda-sec')) return;          // já está numa seção
+    const h = card.querySelector('h2'); if (!h) return;
+    const par = destino.find(d => d[0].test(h.textContent));
+    const alvo = document.getElementById('sec-sa-' + (par ? par[1] : 'painel'));
+    if (alvo) alvo.appendChild(card);
+  });
+  [...aba.querySelectorAll('.fin-two-col')].forEach(w => { if (!w.children.length) w.remove(); });
 }
 
 // --- Refeições ---
@@ -2842,7 +3321,10 @@ function preencherSelectsSaude() {
   const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
   f('workout-type', TIPOS_TREINO); f('meal-type', TIPOS_REFEICAO); f('meal-quality', QUALIDADE_REFEICAO); f('medical-kind', TIPOS_MEDICO);
 }
-function renderSaude() { preencherSelectsSaude(); renderPainelSaude(); renderTreinos(); renderMedidas(); renderRefeicoes(); renderMedico(); }
+function renderSaude() {
+  organizarSaude(); preencherSelectsSaude(); renderPainelSaude(); renderTreinos();
+  renderMedidas(); renderRefeicoes(); renderMedico(); renderFichas(); renderDietas();
+}
 
 // ============================================================================
 // APARÊNCIA (Config): tema de cores, abas no topo ou na lateral, ordem e
@@ -3612,8 +4094,8 @@ function renderRede() {
   });
 }
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // PERFIL DE TRABALHO — o app deixa de ser "de médico"
@@ -6295,7 +6777,7 @@ if (_vndProd) _vndProd.addEventListener('change', previaVenda);
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile', 'fichas', 'dietas'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -6429,7 +6911,7 @@ function redesenharTudo() {
   trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
   devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};
   servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || []; pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];
-  maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || []; filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || []; ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || []; vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || [];
+  maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || []; filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || []; ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || []; vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || []; fichas = JSON.parse(localStorage.getItem("lifeos_fichas")) || []; dietas = JSON.parse(localStorage.getItem("lifeos_dietas")) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }
@@ -6516,6 +6998,7 @@ renderClinica(); verSecaoClinica('painel'); ajustarAbaClinica();
 renderProducao(); verSecaoProducao('painel'); ajustarAbaProducao();
 prepararCardsRecolhiveis(); renderAtalhoJanelas(); tornarModaisMoveis(); prepararListas();
 preencherRepeteEvento(); renderAgendaVista(); renderAgora(); setInterval(renderAgora, 60000);
+if (normalizarMedidas()) salvar('measures', measures); renderSaude(); verSecaoSaude('painel');
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();

@@ -549,6 +549,135 @@ input.calculado { background: var(--bg2); color: var(--txt3); border-style: dash
 
 /* --- Lazer: filmes/séries e música --- */
 .midia-item { border-left: 4px solid #38bdf8 !important; }
+.midia-capa { width: 46px; height: 66px; object-fit: cover; border-radius: 5px; flex: none;
+  margin-right: 10px; background: var(--bg); }
+.midia-capa.vazia { display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+/* ===== Currículo ===== */
+.cv-topo-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.cv-secao { margin-top: 18px; }
+.cv-secao h4 { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--txt-forte);
+  margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--borda); }
+.cv-secao h4 small { color: var(--txt4); font-weight: 400; }
+.cv-secao h4 .mini-btn { margin-left: auto; }
+.cv-item { display: flex; gap: 8px; align-items: flex-start; background: var(--bg); border: 1px solid var(--borda);
+  border-radius: 9px; padding: 9px 10px; margin-bottom: 8px; }
+.cv-item-campos { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.cv-campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cv-campo.larga { grid-column: 1 / -1; }
+.cv-campo label { font-size: 0.64rem; color: var(--txt4); text-transform: uppercase; letter-spacing: 0.3px; }
+.cv-campo input, .cv-campo textarea { padding: 6px 8px; font-size: 0.82rem; }
+.cv-item-acoes { display: flex; flex-direction: column; gap: 3px; flex: none; }
+.cv-barra { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+
+/* a folha: é a prévia na tela E o que sai na impressora */
+.cv-folha { background: var(--card); line-height: 1.5; }
+.cv-cab { border-bottom: 2px solid var(--acento); padding-bottom: 10px; margin-bottom: 14px; }
+.cv-folha h1 { font-size: 1.5rem; margin: 0; color: var(--txt-forte); }
+.cv-folha h2 { font-size: 0.95rem; margin: 3px 0 0; color: var(--acento); font-weight: 600; border: none; padding: 0; }
+.cv-contato { font-size: 0.78rem; color: var(--txt3); margin: 5px 0 0; }
+.cv-contato a { color: var(--acento); }
+.cv-folha section { margin-bottom: 15px; }
+.cv-folha h3 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 1px; color: var(--txt4);
+  border-bottom: 1px solid var(--borda); padding-bottom: 3px; margin: 0 0 8px; }
+.cv-folha section p { font-size: 0.84rem; color: var(--txt2); margin: 0; }
+.cv-linha { margin-bottom: 10px; }
+.cv-linha-cab { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.cv-linha-cab strong { color: var(--txt-forte); font-size: 0.88rem; }
+.cv-linha-cab span { font-size: 0.74rem; color: var(--txt4); white-space: nowrap; }
+.cv-linha em { font-size: 0.78rem; color: var(--txt3); font-style: normal; }
+.cv-linha p { font-size: 0.82rem; color: var(--txt2); margin: 3px 0 0; }
+.cv-linha a { font-size: 0.74rem; }
+.cv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cv-chips span { background: var(--bg); border: 1px solid var(--borda2); border-radius: 12px;
+  padding: 2px 10px; font-size: 0.76rem; color: var(--txt2); }
+
+/* Imprimir: só a folha vai para o papel. `visibility` em vez de `display` para
+   não recalcular o layout inteiro e perder a paginação. */
+@media print {
+  body.imprimindo-cv { background: #fff; }
+  body.imprimindo-cv * { visibility: hidden; }
+  body.imprimindo-cv .cv-folha, body.imprimindo-cv .cv-folha * { visibility: visible; }
+  body.imprimindo-cv .cv-folha {
+    position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
+    border: none; box-shadow: none; background: #fff; color: #000;
+  }
+  body.imprimindo-cv .cv-folha h1, body.imprimindo-cv .cv-folha strong { color: #000; }
+  body.imprimindo-cv .cv-folha h2 { color: #333; }
+  body.imprimindo-cv .cv-folha h3 { color: #555; border-bottom-color: #bbb; }
+  body.imprimindo-cv .cv-folha p, body.imprimindo-cv .cv-folha em,
+  body.imprimindo-cv .cv-folha .cv-contato, body.imprimindo-cv .cv-linha-cab span { color: #333; }
+  body.imprimindo-cv .cv-cab { border-bottom-color: #000; }
+  body.imprimindo-cv .cv-chips span { border-color: #999; color: #000; }
+  body.imprimindo-cv .cv-folha a { color: #000; text-decoration: underline; }
+  body.imprimindo-cv .cv-linha, body.imprimindo-cv .cv-folha section { break-inside: avoid; }
+  @page { margin: 14mm; }
+}
+
+/* ===== Mala com 3 estados (ainda não / já tenho / preciso comprar) ===== */
+.mala-estado { background: transparent; border: none; cursor: pointer; font-size: 0.95rem;
+  padding: 0 4px; line-height: 1; flex: none; }
+.item-mala.tenho .sub-txt { color: var(--txt4); text-decoration: line-through; }
+.item-mala.comprar .sub-txt { color: #f59e0b; font-weight: 600; }
+
+/* ===== Milhas ===== */
+.milha-lista { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.milha-card { background: var(--bg); border: 1px solid var(--borda); border-left: 4px solid #38bdf8;
+  border-radius: 10px; overflow: hidden; }
+.milha-topo { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; }
+.milha-topo:hover { background: var(--card); }
+.milha-ident { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.milha-ident strong { color: var(--txt-forte); font-size: 0.95rem; }
+.milha-saldo { text-align: right; flex: none; display: flex; flex-direction: column; line-height: 1.1; }
+.milha-saldo strong { color: #38bdf8; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.milha-saldo small { font-size: 0.6rem; color: var(--txt4); text-transform: uppercase; }
+.milha-lado { flex: none; display: flex; flex-direction: column; gap: 1px; text-align: right; }
+.milha-lado small { font-size: 0.68rem; color: var(--txt3); }
+.milha-vence { color: #f59e0b !important; font-weight: 700; }
+.milha-seta { color: var(--txt4); flex: none; }
+.milha-conta { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 12px 9px 12px; font-size: 0.74rem; color: var(--txt3); }
+.milha-conta strong { color: var(--txt-forte); }
+.milha-veredito { width: 100%; padding: 4px 8px; border-radius: 6px; font-weight: 600; }
+.milha-veredito.bom { background: rgba(34,197,94,0.12); color: #22c55e; }
+.milha-veredito.ruim { background: rgba(239,68,68,0.12); color: #ef4444; }
+.milha-det { padding: 4px 12px 12px; border-top: 1px solid var(--borda); }
+.milha-det h5 { margin: 10px 0 6px; font-size: 0.72rem; color: var(--txt4); text-transform: uppercase; }
+.milha-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.mv-novo { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1.4fr auto; gap: 6px; align-items: center; }
+.mv-novo input, .mv-novo select { padding: 6px 8px; font-size: 0.78rem; min-width: 0; }
+.mv-linha { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--borda); }
+.mv-qtd { flex: none; min-width: 78px; text-align: right; font-weight: 700; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.mv-qtd.mais { color: #22c55e; }
+.mv-qtd.menos { color: #f59e0b; }
+.mv-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 0.8rem; color: var(--txt2); }
+.mv-viagem { flex: none; max-width: 130px; font-size: 0.7rem; padding: 3px 5px; }
+@media (max-width: 700px) {
+  .mv-novo { grid-template-columns: 1fr 1fr; }
+  .milha-topo { flex-wrap: wrap; }
+  .milha-lado { text-align: left; width: 100%; flex-direction: row; gap: 10px; }
+}
+
+/* ===== Sair: museus, shows, exposições (cartões ilustrados) ===== */
+.saida-lista { display: grid; gap: 12px; margin-top: 14px; }
+.saida-card { display: flex; gap: 12px; background: var(--bg); border: 1px solid var(--borda);
+  border-left: 4px solid var(--acento); border-radius: 10px; padding: 10px 12px; overflow: hidden; }
+.saida-capa { flex: none; width: 116px; }
+.saida-card.sem-foto .saida-capa { width: 52px; }
+.saida-foto { width: 116px; height: 86px; object-fit: cover; border-radius: 7px; display: block; background: var(--card); }
+.saida-icone { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; background: var(--card); border: 1px solid var(--borda2); border-radius: 9px; }
+.saida-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.saida-topo { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.saida-topo strong { color: var(--txt-forte); font-size: 0.95rem; }
+.saida-sobre { font-size: 0.76rem; color: var(--txt3); line-height: 1.45; margin: 3px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.saida-acoes { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+@media (min-width: 900px) { .saida-lista { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) {
+  .saida-capa, .saida-foto { width: 84px; }
+  .saida-foto { height: 68px; }
+  .saida-sobre { -webkit-line-clamp: 2; }
+}
 .midia-nota { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
 .estrela { color: var(--borda3); cursor: pointer; font-size: 0.95rem; line-height: 1; }
 .estrela.on { color: #fbbf24; }
@@ -818,9 +947,18 @@ body[data-cores="neutro"] .note-card, body[data-cores="neutro"] .color-dot { fil
 body[data-cores="neutro"] .pf-arte, body[data-cores="neutro"] .life-os-banner { filter: saturate(0.2); }
 
 /* ===== editor de lista (texto × lista) ===== */
-.ed-toggle { float: right; background: transparent; border: 1px solid var(--borda2); color: var(--txt4);
-  font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; cursor: pointer; margin: 0 0 3px 6px; }
-.ed-toggle:hover { color: var(--txt-forte); border-color: var(--borda4); }
+/* As duas opções ficam sempre à vista, com a atual marcada — o botão único de
+   antes mostrava o destino e ninguém sabia em que modo estava. */
+.ed-modo { float: right; display: inline-flex; gap: 0; margin: 0 0 3px 6px;
+  border: 1px solid var(--borda2); border-radius: 11px; overflow: hidden; background: var(--bg); }
+.ed-op { background: transparent; border: none; color: var(--txt4); font-size: 0.68rem;
+  padding: 3px 10px; cursor: pointer; line-height: 1.4; white-space: nowrap; }
+.ed-op + .ed-op { border-left: 1px solid var(--borda2); }
+.ed-op:hover { color: var(--txt-forte); }
+/* marcado com o fundo do card + um traço do acento embaixo: funciona nos 9
+   temas, claros e escuros, sem depender da cor do acento ter bom contraste */
+.ed-op.ativo { background: var(--card); color: var(--txt-forte); font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--acento); }
 .ed-lista { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
 .ed-linha { display: flex; align-items: center; gap: 6px; }
 .ed-marca { color: var(--txt4); font-size: 0.9rem; flex: none; width: 10px; text-align: center; }

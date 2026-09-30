@@ -36,6 +36,9 @@ let budget = JSON.parse(localStorage.getItem('lifeos_budget')) || { items: [], a
 let tasklists = JSON.parse(localStorage.getItem('lifeos_tasklists')) || [{ id: 'padrao', name: 'Minhas tarefas' }]; // listas de tarefas
 let routines = JSON.parse(localStorage.getItem('lifeos_routines')) || []; // rotinas: tarefas que voltam sozinhas
 let orders = JSON.parse(localStorage.getItem('lifeos_orders')) || []; // compras a caminho (entregas)
+let saidas = JSON.parse(localStorage.getItem('lifeos_saidas')) || [];
+let milhas = JSON.parse(localStorage.getItem('lifeos_milhas')) || [];
+let curriculo = JSON.parse(localStorage.getItem('lifeos_curriculo')) || {};
 let media = JSON.parse(localStorage.getItem('lifeos_media')) || [];         // filmes, séries, docs
 let playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || []; // atalhos de música
 let trips = JSON.parse(localStorage.getItem('lifeos_trips')) || [];         // viagens
@@ -3539,8 +3542,16 @@ function calcularAvisos() {
   // Viagem chegando e gente pra retomar contato
   const vg = trips.filter(t => t.inicio && t.status !== 'feita' && t.inicio >= hoje && minutosAte(t.inicio, '08:00') <= 7 * 1440);
   if (vg.length) add('viagem:proxima', '✈️', `Viagem ${vg[0].destino} ${rotuloData(vg[0].inicio)} · 🧳 ${(vg[0].mala || []).filter(x => x.done).length}/${(vg[0].mala || []).length} na mala`, 2, agora.getHours() >= 9, "changeTab('trips');");
+  const mv = milhas.filter(p => { const d = diasAteValidade(p); return d !== null && d >= 0 && d <= 90 && p.saldo > 0; }).sort((a, b) => (a.validade || '').localeCompare(b.validade || ''));
+  if (mv.length) add('milhas:vencendo', '⏳', `${(Number(mv[0].saldo) || 0).toLocaleString('pt-BR')} milhas do ${mv[0].programa} vencem em ${isoParaBR(mv[0].validade)}${mv.length > 1 ? ' (e mais ' + (mv.length - 1) + ')' : ''}`, diasAteValidade(mv[0]) <= 30 ? 1 : 2, true, `changeTab('trips'); verSecaoViagens('milhas');`);
   const rede = contacts.filter(precisaFalar);
   if (rede.length) add('rede:falar', '🤝', `${rede.length} pessoa${rede.length > 1 ? 's' : ''} pra retomar contato: ${rede.slice(0, 2).map(c => c.nome).join(', ')}`, 3, agora.getHours() >= 10, "changeTab('net'); filtrarRede('__lembrar');");
+  // Saída marcada chegando, e a que já passou esperando a sua nota
+  const sd = saidas.filter(s => s.status === 'marcado' && s.data && s.data >= hoje && minutosAte(s.data, s.hora || '08:00') <= 3 * 1440)
+    .sort((a, b) => a.data.localeCompare(b.data));
+  if (sd.length) add('saida:proxima', (TIPOS_SAIDA[sd[0].tipo] || TIPOS_SAIDA.outro)[0], `${sd[0].nome} ${rotuloData(sd[0].data)}${sd[0].hora ? ' às ' + sd[0].hora : ''}`, 2, true, `changeTab('leisure'); verSecaoLazer('saidas');`);
+  const sdPassou = saidas.filter(s => s.status === 'marcado' && s.data && s.data < hoje);
+  if (sdPassou.length) add('saida:passou', '🎟️', `${sdPassou.length} ${palavra(sdPassou.length, 'saída marcada', 'saídas marcadas')} que já ${palavra(sdPassou.length, 'passou', 'passaram')}: marque se foi e dê a nota`, 3, agora.getHours() >= 10, `changeTab('leisure'); verSecaoLazer('saidas'); filtrarSaidas('marcado');`);
   // Entregas previstas para hoje ou atrasadas
   const entHoje = orders.filter(o => o.status !== 'entregue' && o.eta === hoje);
   if (entHoje.length) add('entrega:hoje', '📦', `Entrega prevista para hoje: ${entHoje.map(o => o.item).slice(0, 2).join(', ')}${entHoje.length > 2 ? '…' : ''}`, 2, agora.getHours() >= 9, "changeTab('notes');");
@@ -3775,6 +3786,9 @@ function buscarTudo(termo) {
   projects.filter(p => bate(p.name, p.desc, p.notes, p.contacts)).forEach(p => r.push({ ic: '🚀', tipo: 'Projeto', txt: p.name, sub: (ESTAGIOS_PROJETO[p.stage] || [])[1] || '', acao: `changeTab('business'); editarProjeto(${p.id});` }));
   trips.filter(t => bate(t.destino, t.notas)).forEach(t => r.push({ ic: '✈️', tipo: 'Viagem', txt: t.destino, sub: `${(STATUS_VIAGEM[t.status] || [])[1] || ''}${t.inicio ? ' · ' + isoParaBR(t.inicio) : ''}`, acao: `changeTab('trips'); abrirViagem(${t.id});` }));
   contacts.filter(c => bate(c.nome, c.onde, c.papel, c.notas, (c.tags || []).join(' '))).forEach(c => r.push({ ic: '🤝', tipo: 'Contato', txt: c.nome, sub: [c.papel, c.onde].filter(Boolean).join(' · '), acao: `changeTab('net'); editarContato(${c.id});` }));
+  saidas.filter(x => bate(x.nome, x.cidade, x.local, x.notas, x.sobre)).forEach(x => r.push({ ic: (TIPOS_SAIDA[x.tipo] || TIPOS_SAIDA.outro)[0], tipo: 'Sair', txt: x.nome, sub: [(STATUS_SAIDA[x.status] || [])[1], x.cidade, x.data ? isoParaBR(x.data) : ''].filter(Boolean).join(' · '), acao: `changeTab('leisure'); verSecaoLazer('saidas'); editarSaida(${x.id});` }));
+  media.filter(x => bate(x.title, x.comment, x.who, x.where)).forEach(x => r.push({ ic: (TIPOS_MIDIA[x.kind] || TIPOS_MIDIA.outro)[0], tipo: 'Filme/série', txt: x.title, sub: (STATUS_MIDIA[x.status] || [])[1] || '', acao: `changeTab('leisure'); verSecaoLazer('midia'); editarMidia(${x.id});` }));
+  milhas.filter(x => bate(x.programa, x.numero, x.notas)).forEach(x => r.push({ ic: '🎫', tipo: 'Milhas', txt: x.programa, sub: `${(Number(x.saldo) || 0).toLocaleString('pt-BR')} milhas${x.validade ? ' · vencem ' + isoParaBR(x.validade) : ''}`, acao: `changeTab('trips'); verSecaoViagens('milhas'); abrirMilha(${x.id});` }));
   routines.filter(x => bate(x.text)).forEach(x => r.push({ ic: '🔄', tipo: 'Rotina', txt: x.text, sub: descricaoRotina(x), acao: `changeTab('tasks'); editarRotina(${x.id});` }));
   return r.slice(0, 40);
 }
@@ -3829,13 +3843,18 @@ let lazerSecao = 'midia';
 
 function verSecaoLazer(s, el) {
   lazerSecao = s;
-  document.querySelectorAll('#lazer-secoes span').forEach(x => x.classList.remove('active')); if (el) el.classList.add('active');
+  const abas = document.querySelectorAll('#lazer-secoes span');
+  abas.forEach(x => x.classList.remove('active'));
+  const alvo = el || abas[['midia', 'saidas', 'musica'].indexOf(s)];
+  if (alvo) alvo.classList.add('active');
   document.getElementById('sec-midia').hidden = s !== 'midia';
+  document.getElementById('sec-saidas').hidden = s !== 'saidas';
   document.getElementById('sec-musica').hidden = s !== 'musica';
 }
 function preencherSelectsLazer() {
   const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
   f('midia-kind', TIPOS_MIDIA); f('midia-status', STATUS_MIDIA); f('play-moment', MOMENTOS);
+  f('saida-tipo', TIPOS_SAIDA); f('saida-status', STATUS_SAIDA);
 }
 // --- Filmes e séries ---
 document.getElementById('midia-form').addEventListener('submit', (e) => {
@@ -3900,13 +3919,291 @@ function renderMidia() {
   lista.forEach(m => {
     const t = TIPOS_MIDIA[m.kind] || TIPOS_MIDIA.outro; const s = STATUS_MIDIA[m.status] || STATUS_MIDIA.quero;
     const serie = m.kind === 'serie' || m.kind === 'anime';
-    ul.innerHTML += `<li class="midia-item" style="border-left-color:${s[2]}"><div class="transaction-info" style="flex:1">
+    const buscando = ilustrando.has(m.id);
+    const capa = m.img
+      ? `<img class="midia-capa" src="${esc(m.img)}" alt="${esc(m.title)}" loading="lazy" onerror="this.remove();">`
+      : (buscando ? '<div class="midia-capa vazia">⏳</div>' : '');
+    ul.innerHTML += `<li class="midia-item" style="border-left-color:${s[2]}">${capa}<div class="transaction-info" style="flex:1">
         <span>${t[0]} ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(m.title)} ${iconeDoLink(m.url)}</a>` : esc(m.title)} <small class="category-badge" style="color:${s[2]}; background:${s[2]}22">${s[1]}</small></span>
         <small class="item-date">${t[1]}${m.where ? ' · ' + esc(m.where) : ''}${m.who ? ' · indicou: ' + esc(m.who) : ''}${serie && m.season ? ` · T${m.season}E${m.episode || 0}` : ''}${m.watchedAt ? ' · visto ' + isoParaBR(m.watchedAt) : ''}</small>
         <div class="midia-nota">${estrelas(m)}${serie ? `<span class="ep-ctrl"><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, -1)">−</button><small>ep</small><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, 1)">+</button></span>` : ''}</div>
+        ${m.sobre ? `<small class="item-notes saida-sobre">${esc(m.sobre)}${m.wiki ? ` <a href="${esc(m.wiki)}" target="_blank" rel="noopener" title="Ler na Wikipedia">↗</a>` : ''}</small>` : ''}
         ${m.comment ? `<small class="item-notes">${esc(m.comment)}</small>` : ''}</div>
-      <div class="item-actions">${m.status !== 'visto' ? `<button class="mini-btn" title="Avançar status" onclick="avancarStatusMidia(${m.id})">▶</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarMidia(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMidia(${m.id})">✕</button></div></li>`;
+      <div class="item-actions">${m.status !== 'visto' ? `<button class="mini-btn" title="Avançar status" onclick="avancarStatusMidia(${m.id})">▶</button>` : ''}<button class="mini-btn" title="${m.img ? 'Buscar de novo' : 'Buscar capa e sinopse na Wikipedia'}" ${buscando ? 'disabled' : ''} onclick="ilustrarMidia(${m.id})">${buscando ? '⏳' : '🌐'}</button><button class="mini-btn" title="Editar" onclick="editarMidia(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMidia(${m.id})">✕</button></div></li>`;
   });
+}
+
+// ============================================================================
+// SAIR — museus, shows, exposições, o que for. "Ilustrado": com internet, o
+// item busca uma foto e um resumo e passa a ser um cartão, não uma linha.
+//
+// FONTE: Wikipedia (pt, caindo para en). Escolhida por três motivos que valem
+// registrar: (1) é pública e não pede cadastro nem chave paga; (2) responde com
+// `access-control-allow-origin: *`, então funciona direto do navegador, sem
+// servidor nenhum; (3) devolve resumo E imagem na mesma chamada. É a mesma
+// família do Wikimedia Commons que a Obra do dia já usa.
+//
+// SINCRONIZAÇÃO: guardamos só a URL da imagem (texto curto) e o resumo. Os
+// BYTES da foto nunca entram no módulo — é a armadilha nº 3 (base64 estoura a
+// célula da planilha e quebraria a sincronização inteira).
+// saidas: [{ id, nome, tipo, status, cidade, local, data, hora, valor, url, com,
+//            nota, notas, img, sobre, wiki, buscadoEm, eventId, financeId, addedAt, feitoEm }]
+// ============================================================================
+const TIPOS_SAIDA = {
+  museu:       ['🏛️', 'Museu'],
+  show:        ['🎤', 'Show'],
+  exposicao:   ['🖼️', 'Exposição'],
+  teatro:      ['🎭', 'Teatro'],
+  cinema:      ['🎟️', 'Cinema'],
+  restaurante: ['🍽️', 'Restaurante'],
+  bar:         ['🍺', 'Bar'],
+  parque:      ['🌳', 'Parque / natureza'],
+  festival:    ['🎪', 'Festival'],
+  esporte:     ['⚽', 'Jogo / esporte'],
+  passeio:     ['🚶', 'Passeio'],
+  outro:       ['📍', 'Outro']
+};
+const STATUS_SAIDA = {
+  quero:   ['💭', 'quero ir',  '#38bdf8'],
+  marcado: ['📅', 'marcado',   '#22c55e'],
+  fui:     ['✅', 'já fui',    '#a78bfa'],
+  passou:  ['⌛', 'perdi',     '#94a3b8']
+};
+const WIKI_IDIOMAS = ['pt', 'en'];
+const ilustrando = new Set();   // só da sessão: não é dado, é estado de tela
+
+/** Procura o termo na Wikipedia e devolve { titulo, sobre, img, wiki }.
+ *  Tenta em português e, se não achar, em inglês. Devolve null se não achar
+ *  nada, se a página for de desambiguação ou se estiver sem internet. */
+async function buscarNaWikipedia(termo) {
+  const alvo = (termo || '').trim(); if (!alvo) return null;
+  for (const lang of WIKI_IDIOMAS) {
+    try {
+      const b = await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(alvo)}&srlimit=1&format=json&origin=*`);
+      if (!b.ok) continue;
+      const achado = (((await b.json()).query || {}).search || [])[0];
+      if (!achado) continue;
+      const r = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(achado.title.replace(/ /g, '_'))}`);
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (d.type === 'disambiguation' || !d.extract) continue;
+      return {
+        titulo: d.title || achado.title,
+        sobre: String(d.extract).slice(0, 420),
+        img: ((d.thumbnail || {}).source) || '',
+        wiki: (((d.content_urls || {}).desktop || {}).page) || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(achado.title)}`
+      };
+    } catch (e) { /* offline, bloqueado ou fora do ar: tenta o próximo idioma */ }
+  }
+  return null;
+}
+/** Enche um item (saída ou mídia) com foto e resumo. Serve aos dois módulos. */
+async function ilustrar(item, termo, modulo, lista, redesenhar) {
+  if (ilustrando.has(item.id)) return false;
+  if (!navigator.onLine) { toast('Sem internet agora. A ilustração precisa de rede — tente quando voltar.', 6000); return false; }
+  ilustrando.add(item.id); redesenhar();
+  const r = await buscarNaWikipedia(termo);
+  ilustrando.delete(item.id);
+  item.buscadoEm = hojeISO();
+  if (r) { item.img = r.img; item.sobre = r.sobre; item.wiki = r.wiki; }
+  salvar(modulo, lista); redesenhar();
+  if (!r) toast(`Não achei "${termo}" na Wikipedia. Dá para escrever a descrição à mão em observações.`, 7000);
+  return !!r;
+}
+function ilustrarSaida(id) {
+  const s = saidas.find(x => x.id === id); if (!s) return;
+  ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas);
+}
+function ilustrarMidia(id) {
+  const m = media.find(x => x.id === id); if (!m) return;
+  const t = TIPOS_MIDIA[m.kind] || TIPOS_MIDIA.outro;
+  ilustrar(m, `${m.title} ${t[1]}`, 'media', media, renderMidia);
+}
+/** Ilustra em fila os que ainda não têm foto, com uma pausa entre cada um
+ *  para não martelar a Wikipedia. */
+async function ilustrarTodasSaidas() {
+  const faltam = saidas.filter(s => !s.img && !s.buscadoEm);
+  if (!faltam.length) { toast('Todos já foram ilustrados (ou já tentei e não achei).'); return; }
+  if (!navigator.onLine) { toast('Sem internet agora.', 5000); return; }
+  toast(`🖼️ Ilustrando ${plural(faltam.length, 'item', 'itens')}…`, 4000);
+  let achou = 0;
+  for (const s of faltam) {
+    if (await ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas)) achou++;
+    await new Promise(r => setTimeout(r, 400));
+  }
+  toast(`🖼️ ${achou} de ${faltam.length} ${palavra(achou, 'ilustrado', 'ilustrados')}.`, 6000);
+}
+function tirarIlustracao(id) {
+  const s = saidas.find(x => x.id === id); if (!s) return;
+  s.img = ''; s.sobre = ''; s.wiki = ''; s.buscadoEm = '';
+  salvar('saidas', saidas); renderSaidas();
+}
+
+/** Saída com data vira compromisso na Agenda — mesma corrente do módulo médico.
+ *  Quando já foi (ou passou), o compromisso sai: ele não serve mais de lembrete. */
+function sincronizarEventoSaida(s) {
+  let ev = s.eventId ? events.find(e => e.id === s.eventId) : null;
+  const k = TIPOS_SAIDA[s.tipo] || TIPOS_SAIDA.outro;
+  if (!s.data || s.status === 'fui' || s.status === 'passou') {
+    if (ev) { events = events.filter(e => e.id !== ev.id); s.eventId = null; salvar('events', events); }
+    return;
+  }
+  if (!ev) { ev = { id: novoId(), type: 'social', done: false, saidaId: s.id }; events.push(ev); s.eventId = ev.id; }
+  ev.title = `${k[0]} ${s.nome}`; ev.date = s.data; ev.time = s.hora || ''; ev.endTime = '';
+  ev.local = s.local || ''; ev.notes = [s.cidade, s.com ? 'com ' + s.com : '', s.notas].filter(Boolean).join(' · ');
+  salvar('events', events);
+}
+
+document.getElementById('saida-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('saida-id').value;
+  const dados = {
+    nome: document.getElementById('saida-nome').value.trim(),
+    tipo: document.getElementById('saida-tipo').value,
+    status: document.getElementById('saida-status').value,
+    cidade: document.getElementById('saida-cidade').value.trim(),
+    local: document.getElementById('saida-local').value.trim(),
+    data: document.getElementById('saida-data').value || '',
+    hora: document.getElementById('saida-hora').value || '',
+    valor: parseFloat(document.getElementById('saida-valor').value) || 0,
+    com: document.getElementById('saida-com').value.trim(),
+    url: document.getElementById('saida-url').value.trim(),
+    notas: document.getElementById('saida-notas').value.trim()
+  };
+  if (!dados.nome) return;
+  let s;
+  if (id) { s = saidas.find(x => String(x.id) === id); if (!s) return; Object.assign(s, dados); }
+  else { s = { id: novoId(), nota: 0, img: '', sobre: '', wiki: '', buscadoEm: '', eventId: null, addedAt: hojeISO(), feitoEm: '', ...dados }; saidas.push(s); }
+  sincronizarEventoSaida(s);
+  salvar('saidas', saidas); cancelarEdicaoSaida(); renderSaidas(); redesenharAgenda();
+  toast(id ? '🎟️ Atualizado.' : `🎟️ "${s.nome}" na lista${s.data ? ' — já está no calendário' : ''}.`);
+  // ilustra sozinho quem acabou de nascer: é o "vira ícone com imagem ao lado"
+  if (!id && navigator.onLine) ilustrarSaida(s.id);
+});
+function cancelarEdicaoSaida() {
+  document.getElementById('saida-form').reset();
+  document.getElementById('saida-id').value = '';
+  document.getElementById('saida-submit').innerText = 'Adicionar';
+  document.getElementById('saida-cancel').hidden = true;
+}
+function editarSaida(id) {
+  const s = saidas.find(x => x.id === id); if (!s) return;
+  changeTab('leisure'); verSecaoLazer('saidas');
+  document.getElementById('saida-id').value = s.id;
+  document.getElementById('saida-nome').value = s.nome;
+  document.getElementById('saida-tipo').value = s.tipo;
+  document.getElementById('saida-status').value = s.status;
+  document.getElementById('saida-cidade').value = s.cidade || '';
+  document.getElementById('saida-local').value = s.local || '';
+  document.getElementById('saida-data').value = s.data || '';
+  document.getElementById('saida-hora').value = s.hora || '';
+  document.getElementById('saida-valor').value = s.valor || '';
+  document.getElementById('saida-com').value = s.com || '';
+  document.getElementById('saida-url').value = s.url || '';
+  document.getElementById('saida-notas').value = s.notas || '';
+  document.getElementById('saida-submit').innerText = 'Salvar';
+  document.getElementById('saida-cancel').hidden = false;
+  document.getElementById('saida-nome').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function removerSaida(id) {
+  const s = saidas.find(x => x.id === id); if (!s || !confirm(`Apagar "${s.nome}"?`)) return;
+  if (s.eventId) { events = events.filter(e => e.id !== s.eventId); salvar('events', events); }
+  saidas = saidas.filter(x => x.id !== id);
+  salvar('saidas', saidas); renderSaidas(); redesenharAgenda();
+}
+const ORDEM_SAIDA = ['quero', 'marcado', 'fui'];
+function avancarStatusSaida(id) {
+  const s = saidas.find(x => x.id === id); if (!s) return;
+  const i = ORDEM_SAIDA.indexOf(s.status);
+  s.status = ORDEM_SAIDA[Math.min(ORDEM_SAIDA.length - 1, i + 1)] || 'marcado';
+  if (s.status === 'fui') { s.feitoEm = s.data || hojeISO(); lancarGastoSaida(s); }
+  sincronizarEventoSaida(s);
+  salvar('saidas', saidas); renderSaidas(); redesenharAgenda();
+  toast(`${STATUS_SAIDA[s.status][0]} ${s.nome}: ${STATUS_SAIDA[s.status][1]}`);
+}
+/** Ingresso é despesa de verdade. Pergunta uma vez, e só se houver valor. */
+function lancarGastoSaida(s) {
+  if (!s.valor || s.financeId) return;
+  if (!confirm(`Lançar ${formatCurrency(s.valor)} em Finanças como despesa de Lazer?\n\n"${s.nome}"`)) return;
+  const t = { id: novoId(), type: 'expense', category: 'Lazer', desc: `${(TIPOS_SAIDA[s.tipo] || TIPOS_SAIDA.outro)[1]}: ${s.nome}`,
+    amount: s.valor, date: s.feitoEm || hojeISO(), pending: false, paidAt: s.feitoEm || hojeISO(), saidaId: s.id };
+  transactions.push(t); s.financeId = t.id;
+  salvar('finances', transactions);
+  updateFinanceValues(); renderFinances();
+  toast(`💸 ${formatCurrency(s.valor)} lançado em Lazer.`);
+}
+function notaSaida(id, n) {
+  const s = saidas.find(x => x.id === id); if (!s) return;
+  s.nota = s.nota === n ? 0 : n;
+  if (s.status !== 'fui') { s.status = 'fui'; s.feitoEm = s.data || hojeISO(); sincronizarEventoSaida(s); }
+  salvar('saidas', saidas); renderSaidas(); redesenharAgenda();
+}
+let saidaFiltro = 'todos';
+function filtrarSaidas(f, el) {
+  saidaFiltro = f;
+  const chips = document.querySelectorAll('#saida-filtros span');
+  chips.forEach(x => x.classList.remove('active'));
+  const alvo = el || chips[['todos', 'quero', 'marcado', 'fui'].indexOf(f)];
+  if (alvo) alvo.classList.add('active');
+  renderSaidas();
+}
+function estrelasSaida(s) {
+  return [1, 2, 3, 4, 5].map(n => `<span class="estrela ${(s.nota || 0) >= n ? 'on' : ''}" onclick="event.stopPropagation(); notaSaida(${s.id}, ${n})" title="${n} de 5">★</span>`).join('');
+}
+function renderSaidas() {
+  const el = document.getElementById('saida-lista'); if (!el) return;
+  const hoje = hojeISO();
+  const resumo = document.getElementById('saida-resumo');
+  if (resumo) {
+    const quero = saidas.filter(s => s.status === 'quero').length;
+    const marcados = saidas.filter(s => s.status === 'marcado');
+    const fui = saidas.filter(s => s.status === 'fui');
+    const gasto = fui.reduce((a, s) => a + (Number(s.valor) || 0), 0);
+    const prox = marcados.filter(s => s.data && s.data >= hoje).sort((a, b) => a.data.localeCompare(b.data))[0];
+    resumo.innerHTML = `<span>💭 ${quero} na vontade</span><span>📅 ${marcados.length} ${palavra(marcados.length, 'marcado', 'marcados')}</span>`
+      + `<span>✅ ${fui.length} ${palavra(fui.length, 'já foi', 'já foram')}</span>`
+      + (gasto ? `<span>💸 ${formatCurrency(gasto)} em lazer</span>` : '')
+      + (prox ? `<span>⏭️ próximo: <strong>${esc(prox.nome)}</strong> ${rotuloData(prox.data)}</span>` : '');
+  }
+  let lista = [...saidas];
+  if (saidaFiltro !== 'todos') lista = lista.filter(s => s.status === saidaFiltro);
+  lista.sort((a, b) => {
+    const pa = a.status === 'marcado' && a.data ? '0' + a.data : '1' + (b.addedAt || '');
+    const pb = b.status === 'marcado' && b.data ? '0' + b.data : '1' + (a.addedAt || '');
+    return pa.localeCompare(pb);
+  });
+  if (!lista.length) {
+    el.innerHTML = `<div class="stat-line muted">Nada neste filtro. Anote um museu que quer conhecer ou um show que quer ir — com internet, o app busca a foto e um resumo sozinho.</div>`;
+    return;
+  }
+  el.innerHTML = lista.map(s => {
+    const t = TIPOS_SAIDA[s.tipo] || TIPOS_SAIDA.outro;
+    const st = STATUS_SAIDA[s.status] || STATUS_SAIDA.quero;
+    const atrasado = s.status === 'marcado' && s.data && s.data < hoje;
+    const buscando = ilustrando.has(s.id);
+    const foto = s.img
+      ? `<img class="saida-foto" src="${esc(s.img)}" alt="${esc(s.nome)}" loading="lazy" onerror="this.parentNode.classList.add('sem-foto'); this.remove();">`
+      : `<div class="saida-icone">${buscando ? '⏳' : t[0]}</div>`;
+    return `<div class="saida-card${s.img ? '' : ' sem-foto'}" style="border-left-color:${st[2]}">
+      <div class="saida-capa">${foto}</div>
+      <div class="saida-corpo">
+        <div class="saida-topo">
+          <strong>${t[0]} ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.nome)} ${iconeDoLink(s.url)}</a>` : esc(s.nome)}</strong>
+          <span class="category-badge" style="color:${st[2]}; background:${st[2]}22">${st[0]} ${st[1]}</span>
+        </div>
+        <small class="item-date">${t[1]}${s.cidade ? ' · ' + esc(s.cidade) : ''}${s.data ? ' · ' + rotuloData(s.data) + (s.hora ? ' às ' + esc(s.hora) : '') : ''}${atrasado ? ' <span class="badge-topay">já passou</span>' : ''}${s.valor ? ' · ' + formatCurrency(s.valor) : ''}${s.com ? ' · com ' + esc(s.com) : ''}</small>
+        ${s.sobre ? `<p class="saida-sobre">${esc(s.sobre)}${s.wiki ? ` <a href="${esc(s.wiki)}" target="_blank" rel="noopener" title="Ler na Wikipedia">↗</a>` : ''}</p>` : ''}
+        ${s.notas ? `<small class="item-notes">${linkify(s.notas)}</small>` : ''}
+        <div class="saida-acoes">
+          <span class="midia-nota">${estrelasSaida(s)}</span>
+          ${s.status !== 'fui' ? `<button class="mini-btn" title="Avançar" onclick="avancarStatusSaida(${s.id})">▶</button>` : ''}
+          <button class="mini-btn" title="${s.img ? 'Buscar de novo na Wikipedia' : 'Buscar foto e descrição na Wikipedia'}" ${buscando ? 'disabled' : ''} onclick="ilustrarSaida(${s.id})">${buscando ? '⏳' : '🌐'}</button>
+          ${s.img ? `<button class="mini-btn" title="Tirar a ilustração" onclick="tirarIlustracao(${s.id})">🚫</button>` : ''}
+          <button class="mini-btn" title="Editar" onclick="editarSaida(${s.id})">✎</button>
+          <button class="mini-btn" title="Apagar" onclick="removerSaida(${s.id})">✕</button>
+        </div>
+      </div></div>`;
+  }).join('');
 }
 
 // --- Música: atalhos de playlist ---
@@ -3978,7 +4275,7 @@ function mpParar() {
   const fa = document.getElementById('faixa-atual'); if (fa) fa.innerText = '';
   atualizarPlayerMusica();
 }
-function mpIrParaMusica() { changeTab('leisure'); verSecaoLazer('musica', document.querySelectorAll('#lazer-secoes span')[1]); }
+function mpIrParaMusica() { changeTab('leisure'); verSecaoLazer('musica'); }
 function mpEscolher() { const i = document.getElementById('faixas-arquivo-flut') || document.getElementById('faixas-arquivo'); if (i) i.click(); }
 function mpVolume(v) { document.getElementById('audio-player').volume = Math.max(0, Math.min(1, v / 100)); atualizarPlayerMusica(); }
 /** Clicar na barrinha de progresso pula para aquele ponto da música. */
@@ -4009,7 +4306,7 @@ function musicaDeFoco() {
   else { mpIrParaMusica(); toast('Cadastre uma playlist de foco na aba Lazer → Música.'); }
 }
 
-function redesenharLazer() { preencherSelectsLazer(); renderMidia(); renderPlaylists(); renderFaixas(); }
+function redesenharLazer() { preencherSelectsLazer(); renderMidia(); renderSaidas(); renderPlaylists(); renderFaixas(); }
 // ============================================================================
 // VIAGENS  +  REDE (networking)
 // trips:    [{ id, destino, inicio, fim, status, orcamento, gasto, notas,
@@ -4042,10 +4339,58 @@ function editarViagem(id) {
 }
 function removerViagem(id) { const t = trips.find(x => x.id === id); if (!t || !confirm(`Apagar a viagem "${t.destino}"?`)) return; trips = trips.filter(x => x.id !== id); if (viagemAberta === id) viagemAberta = null; salvar('trips', trips); renderViagens(); }
 function abrirViagem(id) { viagemAberta = viagemAberta === id ? null : id; renderViagens(); }
-function itemViagem(id, lista, i) { const t = trips.find(x => x.id === id); if (!t || !t[lista] || !t[lista][i]) return; t[lista][i].done = !t[lista][i].done; salvar('trips', trips); renderViagens(); }
+// A mala deixou de ser "marcado / não marcado". Pedido dele: "marcando também o
+// que já possui e o que deve comprar". São três estados, e o clique roda entre
+// eles. `done` continua existindo e espelhando "tenho" para não quebrar nada que
+// já lia esse campo (o aviso da viagem, por exemplo).
+const ESTADOS_MALA = {
+  falta:   ['⬜', 'ainda não'],
+  tenho:   ['✅', 'já tenho'],
+  comprar: ['🛒', 'preciso comprar']
+};
+const CICLO_MALA = ['falta', 'tenho', 'comprar'];
+/** Converte os itens antigos ({text, done}) para o novo formato, uma vez. */
+function normalizarMalas() {
+  let mudou = false;
+  trips.forEach(t => ['mala', 'docs'].forEach(k => (t[k] || []).forEach(it => {
+    if (!it.estado) { it.estado = it.done ? 'tenho' : 'falta'; mudou = true; }
+  })));
+  return mudou;
+}
+function itemViagem(id, lista, i) {
+  const t = trips.find(x => x.id === id); if (!t || !t[lista] || !t[lista][i]) return;
+  const it = t[lista][i];
+  it.estado = CICLO_MALA[(CICLO_MALA.indexOf(it.estado || (it.done ? 'tenho' : 'falta')) + 1) % CICLO_MALA.length];
+  it.done = it.estado === 'tenho';
+  salvar('trips', trips); renderViagens();
+}
+function estadoItem(it) { return it.estado || (it.done ? 'tenho' : 'falta'); }
+function contarMala(lista, estado) { return (lista || []).filter(x => estadoItem(x) === estado).length; }
+/** Manda o que falta comprar para uma nota-checklist da viagem — a lista de
+ *  compras dele vive nas Notas, então é lá que isso tem de aparecer. */
+function comprasDaViagem(id) {
+  const t = trips.find(x => x.id === id); if (!t) return;
+  const faltam = [...(t.mala || []), ...(t.docs || [])].filter(x => estadoItem(x) === 'comprar');
+  if (!faltam.length) { toast('Nada marcado como 🛒 “preciso comprar” nesta viagem.', 5000); return; }
+  const titulo = `Compras da viagem — ${t.destino}`;
+  let n = notes.find(x => x.title === titulo && !x.archived);
+  if (!n) {
+    n = { id: novoId(), title: titulo, content: '', checklist: [], color: 'blue', labels: ['viagem', 'compras'],
+          pinned: true, archived: false, createdAt: Date.now(), updatedAt: Date.now() };
+    notes.unshift(n);
+  }
+  n.checklist = n.checklist || [];
+  let novos = 0;
+  faltam.forEach(it => {
+    if (n.checklist.some(c => c.text === it.text)) return;      // não duplica
+    n.checklist.push({ text: it.text, done: false, nivel: 0 }); novos++;
+  });
+  n.updatedAt = Date.now(); salvar('notes', notes); renderNotes();
+  toast(novos ? `🛒 ${plural(novos, 'item foi', 'itens foram')} para a nota “${titulo}”.` : 'Já estavam todos na nota.', 6000);
+}
 function addItemViagem(id, lista, input) {
   const t = trips.find(x => x.id === id); const v = (input.value || '').trim(); if (!t || !v) return;
-  (t[lista] = t[lista] || []).push({ text: v, done: false }); salvar('trips', trips); renderViagens();
+  (t[lista] = t[lista] || []).push({ text: v, done: false, estado: 'falta' }); salvar('trips', trips); renderViagens();
   const novo = document.querySelector(`.viagem-det[data-id="${id}"] .add-${lista} input`); if (novo) novo.focus();
 }
 function removerItemViagem(id, lista, i) { const t = trips.find(x => x.id === id); if (!t) return; t[lista].splice(i, 1); salvar('trips', trips); renderViagens(); }
@@ -4069,6 +4414,7 @@ function viagemNaAgenda(id) {
   if (t.fim && t.fim !== t.inicio) events.push({ id: novoId(), title: `🏠 Volta — ${t.destino}`, date: t.fim, time: '', endTime: '', type: 'pessoal', notes: '', done: false, tripId: t.id });
   salvar('events', events); redesenharAgenda(); toast('📅 Ida e volta criadas na agenda.');
 }
+function redesenharViagens() { renderViagens(); renderMilhas(); }
 function renderViagens() {
   const ul = document.getElementById('trip-lista'); if (!ul) return; ul.innerHTML = '';
   const sel = document.getElementById('trip-status'); if (sel && !sel.options.length) sel.innerHTML = Object.entries(STATUS_VIAGEM).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
@@ -4087,8 +4433,9 @@ function renderViagens() {
       ${aberta ? `<div class="viagem-det" data-id="${t.id}">
         ${t.notas ? `<small class="item-notes">${linkify(esc(t.notas))}</small>` : ''}
         <div class="viagem-cols">
-          ${['mala', 'docs'].map(lista => `<div><h5>${lista === 'mala' ? '🧳 Mala' : '📄 Documentos'}</h5>
-            ${(t[lista] || []).map((it, i) => `<div class="subtask ${it.done ? 'done' : ''}"><input type="checkbox" ${it.done ? 'checked' : ''} onclick="itemViagem(${t.id}, '${lista}', ${i})"><span class="sub-txt">${esc(it.text)}</span><button class="mini-btn xs" onclick="removerItemViagem(${t.id}, '${lista}', ${i})">✕</button></div>`).join('')}
+          ${['mala', 'docs'].map(lista => `<div><h5>${lista === 'mala' ? '🧳 Mala' : '📄 Documentos'} <small style="font-weight:400; color:var(--txt4)">${contarMala(t[lista], 'tenho')} tenho · ${contarMala(t[lista], 'comprar')} comprar · ${contarMala(t[lista], 'falta')} a ver</small></h5>
+            ${(t[lista] || []).map((it, i) => { const e = estadoItem(it); const m = ESTADOS_MALA[e]; return `<div class="subtask item-mala ${e}"><button type="button" class="mala-estado" title="${m[1]} — clique para trocar" onclick="itemViagem(${t.id}, '${lista}', ${i})">${m[0]}</button><span class="sub-txt">${esc(it.text)}</span><button class="mini-btn xs" onclick="removerItemViagem(${t.id}, '${lista}', ${i})">✕</button></div>`; }).join('')}
+            ${contarMala(t[lista], 'comprar') ? `<button class="mini-btn" style="margin-top:5px" onclick="comprasDaViagem(${t.id})">🛒 mandar para as compras</button>` : ''}
             <div class="note-add add-${lista}"><input type="text" placeholder="+ item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); addItemViagem(${t.id}, '${lista}', this); }"><button class="mini-btn" onclick="addItemViagem(${t.id}, '${lista}', this.previousElementSibling)">＋</button></div></div>`).join('')}
           <div><h5>🎟️ Reservas</h5>
             ${(t.reservas || []).map((r, i) => `<div class="reserva">${TIPOS_RESERVA[r.tipo] || '📌'} ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.desc)} ${iconeDoLink(r.url)}</a>` : esc(r.desc)}${r.valor ? ` <small>${formatCurrency(r.valor)}</small>` : ''}<button class="mini-btn xs" onclick="removerReserva(${t.id}, ${i})">✕</button></div>`).join('') || '<div class="stat-line muted">nenhuma</div>'}
@@ -4096,6 +4443,467 @@ function renderViagens() {
         </div></div>` : ''}
     </div></li>`;
   });
+}
+
+// ============================================================================
+// MILHAS (módulo 46: `milhas`)
+// A tese do módulo: quase todo mundo olha só o SALDO, e saldo não diz nada.
+// O que decide se vale a pena é a comparação entre duas contas:
+//   R$/milheiro PAGO     = quanto custou comprar/transferir mil milhas
+//   R$/milheiro OBTIDO   = quanto valia, em dinheiro, a passagem que você tirou
+// Se o obtido é maior que o pago, o programa está te pagando. Se é menor, você
+// está financiando a companhia. O módulo faz as duas e diz qual é qual.
+//
+// O SALDO é manual, de propósito — igual a `assets.current` em Negócios: é o
+// número que o app da companhia mostra, e ninguém tem API disso. Os movimentos
+// não servem para calcular o saldo (seria uma segunda fonte de verdade), servem
+// para calcular a ECONOMIA.
+// milhas: [{ id, programa, numero, saldo, saldoEm, validade, custoMilheiro, notas,
+//            movs: [{ id, data, tipo, qtd, valor, desc, tripId }] }]
+// ============================================================================
+const PROGRAMAS_MILHAS = ['Latam Pass', 'Smiles', 'TudoAzul', 'Livelo', 'Esfera', 'Ailos', 'Membership Rewards', 'Aadvantage', 'Flying Blue', 'Outro'];
+const TIPOS_MOV_MILHA = {
+  ganho:         ['🎁', 'Ganhei (voo, cartão, compra)', 1],
+  compra:        ['💳', 'Comprei milhas',               1],
+  transferencia: ['🔁', 'Transferi para cá',            1],
+  resgate:       ['✈️', 'Resgatei (usei)',             -1],
+  expirou:       ['⌛', 'Expiraram',                    -1],
+  ajuste:        ['✏️', 'Ajuste',                       1]
+};
+function sinalMov(t) { return (TIPOS_MOV_MILHA[t] || TIPOS_MOV_MILHA.ajuste)[2]; }
+function milheiro(qtd) { return (Number(qtd) || 0) / 1000; }
+/** R$ por mil milhas de um conjunto de movimentos. */
+function rsPorMilheiro(movs) {
+  const q = movs.reduce((a, m) => a + milheiro(m.qtd), 0);
+  const v = movs.reduce((a, m) => a + (Number(m.valor) || 0), 0);
+  return q > 0 ? v / q : 0;
+}
+function movsDoTipo(p, ...tipos) { return (p.movs || []).filter(m => tipos.includes(m.tipo)); }
+/** O que ele pagou por milheiro: compras e transferências com custo. */
+function pagoPorMilheiro(p) { return rsPorMilheiro(movsDoTipo(p, 'compra', 'transferencia').filter(m => Number(m.valor) > 0)); }
+/** O que ele obteve por milheiro: quanto valiam, em dinheiro, os resgates. */
+function obtidoPorMilheiro(p) { return rsPorMilheiro(movsDoTipo(p, 'resgate').filter(m => Number(m.valor) > 0)); }
+/** Custo de referência do milheiro: o informado à mão, ou o que ele pagou. */
+function refMilheiro(p) { return Number(p.custoMilheiro) || pagoPorMilheiro(p) || 0; }
+function valorDoSaldo(p) { return milheiro(p.saldo) * refMilheiro(p); }
+function diasAteValidade(p) { return p.validade ? diffDias(hojeISO(), p.validade) : null; }
+
+document.getElementById('milha-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('milha-id').value;
+  const dados = {
+    programa: document.getElementById('milha-programa').value.trim(),
+    numero: document.getElementById('milha-numero').value.trim(),
+    saldo: parseInt(document.getElementById('milha-saldo').value) || 0,
+    validade: document.getElementById('milha-validade').value || '',
+    custoMilheiro: parseFloat(document.getElementById('milha-custo').value) || 0,
+    notas: document.getElementById('milha-notas').value.trim()
+  };
+  if (!dados.programa) return;
+  let p;
+  if (id) { p = milhas.find(x => String(x.id) === id); if (!p) return; Object.assign(p, dados); }
+  else { p = { id: novoId(), movs: [], ...dados }; milhas.push(p); }
+  p.saldoEm = hojeISO();
+  salvar('milhas', milhas); cancelarEdicaoMilha(); renderMilhas();
+  toast(id ? '🎫 Programa atualizado.' : `🎫 ${p.programa} cadastrado.`);
+});
+function cancelarEdicaoMilha() {
+  document.getElementById('milha-form').reset();
+  document.getElementById('milha-id').value = '';
+  document.getElementById('milha-submit').innerText = 'Adicionar programa';
+  document.getElementById('milha-cancel').hidden = true;
+}
+function editarMilha(id) {
+  const p = milhas.find(x => x.id === id); if (!p) return;
+  changeTab('trips'); verSecaoViagens('milhas');
+  document.getElementById('milha-id').value = p.id;
+  document.getElementById('milha-programa').value = p.programa;
+  document.getElementById('milha-numero').value = p.numero || '';
+  document.getElementById('milha-saldo').value = p.saldo || '';
+  document.getElementById('milha-validade').value = p.validade || '';
+  document.getElementById('milha-custo').value = p.custoMilheiro || '';
+  document.getElementById('milha-notas').value = p.notas || '';
+  document.getElementById('milha-submit').innerText = 'Salvar';
+  document.getElementById('milha-cancel').hidden = false;
+  document.getElementById('milha-programa').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function removerMilha(id) {
+  const p = milhas.find(x => x.id === id); if (!p || !confirm(`Apagar "${p.programa}" e os seus ${plural((p.movs || []).length, 'movimento', 'movimentos')}?`)) return;
+  milhas = milhas.filter(x => x.id !== id);
+  salvar('milhas', milhas); renderMilhas();
+}
+/** Atalho para o que muda toda semana: o saldo que o app da companhia mostra. */
+function atualizarSaldoMilha(id) {
+  const p = milhas.find(x => x.id === id); if (!p) return;
+  const v = prompt(`Saldo atual em ${p.programa}:`, p.saldo || 0);
+  if (v === null) return;
+  const n = parseInt(String(v).replace(/\D/g, '')); if (isNaN(n)) return;
+  p.saldo = n; p.saldoEm = hojeISO();
+  salvar('milhas', milhas); renderMilhas();
+  toast(`🎫 ${p.programa}: ${n.toLocaleString('pt-BR')} milhas.`);
+}
+let milhaAberta = null;
+function abrirMilha(id) { milhaAberta = milhaAberta === id ? null : id; renderMilhas(); }
+
+function addMovMilha(id) {
+  const p = milhas.find(x => x.id === id); if (!p) return;
+  const tipo = document.getElementById(`mv-tipo-${id}`).value;
+  const qtd = parseInt((document.getElementById(`mv-qtd-${id}`).value || '').replace(/\D/g, '')) || 0;
+  const valor = parseFloat(document.getElementById(`mv-valor-${id}`).value) || 0;
+  const data = document.getElementById(`mv-data-${id}`).value || hojeISO();
+  const desc = document.getElementById(`mv-desc-${id}`).value.trim();
+  if (!qtd) { toast('Quantas milhas?'); return; }
+  (p.movs = p.movs || []).push({ id: novoId(), tipo, qtd, valor, data, desc, tripId: null });
+  // O movimento não recalcula o saldo, mas é justo oferecer o ajuste:
+  const novo = p.saldo + sinalMov(tipo) * qtd;
+  if (confirm(`Movimento anotado.\n\nAjustar o saldo de ${(p.saldo || 0).toLocaleString('pt-BR')} para ${novo.toLocaleString('pt-BR')}?\n\n(Cancelar mantém o saldo como está — use quando o app da companhia já mostrava esse número.)`)) {
+    p.saldo = Math.max(0, novo); p.saldoEm = hojeISO();
+  }
+  salvar('milhas', milhas); renderMilhas();
+}
+function removerMovMilha(id, movId) {
+  const p = milhas.find(x => x.id === id); if (!p) return;
+  p.movs = (p.movs || []).filter(m => m.id !== movId);
+  salvar('milhas', milhas); renderMilhas();
+}
+/** Liga o resgate à viagem — é o fecho da corrente Milhas ↔ Viagens. */
+function ligarMovViagem(id, movId, tripId) {
+  const p = milhas.find(x => x.id === id); if (!p) return;
+  const m = (p.movs || []).find(x => x.id === movId); if (!m) return;
+  m.tripId = tripId ? Number(tripId) : null;
+  salvar('milhas', milhas); renderMilhas();
+}
+
+function renderMilhas() {
+  const el = document.getElementById('milha-lista'); if (!el) return;
+  const dl = document.getElementById('milha-programas');
+  const resumo = document.getElementById('milha-resumo');
+  const total = milhas.reduce((a, p) => a + (Number(p.saldo) || 0), 0);
+  const valor = milhas.reduce((a, p) => a + valorDoSaldo(p), 0);
+  const vencendo = milhas.filter(p => { const d = diasAteValidade(p); return d !== null && d >= 0 && d <= 90 && p.saldo > 0; });
+  const todosMovs = milhas.flatMap(p => p.movs || []);
+  const pago = rsPorMilheiro(todosMovs.filter(m => ['compra', 'transferencia'].includes(m.tipo) && Number(m.valor) > 0));
+  const obtido = rsPorMilheiro(todosMovs.filter(m => m.tipo === 'resgate' && Number(m.valor) > 0));
+  if (resumo) {
+    resumo.innerHTML = `<span>🎫 <strong>${total.toLocaleString('pt-BR')}</strong> milhas em ${plural(milhas.length, 'programa', 'programas')}</span>`
+      + (valor ? `<span>💰 valem ~<strong>${formatCurrency(valor)}</strong></span>` : '')
+      + (pago ? `<span>💳 pagou <strong>${formatCurrency(pago)}</strong>/milheiro</span>` : '')
+      + (obtido ? `<span>✈️ obteve <strong style="color:${obtido >= pago ? '#22c55e' : '#ef4444'}">${formatCurrency(obtido)}</strong>/milheiro</span>` : '')
+      + (vencendo.length ? `<span style="color:#f59e0b">⌛ ${plural(vencendo.length, 'programa vencendo', 'programas vencendo')} em 90 dias</span>` : '');
+  }
+  if (dl && !dl.children.length) dl.innerHTML = PROGRAMAS_MILHAS.map(p => `<option value="${esc(p)}">`).join('');
+  if (!milhas.length) {
+    el.innerHTML = '<div class="stat-line muted">Nenhum programa ainda. Cadastre um (Latam Pass, Smiles, Livelo…) com o saldo que o app da companhia mostra. Depois anote as compras e os resgates: é isso que revela se as milhas estão te pagando ou te custando.</div>';
+    return;
+  }
+  el.innerHTML = milhas.map(p => {
+    const aberta = milhaAberta === p.id;
+    const dias = diasAteValidade(p);
+    const pg = pagoPorMilheiro(p), ob = obtidoPorMilheiro(p);
+    const movs = [...(p.movs || [])].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+    const alerta = dias !== null && dias >= 0 && dias <= 90 && p.saldo > 0;
+    const venceu = dias !== null && dias < 0 && p.saldo > 0;
+    return `<div class="milha-card${aberta ? ' aberta' : ''}">
+      <div class="milha-topo" onclick="abrirMilha(${p.id})">
+        <div class="milha-ident">
+          <strong>🎫 ${esc(p.programa)}</strong>
+          ${p.numero ? `<small class="item-date">nº ${esc(p.numero)}</small>` : ''}
+        </div>
+        <div class="milha-saldo">
+          <strong>${(Number(p.saldo) || 0).toLocaleString('pt-BR')}</strong><small>milhas</small>
+        </div>
+        <div class="milha-lado">
+          ${valorDoSaldo(p) ? `<small>≈ ${formatCurrency(valorDoSaldo(p))}</small>` : ''}
+          ${p.validade ? `<small class="${alerta || venceu ? 'milha-vence' : ''}">${venceu ? '⌛ venceu ' + isoParaBR(p.validade) : 'vence ' + isoParaBR(p.validade) + (alerta ? ` (${dias} d)` : '')}</small>` : ''}
+          ${p.saldoEm ? `<small class="item-date">saldo de ${isoParaBR(p.saldoEm)}</small>` : ''}
+        </div>
+        <span class="milha-seta">${aberta ? '▾' : '▸'}</span>
+      </div>
+      ${(pg || ob) ? `<div class="milha-conta">
+        ${pg ? `<span>💳 pagou <strong>${formatCurrency(pg)}</strong> o milheiro</span>` : ''}
+        ${ob ? `<span>✈️ obteve <strong>${formatCurrency(ob)}</strong> o milheiro</span>` : ''}
+        ${pg && ob ? `<span class="milha-veredito ${ob >= pg ? 'bom' : 'ruim'}">${ob >= pg
+            ? `✅ valeu a pena: ${formatCurrency(ob - pg)} a mais por milheiro`
+            : `⚠️ ficou ${formatCurrency(pg - ob)} pior por milheiro do que custou`}</span>` : ''}
+      </div>` : ''}
+      ${aberta ? `<div class="milha-det">
+        ${p.notas ? `<small class="item-notes">${linkify(esc(p.notas))}</small>` : ''}
+        <div class="milha-acoes">
+          <button class="mini-btn" onclick="atualizarSaldoMilha(${p.id})">🔄 atualizar saldo</button>
+          <button class="mini-btn" onclick="editarMilha(${p.id})">✎ editar</button>
+          <button class="mini-btn" onclick="removerMilha(${p.id})">✕ apagar</button>
+        </div>
+        <h5>Movimentos</h5>
+        <div class="mv-novo">
+          <select id="mv-tipo-${p.id}">${Object.entries(TIPOS_MOV_MILHA).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('')}</select>
+          <input type="text" id="mv-qtd-${p.id}" placeholder="milhas" inputmode="numeric">
+          <input type="number" id="mv-valor-${p.id}" placeholder="R$" step="0.01" min="0" title="Na compra: quanto pagou. No resgate: quanto custaria a passagem em dinheiro.">
+          <input type="date" id="mv-data-${p.id}" value="${hojeISO()}">
+          <input type="text" id="mv-desc-${p.id}" placeholder="descrição">
+          <button class="mini-btn" onclick="addMovMilha(${p.id})">＋</button>
+        </div>
+        ${movs.length ? movs.map(m => {
+          const tm = TIPOS_MOV_MILHA[m.tipo] || TIPOS_MOV_MILHA.ajuste;
+          const rs = Number(m.valor) > 0 && m.qtd ? rsPorMilheiro([m]) : 0;
+          const vg = m.tripId ? trips.find(t => t.id === m.tripId) : null;
+          return `<div class="mv-linha">
+            <span class="mv-qtd ${sinalMov(m.tipo) > 0 ? 'mais' : 'menos'}">${sinalMov(m.tipo) > 0 ? '+' : '−'}${(Number(m.qtd) || 0).toLocaleString('pt-BR')}</span>
+            <span class="mv-txt">${tm[0]} ${esc(m.desc || tm[1])}<small class="item-date">${m.data ? isoParaBR(m.data) : ''}${Number(m.valor) ? ' · ' + formatCurrency(m.valor) : ''}${rs ? ' · ' + formatCurrency(rs) + '/milheiro' : ''}${vg ? ' · ✈️ ' + esc(vg.destino) : ''}</small></span>
+            ${m.tipo === 'resgate' ? `<select class="mv-viagem" onchange="ligarMovViagem(${p.id}, ${m.id}, this.value)" title="Ligar a uma viagem"><option value="">— viagem —</option>${trips.map(t => `<option value="${t.id}"${m.tripId === t.id ? ' selected' : ''}>${esc(t.destino)}</option>`).join('')}</select>` : ''}
+            <button class="mini-btn xs" title="Apagar" onclick="removerMovMilha(${p.id}, ${m.id})">✕</button></div>`;
+        }).join('') : '<div class="stat-line muted">Nenhum movimento. Anote uma compra e um resgate para o app calcular se valeu a pena.</div>'}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// --- seções da aba Viagens ---
+let viagensSecao = 'viagens';
+function verSecaoViagens(s, el) {
+  viagensSecao = s;
+  const abas = document.querySelectorAll('#viagens-secoes span');
+  abas.forEach(x => x.classList.remove('active'));
+  const alvo = el || abas[['viagens', 'milhas'].indexOf(s)];
+  if (alvo) alvo.classList.add('active');
+  const a = document.getElementById('sec-viagens'); if (a) a.hidden = s !== 'viagens';
+  const b = document.getElementById('sec-milhas'); if (b) b.hidden = s !== 'milhas';
+}
+
+// ============================================================================
+// CURRÍCULO (módulo 47: `curriculo`)
+// Inspirado no LinkedIn, como ele pediu: título, "sobre" e seções. A graça não
+// é guardar — é SAIR: o 🖨️ imprime só a folha (e o diálogo do navegador oferece
+// "Salvar como PDF"), e o 📋 copia tudo como texto para colar num formulário.
+// Guardado como módulo próprio, e não dentro de `profile`, para ter célula de
+// sincronização só dele — currículo cresce, e `profile` já carrega trabalho,
+// corpo e produção.
+// ============================================================================
+const SECOES_CV = {
+  experiencias: { ic: '💼', nome: 'Experiência', um: 'experiência',
+    campos: [['cargo', 'Cargo', 'text'], ['org', 'Empresa / instituição', 'text'], ['local', 'Local', 'text'],
+             ['inicio', 'De', 'month'], ['fim', 'Até', 'month'], ['desc', 'O que você faz/fez', 'textarea']] },
+  formacoes:    { ic: '🎓', nome: 'Formação', um: 'formação',
+    campos: [['curso', 'Curso', 'text'], ['org', 'Instituição', 'text'], ['nivel', 'Nível', 'text'],
+             ['inicio', 'De', 'month'], ['fim', 'Até', 'month'], ['desc', 'Observações', 'textarea']] },
+  cursos:       { ic: '📜', nome: 'Cursos e certificados', um: 'curso',
+    campos: [['curso', 'Nome', 'text'], ['org', 'Instituição', 'text'], ['fim', 'Ano', 'text'],
+             ['horas', 'Carga horária', 'text'], ['url', 'Link do certificado', 'text']] },
+  competencias: { ic: '🧠', nome: 'Competências', um: 'competência',
+    campos: [['nome', 'Competência', 'text'], ['nivel', 'Nível (1 a 5)', 'number']] },
+  idiomas:      { ic: '🌐', nome: 'Idiomas', um: 'idioma',
+    campos: [['nome', 'Idioma', 'text'], ['grau', 'Grau', 'text']] },
+  producoes:    { ic: '📚', nome: 'Publicações e projetos', um: 'publicação',
+    campos: [['curso', 'Título', 'text'], ['org', 'Onde', 'text'], ['fim', 'Ano', 'text'], ['url', 'Link', 'text']] }
+};
+const CV_VAZIO = { nome: '', titulo: '', email: '', tel: '', cidade: '', registro: '', links: '', sobre: '',
+                   experiencias: [], formacoes: [], cursos: [], competencias: [], idiomas: [], producoes: [] };
+/** Devolve SEMPRE o mesmo objeto, preenchendo o que falta (armadilha nº 6). */
+function cv() {
+  if (!curriculo || typeof curriculo !== 'object' || Array.isArray(curriculo)) curriculo = {};
+  Object.entries(CV_VAZIO).forEach(([k, v]) => {
+    if (curriculo[k] === undefined) curriculo[k] = Array.isArray(v) ? [] : v;
+  });
+  return curriculo;
+}
+function salvarCV() { salvar('curriculo', cv()); }
+let cvTimer = null;
+/** Digitar salva sozinho, mas com respiro: senão seria um salvar por tecla, e
+ *  cada salvar carimba a hora e agenda sincronização. */
+function campoCV(campo, valor) {
+  cv()[campo] = valor;
+  clearTimeout(cvTimer);
+  cvTimer = setTimeout(() => { salvarCV(); renderFolhaCV(); }, 600);
+}
+function addItemCV(secao) {
+  const s = SECOES_CV[secao]; if (!s) return;
+  const item = { id: novoId() };
+  s.campos.forEach(([c]) => item[c] = '');
+  cv()[secao].push(item); salvarCV(); renderCurriculo();
+  setTimeout(() => { const el = document.querySelector(`#cv-${secao} .cv-item:last-child input`); if (el) el.focus(); }, 60);
+}
+function campoItemCV(secao, id, campo, valor) {
+  const it = (cv()[secao] || []).find(x => x.id === id); if (!it) return;
+  it[campo] = valor;
+  clearTimeout(cvTimer);
+  cvTimer = setTimeout(() => { salvarCV(); renderFolhaCV(); }, 600);
+}
+function removerItemCV(secao, id) {
+  const it = (cv()[secao] || []).find(x => x.id === id); if (!it) return;
+  const nome = it.cargo || it.curso || it.nome || 'este item';
+  if (!confirm(`Tirar "${nome}" do currículo?`)) return;
+  cv()[secao] = cv()[secao].filter(x => x.id !== id); salvarCV(); renderCurriculo();
+}
+function moverItemCV(secao, id, d) {
+  const l = cv()[secao]; const i = l.findIndex(x => x.id === id);
+  if (i < 0 || i + d < 0 || i + d >= l.length) return;
+  [l[i], l[i + d]] = [l[i + d], l[i]]; salvarCV(); renderCurriculo();
+}
+/** Os cursos concluídos dos Estudos já são currículo — só não estavam lá. */
+function importarCursosDosEstudos() {
+  const feitos = materials.filter(m => m.kind === 'curso' && m.status === 'concluido');
+  if (!feitos.length) { toast('Nenhum curso concluído na aba Estudos ainda.', 5000); return; }
+  let novos = 0;
+  feitos.forEach(m => {
+    if (cv().cursos.some(c => (c.curso || '').toLowerCase() === (m.title || '').toLowerCase())) return;
+    cv().cursos.push({ id: novoId(), curso: m.title, org: temaNome(m.topicId) || '', fim: '', horas: '', url: m.link || '' });
+    novos++;
+  });
+  salvarCV(); renderCurriculo();
+  toast(novos ? `🎓 ${plural(novos, 'curso veio', 'cursos vieram')} dos Estudos.` : 'Todos os cursos concluídos já estavam no currículo.', 6000);
+}
+function periodoCV(it) {
+  const f = s => !s ? '' : (/^\d{4}-\d{2}$/.test(s) ? s.slice(5) + '/' + s.slice(0, 4) : s);
+  const a = f(it.inicio), b = f(it.fim);
+  if (a && b) return `${a} — ${b}`;
+  if (a) return `${a} — atual`;
+  return b || '';
+}
+function linksCV() {
+  return (cv().links || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const s = separarLink(l);
+    return s.url ? { nome: s.titulo || s.loja || s.url, url: s.url } : { nome: l, url: '' };
+  });
+}
+function renderCurriculo() {
+  const el = document.getElementById('cv-secoes'); if (!el) return;
+  const c = cv();
+  // os campos do topo só são preenchidos quando não estão sendo digitados
+  [['cv-nome', 'nome'], ['cv-titulo', 'titulo'], ['cv-email', 'email'], ['cv-tel', 'tel'],
+   ['cv-cidade', 'cidade'], ['cv-registro', 'registro'], ['cv-links', 'links'], ['cv-sobre', 'sobre']]
+    .forEach(([id, campo]) => {
+      const i = document.getElementById(id);
+      if (i && document.activeElement !== i && i.value !== (c[campo] || '')) i.value = c[campo] || '';
+    });
+  if (!c.nome && profile && profile.name) { c.nome = profile.name; const i = document.getElementById('cv-nome'); if (i) i.value = c.nome; }
+
+  const resumo = document.getElementById('cv-resumo');
+  if (resumo) {
+    const n = Object.keys(SECOES_CV).reduce((a, k) => a + (c[k] || []).length, 0);
+    const falta = Object.entries(SECOES_CV).filter(([k]) => !(c[k] || []).length).map(([, s]) => s.nome);
+    resumo.innerHTML = `<span>📄 ${plural(n, 'item', 'itens')} no currículo</span>`
+      + (c.titulo ? `<span>🏷️ ${esc(c.titulo)}</span>` : '<span style="color:#f59e0b">⚠️ falta o título</span>')
+      + (falta.length ? `<span style="color:var(--txt4)">vazias: ${esc(falta.join(', '))}</span>` : '<span style="color:#22c55e">✅ todas as seções preenchidas</span>');
+  }
+
+  el.innerHTML = Object.entries(SECOES_CV).map(([k, s]) => {
+    const itens = c[k] || [];
+    return `<div class="cv-secao" id="cv-${k}">
+      <h4>${s.ic} ${s.nome} <small>${itens.length}</small>
+        <button type="button" class="mini-btn" onclick="addItemCV('${k}')">＋ ${esc(s.um)}</button></h4>
+      ${itens.map((it, i) => `<div class="cv-item">
+        <div class="cv-item-campos">
+          ${s.campos.map(([campo, rot, tipo]) => tipo === 'textarea'
+            ? `<div class="cv-campo larga"><label>${esc(rot)}</label><textarea rows="2" oninput="campoItemCV('${k}', ${it.id}, '${campo}', this.value)">${esc(it[campo] || '')}</textarea></div>`
+            : `<div class="cv-campo"><label>${esc(rot)}</label><input type="${tipo}" value="${esc(it[campo] || '')}" oninput="campoItemCV('${k}', ${it.id}, '${campo}', this.value)"></div>`).join('')}
+        </div>
+        <div class="cv-item-acoes">
+          <button type="button" class="mini-btn xs" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="moverItemCV('${k}', ${it.id}, -1)">↑</button>
+          <button type="button" class="mini-btn xs" title="Descer" ${i === itens.length - 1 ? 'disabled' : ''} onclick="moverItemCV('${k}', ${it.id}, 1)">↓</button>
+          <button type="button" class="mini-btn xs" title="Tirar" onclick="removerItemCV('${k}', ${it.id})">✕</button>
+        </div></div>`).join('')}
+      ${itens.length ? '' : `<div class="stat-line muted">Nenhuma ${esc(s.um)} ainda.</div>`}
+    </div>`;
+  }).join('');
+  renderFolhaCV();
+}
+/** A prévia é também o que vai para a impressora. */
+function renderFolhaCV() {
+  const f = document.getElementById('cv-folha'); if (!f) return;
+  const ver = document.getElementById('cv-ver-previa');
+  f.hidden = ver ? !ver.checked : false;
+  const c = cv();
+  const contato = [c.cidade, c.tel, c.email, c.registro].filter(Boolean);
+  const links = linksCV();
+  const bloco = (k) => {
+    const s = SECOES_CV[k]; const itens = c[k] || [];
+    if (!itens.length) return '';
+    if (k === 'competencias') {
+      return `<section><h3>${s.nome}</h3><p class="cv-chips">${itens.map(it =>
+        `<span>${esc(it.nome)}${Number(it.nivel) ? ' ' + '●'.repeat(Math.min(5, Number(it.nivel))) : ''}</span>`).join('')}</p></section>`;
+    }
+    if (k === 'idiomas') {
+      return `<section><h3>${s.nome}</h3><p class="cv-chips">${itens.map(it =>
+        `<span>${esc(it.nome)}${it.grau ? ' — ' + esc(it.grau) : ''}</span>`).join('')}</p></section>`;
+    }
+    return `<section><h3>${s.nome}</h3>${itens.map(it => {
+      const titulo = it.cargo || it.curso || it.nome || '';
+      const per = periodoCV(it) || (it.fim || '');
+      return `<div class="cv-linha">
+        <div class="cv-linha-cab"><strong>${esc(titulo)}</strong>${per ? `<span>${esc(per)}</span>` : ''}</div>
+        ${it.org || it.local || it.horas ? `<em>${esc([it.org, it.local, it.horas].filter(Boolean).join(' · '))}</em>` : ''}
+        ${it.desc ? `<p>${esc(it.desc).replace(/\n/g, '<br>')}</p>` : ''}
+        ${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.url)}</a>` : ''}
+      </div>`;
+    }).join('')}</section>`;
+  };
+  f.innerHTML = `<div class="cv-cab">
+      <h1>${esc(c.nome || 'Seu nome')}</h1>
+      ${c.titulo ? `<h2>${esc(c.titulo)}</h2>` : ''}
+      ${contato.length ? `<p class="cv-contato">${esc(contato.join(' · '))}</p>` : ''}
+      ${links.length ? `<p class="cv-contato">${links.map(l => l.url ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.nome)}</a>` : esc(l.nome)).join(' · ')}</p>` : ''}
+    </div>
+    ${c.sobre ? `<section><h3>Sobre</h3><p>${esc(c.sobre).replace(/\n/g, '<br>')}</p></section>` : ''}
+    ${Object.keys(SECOES_CV).map(bloco).join('')}`;
+}
+function imprimirCurriculo() {
+  const ver = document.getElementById('cv-ver-previa');
+  if (ver && !ver.checked) { ver.checked = true; renderFolhaCV(); }
+  document.body.classList.add('imprimindo-cv');
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => document.body.classList.remove('imprimindo-cv'), 400);
+  }, 120);
+}
+function textoCurriculo() {
+  const c = cv(); const L = [];
+  L.push((c.nome || '').toUpperCase());
+  if (c.titulo) L.push(c.titulo);
+  const contato = [c.cidade, c.tel, c.email, c.registro].filter(Boolean);
+  if (contato.length) L.push(contato.join(' · '));
+  linksCV().forEach(l => L.push(l.url ? `${l.nome}: ${l.url}` : l.nome));
+  if (c.sobre) { L.push('', 'SOBRE', c.sobre); }
+  Object.entries(SECOES_CV).forEach(([k, s]) => {
+    const itens = c[k] || []; if (!itens.length) return;
+    L.push('', s.nome.toUpperCase());
+    itens.forEach(it => {
+      if (k === 'competencias') { L.push(`- ${it.nome}${Number(it.nivel) ? ` (${it.nivel}/5)` : ''}`); return; }
+      if (k === 'idiomas') { L.push(`- ${it.nome}${it.grau ? ` — ${it.grau}` : ''}`); return; }
+      const per = periodoCV(it) || it.fim || '';
+      L.push(`- ${it.cargo || it.curso || it.nome || ''}${per ? ` (${per})` : ''}`);
+      const sub = [it.org, it.local, it.horas].filter(Boolean).join(' · ');
+      if (sub) L.push(`  ${sub}`);
+      if (it.desc) L.push(`  ${it.desc.replace(/\n/g, '\n  ')}`);
+      if (it.url) L.push(`  ${it.url}`);
+    });
+  });
+  return L.join('\n');
+}
+function copiarCurriculo() {
+  const txt = textoCurriculo();
+  const feito = () => toast('📋 Currículo copiado — é só colar.', 5000);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(feito).catch(() => copiarNaMarra(txt, feito));
+  } else copiarNaMarra(txt, feito);
+}
+function copiarNaMarra(txt, feito) {
+  const t = document.createElement('textarea');
+  t.value = txt; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.appendChild(t); t.select();
+  try { document.execCommand('copy'); feito(); } catch (e) { toast('Não consegui copiar. Selecione o texto da prévia à mão.', 6000); }
+  document.body.removeChild(t);
+}
+
+// --- seções da aba Rede ---
+let redeSecao = 'contatos';
+function verSecaoRede(s, el) {
+  redeSecao = s;
+  const abas = document.querySelectorAll('#rede-secoes span');
+  abas.forEach(x => x.classList.remove('active'));
+  const alvo = el || abas[['contatos', 'curriculo'].indexOf(s)];
+  if (alvo) alvo.classList.add('active');
+  const a = document.getElementById('sec-contatos'); if (a) a.hidden = s !== 'contatos';
+  const b = document.getElementById('sec-curriculo'); if (b) b.hidden = s !== 'curriculo';
+  if (s === 'curriculo') renderCurriculo();
 }
 
 // --- REDE (networking) ---
@@ -4130,6 +4938,7 @@ function favoritarContato(id) { const c = contacts.find(x => x.id === id); if (!
 function faleiCom(id) { const c = contacts.find(x => x.id === id); if (!c) return; c.ultimo = hojeISO(); salvar('contacts', contacts); renderRede(); toast(`🤝 Contato com ${c.nome} registrado hoje.`); }
 function removerContato(id) { const c = contacts.find(x => x.id === id); if (!c || !confirm(`Apagar ${c.nome}?`)) return; contacts = contacts.filter(x => x.id !== id); salvar('contacts', contacts); renderRede(); }
 function filtrarRede(t) { redeFiltro = redeFiltro === t ? '' : t; renderRede(); }
+function redesenharRede() { renderRede(); renderCurriculo(); }
 function renderRede() {
   const ul = document.getElementById('rede-lista'); if (!ul) return; ul.innerHTML = '';
   const chips = document.getElementById('rede-chips');
@@ -4151,8 +4960,8 @@ function renderRede() {
   });
 }
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, saidas, milhas, curriculo, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.saidas) salvar('saidas', data.saidas); if (data.milhas) salvar('milhas', data.milhas); if (data.curriculo) salvar('curriculo', data.curriculo); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // PERFIL DE TRABALHO — o app deixa de ser "de médico"
@@ -4828,6 +5637,8 @@ function reservarTempo(taskId) {
 // ============================================================================
 /** Plural sem tropeço: plural(2, 'plantão', 'plantões'). */
 function plural(n, um, muitos) { return `${n} ${n === 1 ? um : muitos}`; }
+/** Só a palavra concordada, sem o número — para quando o número já está escrito. */
+function palavra(n, um, muitos) { return n === 1 ? um : muitos; }
 
 const ABA_ATUAL = () => (document.querySelector('.tab-btn.active') || {}).id || 'btn-focus';
 const ABA_NOME = id => (ABAS_INFO.find(a => a[0] === id) || [id, id])[1];
@@ -4979,12 +5790,18 @@ function modoLista(id) {
   if (!prefs.listaModo[id]) prefs.listaModo[id] = 'lista';   // o jeito novo é o padrão
   return prefs.listaModo[id];
 }
-function alternarModoLista(id) {
+/** As DUAS opções ficam sempre à vista, com a atual marcada — pedido dele:
+ *  "a parte que muda entre texto e lista está pouco intuitiva, deixa visível
+ *  ambas as opções para ficar claro". O botão único de antes mostrava o
+ *  DESTINO ("📝 texto" quando você estava em lista), e ninguém adivinha isso. */
+function definirModoLista(id, modo) {
   prefs.listaModo = prefs.listaModo || {};
-  prefs.listaModo[id] = modoLista(id) === 'lista' ? 'texto' : 'lista';
+  if (prefs.listaModo[id] === modo) return;
+  prefs.listaModo[id] = modo;
   localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
   aplicarModoLista(id);
 }
+function alternarModoLista(id) { definirModoLista(id, modoLista(id) === 'lista' ? 'texto' : 'lista'); }
 // A textarea nunca guarda linha vazia (senão os formulários criariam itens em
 // branco). Mas o editor PRECISA mostrar a linha vazia que o Enter acabou de
 // abrir, senão ela some antes de você digitar. Então o que está na tela vive
@@ -5058,8 +5875,10 @@ function aplicarModoLista(id) {
   const emLista = modoLista(id) === 'lista';
   t.hidden = emLista;
   const cx = document.getElementById('ed-' + id); if (cx) cx.hidden = !emLista;
-  const b = document.getElementById('bt-' + id);
-  if (b) { b.innerText = emLista ? '📝 texto' : '☰ lista'; b.title = emLista ? 'Editar como texto corrido' : 'Editar como lista'; }
+  const bl = document.getElementById('bt-lista-' + id);
+  const bt = document.getElementById('bt-texto-' + id);
+  if (bl) { bl.classList.toggle('ativo', emLista); bl.setAttribute('aria-pressed', emLista ? 'true' : 'false'); }
+  if (bt) { bt.classList.toggle('ativo', !emLista); bt.setAttribute('aria-pressed', emLista ? 'false' : 'true'); }
   if (emLista) desenharLista(id);
 }
 /** Monta o editor ao lado de cada campo que hoje é "uma linha por item". */
@@ -5067,7 +5886,16 @@ function prepararListas() {
   Object.keys(CAMPOS_LISTA).forEach(id => {
     const t = document.getElementById(id); if (!t || t.dataset.ed) return;
     t.dataset.ed = '1';
-    t.insertAdjacentHTML('beforebegin', `<button type="button" class="ed-toggle" id="bt-${id}" onclick="alternarModoLista('${id}')">☰ lista</button>`);
+    const nome = CAMPOS_LISTA[id] || 'item';
+    t.insertAdjacentHTML('beforebegin',
+      `<div class="ed-modo" role="group" aria-label="Como preencher">
+         <button type="button" class="ed-op" id="bt-lista-${id}" aria-pressed="false"
+           title="Uma caixinha por ${esc(nome)}, com ＋ para acrescentar e ↑↓ para reordenar"
+           onclick="definirModoLista('${id}', 'lista')">☰ Lista</button>
+         <button type="button" class="ed-op" id="bt-texto-${id}" aria-pressed="false"
+           title="Tudo de uma vez, um ${esc(nome)} por linha — bom para colar de outro lugar"
+           onclick="definirModoLista('${id}', 'texto')">📝 Texto</button>
+       </div>`);
     t.insertAdjacentHTML('afterend', `<div class="ed-lista" id="ed-${id}"></div>`);
     // quando o formulário preenche a textarea por código, a lista acompanha
     t.addEventListener('focus', () => desenharLista(id));
@@ -6974,7 +7802,7 @@ if (_vndProd) _vndProd.addEventListener('change', previaVenda);
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile', 'fichas', 'dietas'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile', 'fichas', 'dietas', 'saidas', 'milhas', 'curriculo'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -7105,6 +7933,9 @@ function redesenharTudo() {
   routines = JSON.parse(localStorage.getItem('lifeos_routines')) || [];
   orders = JSON.parse(localStorage.getItem('lifeos_orders')) || [];
   media = JSON.parse(localStorage.getItem('lifeos_media')) || []; playlists = JSON.parse(localStorage.getItem('lifeos_playlists')) || [];
+  saidas = JSON.parse(localStorage.getItem('lifeos_saidas')) || [];
+  milhas = JSON.parse(localStorage.getItem('lifeos_milhas')) || [];
+  curriculo = JSON.parse(localStorage.getItem('lifeos_curriculo')) || {};
   trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
   devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};
   servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || []; pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];
@@ -7116,7 +7947,7 @@ function redesenharTudo() {
   assets = JSON.parse(localStorage.getItem('lifeos_assets')) || []; moves = JSON.parse(localStorage.getItem('lifeos_moves')) || []; goals = JSON.parse(localStorage.getItem('lifeos_goals')) || []; projects = JSON.parse(localStorage.getItem('lifeos_projects')) || []; wealth = JSON.parse(localStorage.getItem('lifeos_wealth')) || wealth;
   workouts = JSON.parse(localStorage.getItem('lifeos_workouts')) || []; measures = JSON.parse(localStorage.getItem('lifeos_measures')) || []; hydration = JSON.parse(localStorage.getItem('lifeos_hydration')) || hydration; meals = JSON.parse(localStorage.getItem('lifeos_meals')) || []; medical = JSON.parse(localStorage.getItem('lifeos_medical')) || [];
   profile = JSON.parse(localStorage.getItem('lifeos_profile')) || profile; aplicarPerfil();
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderTaskLists(); renderTasks(); renderRotinas(); renderNotes(); renderEntregas(); redesenharEstudos(); redesenharNegocios(); renderSaude(); renderAvisos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderTaskLists(); renderTasks(); renderRotinas(); renderNotes(); renderEntregas(); redesenharEstudos(); redesenharNegocios(); renderSaude(); redesenharLazer(); redesenharViagens(); redesenharRede(); renderAvisos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {
@@ -7201,7 +8032,8 @@ if (normalizarMedidas()) salvar('measures', measures); renderSaude(); verSecaoSa
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();
-renderViagens(); renderRede();
+if (normalizarMalas()) salvar('trips', trips);
+redesenharViagens(); verSecaoViagens('viagens'); redesenharRede(); verSecaoRede('contatos');
 redesenharLazer(); verSecaoLazer('midia');
 ['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarPlayerMusica));
 renderEntregas();

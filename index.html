@@ -796,7 +796,49 @@
     <div id="leisure" class="tab-content">
       <div class="focus-header-tabs agenda-tabs" id="lazer-secoes">
         <span class="active" onclick="verSecaoLazer('midia', this)">🎬 Filmes e séries</span>
+        <span onclick="verSecaoLazer('saidas', this)">🎟️ Sair</span>
         <span onclick="verSecaoLazer('musica', this)">🎵 Música</span>
+      </div>
+      <div id="sec-saidas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎟️ Museus, shows e o que mais der vontade</h2>
+          <p class="hint">Anote o lugar ou o evento e, se houver internet, o app busca sozinho uma <strong>foto e um resumo</strong> na Wikipedia — o item deixa de ser uma linha e vira um cartão. Com data, entra no calendário. Depois de ir, dê a sua nota.</p>
+          <div id="saida-resumo" class="fin-summary-line"></div>
+          <form id="saida-form">
+            <input type="hidden" id="saida-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+              <div><label for="saida-nome">O quê:</label><input type="text" id="saida-nome" placeholder="Pinacoteca de São Paulo" required></div>
+              <div><label for="saida-tipo">Tipo:</label><select id="saida-tipo"></select></div>
+              <div><label for="saida-status">Situação:</label><select id="saida-status"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="saida-cidade">Cidade:</label><input type="text" id="saida-cidade" placeholder="ajuda a achar a foto certa"></div>
+              <div><label for="saida-data">Dia:</label><input type="date" id="saida-data"></div>
+              <div><label for="saida-hora">Hora:</label><input type="time" id="saida-hora"></div>
+              <div><label for="saida-valor">Quanto (R$):</label><input type="number" id="saida-valor" step="0.01" min="0"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="saida-local">Endereço ou local:</label><input type="text" id="saida-local" placeholder="opcional"></div>
+              <div><label for="saida-com">Com quem:</label><input type="text" id="saida-com" placeholder="opcional"></div>
+              <div><label for="saida-url">Link (ingresso, site):</label><input type="text" id="saida-url" placeholder="opcional"></div>
+            </div>
+            <label for="saida-notas">Observações:</label>
+            <textarea id="saida-notas" rows="2" placeholder="opcional"></textarea>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button type="submit" id="saida-submit">Adicionar</button>
+              <button type="button" class="btn" id="saida-cancel" hidden onclick="cancelarEdicaoSaida()">Cancelar</button>
+              <button type="button" class="btn" onclick="ilustrarTodasSaidas()" title="Busca foto e resumo de todos os que ainda não têm">✨ Ilustrar os que faltam</button>
+            </div>
+          </form>
+          <div class="filter-chips" id="saida-filtros" style="margin-top:14px">
+            <span class="active" onclick="filtrarSaidas('todos', this)">Todos</span>
+            <span onclick="filtrarSaidas('quero', this)">💭 Quero ir</span>
+            <span onclick="filtrarSaidas('marcado', this)">📅 Marcados</span>
+            <span onclick="filtrarSaidas('fui', this)">✅ Já fui</span>
+          </div>
+          <div id="saida-lista" class="saida-lista"></div>
+          <p class="hint" style="margin-top:10px">As fotos e os resumos vêm da <strong>Wikipedia</strong>. O app guarda só o endereço da imagem, nunca a imagem em si — é o que deixa isso sincronizar entre os seus aparelhos sem quebrar nada.</p>
+        </div>
       </div>
       <div id="sec-midia" class="agenda-sec">
         <div class="card" style="margin-top: 20px;">
@@ -864,9 +906,43 @@
 
     <!-- Módulo 11: Viagens -->
     <div id="trips" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="viagens-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoViagens('viagens', this)">✈️ Viagens</span>
+        <span onclick="verSecaoViagens('milhas', this)">🎫 Milhas</span>
+      </div>
+      <div id="sec-milhas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎫 Milhas</h2>
+          <p class="hint">Saldo alto não quer dizer nada. O que decide é a comparação: <strong>quanto você paga</strong> por mil milhas e <strong>quanto você obtém</strong> quando resgata. Anote as compras e os resgates e o app faz as duas contas e dá o veredito.</p>
+          <div id="milha-resumo" class="fin-summary-line"></div>
+          <form id="milha-form">
+            <input type="hidden" id="milha-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+              <div><label for="milha-programa">Programa:</label>
+                <input type="text" id="milha-programa" list="milha-programas" placeholder="Latam Pass, Smiles, Livelo..." required>
+                <datalist id="milha-programas"></datalist></div>
+              <div><label for="milha-numero">Número / login:</label><input type="text" id="milha-numero" placeholder="opcional"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="milha-saldo">Saldo hoje:</label><input type="number" id="milha-saldo" min="0" step="1" placeholder="o que o app mostra"></div>
+              <div><label for="milha-validade">Vencem em:</label><input type="date" id="milha-validade"></div>
+              <div><label for="milha-custo">R$ por milheiro:</label><input type="number" id="milha-custo" step="0.01" min="0" placeholder="deixe vazio p/ calcular"></div>
+            </div>
+            <label for="milha-notas">Observações:</label>
+            <textarea id="milha-notas" rows="2" placeholder="regras do programa, parceiros, o que quiser lembrar"></textarea>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button type="submit" id="milha-submit">Adicionar programa</button>
+              <button type="button" class="btn" id="milha-cancel" hidden onclick="cancelarEdicaoMilha()">Cancelar</button>
+            </div>
+          </form>
+          <div id="milha-lista" class="milha-lista"></div>
+          <p class="hint" style="margin-top:10px">O saldo é digitado à mão de propósito: não existe API pública de programa de fidelidade. Use o 🔄 para atualizar em dois toques quando conferir no app da companhia.</p>
+        </div>
+      </div>
+      <div id="sec-viagens" class="agenda-sec">
       <div class="card" style="margin-top: 20px;">
         <h2>✈️ Viagens</h2>
-        <p class="hint">Cada viagem já nasce com lista de mala e de documentos. Clique na viagem para abrir, marcar itens e guardar reservas. O 📅 põe ida e volta na sua agenda.</p>
+        <p class="hint">Cada viagem já nasce com lista de mala e de documentos. Clique na viagem para abrir e marcar os itens: o clique roda entre ⬜ ainda não · ✅ já tenho · 🛒 preciso comprar. O 📅 põe ida e volta na sua agenda.</p>
         <form id="trip-form">
           <input type="hidden" id="trip-id">
           <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
@@ -883,10 +959,45 @@
         </form>
         <ul id="trip-lista" class="transaction-list" style="margin-top: 15px;"></ul>
       </div>
+      </div>
     </div>
 
     <!-- Módulo 12: Rede -->
     <div id="net" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="rede-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoRede('contatos', this)">🤝 Contatos</span>
+        <span onclick="verSecaoRede('curriculo', this)">📄 Currículo</span>
+      </div>
+      <div id="sec-curriculo" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;">
+          <h2>📄 Currículo</h2>
+          <p class="hint">No formato do LinkedIn: um título, um "sobre" e as seções. Preencha uma vez e use sempre — o botão 🖨️ imprime só a folha do currículo, e no diálogo de impressão você escolhe <strong>Salvar como PDF</strong>.</p>
+          <div id="cv-resumo" class="fin-summary-line"></div>
+          <div class="cv-topo-campos">
+            <div><label for="cv-nome">Nome:</label><input type="text" id="cv-nome" oninput="campoCV('nome', this.value)"></div>
+            <div><label for="cv-titulo">Título (headline):</label><input type="text" id="cv-titulo" placeholder="Médico generalista · Urgência pediátrica" oninput="campoCV('titulo', this.value)"></div>
+          </div>
+          <div class="cv-topo-campos">
+            <div><label for="cv-email">E-mail:</label><input type="text" id="cv-email" oninput="campoCV('email', this.value)"></div>
+            <div><label for="cv-tel">Telefone:</label><input type="text" id="cv-tel" oninput="campoCV('tel', this.value)"></div>
+            <div><label for="cv-cidade">Cidade:</label><input type="text" id="cv-cidade" oninput="campoCV('cidade', this.value)"></div>
+            <div><label for="cv-registro">Registro / documento profissional:</label><input type="text" id="cv-registro" placeholder="CRM, OAB, CREA..." oninput="campoCV('registro', this.value)"></div>
+          </div>
+          <label for="cv-links">Links (um por linha: nome e endereço):</label>
+          <textarea id="cv-links" rows="2" placeholder="LinkedIn https://linkedin.com/in/..." oninput="campoCV('links', this.value)"></textarea>
+          <label for="cv-sobre">Sobre (o parágrafo de apresentação):</label>
+          <textarea id="cv-sobre" rows="4" placeholder="Quem você é profissionalmente, em 3 ou 4 linhas." oninput="campoCV('sobre', this.value)"></textarea>
+          <div id="cv-secoes"></div>
+          <div class="cv-barra">
+            <button type="button" onclick="imprimirCurriculo()">🖨️ Imprimir / salvar em PDF</button>
+            <button type="button" class="btn" onclick="copiarCurriculo()">📋 Copiar como texto</button>
+            <button type="button" class="btn" onclick="importarCursosDosEstudos()">🎓 Trazer cursos dos Estudos</button>
+            <label class="check-line" style="margin:0"><input type="checkbox" id="cv-ver-previa" checked onchange="renderCurriculo()"> Mostrar a prévia</label>
+          </div>
+        </div>
+        <div class="card cv-folha" id="cv-folha" style="margin-top: 20px;"></div>
+      </div>
+      <div id="sec-contatos" class="agenda-sec">
       <div class="card" style="margin-top: 20px;">
         <h2>🤝 Rede</h2>
         <p class="hint">As pessoas que você conhece do trabalho, dos negócios e da vida. O 💬 marca que você falou hoje; se passar do intervalo que você definir, ela aparece em "falar".</p>
@@ -912,6 +1023,7 @@
         </form>
         <div id="rede-chips" class="chips" style="margin-top: 14px;"></div>
         <ul id="rede-lista" class="transaction-list"></ul>
+      </div>
       </div>
     </div>
 

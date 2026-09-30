@@ -1467,6 +1467,21 @@ function normalizarTurnos() {
   places.forEach(p => { if (!p.id) { p.id = novoId(); mudou = true; } });
   return mudou;
 }
+/** Conserta o plantão que foi "sequestrado" pela escala.
+ *  Acontecia assim: o formulário ficava em modo de edição de uma ocorrência
+ *  gerada (ex.: SAMU de 02/10) e, ao digitar um plantão avulso por cima, o
+ *  registro guardava os dados novos MAS continuava carregando placeId/occur.
+ *  Resultado duplo: o avulso aparecia marcado como "da escala fixa" e o dia
+ *  original sumia da escala, porque ela achava que já tinha gerado aquele dia.
+ *  Se a data não bate mais com a ocorrência, aquele registro não é mais ela:
+ *  soltamos o carimbo e a escala volta a gerar o dia normalmente. */
+function normalizarPlantoesEscala() {
+  let mudou = false;
+  shifts.forEach(s => {
+    if (s.placeId && s.occur && s.date !== s.occur) { s.placeId = null; s.occur = null; mudou = true; }
+  });
+  return mudou;
+}
 // Sempre exigir um id de verdade: sem isso, `s.placeId === p.id` viraria
 // `undefined === undefined` e casaria com qualquer plantão antigo.
 function turnoPorId(id) { return id ? places.find(p => p.id === id) : null; }
@@ -1638,11 +1653,23 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
   };
   if (dados.parts.length) { dados.hours = horasFaixas(dados.parts); dados.amount = Math.round(totalFaixas(dados.parts) * 100) / 100; }
   if (!dados.date || !dados.time || !dados.desc || isNaN(dados.amount)) return;
-  let s;
-  if (id) { s = shifts.find(x => String(x.id) === id); if (!s) return; Object.assign(s, dados); }
+  let s; let soltou = false;
+  if (id) {
+    s = shifts.find(x => String(x.id) === id); if (!s) return;
+    // Mudou a identidade de uma ocorrência da escala? Pergunta antes, em vez de
+    // deixar o avulso herdar o carimbo e sumir com o dia da escala.
+    if (s.placeId && s.occur && (dados.date !== s.date || dados.desc !== s.desc)) {
+      const p = turnoPorId(s.placeId);
+      if (confirm(`Este ${vt().um} veio da escala fixa${p ? ` de "${p.name}"` : ''}, no dia ${isoParaBR(s.occur)}.\n\nVocê mudou ${dados.date !== s.date ? 'a data' : 'o nome'}.\n\nOK — vira um ${vt().um} avulso e o dia ${isoParaBR(s.occur)} volta para a escala.\nCancelar — continua sendo o dia da escala, só com os dados novos.`)) {
+        s.placeId = null; s.occur = null; soltou = true;
+      }
+    }
+    Object.assign(s, dados);
+  }
   else { s = { id: novoId(), paid: false, paidAt: null, ...dados }; shifts.push(s); }
   sincronizarLancamentoPlantao(s);
   salvar('shifts', shifts); salvar('finances', transactions);
+  if (soltou) gerarPlantoesFixos(true);
   cancelarEdicaoPlantao(); renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
   toast(id ? '🚑 Plantão atualizado.' : '🚑 Plantão agendado (a receber).');
 });
@@ -3914,37 +3941,67 @@ function tocarFaixa(i) {
   if (!faixas[i]) return;
   faixaAtual = i; const a = document.getElementById('audio-player');
   a.src = faixas[i].url; a.play().catch(() => {}); renderFaixas();
-  const mp = document.getElementById('mini-player'); if (mp) mp.dataset.fechado = '0';
-  atualizarMiniPlayer();
+  garantirJanelaMusica();
+  atualizarPlayerMusica();
   document.getElementById('faixa-atual').innerText = '🎵 ' + faixas[i].nome;
 }
 function faixaAnterior() { if (faixaAtual > 0) tocarFaixa(faixaAtual - 1); }
-function faixaProxima() { if (faixaAtual < faixas.length - 1) tocarFaixa(faixaAtual + 1); else { document.getElementById('audio-player').pause(); } }
+function faixaProxima() { if (faixaAtual < faixas.length - 1) tocarFaixa(faixaAtual + 1); else { document.getElementById('audio-player').pause(); atualizarPlayerMusica(); } }
 function renderFaixas() {
+  atualizarPlayerMusica();
   const el = document.getElementById('faixas-lista'); if (!el) return;
   if (!faixas.length) { el.innerHTML = '<div class="stat-line muted">Nenhuma faixa carregada. Escolha músicas do aparelho — elas tocam agora, mas o navegador não guarda os arquivos: na próxima vez é só escolher de novo.</div>'; return; }
   el.innerHTML = faixas.map((f, i) => `<div class="faixa ${i === faixaAtual ? 'tocando' : ''}" onclick="tocarFaixa(${i})">${i === faixaAtual ? '▶️' : '🎵'} ${esc(f.nome)}</div>`).join('');
 }
-// --- MINI PLAYER flutuante: segue você em qualquer aba ---
-function atualizarMiniPlayer() {
-  const mp = document.getElementById('mini-player'); const a = document.getElementById('audio-player'); if (!mp || !a) return;
-  const ativo = faixas.length && faixaAtual >= 0;
-  // Se a janela flutuante de Música estiver aberta, ela assume os controles.
-  const temJanela = typeof cfgFlut === 'function' && cfgFlut().ligado && (cfgFlut().ativos || []).includes('musica') && !document.getElementById('paineis').hidden;
-  mp.hidden = !ativo || mp.dataset.fechado === '1' || temJanela;
+// --- PLAYER ÚNICO: a janela flutuante 🎵 -------------------------------------
+// Antes existiam dois: uma barrinha fixa no canto e a janela flutuante. Eram a
+// mesma coisa em dois lugares, cada uma com um recurso que a outra não tinha, e
+// a do canto ficava "congelada" quando a faixa morria (só o volume respondia,
+// porque volume é propriedade do <audio> e não depende de haver som). Ficou um
+// só, dentro da janela, que já é móvel e segue você em qualquer aba.
+function atualizarPlayerMusica() {
   if (typeof tocarPaineis === 'function') tocarPaineis('musica');
-  if (!ativo) return;
-  document.getElementById('mp-nome').innerText = faixas[faixaAtual] ? faixas[faixaAtual].nome : '';
-  document.getElementById('mp-play').innerText = a.paused ? '▶️' : '⏸️';
-  const prog = document.getElementById('mp-prog');
-  if (prog && a.duration) prog.style.width = Math.round(a.currentTime / a.duration * 100) + '%';
-  document.getElementById('mp-tempo').innerText = fmtSeg(a.currentTime) + (a.duration ? ' / ' + fmtSeg(a.duration) : '');
 }
 function fmtSeg(s) { s = Math.floor(s || 0); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
-function mpPlayPause() { const a = document.getElementById('audio-player'); if (a.paused) a.play().catch(() => {}); else a.pause(); atualizarMiniPlayer(); }
-function mpFechar() { const mp = document.getElementById('mini-player'); mp.dataset.fechado = '1'; document.getElementById('audio-player').pause(); mp.hidden = true; }
+function mpPlayPause() {
+  const a = document.getElementById('audio-player');
+  if (!faixas.length || faixaAtual < 0) { mpEscolher(); return; }
+  if (a.paused) a.play().catch(() => toast('Não consegui tocar essa faixa. Escolha os arquivos de novo.', 5000));
+  else a.pause();
+  atualizarPlayerMusica();
+}
+/** Para de tocar e limpa a faixa — a janela volta ao estado "nada tocando". */
+function mpParar() {
+  const a = document.getElementById('audio-player');
+  a.pause(); a.removeAttribute('src'); a.load();
+  faixaAtual = -1; renderFaixas();
+  const fa = document.getElementById('faixa-atual'); if (fa) fa.innerText = '';
+  atualizarPlayerMusica();
+}
 function mpIrParaMusica() { changeTab('leisure'); verSecaoLazer('musica', document.querySelectorAll('#lazer-secoes span')[1]); }
-function mpVolume(v) { document.getElementById('audio-player').volume = Math.max(0, Math.min(1, v / 100)); }
+function mpEscolher() { const i = document.getElementById('faixas-arquivo-flut') || document.getElementById('faixas-arquivo'); if (i) i.click(); }
+function mpVolume(v) { document.getElementById('audio-player').volume = Math.max(0, Math.min(1, v / 100)); atualizarPlayerMusica(); }
+/** Clicar na barrinha de progresso pula para aquele ponto da música. */
+function mpSeek(ev, el) {
+  const a = document.getElementById('audio-player');
+  if (!a.duration || !isFinite(a.duration)) return;
+  const r = el.getBoundingClientRect();
+  a.currentTime = Math.max(0, Math.min(a.duration, (ev.clientX - r.left) / r.width * a.duration));
+  atualizarPlayerMusica();
+}
+/** Garante que a janela 🎵 esteja ligada — senão tocar música deixaria o
+ *  Matheus sem nenhum controle à vista, já que a barrinha não existe mais. */
+function garantirJanelaMusica() {
+  if (typeof cfgFlut !== 'function') return;
+  const c = cfgFlut();
+  const faltava = !c.ligado || !(c.ativos || []).includes('musica') || (window.innerWidth < 900 && !c.celular);
+  if (!faltava) return;
+  c.ligado = true;
+  if (!(c.ativos || []).includes('musica')) c.ativos = [...(c.ativos || []), 'musica'];
+  if (window.innerWidth < 900) c.celular = true;
+  gravarFlut(); montarPaineis();
+  toast('🎵 Abri a janela de música — é por ela que você controla o som.', 6000);
+}
 /** Atalho do Pomodoro: leva pra música de foco (ou abre a playlist de foco). */
 function musicaDeFoco() {
   const p = playlists.find(x => x.moment === 'foco') || playlists[0];
@@ -4411,7 +4468,7 @@ function renderAgendaVista() {
       <small>${DIAS_SEM[diaDaSemanaISO(d)]}</small><strong>${Number(d.slice(8))}</strong>
       ${n.length ? `<div class="ag-sem-hora">${n.slice(0, 3).map(x => `<span title="${esc(x.titulo)}">${x.icone}</span>`).join('')}${n.length > 3 ? '<span>+' + (n.length - 3) + '</span>' : ''}</div>` : ''}</div>`;
   }).join('');
-  const colunas = dias.map(d => `<div class="ag-col" data-dia="${d}" style="height:${alturaGrade}px">${colunaDoDia(d, agVista === 'semana')}${faixaAgora(d)}</div>`).join('');
+  const colunas = dias.map(d => `<div class="ag-col" data-dia="${d}" style="height:${alturaGrade}px" title="Clique num espaço vazio para criar aqui (ou arraste para escolher a duração)" onpointerdown="agFundoDown(event, '${d}')">${colunaDoDia(d, agVista === 'semana')}${faixaAgora(d)}</div>`).join('');
   el.innerHTML = `<div class="ag-grade ${agVista}">
       <div class="ag-canto"></div><div class="ag-cabecalhos">${cabec}</div>
       <div class="ag-horas" style="height:${alturaGrade}px">${linhaHoras()}</div>
@@ -4548,6 +4605,141 @@ function agSoltarBloco(ev) {
 document.addEventListener('pointermove', agMoverBloco);
 document.addEventListener('pointerup', agSoltarBloco);
 document.addEventListener('pointercancel', () => { if (agArrasto) { agArrasto = null; renderAgendaVista(); } });
+
+// ============================================================================
+// CRIAR DIRETO NA GRADE — clicar num espaço vazio abre o compromisso já com
+// dia e horário preenchidos; arrastar para baixo define a duração. É o gesto
+// do Google Agenda, e era o que faltava: dava para MOVER um compromisso na
+// grade, mas não para CRIAR — só pelo formulário da outra seção.
+// ============================================================================
+let agNovo = null;
+function agPx(min) { return (min - AG_H_INI * 60) / 60 * AG_PX_HORA; }
+
+function agFundoDown(ev, iso) {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  if (ev.target.closest('.ag-bloco')) return;      // em cima de um bloco, quem manda é o bloco
+  const col = ev.currentTarget;
+  const min = agHoraDoPixel(ev.clientY - col.getBoundingClientRect().top);
+  const el = document.createElement('div');
+  el.className = 'ag-novo-sel';
+  col.appendChild(el);
+  agNovo = { iso, ancora: min, ini: min, fim: min + 60, col, el, moveu: false, pid: ev.pointerId };
+  agDesenharSel();
+  try { col.setPointerCapture(ev.pointerId); } catch (e) {}
+  ev.preventDefault();
+}
+function agDesenharSel() {
+  if (!agNovo) return;
+  agNovo.el.style.top = agPx(agNovo.ini) + 'px';
+  agNovo.el.style.height = Math.max(14, agPx(agNovo.fim) - agPx(agNovo.ini)) + 'px';
+  agNovo.el.innerHTML = `<span>${hm(agNovo.ini)} – ${hm(agNovo.fim)}</span>`;
+}
+function agFundoMove(ev) {
+  if (!agNovo || ev.pointerId !== agNovo.pid) return;
+  const min = agHoraDoPixel(ev.clientY - agNovo.col.getBoundingClientRect().top);
+  if (min !== agNovo.ancora) agNovo.moveu = true;
+  // arrastar para cima também vale: o começo vira o ponto mais alto
+  agNovo.ini = Math.min(agNovo.ancora, min);
+  agNovo.fim = Math.max(agNovo.ancora, min);
+  if (agNovo.fim - agNovo.ini < 15) agNovo.fim = agNovo.ini + 15;
+  agDesenharSel();
+}
+function agFundoUp(ev) {
+  if (!agNovo || (ev && ev.pointerId !== agNovo.pid)) return;
+  const n = agNovo; agNovo = null;
+  if (n.el && n.el.parentNode) n.el.parentNode.removeChild(n.el);
+  // clique seco (sem arrastar) = 1 hora, que é o padrão de todo mundo
+  const fim = n.moveu ? n.fim : Math.min(AG_H_FIM * 60, n.ini + 60);
+  abrirNovoRapido(n.iso, n.ini, fim);
+}
+document.addEventListener('pointermove', agFundoMove);
+document.addEventListener('pointerup', agFundoUp);
+document.addEventListener('pointercancel', () => {
+  if (agNovo) { if (agNovo.el && agNovo.el.parentNode) agNovo.el.parentNode.removeChild(agNovo.el); agNovo = null; }
+});
+
+/** Abre o modal rápido já preenchido com o que foi clicado na grade. */
+function abrirNovoRapido(iso, ini, fim) {
+  const m = document.getElementById('novo-modal'); if (!m) return;
+  const sel = document.getElementById('novo-tipo');
+  sel.innerHTML = Object.entries(TIPOS_EVENTO).map(([k, v]) => `<option value="${k}">${v.icone} ${v.nome}</option>`).join('');
+  sel.value = 'pessoal';
+  document.getElementById('novo-titulo').value = '';
+  document.getElementById('novo-data').value = iso;
+  document.getElementById('novo-ini').value = hm(ini);
+  document.getElementById('novo-fim').value = hm(fim);
+  document.getElementById('novo-repete').value = 'nao';
+  document.getElementById('novo-local').value = '';
+  const bt = document.getElementById('novo-trab');
+  if (bt) bt.innerText = `${vt().ic} É ${vt().um}`;
+  document.getElementById('novo-quando').innerHTML =
+    `<strong>${DIAS_LONGO[diaDaSemanaISO(iso)]}, ${isoParaBR(iso)}</strong><span>${hm(ini)} – ${hm(fim)}</span>`;
+  m.style.display = 'flex';
+  aplicarPosModal('novo-modal');
+  setTimeout(() => document.getElementById('novo-titulo').focus(), 60);
+}
+function fecharNovoRapido() { const m = document.getElementById('novo-modal'); if (m) m.style.display = 'none'; }
+function dadosNovoRapido() {
+  return {
+    title: document.getElementById('novo-titulo').value.trim(),
+    date: document.getElementById('novo-data').value,
+    time: document.getElementById('novo-ini').value,
+    endTime: document.getElementById('novo-fim').value,
+    type: document.getElementById('novo-tipo').value,
+    repete: document.getElementById('novo-repete').value,
+    local: document.getElementById('novo-local').value.trim()
+  };
+}
+function criarRapido() {
+  const d = dadosNovoRapido();
+  if (!d.title) { toast('Escreva o que é.'); document.getElementById('novo-titulo').focus(); return; }
+  if (!d.date) { toast('Falta o dia.'); return; }
+  if (d.endTime && d.time && d.endTime <= d.time) { toast('O fim tem que ser depois do começo.'); return; }
+  events.push({
+    id: novoId(), done: false, agenda: [], followups: [], people: '', minutes: '',
+    notes: '', ate: '', avisoMin: null, skips: [], feitos: [], ...d
+  });
+  salvar('events', events); fecharNovoRapido(); redesenharAgenda();
+  toast(`📅 ${d.title} — ${rotuloData(d.date)} às ${d.time}.`, 4000);
+}
+/** "Mais opções": leva o que já foi digitado para o formulário completo. */
+function novoRapidoCompleto() {
+  const d = dadosNovoRapido();
+  fecharNovoRapido();
+  verSecaoAgenda('compromissos'); cancelarEdicaoEvento();
+  document.getElementById('event-title').value = d.title;
+  document.getElementById('event-date').value = d.date;
+  document.getElementById('event-time').value = d.time;
+  document.getElementById('event-end').value = d.endTime;
+  document.getElementById('event-type').value = d.type;
+  document.getElementById('event-repete').value = d.repete;
+  document.getElementById('event-local').value = d.local;
+  if (typeof alternarCamposReuniao === 'function') alternarCamposReuniao();
+  setTimeout(() => {
+    const t = document.getElementById('event-title');
+    t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus();
+  }, 120);
+}
+/** O mesmo horário, mas no formulário de trabalho/plantão. */
+function novoRapidoTrabalho() {
+  const d = dadosNovoRapido();
+  fecharNovoRapido();
+  verSecaoAgenda('plantoes'); cancelarEdicaoPlantao();
+  document.getElementById('shift-date').value = d.date;
+  document.getElementById('shift-time').value = d.time;
+  const ini = minDe(d.time), fim = minDe(d.endTime);
+  if (ini !== null && fim !== null && fim > ini) document.getElementById('shift-hours').value = Math.round((fim - ini) / 60 * 100) / 100;
+  if (d.title) document.getElementById('shift-desc').value = d.title;
+  setTimeout(() => {
+    const t = document.getElementById('shift-desc');
+    t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus();
+  }, 120);
+}
+document.getElementById('novo-modal').addEventListener('click', (e) => { if (e.target.id === 'novo-modal') fecharNovoRapido(); });
+document.getElementById('novo-modal').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); criarRapido(); }
+  if (e.key === 'Escape') fecharNovoRapido();
+});
 
 // --- local e link do compromisso --------------------------------------------
 /** O "onde": link de reunião vira botão de entrar; endereço vira link de mapa. */
@@ -4913,7 +5105,8 @@ const MODAIS_MOVEIS = {
   'anexo-modal': '📎 Anexos',
   'aba-config-modal': '⚙ Ajustes da aba',
   'compra-modal': '🛒 Comprei',
-  'lupa-modal': '🖼️ Imagem'
+  'lupa-modal': '🖼️ Imagem',
+  'novo-modal': '➕ Novo compromisso'
 };
 function cfgModais() { prefs.modais = prefs.modais || {}; return prefs.modais; }
 
@@ -5612,7 +5805,7 @@ function montarPaineis() {
   const esp = medirEspaco();
   const mostrar = c.ligado && (!esp.estreito || c.celular);
   const rascunho = (document.getElementById('pf-notas-input') || {}).value || '';
-  if (!mostrar) { wrap.innerHTML = ''; wrap.hidden = true; document.body.classList.remove('com-paineis'); atualizarMiniPlayer(); return; }
+  if (!mostrar) { wrap.innerHTML = ''; wrap.hidden = true; document.body.classList.remove('com-paineis'); atualizarPlayerMusica(); return; }
   wrap.hidden = false; document.body.classList.add('com-paineis');
   wrap.dataset.modo = esp.modo;
   const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
@@ -5630,7 +5823,7 @@ function montarPaineis() {
   }).join('');
   visiveis.forEach(k => atualizarPainel(k));
   const inp = document.getElementById('pf-notas-input'); if (inp && rascunho) inp.value = rascunho;
-  recolocarPaineis(); atualizarMiniPlayer();
+  recolocarPaineis(); atualizarPlayerMusica();
 }
 
 /** Redesenha o miolo de UMA janela (sem mexer nas outras nem perder o que você digita). */
@@ -5820,32 +6013,36 @@ async function corpoArte(el) {
     <div class="pf-botoes"><button class="mini-btn" onclick="renderArte(true); tocarPaineis('arte');">↻ outra</button></div>`;
 }
 
+/** O player, inteiro, numa janela só: nome, barra que pula para o ponto
+ *  clicado, tempo, ⏮ ⏯ ⏭ ⏹, volume, a lista das faixas e o botão de escolher
+ *  músicas. Tudo o que estava dividido entre a barrinha do canto e esta janela. */
 function corpoMusica(el) {
   const a = document.getElementById('audio-player');
-  const tem = faixas.length && faixaAtual >= 0;
-  if (!tem) {
-    el.innerHTML = `<div class="pf-vazio">Nenhuma faixa tocando.</div><div class="pf-botoes"><button class="mini-btn" onclick="mpIrParaMusica()">escolher música</button></div>`;
+  const vol = Math.round((a ? a.volume : 1) * 100);
+  const barraVol = `<div class="pf-linha" style="align-items:center; gap:7px"><small>🔊</small><input type="range" min="0" max="100" value="${vol}" oninput="mpVolume(this.value)" style="flex:1" title="Volume"></div>`;
+
+  if (!faixas.length) {
+    el.innerHTML = `<div class="pf-vazio">Nenhuma música carregada.</div>
+      <div class="pf-botoes"><button class="mini-btn" onclick="mpEscolher()">🎵 Escolher músicas</button>
+        <button class="mini-btn" onclick="mpIrParaMusica()">playlists</button></div>${barraVol}`;
     return;
   }
-  const vol = Math.round((a ? a.volume : 1) * 100);
-  el.innerHTML = `<div class="pf-faixa">${esc(faixas[faixaAtual].nome)}</div>
-    <div class="pf-prog"><div id="pf-mus-prog" style="width:${a && a.duration ? Math.round(a.currentTime / a.duration * 100) : 0}%"></div></div>
-    <div class="pf-rodape" style="border:none; padding-top:2px"><span>${fmtSeg(a ? a.currentTime : 0)}${a && a.duration ? ' / ' + fmtSeg(a.duration) : ''}</span><span>${faixaAtual + 1} de ${faixas.length}</span></div>
-    <div class="pf-botoes"><button class="mini-btn" onclick="tocarFaixa(faixaAtual - 1); tocarPaineis('musica');">⏮</button>
-      <button class="mini-btn" onclick="mpPlayPause(); tocarPaineis('musica');">${a && a.paused ? '▶️' : '⏸️'}</button>
-      <button class="mini-btn" onclick="tocarFaixa(faixaAtual + 1); tocarPaineis('musica');">⏭</button>
-      <button class="mini-btn" onclick="mpIrParaMusica()">lista</button></div>
-    <div class="pf-linha" style="align-items:center; gap:7px"><small>🔊</small><input type="range" min="0" max="100" value="${vol}" oninput="mpVolume(this.value)" style="flex:1"></div>`;
-}
-/** O ✕ do mini player e a janela 🎵 são a MESMA coisa em dois lugares.
- *  Este botão junta: manda o player para a janela flutuante e fecha a barrinha. */
-function mpVirarJanela() {
-  const c = cfgFlut();
-  c.ligado = true;
-  if (!(c.ativos || []).includes('musica')) c.ativos = [...(c.ativos || []), 'musica'];
-  if (window.innerWidth < 900) c.celular = true;   // senão a janela não teria onde aparecer
-  gravarFlut(); montarPaineis();
-  toast('🎵 O player virou janela flutuante. Pra desfazer: Config → Janelas flutuantes.', 6000);
+  const tocando = faixaAtual >= 0 && faixas[faixaAtual];
+  const pct = a && a.duration && isFinite(a.duration) ? Math.round(a.currentTime / a.duration * 100) : 0;
+  const lista = faixas.map((f, i) => `<div class="pf-faixa-item${i === faixaAtual ? ' tocando' : ''}" title="${esc(f.nome)}" onclick="tocarFaixa(${i})">${i === faixaAtual && a && !a.paused ? '▶️' : '🎵'} ${esc(f.nome)}</div>`).join('');
+
+  el.innerHTML = `<div class="pf-faixa">${tocando ? esc(faixas[faixaAtual].nome) : 'Parado'}</div>
+    <div class="pf-prog pf-prog-clic" title="Clique para pular para este ponto" onclick="mpSeek(event, this)"><div id="pf-mus-prog" style="width:${pct}%"></div></div>
+    <div class="pf-rodape" style="border:none; padding-top:2px"><span>${fmtSeg(a ? a.currentTime : 0)}${a && a.duration && isFinite(a.duration) ? ' / ' + fmtSeg(a.duration) : ''}</span><span>${tocando ? (faixaAtual + 1) + ' de ' + faixas.length : faixas.length + ' faixas'}</span></div>
+    <div class="pf-botoes">
+      <button class="mini-btn" title="Anterior" ${faixaAtual > 0 ? '' : 'disabled'} onclick="faixaAnterior()">⏮</button>
+      <button class="mini-btn" title="${a && a.paused ? 'Tocar' : 'Pausar'}" onclick="mpPlayPause()">${a && !a.paused && tocando ? '⏸️' : '▶️'}</button>
+      <button class="mini-btn" title="Próxima" ${faixaAtual < faixas.length - 1 ? '' : 'disabled'} onclick="faixaProxima()">⏭</button>
+      <button class="mini-btn" title="Parar" ${tocando ? '' : 'disabled'} onclick="mpParar()">⏹</button>
+      <button class="mini-btn" title="Trocar as músicas" onclick="mpEscolher()">🎵</button>
+    </div>
+    ${barraVol}
+    <div class="pf-faixas">${lista}</div>`;
 }
 
 // --- card da Config ---------------------------------------------------------
@@ -6990,7 +7187,9 @@ changeJournalTab('day', document.querySelector('#journal-tabs span.active'));
 if (normalizarNotas()) localStorage.setItem('lifeos_notes', JSON.stringify(notes));
 renderPaletaNota(); if (normalizarTarefas()) { localStorage.setItem('lifeos_tasks', JSON.stringify(tasks)); localStorage.setItem('lifeos_tasklists', JSON.stringify(tasklists)); }
 renderTaskLists(); preencherTiposEvento(); preencherLocais(); preencherCategorias(false); preencherCategoriasRec(); document.getElementById('fin-date').value = hojeISO(); if (normalizarTransacoes()) salvar('finances', transactions); gerarRecorrentes();
-if (normalizarTurnos()) salvar('places', places); montarDiasTurno(); gerarPlantoesFixos(true);
+if (normalizarTurnos()) salvar('places', places); montarDiasTurno();
+if (normalizarPlantoesEscala()) salvar('shifts', shifts);
+gerarPlantoesFixos(true);
 fotoDoDia(); renderCopias(); limparImagensOrfas();
 aplicarAjustesAba(); atualizarBotaoConfigAba();
 definirPerfilTrabalho(); aplicarVocabulario(); renderPerfilTrabalho();
@@ -7004,7 +7203,7 @@ updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); up
 renderOrcamento();
 renderViagens(); renderRede();
 redesenharLazer(); verSecaoLazer('midia');
-['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarMiniPlayer));
+['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarPlayerMusica));
 renderEntregas();
 preencherFreqs(); camposPorFrequencia(); gerarRotinas(true); renderRotinas();
 aplicarAparencia(); renderArte(); setInterval(updateMainClock, 1000); updateMainClock();

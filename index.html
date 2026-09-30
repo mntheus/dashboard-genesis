@@ -669,7 +669,12 @@
         <span onclick="verSecaoSaude('comida', this)">🥗 Comida</span>
         <span onclick="verSecaoSaude('medico', this)">🩺 Médico</span>
       </div>
-      <div id="sec-sa-painel" class="agenda-sec"></div>
+      <div id="sec-sa-painel" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;">
+          <h2>🩺 Saúde</h2>
+          <div id="health-dash"></div>
+        </div>
+      </div>
       <div id="sec-sa-treinos" class="agenda-sec" hidden>
         <div class="card" style="margin-top: 20px;">
           <h2>📋 Fichas de treino</h2>
@@ -1252,6 +1257,41 @@
     </div>
   </div>
 
+  <!-- Criar direto na grade da Agenda: abre no horário que foi clicado/arrastado. -->
+  <div id="novo-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header"><h3>➕ Novo compromisso</h3><button class="close-modal" onclick="fecharNovoRapido()">✕</button></div>
+      <div class="modal-body">
+        <div id="novo-quando" class="novo-quando"></div>
+        <label for="novo-titulo">O quê:</label>
+        <input type="text" id="novo-titulo" placeholder="Ex: Consulta, almoço, reunião..." autocomplete="off">
+        <label for="novo-tipo">Tipo:</label>
+        <select id="novo-tipo"></select>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div><label for="novo-data">Dia:</label><input type="date" id="novo-data"></div>
+          <div><label for="novo-ini">Começa:</label><input type="time" id="novo-ini"></div>
+          <div><label for="novo-fim">Termina:</label><input type="time" id="novo-fim"></div>
+        </div>
+        <label for="novo-repete">Repete:</label>
+        <select id="novo-repete">
+          <option value="nao">Não repete</option>
+          <option value="semanal">Toda semana</option>
+          <option value="quinzenal">A cada 15 dias</option>
+          <option value="mensal">Todo mês</option>
+          <option value="anual">Todo ano</option>
+        </select>
+        <label for="novo-local">Onde (endereço ou link da chamada):</label>
+        <input type="text" id="novo-local" placeholder="opcional">
+        <div class="modal-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button onclick="criarRapido()">➕ Criar</button>
+          <button class="btn" onclick="novoRapidoCompleto()">✎ Mais opções</button>
+          <button class="btn" id="novo-trab" onclick="novoRapidoTrabalho()">🚑 É plantão</button>
+          <button class="btn" onclick="fecharNovoRapido()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="compra-modal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header"><h3>🛒 Comprei</h3><button class="close-modal" onclick="fecharCompra()">✕</button></div>
@@ -1304,19 +1344,12 @@
     </div>
   </div>
   <div id="paineis" hidden></div>
-  <div id="mini-player" class="mini-player" hidden>
-    <button class="mp-btn" onclick="faixaAnterior()" title="Anterior">⏮</button>
-    <button class="mp-btn" id="mp-play" onclick="mpPlayPause()" title="Tocar/pausar">▶️</button>
-    <button class="mp-btn" onclick="faixaProxima()" title="Próxima">⏭</button>
-    <div class="mp-info" onclick="mpIrParaMusica()" title="Abrir a aba de música">
-      <span id="mp-nome"></span>
-      <div class="mp-barra"><div id="mp-prog"></div></div>
-    </div>
-    <small id="mp-tempo" class="mp-tempo"></small>
-    <input type="range" min="0" max="100" value="100" class="mp-vol" oninput="mpVolume(this.value)" title="Volume">
-    <button class="mp-btn" onclick="mpVirarJanela()" title="Virar janela flutuante">🪟</button>
-    <button class="mp-btn" onclick="mpFechar()" title="Fechar">✕</button>
-  </div>
+  <!-- A barrinha fixa do canto foi removida em 30/09: eram dois players para a
+       mesma coisa e o do canto ficava "congelado". Agora existe UM só, dentro
+       da janela flutuante 🎵 Música, que segue você em qualquer aba.
+       Este campo fica aqui fora, no corpo da página, para que o botão "escolher
+       músicas" da janela funcione mesmo com a aba Lazer fechada. -->
+  <input type="file" id="faixas-arquivo-flut" accept="audio/*" multiple hidden onchange="carregarFaixas(this)">
   <div id="toast" class="toast"></div>
 
   <div id="day-modal" class="modal-overlay">

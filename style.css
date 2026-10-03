@@ -553,6 +553,21 @@ input.calculado { background: var(--bg2); color: var(--txt3); border-style: dash
   margin-right: 10px; background: var(--bg); }
 .midia-capa.vazia { display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
 
+/* ===== Mercado: cotações e gráficos ===== */
+.mkt-grade { display: grid; gap: 10px; margin-top: 14px; }
+@media (min-width: 760px) { .mkt-grade { grid-template-columns: 1fr 1fr; } }
+.mkt-card { background: var(--bg); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 11px; }
+.mkt-cab { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mkt-cab strong { color: var(--txt-forte); font-size: 0.86rem; }
+.mkt-valor { margin-left: auto; font-weight: 700; color: var(--txt-forte); font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.mkt-var { font-size: 0.74rem; font-weight: 700; padding: 1px 6px; border-radius: 9px; }
+.mkt-var.sobe { color: #22c55e; background: rgba(34,197,94,0.13); }
+.mkt-var.desce { color: #ef4444; background: rgba(239,68,68,0.13); }
+.mkt-svg { width: 100%; height: 54px; display: block; margin: 7px 0 3px; }
+.mkt-pe { display: flex; justify-content: space-between; gap: 8px; }
+.mkt-pe small { font-size: 0.66rem; color: var(--txt4); white-space: nowrap; }
+.mkt-velho { width: 100%; font-size: 0.66rem; color: #f59e0b; }
+
 /* ===== Currículo ===== */
 .cv-topo-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .cv-secao { margin-top: 18px; }

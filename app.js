@@ -2701,7 +2701,239 @@ function renderPainelNegocios() {
   el.innerHTML = html;
   ['cdi', 'selic', 'ipca'].forEach(k => { const i = document.getElementById('ind-' + k); if (i && document.activeElement !== i) i.value = ind[k] || ''; }); const r = document.getElementById('ind-ref'); if (r && document.activeElement !== r) r.value = ind.ref || '';
 }
-function redesenharNegocios() { preencherSelectsNegocios(); renderPainelNegocios(); renderAtivos(); renderMovimentos(); renderMetas(); renderProjetos(); }
+function redesenharNegocios() { preencherSelectsNegocios(); renderPainelNegocios(); renderAtivos(); renderMovimentos(); renderMetas(); renderProjetos(); renderMercado(); }
+
+// ============================================================================
+// MERCADO — cotações e gráficos (aprovado por ele em 30/09/2026)
+//
+// A decisão de 13/09 era "sem cotações automáticas SEM APROVAÇÃO DA FONTE". Ele
+// aprovou exatamente duas, depois de eu testar oito:
+//   • BANCO CENTRAL (api.bcb.gov.br, série SGS) → dólar, euro, CDI, Selic, IPCA, IGP-M
+//   • COINGECKO (api.coingecko.com)             → cripto em reais
+// As duas passaram nos três critérios ao mesmo tempo: sem cadastro nem chave,
+// `access-control-allow-origin: *` (funcionam direto do navegador, sem servidor)
+// e com histórico, que é o que permite desenhar gráfico.
+//
+// REPROVADAS e por quê: Yahoo Finance (NVIDIA, ouro, índices) e Frankfurter
+// respondem 200 mas SEM CORS; os RSS de notícia também não liberam. Para essas
+// seria preciso um proxy — o próprio Apps Script dele. Ficou para depois, e ele
+// pediu para eu REOFERECER brapi (ações da B3, token gratuito) e o proxy quando
+// voltarmos aqui. Está registrado no CLAUDE.md.
+//
+// O CACHE NÃO SINCRONIZA de propósito: cotação é dado público e refazível, não é
+// dado dele. Ocupar célula da planilha com isso seria desperdício. Fica em
+// `lifeos_cotacoes`, local, fora de SYNC_MODULOS — como `lifeos_arte_dia`.
+// ============================================================================
+const ATIVOS_MERCADO = {
+  usd:   { nome: 'Dólar',          ic: '💵', fonte: 'bcb',  serie: 1,     un: 'R$', casas: 4, cor: '#22c55e' },
+  eur:   { nome: 'Euro',           ic: '💶', fonte: 'bcb',  serie: 21619, un: 'R$', casas: 4, cor: '#38bdf8' },
+  btc:   { nome: 'Bitcoin',        ic: '🪙', fonte: 'coin', id: 'bitcoin',  un: 'R$', casas: 0, cor: '#f59e0b' },
+  eth:   { nome: 'Ethereum',       ic: '💠', fonte: 'coin', id: 'ethereum', un: 'R$', casas: 0, cor: '#a78bfa' },
+  sol:   { nome: 'Solana',         ic: '🌀', fonte: 'coin', id: 'solana',   un: 'R$', casas: 2, cor: '#14b8a6' },
+  cdi:   { nome: 'CDI (a.a.)',     ic: '🏦', fonte: 'bcb',  serie: 4389,  un: '%',  casas: 2, cor: '#0ea5e9', taxa: true },
+  selic: { nome: 'Selic meta',     ic: '🎯', fonte: 'bcb',  serie: 432,   un: '%',  casas: 2, cor: '#f472b6', taxa: true },
+  ipca:  { nome: 'IPCA 12 meses',  ic: '📊', fonte: 'bcb',  serie: 13522, un: '%',  casas: 2, cor: '#fb923c', taxa: true },
+  igpm:  { nome: 'IGP-M (mês)',    ic: '📉', fonte: 'bcb',  serie: 189,   un: '%',  casas: 2, cor: '#94a3b8', taxa: true }
+};
+const PERIODOS_MERCADO = { '15d': 15, '1m': 30, '3m': 90, '6m': 180, '1a': 365 };
+const MERCADO_VALIDADE_MS = 6 * 3600 * 1000;   // cotação de hoje serve; de ontem, busca de novo
+let mercadoPeriodo = '3m';
+let mercadoBuscando = false;
+
+function lerCotacoes() {
+  try { return JSON.parse(localStorage.getItem('lifeos_cotacoes')) || { em: 0, dados: {} }; }
+  catch (e) { return { em: 0, dados: {} }; }
+}
+function gravarCotacoes(c) {
+  try { localStorage.setItem('lifeos_cotacoes', JSON.stringify(c)); } catch (e) { /* memória cheia: segue sem cache */ }
+}
+function cfgMercado() {
+  prefs.mercado = prefs.mercado || {};
+  if (prefs.mercado.ligado === undefined) prefs.mercado.ligado = true;
+  if (!Array.isArray(prefs.mercado.escolhidos)) prefs.mercado.escolhidos = ['usd', 'btc', 'cdi', 'ipca'];
+  return prefs.mercado;
+}
+function gravarMercado() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); }
+function brParaISO(d) { const [a, m, y] = d.split('/'); return `${y}-${m}-${a}`; }
+
+/** Uma série do Banco Central, por intervalo de datas (funciona para série
+ *  diária e mensal igual — por isso não uso `ultimos/N`). */
+async function serieBCB(serie, dias) {
+  const fim = new Date(); const ini = new Date(); ini.setDate(ini.getDate() - dias);
+  const fmt = d => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const r = await fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados?formato=json&dataInicial=${fmt(ini)}&dataFinal=${fmt(fim)}`);
+  if (!r.ok) throw new Error('BCB ' + r.status);
+  const j = await r.json();
+  return j.map(x => ({ d: brParaISO(x.data), v: parseFloat(x.valor) })).filter(x => isFinite(x.v));
+}
+async function serieCoin(id, dias) {
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=brl&days=${dias}&interval=daily`);
+  if (!r.ok) throw new Error('CoinGecko ' + r.status);
+  const j = await r.json();
+  return (j.prices || []).map(p => ({ d: isoDe(new Date(p[0])), v: p[1] })).filter(x => isFinite(x.v));
+}
+/** Uma tentativa e, se falhar, mais uma depois de um respiro.
+ *  MOTIVO REAL: a API do Banco Central oscila. Testando daqui eu peguei um 502 e
+ *  uma resposta vazia no meio de várias respostas 200 — sem repetir, um soluço
+ *  desses deixaria o gráfico em branco até o usuário clicar em ↻. */
+async function buscarSerie(chave, periodo) {
+  const a = ATIVOS_MERCADO[chave]; if (!a) return null;
+  const dias = PERIODOS_MERCADO[periodo] || 90;
+  const pega = () => a.fonte === 'bcb' ? serieBCB(a.serie, dias) : serieCoin(a.id, dias);
+  let pontos = [];
+  try { pontos = await pega(); }
+  catch (e) {
+    await new Promise(r => setTimeout(r, 700));
+    pontos = await pega();                 // se falhar de novo, o erro sobe e é mostrado
+  }
+  if (!pontos.length) return null;
+  return { pontos, em: Date.now() };
+}
+/** Busca o que falta ou está velho. Sequencial e com pausa: são fontes públicas
+ *  e gratuitas, não se martela. */
+async function atualizarMercado(forcar) {
+  const c = cfgMercado();
+  if (!c.ligado) return;
+  if (mercadoBuscando) return;
+  if (!navigator.onLine) { renderMercado(); return; }
+  const cache = lerCotacoes();
+  const faltam = c.escolhidos.filter(k => {
+    const d = cache.dados[k + ':' + mercadoPeriodo];
+    return forcar || !d || (Date.now() - (d.em || 0)) > MERCADO_VALIDADE_MS;
+  });
+  if (!faltam.length) return;
+  mercadoBuscando = true; renderMercado();
+  // `finally` de propósito: se uma busca travar, a bandeira TEM de baixar, senão
+  // o status fica preso em "Buscando…" para sempre e mente para o usuário.
+  try {
+    for (const k of faltam) {
+      try {
+        const s = await buscarSerie(k, mercadoPeriodo);
+        if (s) { cache.dados[k + ':' + mercadoPeriodo] = s; cache.em = Date.now(); gravarCotacoes(cache); renderMercado(); }
+        else cache.dados[k + ':' + mercadoPeriodo] = { pontos: [], em: Date.now(), erro: 'sem dados' };
+      } catch (e) {
+        // guarda o erro MAS preserva os pontos que já existiam: uma cotação de
+        // ontem vale mais que um gráfico vazio.
+        const antigo = cache.dados[k + ':' + mercadoPeriodo] || {};
+        cache.dados[k + ':' + mercadoPeriodo] = { pontos: antigo.pontos || [], em: Date.now(), erro: e.message };
+        gravarCotacoes(cache);
+      }
+      await new Promise(r => setTimeout(r, 350));
+    }
+  } finally {
+    mercadoBuscando = false; renderMercado();
+  }
+}
+function mudarPeriodoMercado(p, el) {
+  mercadoPeriodo = p;
+  document.querySelectorAll('#mercado-periodos span').forEach(x => x.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderMercado(); atualizarMercado(false);
+}
+function alternarAtivoMercado(k) {
+  const c = cfgMercado();
+  c.escolhidos = c.escolhidos.includes(k) ? c.escolhidos.filter(x => x !== k) : [...c.escolhidos, k];
+  gravarMercado(); renderMercado(); atualizarMercado(false);
+}
+function alternarMercadoLigado() {
+  const c = cfgMercado(); c.ligado = !c.ligado; gravarMercado(); renderMercado();
+  if (c.ligado) atualizarMercado(true);
+}
+function fmtCotacao(v, a) {
+  if (!isFinite(v)) return '—';
+  if (a.un === '%') return v.toFixed(a.casas).replace('.', ',') + '%';
+  return formatCurrency(v);
+}
+/** Gráfico de linha em SVG, desenhado na hora — nenhuma biblioteca, porque o
+ *  app tem de abrir offline (mesma razão do relógio analógico). */
+function graficoLinha(pontos, cor, largura, altura) {
+  if (pontos.length < 2) return '';
+  const vs = pontos.map(p => p.v);
+  let min = Math.min(...vs), max = Math.max(...vs);
+  if (max === min) { max += 1; min -= 1; }
+  const px = (i) => (i / (pontos.length - 1)) * (largura - 2) + 1;
+  const py = (v) => altura - 3 - ((v - min) / (max - min)) * (altura - 6);
+  const d = pontos.map((p, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(p.v).toFixed(1)}`).join(' ');
+  const area = `${d} L${px(pontos.length - 1).toFixed(1)},${altura} L${px(0).toFixed(1)},${altura} Z`;
+  return `<svg class="mkt-svg" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${area}" fill="${cor}" opacity="0.14"></path>
+    <path d="${d}" fill="none" stroke="${cor}" stroke-width="1.6" stroke-linejoin="round"></path>
+  </svg>`;
+}
+function renderMercado() {
+  const el = document.getElementById('mercado-corpo'); if (!el) return;
+  const c = cfgMercado();
+  const chips = document.getElementById('mercado-chips');
+  if (chips) {
+    chips.innerHTML = Object.entries(ATIVOS_MERCADO).map(([k, a]) =>
+      `<span class="chip${c.escolhidos.includes(k) ? ' active' : ''}" onclick="alternarAtivoMercado('${k}')">${a.ic} ${esc(a.nome)}</span>`).join('');
+  }
+  const bt = document.getElementById('mercado-ligar');
+  if (bt) bt.checked = c.ligado;
+  const st = document.getElementById('mercado-status');
+  const cache = lerCotacoes();
+  if (st) {
+    st.innerText = !c.ligado ? '⚪ Cotações desligadas — os valores dos ativos seguem só o que você digita.'
+      : mercadoBuscando ? '🔄 Buscando…'
+      : !navigator.onLine ? '🔴 Sem internet — mostrando a última cotação guardada.'
+      : cache.em ? '🟢 Atualizado às ' + new Date(cache.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : '⚪ Ainda não busquei nada.';
+  }
+  if (!c.ligado) { el.innerHTML = ''; return; }
+  if (!c.escolhidos.length) {
+    el.innerHTML = '<div class="stat-line muted">Escolha acima o que você quer acompanhar.</div>';
+    return;
+  }
+  el.innerHTML = c.escolhidos.map(k => {
+    const a = ATIVOS_MERCADO[k]; if (!a) return '';
+    const d = cache.dados[k + ':' + mercadoPeriodo];
+    const pts = (d && d.pontos) || [];
+    if (!pts.length) {
+      return `<div class="mkt-card"><div class="mkt-cab"><strong>${a.ic} ${esc(a.nome)}</strong>
+        <small>${mercadoBuscando ? 'buscando…' : (d && d.erro ? 'não veio: ' + esc(d.erro) : 'sem dados ainda')}</small></div></div>`;
+    }
+    const prim = pts[0].v, ult = pts[pts.length - 1].v;
+    const var_ = prim ? (ult - prim) / Math.abs(prim) * 100 : 0;
+    const sobe = ult >= prim;
+    const vs = pts.map(p => p.v);
+    return `<div class="mkt-card">
+      <div class="mkt-cab">
+        <strong>${a.ic} ${esc(a.nome)}</strong>
+        <span class="mkt-valor">${fmtCotacao(ult, a)}</span>
+        <span class="mkt-var ${sobe ? 'sobe' : 'desce'}">${sobe ? '▲' : '▼'} ${Math.abs(var_).toFixed(2).replace('.', ',')}%</span>
+        ${d.erro ? `<small class="mkt-velho" title="${esc(d.erro)}">⚠️ não consegui atualizar agora</small>` : ''}
+      </div>
+      ${graficoLinha(pts, a.cor, 300, 54)}
+      <div class="mkt-pe">
+        <small>${isoParaBR(pts[0].d).slice(0, 5)} · ${fmtCotacao(prim, a)}</small>
+        <small>mín ${fmtCotacao(Math.min(...vs), a)} · máx ${fmtCotacao(Math.max(...vs), a)}</small>
+        <small>${isoParaBR(pts[pts.length - 1].d).slice(0, 5)}</small>
+      </div>
+    </div>`;
+  }).join('');
+}
+/** Leva CDI, Selic e IPCA reais para os indicadores manuais de Negócios, que
+ *  já eram usados nas comparações de rentabilidade. */
+function usarIndicadoresDoMercado() {
+  const cache = lerCotacoes();
+  const pega = k => {
+    const d = cache.dados[k + ':' + mercadoPeriodo] || Object.values(PERIODOS_MERCADO).map((_, i) => null).find(() => false);
+    if (d && d.pontos && d.pontos.length) return d.pontos[d.pontos.length - 1].v;
+    const outro = Object.keys(cache.dados).find(x => x.startsWith(k + ':') && (cache.dados[x].pontos || []).length);
+    return outro ? cache.dados[outro].pontos[cache.dados[outro].pontos.length - 1].v : null;
+  };
+  const cdi = pega('cdi'), selic = pega('selic'), ipca = pega('ipca');
+  if (cdi === null && selic === null && ipca === null) {
+    toast('Ligue as cotações e escolha CDI, Selic ou IPCA primeiro.', 6000); return;
+  }
+  wealth.indicators = wealth.indicators || {};
+  if (cdi !== null) wealth.indicators.cdi = Math.round(cdi * 100) / 100;
+  if (selic !== null) wealth.indicators.selic = Math.round(selic * 100) / 100;
+  if (ipca !== null) wealth.indicators.ipca = Math.round(ipca * 100) / 100;
+  wealth.indicators.ref = 'Banco Central · ' + isoParaBR(hojeISO());
+  salvar('wealth', wealth); redesenharNegocios();
+  toast('📈 Indicadores atualizados com os números do Banco Central.', 6000);
+}
 
 // ============================================================================
 // SAÚDE (módulo J)
@@ -5670,6 +5902,9 @@ const AJUSTES_ABA = {
   'btn-home': [
     { k: 'turnos', nome: 'Card de turnos de trabalho', pad: true },
     { k: 'baixa', nome: 'Card de receber (baixa em lote)', pad: true }
+  ],
+  'btn-business': [
+    { k: 'mercado', nome: 'Card de mercado (cotações e gráficos)', pad: true }
   ]
 };
 const AJUSTES_PADRAO_TODAS = [];
@@ -5700,6 +5935,7 @@ function aplicarAjustesAba() {
   const h = cfgAba('btn-home'); mostra('turnos-card', h.turnos);
   const sb = document.getElementById('shift-baixa');
   if (sb && !h.baixa) sb.hidden = true;
+  const b = cfgAba('btn-business'); mostra('card-mercado', b.mercado);
 }
 
 // --- caderno do desenvolvedor ----------------------------------------------
@@ -8009,7 +8245,7 @@ function carregarSyncConfigNaTela() {
 }
 
 // Gatilhos automáticos: voltou a internet / voltou pro app (celular) / a cada 30 s com o app visível
-window.addEventListener('online', () => sincronizar());
+window.addEventListener('online', () => { sincronizar(); if (typeof atualizarMercado === 'function') atualizarMercado(false); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
 setInterval(() => { if (document.visibilityState === 'visible' && syncConfigurado()) sincronizar(); }, SYNC_INTERVALO_MS);
 
@@ -8043,6 +8279,9 @@ carregarAvisosNaTela(); verificarAvisos();
 montarPaineis(); renderConfigFlut();
 verSecaoAgenda('cal'); document.getElementById('event-type').addEventListener('change', alternarCamposReuniao);
 document.getElementById('session-date').value = hojeISO(); garantirRitual(); redesenharEstudos(); ['workout-date', 'measure-date', 'meal-date'].forEach(i => document.getElementById(i).value = hojeISO()); renderSaude(); document.getElementById('move-date').value = hojeISO(); document.getElementById('asset-current-at').value = hojeISO(); redesenharNegocios(); renderEvents(); renderCalendar();
+// Cotações: desenha na hora com o que está guardado e busca o que faltar depois,
+// para não atrasar a abertura do app.
+setTimeout(() => atualizarMercado(false), 1500);
 aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 if (!profile.name && !localStorage.getItem('lifeos_perfil_avisado')) { localStorage.setItem('lifeos_perfil_avisado', '1'); setTimeout(() => toast('👤 Bem-vindo ao Genesis! Coloque seu nome em ⚙️ Config → Perfil.', 8000), 1500); }
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

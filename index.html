@@ -560,6 +560,26 @@
 
     <!-- Módulo 8: Negócios & Investimentos -->
     <div id="business" class="tab-content">
+      <div class="card" id="card-mercado" style="margin-top: 20px;">
+        <h2>📈 Mercado</h2>
+        <p class="hint">Cotações de duas fontes públicas, sem cadastro e sem chave: <strong>Banco Central</strong> (dólar, euro, CDI, Selic, IPCA, IGP-M) e <strong>CoinGecko</strong> (cripto em reais). Escolha o que acompanhar e o período; o gráfico é desenhado na hora. Sem internet, ele mostra a última cotação guardada.</p>
+        <label class="check-line"><input type="checkbox" id="mercado-ligar" onchange="alternarMercadoLigado()"> Buscar cotações automaticamente</label>
+        <div class="chips" id="mercado-chips" style="margin-top:10px"></div>
+        <div class="focus-header-tabs agenda-tabs" id="mercado-periodos" style="margin-top:10px">
+          <span onclick="mudarPeriodoMercado('15d', this)">15 dias</span>
+          <span onclick="mudarPeriodoMercado('1m', this)">1 mês</span>
+          <span class="active" onclick="mudarPeriodoMercado('3m', this)">3 meses</span>
+          <span onclick="mudarPeriodoMercado('6m', this)">6 meses</span>
+          <span onclick="mudarPeriodoMercado('1a', this)">1 ano</span>
+        </div>
+        <div id="mercado-corpo" class="mkt-grade"></div>
+        <div class="cv-barra">
+          <small id="mercado-status" class="item-date"></small>
+          <button type="button" class="mini-btn" onclick="atualizarMercado(true)">↻ atualizar agora</button>
+          <button type="button" class="mini-btn" onclick="usarIndicadoresDoMercado()" title="Copia CDI, Selic e IPCA para os indicadores de referência">📌 usar nos indicadores</button>
+        </div>
+        <p class="hint" style="margin-top:8px">⚠️ <strong>Ainda não cobre ações da B3, ouro nem NVIDIA.</strong> Essas fontes ou pedem cadastro (brapi.dev, token gratuito) ou não liberam leitura pelo navegador (Yahoo Finance), o que exigiria um intermediário no seu Apps Script. Quando você quiser, a gente decide isso — o valor atual desses ativos continua sendo o que você digita na carteira.</p>
+      </div>
       <div class="card" style="margin-top: 20px;">
         <h2>📈 Negócios & Investimentos</h2>
         <div id="biz-dash"></div>

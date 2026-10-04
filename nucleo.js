@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '04/10/2026 · v15';
+const GENESIS_VERSAO = '04/10/2026 · v16';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -648,6 +648,9 @@ function renderNucleoConfig() {
     <label style="display:block; margin-top:10px">Abertura (feixe de luz ao entrar):</label>
     <select onchange="escolherAbertura(this.value)">${typeof ABERTURA_MODOS !== 'undefined' ? Object.entries(ABERTURA_MODOS).map(([k, n]) => `<option value="${k}" ${(prefs.abertura || 'som') === k ? 'selected' : ''}>${n}</option>`).join('') : ''}</select>
     <button type="button" class="mini-btn" style="margin-top:6px" onclick="previaAbertura()">▶ Ver a abertura agora</button>
+    <label style="display:block; margin-top:10px">Apresentação de primeiro uso:</label>
+    <button type="button" class="mini-btn" onclick="abrirApresentacao(false)">👋 Rever a apresentação</button>
+    <p class="hint" style="margin-top:4px">Boas-vindas, nome, perfil de trabalho, tema, tour do Núcleo e como sincronizar. Aparece sozinha <strong>só em aparelho novo</strong> (sem nenhum dado salvo) — aqui ela nunca abre por conta própria.</p>
     <label style="display:block; margin-top:10px">Visual do cérebro:</label>
     <select onchange="escolherVisualNucleo(this.value)">${Object.entries(VISUAIS_NUCLEO).map(([k, n]) => `<option value="${k}" ${c.visual === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
     <p class="nu-versao">Versão ${GENESIS_VERSAO} · este aparelho: <b>${nu3D ? 'cérebro 3D' : 'versão 2D'}</b> · visual: <b>${visualDoCerebro() === 'leve' ? 'Leve' : 'Genesis'}</b></p>

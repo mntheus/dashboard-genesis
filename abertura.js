@@ -131,3 +131,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 iniciarAbertura();
+// 🪤 04/10: a Config desenha o seletor da abertura ANTES deste arquivo carregar (nucleo.js vem
+// primeiro), então ABERTURA_MODOS ainda não existia e o <select> ficava VAZIO — ninguém conseguia
+// escolher "só a luz" ou "desligada". Armadilha nº 7: preencher o <select> depois do innerHTML
+// que o cria. Uma chamada aqui, com as opções já na mão, resolve.
+if (typeof renderNucleoConfig === 'function') renderNucleoConfig();

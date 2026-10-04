@@ -2259,3 +2259,104 @@ body.arrastando, body.arrastando * { cursor: grabbing !important; user-select: n
 
 /* 04/10: no celular o aviso temporario sobe acima dos micro-icones do Nucleo (nada cobre nada) */
 @media (max-width: 900px) { body[data-casca="nova"].nu-ativo .toast { bottom: 176px; } }
+
+/* ══ APRESENTACAO DE PRIMEIRO USO (04/10) ══════════════════════════════════
+   Filho direto do <body>: nenhum ancestral com filter pode quebrar o fixed.
+   z-index 3000 = acima de tudo no app (o maior era 2700) e abaixo da abertura
+   do Jarvis (100000), que roda antes e precisa continuar por cima. */
+.ap-tela { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+  padding: 20px; backdrop-filter: blur(7px);
+  /* a camada escura por cima do tema garante o contraste tambem nos temas claros */
+  background: linear-gradient(rgba(0,0,0,.30), rgba(0,0,0,.30)), color-mix(in srgb, var(--bg2) 82%, transparent);
+  opacity: 0; transition: opacity 240ms cubic-bezier(.2,.8,.2,1); }
+.ap-tela[hidden] { display: none !important; }
+.ap-tela.entrou { opacity: 1; }
+body.ap-ativa { overflow: hidden; }
+
+.ap-caixa { width: 100%; max-width: 580px; max-height: calc(100vh - 40px); display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--borda2); border-radius: var(--r4); box-shadow: var(--elev3);
+  padding: 22px 24px 18px; transform: translateY(14px) scale(.985);
+  transition: transform 300ms cubic-bezier(.2,.8,.2,1); }
+.ap-tela.entrou .ap-caixa { transform: none; }
+
+.ap-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ap-tela .cs-rotulo { font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase;
+  color: var(--txt4); font-weight: 600; }
+.ap-tela .cs-trinca { letter-spacing: .05em; color: var(--txt3); }
+.ap-tela .cs-trinca b { color: var(--perigo); font-weight: 600; }
+.ap-pular { background: none; border: none; padding: 4px 6px; font-size: var(--t-apoio); color: var(--txt4);
+  cursor: pointer; text-decoration: underline; }
+.ap-pular:hover { color: var(--txt2); }
+.ap-pular[hidden] { display: none; }
+
+.ap-titulo { margin: 10px 0 14px; font-size: var(--t-display); font-weight: var(--peso-display);
+  letter-spacing: -0.02em; color: var(--txt-forte); line-height: 1.15; }
+.ap-corpo { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 2px; }
+.ap-texto { margin: 0 0 10px; font-size: var(--t-corpo); line-height: 1.6; color: var(--txt2); }
+.ap-texto2 { color: var(--txt3); }
+.ap-hint { margin: 12px 0 0; font-size: var(--t-apoio); line-height: 1.5; color: var(--txt4); }
+
+.ap-campos { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.ap-campos label { display: block; margin-bottom: 4px; font-size: var(--t-apoio); color: var(--txt3); }
+.ap-campos input { width: 100%; }
+
+.ap-opcoes { display: grid; gap: 8px; }
+.ap-opcao { display: block; width: 100%; text-align: left; padding: 11px 14px; border: 1px solid var(--borda2);
+  border-radius: var(--r2); background: var(--bg); color: var(--txt2); cursor: pointer; }
+.ap-opcao b { display: block; font-size: var(--t-corpo); color: var(--txt); font-weight: 600; }
+.ap-opcao small { display: block; margin-top: 2px; font-size: var(--t-apoio); color: var(--txt4); line-height: 1.4; }
+.ap-opcao:hover { border-color: var(--borda4); }
+.ap-opcao.sel { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 12%, var(--bg)); }
+.ap-opcao.sel b { color: var(--txt-forte); }
+
+.ap-temas { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ap-tour { display: grid; gap: 14px; margin-top: 14px; }
+.ap-tour-l { display: flex; gap: 12px; align-items: flex-start; }
+.ap-tour-l > div:last-child { flex: 1; }
+.ap-tour-l b { font-size: var(--t-corpo); color: var(--txt); }
+.ap-tour-l small { display: block; margin-top: 3px; font-size: var(--t-apoio); line-height: 1.5; color: var(--txt3); }
+.ap-micro { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; padding: 7px 8px; border-radius: var(--r2);
+  background: var(--bg2); border: 1px solid var(--borda); max-width: 112px; }
+.ap-micro .ic { width: 18px; height: 18px; fill: none; stroke: var(--acento); stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; }
+.ap-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; }
+.ap-lista li { display: flex; gap: 8px; align-items: center; font-size: var(--t-apoio); color: var(--txt3); }
+.ap-lista li b { font-weight: 600; color: var(--txt2); font-size: var(--t-apoio); }
+.ap-lista .ic { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: var(--txt4); stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; }
+
+.ap-rodape { display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 16px; padding-top: 14px; border-top: var(--fio); }
+.ap-pontos { display: flex; gap: 6px; }
+.ap-pontos i { width: 7px; height: 7px; border-radius: 50%; background: var(--borda3); transition: all var(--mov); }
+.ap-pontos i.ja { background: var(--txt4); }
+.ap-pontos i.on { width: 20px; border-radius: 4px; background: var(--acento); }
+.ap-botoes { display: flex; gap: 8px; align-items: center; }
+.ap-botoes .ap-ok { padding: 9px 20px; min-height: var(--toque); white-space: nowrap; }
+/* alvo de toque: o Voltar tambem precisa de altura confortavel (44 px no celular) */
+.ap-botoes .mini-btn { min-height: 38px; padding: 0 14px; }
+.ap-botoes .mini-btn[disabled] { opacity: .35; cursor: default; }
+
+/* Celular: a caixa ocupa a tela e os botoes ficam no alcance do polegar. */
+@media (max-width: 560px) {
+  .ap-tela { padding: 0; }
+  .ap-caixa { max-width: none; max-height: 100vh; height: 100%; border: none; border-radius: 0;
+    padding: 18px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .ap-campos { grid-template-columns: 1fr; }
+  .ap-tour-l { flex-direction: column; gap: 8px; }
+  .ap-micro { max-width: none; }
+  .ap-rodape { flex-direction: column-reverse; align-items: stretch; }
+  .ap-botoes { justify-content: space-between; }
+  .ap-botoes .mini-btn { min-height: var(--toque); }
+  .ap-botoes .ap-ok { flex: 1; }
+  .ap-pontos { justify-content: center; }
+}
+/* Notebook baixo (1366x768 e afins): a caixa nao pode passar da tela. */
+@media (max-height: 760px) {
+  .ap-titulo { font-size: 1.4rem; margin: 8px 0 10px; }
+  .ap-caixa { padding: 16px 20px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ap-tela, .ap-caixa { transition: none; }
+}

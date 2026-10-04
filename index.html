@@ -1546,10 +1546,31 @@
     </div>
   </div>
 
+  <script>
+    /* PRIMEIRO USO — decidido AQUI, antes do app.js, porque a propria partida do app ja
+       grava chaves (lifeos_prefs, ritual, rotinas, sync_meta) e um aparelho virgem passaria
+       a parecer usado. Quem ja tem dado nunca ve a apresentacao sozinho: so o botao
+       "Rever a apresentacao" em Config -> Nucleo. Detalhes em apresentacao.js. */
+    window.GENESIS_PRIMEIRO_USO = (function () {
+      try {
+        var f = localStorage.getItem('lifeos_apresentacao');
+        if (f === '1') return false;           /* ja viu, ou ja era usuario antigo */
+        if (f === 'pendente') return true;     /* comecou e fechou o app no meio */
+        var virgem = true;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('lifeos_') === 0) { virgem = false; break; }
+        }
+        localStorage.setItem('lifeos_apresentacao', virgem ? 'pendente' : '1');
+        return virgem;
+      } catch (e) { return false; }
+    })();
+  </script>
   <script src="app.js"></script>
   <script src="casca.js"></script>
   <script src="nucleo.js"></script>
   <script src="abertura.js"></script>
+  <script src="apresentacao.js"></script>
   <script type="module" src="jarvis3d.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));

@@ -2,18 +2,55 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Genesis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Genesis">
+
+  <!-- POLÍTICA DE SEGURANÇA (CSP)
+       Diz ao navegador com quem este app pode falar. Qualquer endereço que não esteja
+       aqui é BLOQUEADO — então, se um dia um código estranho entrar no app, ele não
+       consegue mandar os seus dados para fora.
+       'unsafe-inline' é necessário porque o Genesis usa onclick e style direto no HTML.
+       Ao ligar um recurso novo que use internet, acrescente o domínio em connect-src. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    form-action 'none';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob: https:;
+    media-src 'self' data: blob:;
+    font-src 'self' data:;
+    connect-src 'self'
+      https://script.google.com
+      https://script.googleusercontent.com
+      https://api.bcb.gov.br
+      https://api.coingecko.com
+      https://api.artic.edu
+      https://pt.wikipedia.org
+      https://en.wikipedia.org;
+  ">
+
+  <title>Genesis — Life OS</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="favicon-64.png" sizes="64x64" type="image/png">
+  <link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
-<div id="aviso-abertura" style="display:none; position:fixed; inset:0; z-index:99999; background:#121212; color:#e2e8f0; overflow:auto; padding:28px 18px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6;">
+<div id="gn-abertura" class="gn-abertura" aria-hidden="true"><span class="gn-ab-feixe"></span><span class="gn-ab-luz"></span><span class="gn-ab-onda"></span><span class="gn-ab-trinca">A&#9824; <b>A&#9829;</b> <b>A&#9830;</b></span><span class="gn-ab-toque">toque para entrar</span></div>
+<div id="aviso-abertura" style="display:none; position:fixed; inset:0; z-index:99999; background:var(--bg); color:var(--txt); overflow:auto; padding:28px 18px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6;">
   <div style="max-width:620px; margin:0 auto;">
-    <div style="font-size:1.5rem; letter-spacing:5px; text-align:center; margin-bottom:6px;">A<span style="color:#ef4444">&#9829;</span> A&#9824; A<span style="color:#ef4444">&#9830;</span></div>
+    <div style="font-size:1.5rem; letter-spacing:5px; text-align:center; margin-bottom:6px;">A<span style="color:var(--perigo)">&#9829;</span> A&#9824; A<span style="color:var(--perigo)">&#9830;</span></div>
     <h1 id="aviso-tit" style="font-size:1.4rem; color:#fff; text-align:center; margin-bottom:18px;"></h1>
-    <div id="aviso-txt" style="background:#1c1c1c; border:1px solid #2a2a2a; border-left:4px solid #f59e0b; border-radius:12px; padding:18px 20px; color:#cbd5e1;"></div>
-    <button id="aviso-ok" style="display:none; margin:18px auto 0; background:#2a2a2a; color:#e2e8f0; border:1px solid #3a3a3a; border-radius:8px; padding:10px 20px; font-size:0.9rem; cursor:pointer;">Entendi, quero continuar assim mesmo</button>
+    <div id="aviso-txt" style="background:var(--card); border:1px solid #2a2a2a; border-left:4px solid #f59e0b; border-radius:12px; padding:18px 20px; color:var(--txt2);"></div>
+    <button id="aviso-ok" style="display:none; margin:18px auto 0; background:var(--borda); color:var(--txt); border:1px solid #3a3a3a; border-radius:8px; padding:10px 20px; font-size:0.9rem; cursor:pointer;">Entendi, quero continuar assim mesmo</button>
   </div>
 </div>
   <div class="container">
@@ -69,16 +106,16 @@
 
           <div class="card overview-card">
             <h4 class="text-blue" style="margin-bottom: 10px;">👤 OVERVIEW</h4>
-            <p id="greeting-text" style="color: #f8fafc; font-weight: 500;">Olá!</p>
+            <p id="greeting-text" style="color: var(--txt-forte); font-weight: 500;">Olá!</p>
             <p id="greeting-sub" class="greeting-sub"></p>
             <p id="frase-dia" class="frase-dia"></p>
             <div class="progress-bar-bg" style="margin-top:15px;"><div class="progress-bar-fill" id="progress-fill"></div></div>
-            <span id="progress-text" style="font-size: 0.75rem; color: #64748b;">0% Concluído</span>
+            <span id="progress-text" style="font-size: 0.75rem; color: var(--txt4);">0% Concluído</span>
           </div>
 
           <div class="card pomodoro-card" id="pomodoro-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h2 id="pomodoro-title" style="color: #ef4444; font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
+              <h2 id="pomodoro-title" style="color: var(--txt-forte); font-size: 0.9rem; margin:0; letter-spacing: 1px;">⏱ POMODORO</h2>
               <div style="display:flex; align-items:center; gap:5px;">
                 <input type="number" id="pomodoro-h" value="0" min="0" max="12" onchange="updatePomodoroTime()" title="horas" class="tempo-campo"><span class="tempo-sep">h</span><input type="number" id="pomodoro-input" value="50" min="0" max="180" onchange="updatePomodoroTime()" title="minutos" class="tempo-campo"><span class="tempo-sep">m</span><input type="number" id="pomodoro-s" value="0" min="0" max="59" onchange="updatePomodoroTime()" title="segundos" class="tempo-campo"><span class="tempo-sep">s</span>
               </div>
@@ -104,7 +141,7 @@
 
         <div class="right-col">
           <div class="card journals-section">
-            <h2 style="color: #22c55e; font-size: 1rem; margin-bottom: 15px; letter-spacing: 1px;">📔 RESUMO</h2>
+            <h2 style="color: var(--txt-forte); font-size: 1rem; margin-bottom: 15px; letter-spacing: 1px;">📔 RESUMO</h2>
             <div class="focus-header-tabs" id="journal-tabs" style="margin-bottom: 15px;">
               <span class="active" onclick="changeJournalTab('day', this)">▵ Hoje</span>
               <span onclick="changeJournalTab('week', this)">▵ Semana</span>
@@ -114,7 +151,7 @@
             </div>
             <div class="journal-cards-container" id="journal-content"></div>
             
-            <h2 style="color: #22c55e; font-size: 1rem; margin-top: 30px; margin-bottom: 15px; letter-spacing: 1px;">🎮 HÁBITOS</h2>
+            <h2 style="color: var(--txt-forte); font-size: 1rem; margin-top: 30px; margin-bottom: 15px; letter-spacing: 1px;">🎮 HÁBITOS</h2>
             <div class="focus-header-tabs" id="habit-tabs">
                <span class="active" onclick="changeHabitTab('do', this)">🔄 Do</span>
                <span onclick="changeHabitTab('todo', this)">⏹ To-do</span>
@@ -163,7 +200,7 @@
         <div id="calendar-days" class="calendar-days"></div>
         <div class="calendar-legend">
           <button type="button" class="mini-btn" onclick="irParaHoje()">📍 Hoje</button>
-          <span><i style="background:#f59e0b"></i><span data-vt="listaTitulo">Plantão</span></span><span><i style="background:#38bdf8"></i>Trabalho</span><span><i style="background:#a78bfa"></i>Pessoal</span><span><i style="background:#22c55e"></i>Saúde</span><span><i style="background:#f472b6"></i>Estudo</span><span><i style="background:#fbbf24"></i>Negócios</span><span><i style="background:#fb923c"></i>Social</span>
+          <span><i style="background:var(--atencao)"></i><span data-vt="listaTitulo">Plantão</span></span><span><i style="background:var(--info)"></i>Trabalho</span><span><i style="background:var(--roxo)"></i>Pessoal</span><span><i style="background:var(--ok)"></i>Saúde</span><span><i style="background:var(--rosa)"></i>Estudo</span><span><i style="background:var(--atencao)"></i>Negócios</span><span><i style="background:var(--laranja)"></i>Social</span>
         </div>
       </div>
       </div>
@@ -295,7 +332,7 @@
         <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
         <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
         <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
-        <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color:#f59e0b">R$ 0,00</h3></div>
+        <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color: var(--txt-forte)">R$ 0,00</h3></div>
       </div>
       <div id="fin-extra" class="summary-row" style="padding: 0 6px;"></div>
       <div class="card" style="margin-top: 20px;">
@@ -440,7 +477,7 @@
             <div><label for="note-labels-input">Marcadores (separados por vírgula):</label><input type="text" id="note-labels-input" placeholder="trabalho, ideias, negócios"></div>
             <label class="check-line" style="margin-bottom: 12px;"><input type="checkbox" id="note-pin"> 📌 Fixar no topo</label>
           </div>
-          <div class="color-row"><span style="font-size:0.8rem; color:#94a3b8">Cor:</span><div id="note-colors" class="color-dots"></div></div>
+          <div class="color-row"><span style="font-size:0.8rem; color:var(--txt3)">Cor:</span><div id="note-colors" class="color-dots"></div></div>
           <div style="display:flex; gap:10px;">
             <button type="submit" id="note-submit" style="flex:1">Salvar Nota</button>
             <button type="button" id="note-cancel" class="btn" hidden onclick="cancelarEdicaoNota()">Cancelar</button>
@@ -1283,6 +1320,10 @@
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
       <div class="card" style="margin-top: 20px;">
+        <h2>🌌 Núcleo — a tela de entrada</h2>
+        <div id="nucleo-config"></div>
+      </div>
+      <div class="card">
         <h2>🎨 Aparência</h2>
         <p class="hint">Tema de cores, onde ficam as abas e quais aparecem. Vale <strong>só neste aparelho</strong> — o PC pode ficar com as abas na lateral e o celular no topo.</p>
         <label>Tema:</label>
@@ -1306,6 +1347,17 @@
         <label style="margin-top:14px; display:block;">Relógio do Painel:</label>
         <div class="focus-header-tabs" id="relogios-lista" style="border:none; padding:0;"></div>
         <label class="check-line"><input type="checkbox" id="rel-segundos" onchange="alternarSegundos()"> Mostrar segundos</label>
+        <label style="margin-top:14px; display:block;">Apresentação:</label>
+        <div class="focus-header-tabs" id="casca-modo" style="border:none; padding:0;">
+          <span data-casca="nova" onclick="escolherCasca('nova')">✨ Cara nova</span>
+          <span data-casca="classica" onclick="escolherCasca('classica')">🗂️ Clássica</span>
+        </div>
+        <p class="hint" style="margin-top:6px">A cara nova traz o trilho de ícones, o cabeçalho de cada aba, os formulários em folha (botão ＋) e a barra "Como vamos atuar hoje?". A clássica é a de antes — fica para comparar. As opções de abas abaixo valem só na clássica.</p>
+        <label style="margin-top:14px; display:block;">Trilho de abas (PC):</label>
+        <div class="focus-header-tabs" id="trilho-modo" style="border:none; padding:0;">
+          <span data-trilho="auto" onclick="escolherTrilho('auto')">Aparece ao passar o mouse na borda</span>
+          <span data-trilho="fixo" onclick="escolherTrilho('fixo')">Sempre visível</span>
+        </div>
         <label style="margin-top:14px; display:block;">Abas:</label>
         <div class="focus-header-tabs" id="abas-posicao" style="border:none; padding:0;">
           <span data-pos="topo" onclick="escolherPosicaoAbas('topo')">⬆️ No topo</span>
@@ -1359,11 +1411,11 @@
       <div class="card" style="margin-top: 20px;">
         <h2>Segurança e Backup</h2>
         <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-          <button onclick="exportData()" style="flex: 1; background-color: #22c55e;">⬇️ Exportar Backup</button>
-          <button onclick="document.getElementById('import-file').click()" style="flex: 1; background-color: #f59e0b;">⬆️ Importar Backup</button>
+          <button onclick="exportData()" style="flex: 1; background-color: var(--ok);">⬇️ Exportar Backup</button>
+          <button onclick="document.getElementById('import-file').click()" style="flex: 1; background-color: var(--atencao);">⬆️ Importar Backup</button>
           <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
         </div>
-        <div id="backup-status" style="font-size: 0.9rem; color: #38bdf8; text-align: center; height: 20px;"></div>
+        <div id="backup-status" style="font-size: 0.9rem; color: var(--info); text-align: center; height: 20px;"></div>
       </div>
       <div class="card" style="margin-top: 20px;">
         <h2>☁️ Sincronização (PC ↔ Celular)</h2>
@@ -1375,7 +1427,7 @@
           <input type="password" id="sync-token" placeholder="a frase que você definiu no Code.gs (nunca é exibida)" autocomplete="off">
         </div>
         <div style="display: flex; gap: 15px; margin-top: 15px;">
-          <button class="btn" onclick="salvarSyncConfig()" style="flex: 1; background-color: #38bdf8; color: #121212;">💾 Salvar e testar</button>
+          <button class="btn" onclick="salvarSyncConfig()" style="flex: 1; background-color: var(--info); color: var(--bg);">💾 Salvar e testar</button>
           <button class="btn" onclick="sincronizar()" style="flex: 1;">🔄 Sincronizar agora</button>
         </div>
         <div id="sync-status" style="font-size: 0.9rem; text-align: center; margin-top: 12px; min-height: 20px;"></div>
@@ -1383,7 +1435,7 @@
           <label class="check-line"><input type="checkbox" id="sync-agenda"> 📆 Enviar plantões e compromissos para o <strong>Google Calendar</strong> (agenda "Genesis")</label>
           <p class="hint" style="margin: 6px 0 8px;">Precisa do <code>Code.gs</code> versão 2 implantado no Apps Script. Depois de marcar, clique em "Salvar e testar". Cada plantão/compromisso vira um evento; mudou no app, muda na agenda.</p>
           <button class="btn" type="button" onclick="enviarAgendaAgora()" style="width:100%">📆 Enviar agenda agora</button>
-          <div id="agenda-status" style="font-size: 0.85rem; text-align: center; margin-top: 10px; min-height: 18px; color:#64748b;"></div>
+          <div id="agenda-status" style="font-size: 0.85rem; text-align: center; margin-top: 10px; min-height: 18px; color:var(--txt4);"></div>
         </div>
       </div>
     </div>
@@ -1495,6 +1547,10 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="casca.js"></script>
+  <script src="nucleo.js"></script>
+  <script src="abertura.js"></script>
+  <script type="module" src="jarvis3d.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
   </script>
@@ -1523,7 +1579,7 @@
           '<ol style="margin:0 0 12px 20px"><li>Feche esta janela.</li>' +
           '<li>Clique com o <strong>botão direito no arquivo .zip</strong> &rarr; <strong>Extrair tudo</strong> &rarr; escolha uma pasta (a Área de Trabalho serve).</li>' +
           '<li>Abra o <code>index.html</code> <strong>de dentro da pasta extraída</strong>.</li></ol>' +
-          '<p style="margin-bottom:0; color:#94a3b8"><strong>Se você já usa o Genesis:</strong> você provavelmente nem precisa abrir este arquivo. Veja o <code>LEIA-ME.html</code> — na maioria dos casos basta fechar e reabrir o seu app duas vezes.</p>');
+          '<p style="margin-bottom:0; color:var(--txt3)"><strong>Se você já usa o Genesis:</strong> você provavelmente nem precisa abrir este arquivo. Veja o <code>LEIA-ME.html</code> — na maioria dos casos basta fechar e reabrir o seu app duas vezes.</p>');
         return;
       }
       if (location.protocol === 'file:') {
@@ -1534,7 +1590,7 @@
             '<p style="margin-bottom:12px">Você abriu o Genesis <strong>direto de uma pasta do computador</strong>. Isso funciona, mas é um <strong>endereço diferente</strong> daquele em que você usa o app todo dia &mdash; e cada endereço tem a sua própria memória.</p>' +
             '<p style="margin-bottom:12px"><strong>Nada foi perdido.</strong> As suas anotações continuam no endereço de sempre (o link do navegador ou o atalho que você usa) e na sua planilha do Google.</p>' +
             '<p style="margin-bottom:12px"><strong>O que fazer:</strong> feche isto e abra o Genesis do jeito de sempre. Se era só para atualizar, o <code>LEIA-ME.html</code> explica: quem usa o link compartilhado só precisa fechar e reabrir o app duas vezes.</p>' +
-            '<p style="margin-bottom:0; color:#94a3b8">Se a sua intenção era mesmo come&ccedil;ar uma c&oacute;pia nova aqui, pode seguir &mdash; &eacute; s&oacute; p&ocirc;r o seu link e a sua senha na aba Config que tudo volta pela sincroniza&ccedil;&atilde;o.</p>',
+            '<p style="margin-bottom:0; color:var(--txt3)">Se a sua intenção era mesmo come&ccedil;ar uma c&oacute;pia nova aqui, pode seguir &mdash; &eacute; s&oacute; p&ocirc;r o seu link e a sua senha na aba Config que tudo volta pela sincroniza&ccedil;&atilde;o.</p>',
             true);
         }
       }

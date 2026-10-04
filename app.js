@@ -551,7 +551,7 @@ function aplicarPerfil() {
   const bs = document.getElementById('modal-add-shift');
   if (bs && typeof vt === 'function') bs.innerText = `${vt().ic} + ${vt().um.charAt(0).toUpperCase()}${vt().um.slice(1)}`;
   const h = document.getElementById('header-title');
-  if (h) h.innerHTML = (profile.initials ? `${esc(profile.initials)} <span style="color:#22c55e">·</span> ` : '') + esc(profile.subtitle || 'Life OS');
+  if (h) h.innerHTML = (profile.initials ? `${esc(profile.initials)} <span style="color:var(--ok)">·</span> ` : '') + esc(profile.subtitle || 'Life OS');
   const n = document.getElementById('profile-name'); const i = document.getElementById('profile-initials'); const s = document.getElementById('profile-subtitle');
   if (n && document.activeElement !== n) n.value = profile.name || '';
   if (i && document.activeElement !== i) i.value = profile.initials || '';
@@ -633,12 +633,12 @@ function renderFocusTab() {
   }
 
   if (filteredHabits.length === 0) {
-    mainHabits.innerHTML = '<li style="color:#64748b; font-size:0.85rem;">Nenhum hábito nesta categoria.</li>';
+    mainHabits.innerHTML = '<li style="color:var(--txt4); font-size:0.85rem;">Nenhum hábito nesta categoria.</li>';
   } else {
     filteredHabits.forEach(h => {
       const streak = streakHabito(h);
-      mainHabits.innerHTML += `<li style="color: ${h.done ? '#64748b' : '#e2e8f0'};">
-        <input type="checkbox" ${h.done ? 'checked' : ''} onclick="toggleHabit(${h.originalIndex})" style="accent-color: #22c55e;">
+      mainHabits.innerHTML += `<li style="color: ${h.done ? 'var(--txt4)' : 'var(--txt)'};">
+        <input type="checkbox" ${h.done ? 'checked' : ''} onclick="toggleHabit(${h.originalIndex})" style="accent-color: var(--ok);">
         <span style="opacity: ${h.done ? 0.5 : 1}; cursor: pointer;" onclick="toggleHabit(${h.originalIndex})">${esc(h.icon)}</span>
         <span style="${h.done ? 'text-decoration: line-through; opacity: 0.5' : ''}; cursor: pointer; flex:1;" onclick="toggleHabit(${h.originalIndex})">${esc(h.text)}</span>
         ${streak > 0 ? `<span class="streak" title="${streak} dia(s) seguidos">🔥 ${streak}</span>` : ''}
@@ -754,13 +754,13 @@ function renderJournal() {
   const exp = tr.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
 
   const nomes = { day: 'Hoje', week: 'Esta semana', month: 'Este mês', quarter: 'Este trimestre', year: 'Este ano' };
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
   let html = `<div class="stat-period">${nomes[currentJournal]} · ${isoParaBR(ini)}${ini !== fim ? ' a ' + isoParaBR(fim) : ''}</div><div class="stat-grid">`;
   html += tile('🎮', `${habPct}%`, currentJournal === 'day' ? 'hábitos hoje' : 'média de hábitos', '#22c55e');
   html += tile(vt().ic, `${pl.length}`, `${pl.length === 1 ? vt().um : vt().muitos} · ${formatCurrency(plR)}`, '#f59e0b');
   html += tile('✅', `${tarefasFeitas}`, `concluída${tarefasFeitas === 1 ? '' : 's'} · ${tarefasPend} pendente${tarefasPend === 1 ? '' : 's'}`, '#38bdf8');
   html += tile('📚', `${Math.floor(estudo / 60)}h ${estudo % 60}m`, 'de estudo', '#a78bfa');
-  html += tile('💰', formatCurrency(inc - exp), `↑ ${formatCurrency(inc)} · ↓ ${formatCurrency(exp)}`, inc - exp >= 0 ? '#22c55e' : '#ef4444');
+  html += tile('💰', formatCurrency(inc - exp), `↑ ${formatCurrency(inc)} · ↓ ${formatCurrency(exp)}`, inc - exp >= 0 ? 'var(--ok)' : 'var(--perigo)');
   const aportado = moves.filter(m => m.type === 'aporte' && !m.initial && dentro(m.date)).reduce((a, m) => a + m.amount, 0);
   html += tile('🏦', formatCurrency(patrimonioTotal()), `patrimônio · ${formatCurrency(aportado)} aportados`, '#38bdf8');
   const tr_ = workouts.filter(w => dentro(w.date)); const trMin = tr_.reduce((a, w) => a + (w.minutes || 0), 0);
@@ -771,7 +771,7 @@ function renderJournal() {
     const plHoje = pl.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     const pend = tarefasPrioritarias(5);
     html += '<div class="stat-lists">';
-    html += `<div><h5>${vt().ic} ${vt().listaTitulo} de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += `<div><h5>${vt().ic} ${vt().listaTitulo} de hoje</h5>${plHoje.length ? plHoje.map(s => `<div class="stat-line"><strong>${esc(s.time || '')}</strong> ${esc(s.desc)} <span style="color:var(--atencao)">${formatCurrency(s.amount)}</span></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     const evHoje = events.filter(e => e.date === hoje).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
     html += `<div><h5>📅 Compromissos de hoje</h5>${evHoje.length ? evHoje.map(e => `<div class="stat-line" style="${e.done ? 'opacity:0.5;text-decoration:line-through' : ''}">${tipoEvento(e.type).icone} <strong>${esc(e.time || '')}</strong> ${esc(e.title)}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>✅ Próximas tarefas</h5>${pend.length ? pend.map(t => `<div class="stat-line">${t.starred ? '★' : '•'} ${esc(t.text)}${t.due ? ` <span class="due ${prazoInfo(t).classe}">${esc(prazoInfo(t).rotulo)}</span>` : ''}</div>`).join('') : '<div class="stat-line muted">tudo em dia</div>'}</div>`;
@@ -782,7 +782,7 @@ function renderJournal() {
     const lista = [...pl].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
     const evs = events.filter(e => dentro(e.date) && !e.done).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
     html += '<div class="stat-lists">';
-    html += `<div><h5>${vt().ic} ${vt().listaTitulo} ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:#f59e0b">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
+    html += `<div><h5>${vt().ic} ${vt().listaTitulo} ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${lista.length ? lista.map(s => `<div class="stat-line ${s.date < hoje ? 'muted' : ''}"><strong>${diaSemanaCurto(s.date)} ${isoParaBR(s.date).slice(0, 5)}</strong> · ${esc(s.time || '')} ${esc(s.desc)} <span style="color:var(--atencao)">${formatCurrency(s.amount)}</span>${s.paid ? ' <span class="badge-paid">pago</span>' : ''}</div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     html += `<div><h5>📅 Compromissos ${currentJournal === 'week' ? 'da semana' : 'do mês'}</h5>${evs.length ? evs.slice(0, 12).map(e => `<div class="stat-line ${e.date < hoje ? 'muted' : ''}">${tipoEvento(e.type).icone} <strong>${diaSemanaCurto(e.date)} ${isoParaBR(e.date).slice(0, 5)}</strong> · ${esc(e.time || '')} ${esc(e.title)}</div>`).join('') + (evs.length > 12 ? `<div class="stat-line muted">+${evs.length - 12} mais</div>` : '') : '<div class="stat-line muted">nenhum</div>'}</div>`;
     const tw = tasks.filter(t => !t.done && t.due && dentro(t.due)).sort((a, b) => a.due.localeCompare(b.due));
     const semPrazo = tarefasPrioritarias(20).filter(t => !t.due).slice(0, 4);
@@ -794,7 +794,7 @@ function renderJournal() {
     const porMes = {};
     pl.forEach(s => { const m = s.date.slice(0, 7); porMes[m] = porMes[m] || { n: 0, valor: 0, pagos: 0 }; porMes[m].n++; porMes[m].valor += Number(s.amount) || 0; if (s.paid) porMes[m].pagos += Number(s.amount) || 0; });
     const meses = Object.keys(porMes).sort();
-    html += `<div class="stat-lists"><div><h5>${vt().ic} ${vt().listaTitulo} por mês</h5>${meses.length ? meses.map(m => `<div class="stat-line"><strong>${nomeMes(m).slice(0, 3)}</strong> · ${porMes[m].n} plant${porMes[m].n === 1 ? 'ão' : 'ões'} · <span style="color:#f59e0b">${formatCurrency(porMes[m].valor)}</span> <small style="color:#22c55e">(${formatCurrency(porMes[m].pagos)} pago)</small></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div></div>`;
+    html += `<div class="stat-lists"><div><h5>${vt().ic} ${vt().listaTitulo} por mês</h5>${meses.length ? meses.map(m => `<div class="stat-line"><strong>${nomeMes(m).slice(0, 3)}</strong> · ${porMes[m].n} plant${porMes[m].n === 1 ? 'ão' : 'ões'} · <span style="color:var(--atencao)">${formatCurrency(porMes[m].valor)}</span> <small style="color:var(--ok)">(${formatCurrency(porMes[m].pagos)} pago)</small></div>`).join('') : '<div class="stat-line muted">nenhum</div>'}</div></div>`;
   }
   content.innerHTML = html;
 }
@@ -868,7 +868,7 @@ function openDayModal(year, month, day) {
   const modalList = document.getElementById('modal-shift-list'); modalList.innerHTML = '';
 
   if (itens.length === 0) {
-    modalList.innerHTML = '<li style="justify-content:center; color:#64748b; background: transparent; border:none;">Nada marcado neste dia.</li>';
+    modalList.innerHTML = '<li style="justify-content:center; color:var(--txt4); background: transparent; border:none;">Nada marcado neste dia.</li>';
   } else {
     itens.forEach(it => {
       if (it.kind === 'shift') {
@@ -1002,7 +1002,7 @@ function renderEvents() {
   else if (eventFilter === 'concluidos') lista = lista.filter(e => e.done);
   lista.sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99')));
   if (eventFilter === 'passados') lista.reverse();
-  if (!lista.length) { list.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum compromisso aqui.</li>'; return; }
+  if (!lista.length) { list.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum compromisso aqui.</li>'; return; }
   let ultimaData = '';
   lista.forEach(e => {
     if (e.date !== ultimaData) { ultimaData = e.date; list.innerHTML += `<li class="date-sep">${rotuloData(e.date)} <small>${isoParaBR(e.date)}</small></li>`; }
@@ -1079,11 +1079,11 @@ function updateFinanceValues() {
   document.getElementById('total-income').innerText = formatCurrency(income);
   document.getElementById('total-expense').innerText = formatCurrency(expense);
   document.getElementById('net-balance').innerText = formatCurrency(total);
-  document.getElementById('net-balance').style.color = total >= 0 ? '#22c55e' : '#ef4444';
+  document.getElementById('net-balance').style.color = total >= 0 ? 'var(--ok)' : 'var(--perigo)';
   const pend = document.getElementById('total-pending'); if (pend) pend.innerText = formatCurrency(aReceber);
   const lbl = document.getElementById('fin-month-label'); if (lbl) lbl.innerText = finModo === 'mes' ? nomeMes(finMonth) : 'Todo o período';
   const extra = document.getElementById('fin-extra');
-  if (extra) extra.innerHTML = `<span>💸 A pagar: <strong style="color:#ef4444">${formatCurrency(aPagar)}</strong></span><span>📈 Previsto (saldo + a receber − a pagar): <strong style="color:${total + aReceber - aPagar >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(total + aReceber - aPagar)}</strong></span><span>🏦 Saldo acumulado (tudo): <strong style="color:${acumulado >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(acumulado)}</strong></span>`;
+  if (extra) extra.innerHTML = `<span>💸 A pagar: <strong style="color:var(--perigo)">${formatCurrency(aPagar)}</strong></span><span>📈 Previsto (saldo + a receber − a pagar): <strong style="color:${total + aReceber - aPagar >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(total + aReceber - aPagar)}</strong></span><span>🏦 Saldo acumulado (tudo): <strong style="color:${acumulado >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(acumulado)}</strong></span>`;
 }
 
 function renderFinances() {
@@ -1094,13 +1094,13 @@ function renderFinances() {
   else if (finFilter === 'pendentes') lista = lista.filter(transacaoPendente);
   if (finSearch) lista = lista.filter(t => `${t.desc} ${t.category || ''} ${t.notes || ''}`.toLowerCase().includes(finSearch));
   lista.sort((a, b) => dataTransacao(b).localeCompare(dataTransacao(a)) || (b.id || 0) - (a.id || 0));
-  if (!lista.length) { tList.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum lançamento aqui.</li>'; }
+  if (!lista.length) { tList.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum lançamento aqui.</li>'; }
   lista.forEach(t => {
     const i = transactions.indexOf(t); const pend = transacaoPendente(t); const dePlantao = transacaoDePlantao(t);
     const li = document.createElement('li'); li.classList.add(t.type === 'income' ? 'income-item' : 'expense-item'); if (pend) li.classList.add('pending-item');
     li.innerHTML = `<div class="transaction-info" style="flex:1"><span>${dePlantao ? '🚑 ' : ''}${t.recurringId ? '🔁 ' : ''}${esc(t.desc)}${pend ? (t.type === 'income' ? ' <span class="badge-unpaid">a receber</span>' : ' <span class="badge-topay">a pagar</span>') : ''}</span>
         <small class="category-badge">${esc(t.category || 'Sem categoria')}</small> <small class="item-date">${isoParaBR(dataTransacao(t))}</small>${t.paidAt && t.paidAt !== dataTransacao(t) ? `<small class="item-date">· 💵 ${t.type === 'income' ? 'recebido' : 'pago'} em ${isoParaBR(t.paidAt)}</small>` : ''}${t.notes ? `<small class="item-notes">${esc(t.notes)}</small>` : ''}</div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${t.type === 'income' ? '#22c55e' : '#ef4444'}">${t.type === 'income' ? '+' : '−'}${formatCurrency(t.amount)}</strong><button class="mini-btn ${pend ? '' : 'on'}" title="${pend ? 'Marcar como efetivado' : 'Voltar para pendente'}" onclick="alternarEfetivado(${i})">💵</button><button class="mini-btn" title="Editar" onclick="editarTransacao(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removeFinance(${i})">✕</button></div>`;
+      <div class="item-actions"><strong style="margin-right:6px; color:${t.type === 'income' ? 'var(--ok)' : 'var(--perigo)'}">${t.type === 'income' ? '+' : '−'}${formatCurrency(t.amount)}</strong><button class="mini-btn ${pend ? '' : 'on'}" title="${pend ? 'Marcar como efetivado' : 'Voltar para pendente'}" onclick="alternarEfetivado(${i})">💵</button><button class="mini-btn" title="Editar" onclick="editarTransacao(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removeFinance(${i})">✕</button></div>`;
     tList.appendChild(li);
   });
   renderCategoriasFin(); renderMesesFin();
@@ -1126,7 +1126,7 @@ function renderMesesFin() {
   const max = Math.max(1, ...dados.map(d => Math.max(d.inc, d.exp)));
   el.innerHTML = dados.map(d => `<div class="mes-col ${d.m === finMonth && finModo === 'mes' ? 'atual' : ''}" onclick="finMonth='${d.m}'; finModo='mes'; redesenharFinancas();" title="Receitas ${formatCurrency(d.inc)} · Despesas ${formatCurrency(d.exp)}">
       <div class="mes-bars"><div class="mes-bar inc" style="height:${Math.round(d.inc / max * 100)}%"></div><div class="mes-bar exp" style="height:${Math.round(d.exp / max * 100)}%"></div></div>
-      <small>${nomeMes(d.m).slice(0, 3)}</small><small class="mes-saldo" style="color:${d.inc - d.exp >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(d.inc - d.exp).replace('R$', '').trim()}</small></div>`).join('');
+      <small>${nomeMes(d.m).slice(0, 3)}</small><small class="mes-saldo" style="color:${d.inc - d.exp >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(d.inc - d.exp).replace('R$', '').trim()}</small></div>`).join('');
 }
 
 document.getElementById('type').addEventListener('change', () => preencherCategorias(false));
@@ -1251,10 +1251,10 @@ function renderOrcamento() {
   const reserva = custoVidaBasico() * 6;
   const resumo = document.getElementById('orc-resumo');
   if (resumo) resumo.innerHTML = `
-    <div class="orc-tile"><small>Entradas</small><strong style="color:#22c55e">${formatCurrency(receitaR)}</strong><small>previsto ${formatCurrency(receitaP)}</small></div>
-    <div class="orc-tile"><small>Essenciais</small><strong style="color:#38bdf8">${formatCurrency(essR)}</strong><small>previsto ${formatCurrency(essP)}</small></div>
-    <div class="orc-tile"><small>Não essenciais</small><strong style="color:#f59e0b">${formatCurrency(naoR)}</strong><small>previsto ${formatCurrency(naoP)}</small></div>
-    <div class="orc-tile"><small>Sobra do mês</small><strong style="color:${sobraR >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(sobraR)}</strong><small>previsto ${formatCurrency(sobraP)}</small></div>`;
+    <div class="orc-tile"><small>Entradas</small><strong style="color:var(--ok)">${formatCurrency(receitaR)}</strong><small>previsto ${formatCurrency(receitaP)}</small></div>
+    <div class="orc-tile"><small>Essenciais</small><strong style="color:var(--info)">${formatCurrency(essR)}</strong><small>previsto ${formatCurrency(essP)}</small></div>
+    <div class="orc-tile"><small>Não essenciais</small><strong style="color:var(--atencao)">${formatCurrency(naoR)}</strong><small>previsto ${formatCurrency(naoP)}</small></div>
+    <div class="orc-tile"><small>Sobra do mês</small><strong style="color:${sobraR >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(sobraR)}</strong><small>previsto ${formatCurrency(sobraP)}</small></div>`;
   const rodape = document.getElementById('orc-reserva');
   if (rodape) {
     const jaTem = (typeof totalClasse === 'function') ? totalClasse('reserva') : 0;
@@ -1275,7 +1275,7 @@ function renderOrcamento() {
         return `<div class="orc-linha"><span class="orc-nome" title="${esc(i.name)}">${esc(i.name)}</span>
           <input type="number" step="0.01" min="0" class="orc-valor" value="${prev || ''}" placeholder="0" onchange="mudarValorOrc(${i.id}, this.value)">
           <div class="cat-bar" title="${formatCurrency(real)} de ${formatCurrency(prev)}"><div style="width:${prev ? pct : 0}%; background:${estourou ? '#ef4444' : faltou ? '#f59e0b' : g[2]}"></div></div>
-          <span class="orc-real" style="color:${estourou ? '#ef4444' : '#cbd5e1'}">${formatCurrency(real)}${prev ? ` <small>${pct}%</small>` : ''}</span>
+          <span class="orc-real" style="color:${estourou ? 'var(--perigo)' : 'var(--txt2)'}">${formatCurrency(real)}${prev ? ` <small>${pct}%</small>` : ''}</span>
           <span class="item-actions"><button class="mini-btn xs" title="Renomear" onclick="renomearItemOrc(${i.id})">✎</button><button class="mini-btn xs" title="Tirar do orçamento" onclick="removerItemOrc(${i.id})">✕</button></span></div>`;
       }).join('')}
       <button type="button" class="mini-btn xs" onclick="addItemOrc('${kind}')">＋ rubrica</button></div>`;
@@ -1376,7 +1376,7 @@ function renderRecorrentes() {
   const ul = document.getElementById('rec-list'); if (!ul) return; ul.innerHTML = '';
   const ym = mesRecorrentes();
   const rot = document.getElementById('rec-mes'); if (rot) rot.innerText = nomeMes(ym);
-  if (!recurring.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma recorrente. Ex: aluguel, internet, salário CLT, assinatura.</li>'; return; }
+  if (!recurring.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma recorrente. Ex: aluguel, internet, salário CLT, assinatura.</li>'; return; }
   [...recurring].sort((a, b) => (a.day || 0) - (b.day || 0)).forEach(r => {
     const off = r.active === false;
     const t = lancRecorrente(r, ym);
@@ -1393,7 +1393,7 @@ function renderRecorrentes() {
       botao = `<button class="mini-btn on" title="Voltar para pendente" onclick="baixarRecorrente(${r.id})">💵</button>`;
     }
     ul.innerHTML += `<li class="${r.type === 'income' ? 'income-item' : 'expense-item'}" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>🔁 ${esc(r.desc)}${off ? ' <small class="item-date">(pausada)</small>' : ''} ${chip}</span><small class="category-badge">${esc(r.category)}</small> <small class="item-date">todo dia ${r.day}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${r.type === 'income' ? '#22c55e' : '#ef4444'}">${formatCurrency(r.amount)}</strong>${off ? '' : botao}<button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRecorrente(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRecorrente(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRecorrente(${r.id})">✕</button></div></li>`;
+      <div class="item-actions"><strong style="margin-right:6px; color:${r.type === 'income' ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(r.amount)}</strong>${off ? '' : botao}<button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRecorrente(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRecorrente(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRecorrente(${r.id})">✕</button></div></li>`;
   });
 }
 
@@ -1419,9 +1419,9 @@ function aplicarLocalPlantao() {
 function renderPlaces() {
   renderSugestaoTurnos();
   const ul = document.getElementById('place-list'); if (!ul) return; ul.innerHTML = '';
-  if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum turno cadastrado. Ex: "Hospital X 12h" (07:00, 12h, R$ 1.500).</li>'; return; }
+  if (!places.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum turno cadastrado. Ex: "Hospital X 12h" (07:00, 12h, R$ 1.500).</li>'; return; }
   places.forEach((p, i) => {
-    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ` · <strong style="color:#22c55e">${fmtHora(valorHora(p.amount, p.hours))}</strong>` : ''}</small>${turnoTemEscala(p) ? `<small class="item-notes" style="color:#38bdf8">${rotuloEscala(p)}${(p.skips || []).length ? ` · ${p.skips.length} dia(s) fora` : ''}</small>` : ''}</div>
+    ul.innerHTML += `<li><div class="transaction-info"><span>🏥 ${esc(p.name)}${p.local && p.local !== p.name ? ` <small class="item-date">· ${esc(p.local)}</small>` : ''}</span><small class="item-date">${p.time ? 'às ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ` · <strong style="color:var(--ok)">${fmtHora(valorHora(p.amount, p.hours))}</strong>` : ''}</small>${turnoTemEscala(p) ? `<small class="item-notes" style="color:var(--info)">${rotuloEscala(p)}${(p.skips || []).length ? ` · ${p.skips.length} dia(s) fora` : ''}</small>` : ''}</div>
       <div class="item-actions">${(p.skips || []).length ? `<button class="mini-btn" title="Devolver os dias pulados para a escala" onclick="limparPuladas(${i})">↺</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarLocal(${i})">✎</button><button class="mini-btn" title="Apagar" onclick="removerLocal(${i})">✕</button></div></li>`;
   });
 }
@@ -1629,14 +1629,14 @@ function renderShifts() {
   const aReceber = shifts.filter(s => !s.paid); const totalReceber = aReceber.reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const mes = hoje.slice(0, 7); const doMes = shifts.filter(s => s.date.startsWith(mes)); const recebidoMes = doMes.filter(s => s.paid).reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const resumo = document.getElementById('shift-summary');
-  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:#22c55e">${formatCurrency(recebidoMes)}</strong></span><span>📆 ${vt().listaTitulo} no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span><span>⏱ Média no mês: <strong style="color:#22c55e">${fmtHora(valorHora(doMes.reduce((a, s) => a + (Number(s.amount) || 0), 0), doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)))}</strong></span>`;
+  if (resumo) resumo.innerHTML = `<span>⏳ A receber: <strong style="color:${COR_PLANTAO}">${formatCurrency(totalReceber)}</strong> (${aReceber.length})</span><span>💵 Recebido no mês: <strong style="color:var(--ok)">${formatCurrency(recebidoMes)}</strong></span><span>📆 ${vt().listaTitulo} no mês: <strong>${doMes.length}</strong> · ${doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)}h</span><span>⏱ Média no mês: <strong style="color:var(--ok)">${fmtHora(valorHora(doMes.reduce((a, s) => a + (Number(s.amount) || 0), 0), doMes.reduce((a, s) => a + (Number(s.hours) || 0), 0)))}</strong></span>`;
 
   renderBaixaLote();
-  if (!lista.length) { sList.innerHTML = `<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum ${esc(vt().um)} neste filtro.</li>`; return; }
+  if (!lista.length) { sList.innerHTML = `<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum ${esc(vt().um)} neste filtro.</li>`; return; }
   lista.forEach(s => {
     const li = document.createElement('li'); li.classList.add('shift-item'); if (s.paid) li.classList.add('paid');
     li.innerHTML = `${s.paid ? '' : `<input type="checkbox" class="mk-plantao" id="mk-${s.id}"${plantoesMarcados.has(s.id) ? ' checked' : ''} onchange="alternarMarcaPlantao(${s.id})" title="Marcar para dar baixa junto">`}<div class="transaction-info" style="flex:1"><span>🚑 ${esc(s.desc)} ${s.paid ? '<span class="badge-paid">pago' + (s.paidAt ? ' ' + isoParaBR(s.paidAt).slice(0, 5) : '') + '</span>' : '<span class="badge-unpaid">a receber</span>'}</span>
-        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}${s.hours && s.amount ? ' · ' + fmtHora(valorHora(s.amount, s.hours)) : ''}</small>${(s.parts || []).length ? `<small class="item-notes">🧮 ${s.parts.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' (' + esc(p.label) + ')' : ''}`).join(' + ')}</small>` : ''}${s.placeId ? '<small class="item-notes" style="color:#38bdf8">🗓️ da escala fixa</small>' : ''}${s.swap ? `<small class="item-notes" style="color:#a78bfa">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
+        <small class="category-badge" style="color:${COR_PLANTAO}; background: rgba(245,158,11,0.1)">${rotuloDataLonga(s.date)} às ${esc(s.time || '')}${s.hours ? ' · ' + s.hours + 'h' : ''}${s.hours && s.amount ? ' · ' + fmtHora(valorHora(s.amount, s.hours)) : ''}</small>${(s.parts || []).length ? `<small class="item-notes">🧮 ${s.parts.map(p => `${p.hours}h × ${fmtHora(p.rate)}${p.label ? ' (' + esc(p.label) + ')' : ''}`).join(' + ')}</small>` : ''}${s.placeId ? '<small class="item-notes" style="color:var(--info)">🗓️ da escala fixa</small>' : ''}${s.swap ? `<small class="item-notes" style="color:var(--roxo)">🔁 Troca: ${esc(s.swap)}</small>` : ''}${s.notes ? `<small class="item-notes">${esc(s.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(s.amount)}</strong><button class="mini-btn ${s.paid ? 'on' : ''}" title="${s.paid ? 'Marcar como não pago' : 'Marcar como pago'}" onclick="alternarPago(${s.id})">💵</button><button class="mini-btn" title="Editar" onclick="editarPlantao(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeShift(${s.id})">✕</button></div>`;
     sList.appendChild(li);
   }); renderCalendar();
@@ -1841,7 +1841,7 @@ function renderTasks() {
     ['📅 Próximas', abertas.filter(t => t.due && t.due > hoje)],
     ['📝 Sem prazo', abertas.filter(t => !t.due)]
   ];
-  if (!abertas.length && !feitas.length) { list.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nada por aqui. Adicione uma tarefa acima.</li>'; return; }
+  if (!abertas.length && !feitas.length) { list.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada por aqui. Adicione uma tarefa acima.</li>'; return; }
   grupos.forEach(([titulo, itens]) => {
     if (!itens.length) return;
     list.innerHTML += `<li class="date-sep">${titulo} <small>${itens.length}</small></li>`;
@@ -1856,7 +1856,7 @@ function linhaTarefa(t) {
   const p = prazoInfo(t); const subs = t.subtasks || []; const feitasSub = subs.filter(s => s.done).length; const aberto = !!taskExpanded[t.id];
   return `<li class="task-item ${t.done ? 'done' : ''}" style="border-left-color:${t.starred ? '#fbbf24' : COR_TAREFA}">
     <div class="task-main">
-      <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: #38bdf8;">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: var(--info);">
       <div class="task-body" onclick="editarTarefa(${t.id})">
         <span class="task-text">${t.routineId ? '<span class="rot-tag" title="Tarefa de rotina">🔄</span> ' : ''}${textoComLink(t.text)}</span>
         <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${linkify(esc(t.notes))}</span>` : ''}${chipsAnexos(t, 'task', t.id)}</div>
@@ -2079,7 +2079,7 @@ function criarRotinasSugeridas() {
 function renderRotinas() {
   const ul = document.getElementById('rot-list-ul'); if (!ul) return; ul.innerHTML = '';
   preencherFreqs();
-  if (!routines.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma rotina ainda. Use as sugestões abaixo ou crie a sua.</li>'; return; }
+  if (!routines.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma rotina ainda. Use as sugestões abaixo ou crie a sua.</li>'; return; }
   [...routines].sort((a, b) => (a.active === false ? 1 : 0) - (b.active === false ? 1 : 0) || (a.next || '').localeCompare(b.next || '')).forEach(r => {
     const off = r.active === false;
     const aberta = tasks.find(t => t.routineId === r.id && !t.done);
@@ -2094,16 +2094,16 @@ function renderRotinas() {
 // --- NOTAS (estilo Google Keep) ---
 // Modelo: { id, title, content, checklist: [{ text, done }] | null, color, labels: [], pinned, archived, createdAt, updatedAt }
 const CORES_NOTA = {
-  default: { nome: 'Padrão',  bg: '#121212', borda: '#2a2a2a' },
-  red:     { nome: 'Vermelho', bg: '#3b1f1f', borda: '#7f1d1d' },
-  orange:  { nome: 'Laranja',  bg: '#3d2a14', borda: '#9a3412' },
-  yellow:  { nome: 'Amarelo',  bg: '#3d3414', borda: '#a16207' },
-  green:   { nome: 'Verde',    bg: '#14301f', borda: '#166534' },
-  teal:    { nome: 'Azul-petróleo', bg: '#0f2f33', borda: '#0e7490' },
-  blue:    { nome: 'Azul',     bg: '#142a3d', borda: '#1d4ed8' },
-  purple:  { nome: 'Roxo',     bg: '#2a1a3d', borda: '#6d28d9' },
-  pink:    { nome: 'Rosa',     bg: '#3d1a2e', borda: '#be185d' },
-  gray:    { nome: 'Cinza',    bg: '#26272b', borda: '#52525b' }
+  default: { nome: 'Padrão',  bg: '#121212', borda: '#2a2a2a', hue: '' },
+  red:     { nome: 'Vermelho', bg: '#3b1f1f', borda: '#7f1d1d', hue: '#ef4444' },
+  orange:  { nome: 'Laranja',  bg: '#3d2a14', borda: '#9a3412', hue: '#f97316' },
+  yellow:  { nome: 'Amarelo',  bg: '#3d3414', borda: '#a16207', hue: '#eab308' },
+  green:   { nome: 'Verde',    bg: '#14301f', borda: '#166534', hue: '#22c55e' },
+  teal:    { nome: 'Azul-petróleo', bg: '#0f2f33', borda: '#0e7490', hue: '#14b8a6' },
+  blue:    { nome: 'Azul',     bg: '#142a3d', borda: '#1d4ed8', hue: '#3b82f6' },
+  purple:  { nome: 'Roxo',     bg: '#2a1a3d', borda: '#6d28d9', hue: '#8b5cf6' },
+  pink:    { nome: 'Rosa',     bg: '#3d1a2e', borda: '#be185d', hue: '#ec4899' },
+  gray:    { nome: 'Cinza',    bg: '#26272b', borda: '#52525b', hue: '#8b8d98' }
 };
 let noteFilter = 'ativas';   // 'ativas' | 'fixadas' | 'arquivadas'
 let noteLabel = '';          // marcador selecionado
@@ -2138,7 +2138,7 @@ function todosMarcadores() { const s = new Set(); notes.forEach(n => (n.labels |
 
 function renderPaletaNota() {
   const el = document.getElementById('note-colors'); if (!el) return;
-  el.innerHTML = Object.entries(CORES_NOTA).map(([k, c]) => `<span class="color-dot ${noteColorSel === k ? 'sel' : ''}" style="background:${c.bg}; border-color:${c.borda}" title="${c.nome}" onclick="escolherCorNota('${k}')"></span>`).join('');
+  el.innerHTML = Object.entries(CORES_NOTA).map(([k, c]) => `<span class="color-dot ${noteColorSel === k ? 'sel' : ''}" style="background:${c.hue || 'transparent'}; border-color:${c.hue || 'var(--borda3)'}" title="${c.nome}" onclick="escolherCorNota('${k}')"></span>`).join('');
 }
 function escolherCorNota(k) { noteColorSel = k; renderPaletaNota(); }
 function alternarTipoNota(tipo, el) {
@@ -2249,7 +2249,7 @@ function cardNota(n) {
   const c = corNota(n.color); const lista = Array.isArray(n.checklist);
   const feitos = lista ? n.checklist.filter(i => i.done).length : 0;
   const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  return `<div class="note-card" data-id="${n.id}" style="background:${c.bg}; border-color:${c.borda}" onclick="editarNota(${n.id})">
+  return `<div class="note-card" data-id="${n.id}" style="--nh:${c.hue || 'transparent'}" onclick="editarNota(${n.id})">
     <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
     ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (n.checklist.some(x => x.nivel) ? a.k - b.k : (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1))).map(({ i, k }) => `<div class="subtask nivel-${i.nivel || 0} ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarItemNota(${n.id}, ${k}, this)" title="Clique para editar o texto">${textoComLink(i.text)}</span>${chipsAnexos(i, 'item', n.id, k)}<span class="item-tools"><button class="mini-btn xs" title="Recuar (subitem)" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, 1)">⇥</button><button class="mini-btn xs" title="Avançar" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, -1)">⇤</button><button class="mini-btn xs" title="Virar tarefa" onclick="event.stopPropagation(); itemViraTarefa(${n.id}, ${k})">✅</button><button class="mini-btn xs${nAnexos(i) ? ' on' : ''}" title="Anexos: link ou imagem" onclick="event.stopPropagation(); abrirAnexos('item', ${n.id}, ${k})">📎</button><button class="mini-btn xs" title="Comprei — mandar para Entregas" onclick="event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></span></div>`).join('')}
       <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
@@ -2325,7 +2325,7 @@ function removerTema(id) {
 }
 function renderTemas() {
   const ul = document.getElementById('topic-list'); if (!ul) return; ul.innerHTML = '';
-  if (!topics.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Crie seu primeiro tema — ex: "Gestão de clínicas", "Renda fixa", "Inglês".</li>'; return; }
+  if (!topics.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Crie seu primeiro tema — ex: "Gestão de clínicas", "Renda fixa", "Inglês".</li>'; return; }
   topics.forEach(t => {
     const min = minutosNaSemana(t.id); const meta = t.weeklyGoalMin || 0; const pct = meta ? Math.min(100, Math.round(min / meta * 100)) : 0;
     const mats = materials.filter(m => m.topicId === t.id); const emAnd = mats.filter(m => m.status === 'andamento').length;
@@ -2375,10 +2375,10 @@ function renderMateriais() {
   const ul = document.getElementById('material-list'); if (!ul) return; ul.innerHTML = '';
   let lista = [...materials]; if (materialFilter !== 'todos') lista = lista.filter(m => m.status === materialFilter);
   lista.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum material aqui.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum material aqui.</li>'; return; }
   lista.forEach(m => {
     const cor = temaCor(m.topicId);
-    ul.innerHTML += `<li class="material-item" style="border-left-color:${cor}"><div class="transaction-info" style="flex:1"><span>${(TIPOS_MATERIAL[m.kind] || '📌').slice(0, 2)} ${m.link ? `<a href="${esc(m.link)}" target="_blank" rel="noopener" style="color:#e2e8f0">${esc(m.title)} ↗</a>` : esc(m.title)} <small class="category-badge" style="color:${cor}; background:${cor}22">${esc(temaNome(m.topicId))}</small> <small class="item-date">${STATUS_MATERIAL[m.status] || ''}</small></span>
+    ul.innerHTML += `<li class="material-item" style="border-left-color:${cor}"><div class="transaction-info" style="flex:1"><span>${(TIPOS_MATERIAL[m.kind] || '📌').slice(0, 2)} ${m.link ? `<a href="${esc(m.link)}" target="_blank" rel="noopener" style="color:var(--txt)">${esc(m.title)} ↗</a>` : esc(m.title)} <small class="category-badge" style="color:${cor}; background:${cor}22">${esc(temaNome(m.topicId))}</small> <small class="item-date">${STATUS_MATERIAL[m.status] || ''}</small></span>
         <div class="progress-line"><input type="range" min="0" max="100" value="${m.progress || 0}" onchange="progressoMaterial(${m.id}, this.value)" title="Progresso"><small>${m.progress || 0}%</small></div>${m.notes ? `<small class="item-notes">${esc(m.notes)}</small>` : ''}</div>
       <div class="item-actions"><button class="mini-btn" title="Avançar status" onclick="avancarMaterial(${m.id})">${m.status === 'concluido' ? '↩' : '▶'}</button><button class="mini-btn" title="Agendar revisões (1, 7, 30 dias)" onclick="agendarRevisao(${m.id})">🔁</button><button class="mini-btn" title="Editar" onclick="editarMaterial(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMaterial(${m.id})">✕</button></div></li>`;
   });
@@ -2398,7 +2398,7 @@ function removerSessao(id) { const s = sessions.find(x => x.id === id); if (!s |
 function renderSessoes() {
   const ul = document.getElementById('session-list'); if (!ul) return; ul.innerHTML = '';
   const lista = [...sessions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 25);
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma sessão ainda. Use o Pomodoro no Painel ou lance acima.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma sessão ainda. Use o Pomodoro no Painel ou lance acima.</li>'; return; }
   let ultima = '';
   lista.forEach(s => {
     if (s.date !== ultima) { ultima = s.date; const tot = sessions.filter(x => x.date === s.date).reduce((a, x) => a + x.minutes, 0); ul.innerHTML += `<li class="date-sep">${rotuloData(s.date)} <small>${isoParaBR(s.date)} · ${fmtMin(tot)}</small></li>`; }
@@ -2460,7 +2460,7 @@ function renderPainelEstudos() {
   const semana = minutosNaSemana(); const metaTotal = topics.filter(t => !t.archived).reduce((a, t) => a + (t.weeklyGoalMin || 0), 0);
   const emAnd = materials.filter(m => m.status === 'andamento'); const streak = streakEstudo();
   const proxRev = tasks.filter(t => !t.done && t.text.startsWith('🔁 Revisar') && t.due).sort((a, b) => a.due.localeCompare(b.due))[0];
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
   let html = '<div class="stat-grid">';
   html += tile('⏱', fmtMin(semana), metaTotal ? `nesta semana · meta ${fmtMin(metaTotal)} (${Math.min(100, Math.round(semana / metaTotal * 100))}%)` : 'nesta semana', '#a78bfa');
   html += tile('🔥', `${streak}`, `dia${streak === 1 ? '' : 's'} seguido${streak === 1 ? '' : 's'} estudando`, '#f59e0b');
@@ -2550,13 +2550,13 @@ function removerAtivo(id) {
 }
 function renderAtivos() {
   const ul = document.getElementById('asset-list'); if (!ul) return; ul.innerHTML = '';
-  if (!assets.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre seu primeiro ativo — ex: "CDB Nubank" (Renda fixa) ou "Reserva Tesouro Selic".</li>'; return; }
+  if (!assets.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre seu primeiro ativo — ex: "CDB Nubank" (Renda fixa) ou "Reserva Tesouro Selic".</li>'; return; }
   const hoje = hojeISO();
   [...assets].sort((a, b) => (a.archived === b.archived ? (b.current || 0) - (a.current || 0) : a.archived ? 1 : -1)).forEach(a => {
     const c = classeAtivo(a.klass); const inv = investidoEm(a.id); const res = (a.current || 0) - inv; const p = inv ? res / inv * 100 : 0;
     const venc = a.due ? (a.due < hoje ? `<span class="badge-topay">venceu ${isoParaBR(a.due)}</span>` : `<span class="item-date">vence ${isoParaBR(a.due)}</span>`) : '';
     ul.innerHTML += `<li class="asset-item" style="border-left-color:${c.cor}; ${a.archived ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>${c.icone} ${esc(a.name)} <small class="category-badge" style="color:${c.cor}; background:${c.cor}22">${c.nome}</small>${a.institution ? ` <small class="item-date">${esc(a.institution)}</small>` : ''}${a.rate ? ` <small class="item-date">· ${esc(a.rate)}</small>` : ''} ${venc}${a.archived ? ' <small class="item-date">· arquivado</small>' : ''}</span>
-        <small class="item-date">investido ${formatCurrency(inv)} · resultado <span style="color:${res >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(res)} (${pct(p)})</span> · valor de ${isoParaBR(a.currentAt || hoje)}</small>${a.notes ? `<small class="item-notes">${esc(a.notes)}</small>` : ''}</div>
+        <small class="item-date">investido ${formatCurrency(inv)} · resultado <span style="color:${res >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(res)} (${pct(p)})</span> · valor de ${isoParaBR(a.currentAt || hoje)}</small>${a.notes ? `<small class="item-notes">${esc(a.notes)}</small>` : ''}</div>
       <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(a.current)}</strong><button class="mini-btn" title="Atualizar valor atual" onclick="atualizarValorAtivo(${a.id})">💰</button><button class="mini-btn" title="Editar" onclick="editarAtivo(${a.id})">✎</button><button class="mini-btn" title="${a.archived ? 'Reativar' : 'Arquivar'}" onclick="arquivarAtivo(${a.id})">${a.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removerAtivo(${a.id})">✕</button></div></li>`;
   });
 }
@@ -2586,11 +2586,11 @@ function removerMovimento(id) {
 function renderMovimentos() {
   const ul = document.getElementById('move-list'); if (!ul) return; ul.innerHTML = '';
   const lista = [...moves].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 20);
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma movimentação ainda.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma movimentação ainda.</li>'; return; }
   lista.forEach(m => {
     const ap = m.type === 'aporte';
     ul.innerHTML += `<li class="${ap ? 'expense-item' : 'income-item'}"><div class="transaction-info" style="flex:1"><span>${ap ? '📥 Aporte' : '📤 Resgate'} · ${esc(ativoNome(m.assetId))}${m.financeId ? ' <small class="item-date">· em Finanças</small>' : ''}</span><small class="item-date">${isoParaBR(m.date)}${m.note ? ' · ' + esc(m.note) : ''}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${ap ? '#38bdf8' : '#f59e0b'}">${ap ? '+' : '−'}${formatCurrency(m.amount)}</strong><button class="mini-btn" title="Apagar" onclick="removerMovimento(${m.id})">✕</button></div></li>`;
+      <div class="item-actions"><strong style="margin-right:6px; color:${ap ? 'var(--info)' : 'var(--atencao)'}">${ap ? '+' : '−'}${formatCurrency(m.amount)}</strong><button class="mini-btn" title="Apagar" onclick="removerMovimento(${m.id})">✕</button></div></li>`;
   });
 }
 
@@ -2610,13 +2610,13 @@ function editarMeta(id) { const g = goals.find(x => x.id === id); if (!g) return
 function removerMeta(id) { const g = goals.find(x => x.id === id); if (!g || !confirm(`Apagar a meta "${g.name}"?`)) return; goals = goals.filter(x => x.id !== id); salvar('goals', goals); redesenharNegocios(); }
 function renderMetas() {
   const ul = document.getElementById('goal-list'); if (!ul) return; ul.innerHTML = '';
-  if (!goals.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Ex: "Reserva de 6 meses" (R$ 30.000, vinculada à reserva) ou "Capital pra clínica".</li>'; return; }
+  if (!goals.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Ex: "Reserva de 6 meses" (R$ 30.000, vinculada à reserva) ou "Capital pra clínica".</li>'; return; }
   goals.forEach(g => {
     const atual = valorMeta(g); const p = g.target ? Math.min(100, Math.round(atual / g.target * 100)) : 0; const falta = Math.max(0, g.target - atual);
     let porMes = '';
     if (g.deadline && falta > 0) { const [y, m, d] = g.deadline.split('-').map(Number); const meses = Math.max(1, Math.round((new Date(y, m - 1, d) - new Date()) / (30.44 * 86400000))); porMes = ` · ${formatCurrency(falta / meses)}/mês por ${meses} ${meses === 1 ? 'mês' : 'meses'}`; }
-    ul.innerHTML += `<li class="goal-item" style="border-left-color:${p >= 100 ? '#22c55e' : '#fbbf24'}"><div class="transaction-info" style="flex:1"><span>🎯 ${esc(g.name)} ${p >= 100 ? '<span class="badge-paid">alcançada</span>' : ''}<small class="item-date"> · ${rotuloVinculo(g)}${g.deadline ? ' · até ' + isoParaBR(g.deadline) : ''}</small></span>
-        <div class="cat-bar" style="margin-top:6px"><div style="width:${p}%; background:${p >= 100 ? '#22c55e' : '#fbbf24'}"></div></div>
+    ul.innerHTML += `<li class="goal-item" style="border-left-color:${p >= 100 ? 'var(--ok)' : 'var(--atencao)'}"><div class="transaction-info" style="flex:1"><span>🎯 ${esc(g.name)} ${p >= 100 ? '<span class="badge-paid">alcançada</span>' : ''}<small class="item-date"> · ${rotuloVinculo(g)}${g.deadline ? ' · até ' + isoParaBR(g.deadline) : ''}</small></span>
+        <div class="cat-bar" style="margin-top:6px"><div style="width:${p}%; background:${p >= 100 ? 'var(--ok)' : 'var(--atencao)'}"></div></div>
         <small class="item-date">${formatCurrency(atual)} de ${formatCurrency(g.target)} (${p}%)${falta > 0 ? ` · faltam ${formatCurrency(falta)}${porMes}` : ''}</small>${g.note ? `<small class="item-notes">${esc(g.note)}</small>` : ''}</div>
       <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarMeta(${g.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMeta(${g.id})">✕</button></div></li>`;
   });
@@ -2656,7 +2656,7 @@ function renderProjetos() {
       <select class="stage-select" style="color:${e[2]}" onchange="mudarEstagio(${p.id}, this.value)">${Object.entries(ESTAGIOS_PROJETO).map(([k, v]) => `<option value="${k}" ${k === p.stage ? 'selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
       ${p.desc ? `<div class="note-body">${esc(p.desc)}</div>` : ''}
       ${tot ? `<div class="note-check"><small class="item-date">Próximos passos · ${feitos}/${tot}</small>${p.steps.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="togglePasso(${p.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
-      ${p.budget || p.spent ? `<div><small class="item-date">💸 gasto ${formatCurrency(p.spent || 0)}${p.budget ? ` de ${formatCurrency(p.budget)} previstos (${gastoPct}%)` : ''}</small><div class="cat-bar" style="margin-top:4px"><div style="width:${gastoPct}%; background:${gastoPct > 100 ? '#ef4444' : '#f59e0b'}"></div></div></div>` : ''}
+      ${p.budget || p.spent ? `<div><small class="item-date">💸 gasto ${formatCurrency(p.spent || 0)}${p.budget ? ` de ${formatCurrency(p.budget)} previstos (${gastoPct}%)` : ''}</small><div class="cat-bar" style="margin-top:4px"><div style="width:${gastoPct}%; background:${gastoPct > 100 ? 'var(--perigo)' : 'var(--atencao)'}"></div></div></div>` : ''}
       ${p.contacts ? `<small class="item-notes">👥 ${esc(p.contacts)}</small>` : ''}${p.notes ? `<small class="item-notes">${esc(p.notes)}</small>` : ''}
       <div class="note-foot"><small class="item-date" style="margin-left:auto">${new Date(p.updatedAt || p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div>
     </div>`;
@@ -2678,11 +2678,11 @@ function renderPainelNegocios() {
   registrarSnapshot();
   const total = patrimonioTotal(); const inv = investidoTotal(); const res = total - inv; const p = inv ? res / inv * 100 : 0; const reserva = totalClasse('reserva');
   const mes = hojeISO().slice(0, 7); const aportadoMes = moves.filter(m => m.type === 'aporte' && !m.initial && m.date.startsWith(mes)).reduce((a, m) => a + m.amount, 0);
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
   let html = '<div class="stat-grid">';
   html += tile('🏦', formatCurrency(total), 'patrimônio investido (valor atual)', '#38bdf8');
   html += tile('📥', formatCurrency(inv), `aportado no total · ${formatCurrency(aportadoMes)} neste mês`, '#a78bfa');
-  html += tile('📈', formatCurrency(res), `resultado simples (${pct(p)})`, res >= 0 ? '#22c55e' : '#ef4444');
+  html += tile('📈', formatCurrency(res), `resultado simples (${pct(p)})`, res >= 0 ? 'var(--ok)' : 'var(--perigo)');
   html += tile('🛟', formatCurrency(reserva), 'reserva de emergência', '#22c55e');
   html += '</div>';
   // por classe
@@ -2690,7 +2690,7 @@ function renderPainelNegocios() {
   if (classes.length) html += '<div class="cat-block" style="margin-top:14px"><h5>Por classe</h5>' + classes.map(({ k, v }) => { const c = classeAtivo(k); return `<div class="cat-row"><span class="cat-name">${c.icone} ${c.nome}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${c.cor}"></div></div><span class="cat-val">${formatCurrency(v)} <small>${Math.round(v / total * 100)}%</small></span></div>`; }).join('') + '</div>';
   // evolução mensal (últimos 6 meses com registro)
   const snaps = Object.entries(wealth.snapshots || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
-  if (snaps.length >= 2) { const max = Math.max(1, ...snaps.map(s => s[1])); html += '<div class="cat-block"><h5>Evolução do patrimônio</h5><div class="fin-meses" style="height:120px">' + snaps.map(([m, v]) => `<div class="mes-col" title="${formatCurrency(v)}"><div class="mes-bars" style="height:70px"><div class="mes-bar" style="width:60%; height:${Math.round(v / max * 100)}%; background:#38bdf8"></div></div><small>${nomeMes(m).slice(0, 3)}</small><small class="mes-saldo" style="color:#94a3b8">${(v / 1000).toFixed(1)}k</small></div>`).join('') + '</div></div>'; }
+  if (snaps.length >= 2) { const max = Math.max(1, ...snaps.map(s => s[1])); html += '<div class="cat-block"><h5>Evolução do patrimônio</h5><div class="fin-meses" style="height:120px">' + snaps.map(([m, v]) => `<div class="mes-col" title="${formatCurrency(v)}"><div class="mes-bars" style="height:70px"><div class="mes-bar" style="width:60%; height:${Math.round(v / max * 100)}%; background:var(--info)"></div></div><small>${nomeMes(m).slice(0, 3)}</small><small class="mes-saldo" style="color:var(--txt3)">${(v / 1000).toFixed(1)}k</small></div>`).join('') + '</div></div>'; }
   // vencimentos próximos (60 dias)
   const lim = new Date(); lim.setDate(lim.getDate() + 60); const limISO = isoDe(lim); const hoje = hojeISO();
   const venc = assets.filter(a => !a.archived && a.due && a.due <= limISO).sort((a, b) => a.due.localeCompare(b.due));
@@ -2995,7 +2995,7 @@ function removerTreino(id) { const w = workouts.find(x => x.id === id); if (!w |
 function renderTreinos() {
   const ul = document.getElementById('workout-list'); if (!ul) return; ul.innerHTML = '';
   const lista = [...workouts].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 20);
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum treino ainda.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum treino ainda.</li>'; return; }
   lista.forEach(w => {
     const t = TIPOS_TREINO[w.type] || TIPOS_TREINO.outro;
     ul.innerHTML += `<li class="health-item"><div class="transaction-info" style="flex:1"><span>${t[0]} ${t[1]} <small class="item-date">${rotuloData(w.date)} · ${isoParaBR(w.date)}${w.minutes ? ' · ' + w.minutes + ' min' : ''} · ${'🔥'.repeat(w.intensity || 2)}</small></span>${(w.exercises || []).length ? `<small class="item-notes">${w.exercises.map(esc).join(' · ')}</small>` : ''}${w.note ? `<small class="item-notes">${esc(w.note)}</small>` : ''}</div>
@@ -3124,7 +3124,7 @@ function renderMedidas() {
       const rc = riscoCintura(u.waist, c.sexo);
       const comp = composicao(u.weight, u.fat);
       const vp = variacao('weight');
-      const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+      const tile = (ic, v, r, cor) => `<div class="stat-tile" style="--tom:${cor || 'var(--txt-forte)'}"><span class="stat-icon">${ic}</span><strong>${v}</strong><small>${r}</small></div>`;
       let h = '<div class="stat-grid">';
       h += tile('⚖️', (u.weight || '—') + ' kg', vp ? `${vp.d > 0 ? '+' : ''}${vp.d} kg desde ${isoParaBR(vp.de).slice(0, 5)}` : 'peso atual',
         vp ? (vp.d > 0 ? '#fbbf24' : vp.d < 0 ? '#22c55e' : undefined) : undefined);
@@ -3132,9 +3132,9 @@ function renderMedidas() {
                : tile('📊', '—', c.altura ? 'IMC · falta o peso' : 'IMC · informe a altura');
       if (ideal) h += tile('🎯', `${ideal.min}–${ideal.max}`, 'faixa de peso para a sua altura');
       if (comp) h += tile('🥩', comp.magra + ' kg', `massa magra · ${comp.gordura} kg de gordura`);
-      if (rcq) h += tile('📐', rcq.valor, `cintura/quadril · ${rcq.alto ? 'acima de ' + rcq.limite : 'dentro da faixa'}`, rcq.alto ? '#ef4444' : '#22c55e');
+      if (rcq) h += tile('📐', rcq.valor, `cintura/quadril · ${rcq.alto ? 'acima de ' + rcq.limite : 'dentro da faixa'}`, rcq.alto ? 'var(--perigo)' : 'var(--ok)');
       if (rc) h += tile('📏', u.waist + ' cm', 'cintura · risco ' + rc.rotulo, rc.cor);
-      if (u.sis && u.dia) h += tile('🩺', `${u.sis}/${u.dia}`, 'pressão · mmHg', (u.sis >= 140 || u.dia >= 90) ? '#ef4444' : (u.sis >= 130 || u.dia >= 85) ? '#fbbf24' : '#22c55e');
+      if (u.sis && u.dia) h += tile('🩺', `${u.sis}/${u.dia}`, 'pressão · mmHg', (u.sis >= 140 || u.dia >= 90) ? '#ef4444' : (u.sis >= 130 || u.dia >= 85) ? 'var(--atencao)' : 'var(--ok)');
       if (u.bpm) h += tile('💓', u.bpm, 'batimento em repouso', u.bpm > 100 ? '#fbbf24' : undefined);
       h += '</div>';
       if (!c.altura) h += '<p class="hint" style="margin-top:8px">⬆️ Informe a sua altura acima — sem ela não dá para calcular IMC nem faixa de peso.</p>';
@@ -3164,7 +3164,7 @@ function renderMedidas() {
     return `<li><div class="transaction-info" style="flex:1"><span>${isoParaBR(m.date)}${imc ? ` <small class="category-badge" style="color:${imc.cor}">IMC ${imc.valor}</small>` : ''}</span>
       <small class="item-date">${partes.join(' · ') || 'sem valores'}</small>${m.note ? `<small class="item-notes">${esc(m.note)}</small>` : ''}</div>
       <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarMedida(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMedida(${m.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma medida ainda.</li>';
+  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma medida ainda.</li>';
 }
 function editarMedida(id) {
   const m = measures.find(x => x.id === id); if (!m) return;
@@ -3514,7 +3514,7 @@ function removerRefeicao(id) { meals = meals.filter(x => x.id !== id); salvar('m
 function renderRefeicoes() {
   const ul = document.getElementById('meal-list'); if (!ul) return; ul.innerHTML = '';
   const lista = [...meals].sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 15);
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Diário simples: o que comeu e se foi boa, ok ou ruim. Sem calorias, sem culpa.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Diário simples: o que comeu e se foi boa, ok ou ruim. Sem calorias, sem culpa.</li>'; return; }
   let ultima = '';
   lista.forEach(m => {
     if (m.date !== ultima) { ultima = m.date; const doDia = meals.filter(x => x.date === m.date); const boas = doDia.filter(x => x.quality === 'boa').length; ul.innerHTML += `<li class="date-sep">${rotuloData(m.date)} <small>${isoParaBR(m.date)} · ${boas}/${doDia.length} boas</small></li>`; }
@@ -3553,7 +3553,7 @@ function renderMedico() {
   const hoje = hojeISO();
   const abertos = medical.filter(m => !m.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
   const feitos = medical.filter(m => m.done).sort((a, b) => (b.doneAt || b.date || '').localeCompare(a.doneAt || a.date || '')).slice(0, 8);
-  if (!medical.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Seus próprios cuidados: consulta, exame, vacina, remédio. Com data, vira compromisso 🩺 no calendário.</li>'; return; }
+  if (!medical.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Seus próprios cuidados: consulta, exame, vacina, remédio. Com data, vira compromisso 🩺 no calendário.</li>'; return; }
   const linha = m => { const k = TIPOS_MEDICO[m.kind] || TIPOS_MEDICO.outro; const atras = m.date && m.date < hoje && !m.done; return `<li class="health-item" style="${m.done ? 'opacity:0.5' : ''}"><div class="transaction-info" style="flex:1"><span>${k[0]} ${esc(m.title)} <small class="item-date">${k[1]}${m.date ? ' · ' + rotuloData(m.date) + (m.time ? ' ' + esc(m.time) : '') : ' · sem data'}${atras ? ' <span class="badge-topay">passou</span>' : ''}</small></span>${m.place || m.notes ? `<small class="item-notes">${esc([m.place, m.notes].filter(Boolean).join(' · '))}</small>` : ''}</div><div class="item-actions"><button class="mini-btn ${m.done ? 'on' : ''}" title="${m.done ? 'Reabrir' : 'Concluído'}" onclick="concluirMedico(${m.id})">${m.done ? '↩' : '✓'}</button><button class="mini-btn" title="Editar" onclick="editarMedico(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMedico(${m.id})">✕</button></div></li>`; };
   abertos.forEach(m => ul.innerHTML += linha(m));
   if (feitos.length) { ul.innerHTML += `<li class="date-sep">Concluídos <small>${medical.filter(m => m.done).length}</small></li>`; feitos.forEach(m => ul.innerHTML += linha(m)); }
@@ -3569,7 +3569,7 @@ function renderPainelSaude() {
   const delta = ultimo && anterior ? (ultimo.weight - anterior.weight) : 0;
   const prox = medical.filter(m => !m.done && m.date && m.date >= hojeISO()).sort((a, b) => a.date.localeCompare(b.date))[0];
   const goal = hydration.goal || 2500; const pct = Math.min(100, Math.round((hydration.ml || 0) / goal * 100));
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile"><span class="stat-icon">${icone}</span><strong style="color:${cor}">${valor}</strong><small>${rotulo}</small></div>`;
+  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
   let html = '<div class="stat-grid">';
   html += tile('🏋️', `${semana.length}`, `treino${semana.length === 1 ? '' : 's'} nesta semana · ${minSemana} min`, '#22c55e');
   html += tile('💧', `${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L`, `de ${(goal / 1000).toFixed(1).replace('.', ',')} L hoje (${pct}%)`, '#38bdf8');
@@ -3602,6 +3602,7 @@ const TEMAS = {
   medio:        ['🌗', 'Médio', '#3a414d', '#34d399'],
   profissional: ['💼', 'Profissional', '#18243d', '#60a5fa'],
   escuro:       ['🌑', 'Escuro', '#121212', '#22c55e'],
+  noite:        ['🌌', 'Noite', '#08090b', '#f0a62f'],
   violeta:      ['🔮', 'Violeta', '#2b1f4d', '#f472b6'],
   gamer:        ['🎮', 'Gamer', '#04140c', '#00e676']
 };
@@ -3613,7 +3614,7 @@ const ABAS_INFO = [
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
   ['btn-business', '📈 Negócios'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
-const APARENCIA_PADRAO = { tema: 'escuro', cores: 'colorido', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
  *  com cópia, um `const c = cfgAparencia()` guardado numa variável se perderia
  *  na chamada seguinte. Mesmo cuidado do cfgFlut(). */
@@ -3763,7 +3764,7 @@ function calcularAvisos() {
   if (contas.length) { const tot = contas.reduce((a, t) => a + t.amount, 0); add('contas:pagar', '💸', `${contas.length} conta${contas.length > 1 ? 's' : ''} a pagar (${formatCurrency(tot)}): ${contas.slice(0, 2).map(t => t.desc).join(', ')}${contas.length > 2 ? '…' : ''}`, 1, agora.getHours() >= 8, "changeTab('finances'); filtrarFin('pendentes');"); }
   // Plantões já feitos e não recebidos
   const receber = shifts.filter(s => !s.paid && s.date < hoje);
-  if (receber.length) { const tot = receber.reduce((a, s) => a + (Number(s.amount) || 0), 0); add('plantoes:receber', '⏳', `${receber.length} plantão${receber.length > 1 ? 'ões' : ''} já feito${receber.length > 1 ? 's' : ''} sem baixa: ${formatCurrency(tot)}`, 3, agora.getHours() >= 9, "changeTab('home'); verSecaoAgenda('plantoes'); filtrarPlantoes('naopagos');"); }
+  if (receber.length) { const tot = receber.reduce((a, s) => a + (Number(s.amount) || 0), 0); add('plantoes:receber', '⏳', `${plural(receber.length, vt().um, vt().muitos)} já feito${receber.length > 1 ? 's' : ''} sem baixa: ${formatCurrency(tot)}`, 3, agora.getHours() >= 9, "changeTab('home'); verSecaoAgenda('plantoes'); filtrarPlantoes('naopagos');"); }
   // Resumo do fim do dia: hábitos e água
   if (agora.getHours() >= c.resumoHora) {
     const falta = habits.filter(h => !h.done);
@@ -3791,7 +3792,7 @@ function calcularAvisos() {
   if (entAtras.length) add('entrega:atrasada', '⚠️', `${entAtras.length} entrega${entAtras.length > 1 ? 's' : ''} passou da previsão: ${entAtras.map(o => o.item).slice(0, 2).join(', ')}`, 2, agora.getHours() >= 9, "changeTab('notes');");
   // Revisões de estudo marcadas para hoje
   const rev = tasks.filter(t => !t.done && t.due === hoje && /^🔁 Revisar/.test(t.text));
-  if (rev.length) add('estudo:revisao', '🔁', `${rev.length} revisão${rev.length > 1 ? 'ões' : ''} de estudo para hoje`, 3, agora.getHours() >= 8, "changeTab('tasks');");
+  if (rev.length) add('estudo:revisao', '🔁', `${plural(rev.length, 'revisão', 'revisões')} de estudo para hoje`, 3, agora.getHours() >= 8, "changeTab('tasks');");
 
   return lista.sort((a, b) => a.prio - b.prio);
 }
@@ -3983,15 +3984,15 @@ function renderEntregas() {
   if (resumo) {
     const total = andamento.reduce((a, o) => a + (Number(o.amount) || 0), 0);
     const atrasadas = andamento.filter(o => o.eta && o.eta < hoje).length;
-    resumo.innerHTML = `<span>📦 ${andamento.length} a caminho${total ? ' · ' + formatCurrency(total) : ''}</span>${atrasadas ? `<span style="color:#ef4444">⚠️ ${atrasadas} passou da previsão</span>` : ''}<span>✅ ${orders.filter(o => o.status === 'entregue').length} entregue(s)</span>`;
+    resumo.innerHTML = `<span>📦 ${andamento.length} a caminho${total ? ' · ' + formatCurrency(total) : ''}</span>${atrasadas ? `<span style="color:var(--perigo)">⚠️ ${atrasadas} passou da previsão</span>` : ''}<span>✅ ${orders.filter(o => o.status === 'entregue').length} entregue(s)</span>`;
   }
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nada aqui. Nas listas de compras, use o 🛒 do item para mandá-lo pra cá.</li>'; return; }
+  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada aqui. Nas listas de compras, use o 🛒 do item para mandá-lo pra cá.</li>'; return; }
   lista.forEach(o => {
     const st = STATUS_ENTREGA[o.status] || STATUS_ENTREGA.comprado;
     const atrasada = o.status !== 'entregue' && o.eta && o.eta < hoje;
     ul.innerHTML += `<li class="entrega-item" style="border-left-color:${st[2]}"><div class="transaction-info" style="flex:1">
         <span>${st[0]} ${esc(o.item)} ${o.url ? `<a class="link-chip" href="${esc(o.url)}" target="_blank" rel="noopener">${iconeDoLink(o.url)}${o.store ? ' ' + esc(o.store) : ''}</a>` : (o.store ? `<small class="item-date">${esc(o.store)}</small>` : '')}</span>
-        <small class="item-date">${st[1]}${o.amount ? ' · ' + formatCurrency(o.amount) : ''} · comprado ${isoParaBR(o.boughtAt)}${o.eta ? ` · previsão <strong style="color:${atrasada ? '#ef4444' : '#cbd5e1'}">${rotuloData(o.eta)}</strong>` : ''}${o.deliveredAt ? ` · entregue ${isoParaBR(o.deliveredAt)}` : ''}</small>
+        <small class="item-date">${st[1]}${o.amount ? ' · ' + formatCurrency(o.amount) : ''} · comprado ${isoParaBR(o.boughtAt)}${o.eta ? ` · previsão <strong style="color:${atrasada ? 'var(--perigo)' : 'var(--txt2)'}">${rotuloData(o.eta)}</strong>` : ''}${o.deliveredAt ? ` · entregue ${isoParaBR(o.deliveredAt)}` : ''}</small>
         ${o.tracking ? `<small class="item-notes">🔎 ${esc(o.tracking)}</small>` : ''}</div>
       <div class="item-actions">${o.status !== 'entregue' ? `<button class="mini-btn" title="Avançar status" onclick="avancarEntrega(${o.id})">▶</button>` : ''}<button class="mini-btn ${o.status === 'problema' ? 'on' : ''}" title="Marcar problema" onclick="problemaEntrega(${o.id})">⚠️</button><button class="mini-btn" title="Previsão e rastreio" onclick="editarEntrega(${o.id})">✎</button><button class="mini-btn" title="Voltar para a lista de compras" onclick="devolverParaLista(${o.id})">↩️</button><button class="mini-btn" title="Apagar" onclick="removerEntrega(${o.id})">✕</button></div></li>`;
   });
@@ -4207,13 +4208,25 @@ const ilustrando = new Set();   // só da sessão: não é dado, é estado de te
 /** Procura o termo na Wikipedia e devolve { titulo, sobre, img, wiki }.
  *  Tenta em português e, se não achar, em inglês. Devolve null se não achar
  *  nada, se a página for de desambiguação ou se estiver sem internet. */
-async function buscarNaWikipedia(termo) {
+/** Palavras que contam para comparar nomes: sem acento, minúsculas, 3+ letras, sem "de/da/the". */
+const WIKI_VAZIAS = new Set(['the', 'and', 'dos', 'das', 'com', 'para', 'por', 'uma', 'filme', 'serie', 'documentario']);
+const palavrasDe = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .split(/[^a-z0-9]+/).filter(p => p.length >= 3 && !WIKI_VAZIAS.has(p));
+/** O artigo achado fala MESMO do item? Precisa dividir ao menos uma palavra com o nome
+ *  (sem isso, "Passo Pizza Jazz Ouro Preto" voltava com o artigo de São Paulo). */
+function wikiCasa(nome, titulo) {
+  const a = palavrasDe(nome), b = new Set(palavrasDe(titulo));
+  if (!a.length) return true;
+  return a.some(p => b.has(p));
+}
+async function buscarNaWikipedia(termo, nome) {
   const alvo = (termo || '').trim(); if (!alvo) return null;
+  const chave = nome || alvo;
   for (const lang of WIKI_IDIOMAS) {
     try {
-      const b = await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(alvo)}&srlimit=1&format=json&origin=*`);
+      const b = await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(alvo)}&srlimit=5&format=json&origin=*`);
       if (!b.ok) continue;
-      const achado = (((await b.json()).query || {}).search || [])[0];
+      const achado = (((await b.json()).query || {}).search || []).find(x => wikiCasa(chave, x.title));
       if (!achado) continue;
       const r = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(achado.title.replace(/ /g, '_'))}`);
       if (!r.ok) continue;
@@ -4229,12 +4242,24 @@ async function buscarNaWikipedia(termo) {
   }
   return null;
 }
+/** Ilustracoes antigas que vieram do artigo errado (antes do wikiCasa): tira foto/resumo e
+ *  deixa o item pronto para ser ilustrado de novo. Devolve true se mudou algo. */
+function desfazerIlustracoesErradas(lista, campo) {
+  let mudou = false;
+  lista.forEach(x => {
+    if (!x.wiki) return;
+    let titulo = ''; try { titulo = decodeURIComponent(String(x.wiki).split('/wiki/')[1] || '').replace(/_/g, ' '); } catch (e) { return; }
+    if (!titulo || wikiCasa(x[campo], titulo)) return;
+    x.img = ''; x.sobre = ''; x.wiki = ''; delete x.buscadoEm; mudou = true;
+  });
+  return mudou;
+}
 /** Enche um item (saída ou mídia) com foto e resumo. Serve aos dois módulos. */
-async function ilustrar(item, termo, modulo, lista, redesenhar) {
+async function ilustrar(item, termo, modulo, lista, redesenhar, nome) {
   if (ilustrando.has(item.id)) return false;
   if (!navigator.onLine) { toast('Sem internet agora. A ilustração precisa de rede — tente quando voltar.', 6000); return false; }
   ilustrando.add(item.id); redesenhar();
-  const r = await buscarNaWikipedia(termo);
+  const r = await buscarNaWikipedia(termo, nome);
   ilustrando.delete(item.id);
   item.buscadoEm = hojeISO();
   if (r) { item.img = r.img; item.sobre = r.sobre; item.wiki = r.wiki; }
@@ -4244,12 +4269,12 @@ async function ilustrar(item, termo, modulo, lista, redesenhar) {
 }
 function ilustrarSaida(id) {
   const s = saidas.find(x => x.id === id); if (!s) return;
-  ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas);
+  ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas, s.nome);
 }
 function ilustrarMidia(id) {
   const m = media.find(x => x.id === id); if (!m) return;
   const t = TIPOS_MIDIA[m.kind] || TIPOS_MIDIA.outro;
-  ilustrar(m, `${m.title} ${t[1]}`, 'media', media, renderMidia);
+  ilustrar(m, `${m.title} ${t[1]}`, 'media', media, renderMidia, m.title);
 }
 /** Ilustra em fila os que ainda não têm foto, com uma pausa entre cada um
  *  para não martelar a Wikipedia. */
@@ -4260,7 +4285,7 @@ async function ilustrarTodasSaidas() {
   toast(`🖼️ Ilustrando ${plural(faltam.length, 'item', 'itens')}…`, 4000);
   let achou = 0;
   for (const s of faltam) {
-    if (await ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas)) achou++;
+    if (await ilustrar(s, [s.nome, s.cidade].filter(Boolean).join(' '), 'saidas', saidas, renderSaidas, s.nome)) achou++;
     await new Promise(r => setTimeout(r, 400));
   }
   toast(`🖼️ ${achou} de ${faltam.length} ${palavra(achou, 'ilustrado', 'ilustrados')}.`, 6000);
@@ -4519,7 +4544,7 @@ function mpSeek(ev, el) {
   atualizarPlayerMusica();
 }
 /** Garante que a janela 🎵 esteja ligada — senão tocar música deixaria o
- *  Matheus sem nenhum controle à vista, já que a barrinha não existe mais. */
+ *  usuário sem nenhum controle à vista, já que a barrinha não existe mais. */
 function garantirJanelaMusica() {
   if (typeof cfgFlut !== 'function') return;
   const c = cfgFlut();
@@ -4820,8 +4845,8 @@ function renderMilhas() {
     resumo.innerHTML = `<span>🎫 <strong>${total.toLocaleString('pt-BR')}</strong> milhas em ${plural(milhas.length, 'programa', 'programas')}</span>`
       + (valor ? `<span>💰 valem ~<strong>${formatCurrency(valor)}</strong></span>` : '')
       + (pago ? `<span>💳 pagou <strong>${formatCurrency(pago)}</strong>/milheiro</span>` : '')
-      + (obtido ? `<span>✈️ obteve <strong style="color:${obtido >= pago ? '#22c55e' : '#ef4444'}">${formatCurrency(obtido)}</strong>/milheiro</span>` : '')
-      + (vencendo.length ? `<span style="color:#f59e0b">⌛ ${plural(vencendo.length, 'programa vencendo', 'programas vencendo')} em 90 dias</span>` : '');
+      + (obtido ? `<span>✈️ obteve <strong style="color:${obtido >= pago ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(obtido)}</strong>/milheiro</span>` : '')
+      + (vencendo.length ? `<span style="color:var(--atencao)">⌛ ${plural(vencendo.length, 'programa vencendo', 'programas vencendo')} em 90 dias</span>` : '');
   }
   if (dl && !dl.children.length) dl.innerHTML = PROGRAMAS_MILHAS.map(p => `<option value="${esc(p)}">`).join('');
   if (!milhas.length) {
@@ -5013,8 +5038,8 @@ function renderCurriculo() {
     const n = Object.keys(SECOES_CV).reduce((a, k) => a + (c[k] || []).length, 0);
     const falta = Object.entries(SECOES_CV).filter(([k]) => !(c[k] || []).length).map(([, s]) => s.nome);
     resumo.innerHTML = `<span>📄 ${plural(n, 'item', 'itens')} no currículo</span>`
-      + (c.titulo ? `<span>🏷️ ${esc(c.titulo)}</span>` : '<span style="color:#f59e0b">⚠️ falta o título</span>')
-      + (falta.length ? `<span style="color:var(--txt4)">vazias: ${esc(falta.join(', '))}</span>` : '<span style="color:#22c55e">✅ todas as seções preenchidas</span>');
+      + (c.titulo ? `<span>🏷️ ${esc(c.titulo)}</span>` : '<span style="color:var(--atencao)">⚠️ falta o título</span>')
+      + (falta.length ? `<span style="color:var(--txt4)">vazias: ${esc(falta.join(', '))}</span>` : '<span style="color:var(--ok)">✅ todas as seções preenchidas</span>');
   }
 
   el.innerHTML = Object.entries(SECOES_CV).map(([k, s]) => {
@@ -5368,7 +5393,7 @@ function blocosDoDia(iso) {
 function semHoraNoDia(iso) {
   const l = aniversariosNoDia(iso);
   tasks.filter(t => t.due === iso && !t.done).forEach(t => l.push({
-    tipo: 'task', id: t.id, titulo: t.text, cor: t.starred ? '#fbbf24' : '#38bdf8', icone: t.starred ? '⭐' : '☐' }));
+    tipo: 'task', id: t.id, titulo: t.text, cor: t.starred ? 'var(--atencao)' : 'var(--info)', icone: t.starred ? '⭐' : '☐' }));
   blocosDoDia(iso).filter(x => x.ini === null).forEach(x => l.push(x));
   return l;
 }
@@ -5564,7 +5589,7 @@ function renderAgora() {
   if (!agora && !proximo && !amanha) html = '<div class="agora-vazio">Nada marcado nos próximos dias. 🌤️</div>';
   else if (!agora) {
     const v = livresDoDia(hojeISO(), Math.max(ag, 8 * 60), 22 * 60, 30);
-    if (v.length) html = `<div class="agora-bloco livre" style="border-left-color:#22c55e"><small>AGORA</small><strong>🕳️ Livre</strong><small>até ${hm(v[0].fim)}</small></div>` + html;
+    if (v.length) html = `<div class="agora-bloco livre" style="border-left-color:var(--ok)"><small>AGORA</small><strong>🕳️ Livre</strong><small>até ${hm(v[0].fim)}</small></div>` + html;
   }
   el.innerHTML = html;
 }
@@ -6412,7 +6437,7 @@ function renderAnexoModal() {
     ? lista.map((a, k) => `<li><div class="transaction-info" style="flex:1"><span>${a.tipo === 'img' ? '🖼️' : iconeDoLink(a.url || '')} ${esc(a.nome || a.url || 'anexo')}</span>
         <small class="item-date">${a.tipo === 'img' ? (imgPorId(a.imgId) ? 'imagem neste aparelho' : '⚠️ enviada noutro aparelho — aqui não aparece') : 'link'}</small></div>
         <div class="item-actions"><button class="mini-btn" title="Abrir" onclick="abrirAnexo(${k})">↗</button><button class="mini-btn" title="Tirar" onclick="removerAnexo(${k})">✕</button></div></li>`).join('')
-    : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum anexo ainda.</li>';
+    : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum anexo ainda.</li>';
   const info = document.getElementById('anexo-espaco');
   if (info) info.innerText = `Imagens guardadas neste aparelho: ${tamanhoImgs()} KB de ${IMGS_KB_TOTAL} KB.`;
 }
@@ -7205,14 +7230,14 @@ function removerServico(id) {
 }
 function renderServicos() {
   const ul = document.getElementById('serv-lista'); if (!ul) return;
-  if (!servicos.length) { ul.innerHTML = '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhum serviço ainda. Cadastre o que a clínica vende, com preço <em>e</em> custo — a margem sai sozinha.</li>'; return; }
+  if (!servicos.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum serviço ainda. Cadastre o que a clínica vende, com preço <em>e</em> custo — a margem sai sozinha.</li>'; return; }
   ul.innerHTML = [...servicos].sort((a, b) => (b.preco || 0) - (a.preco || 0)).map(s => {
     const m = margemServico(s); const t = TIPOS_SERVICO[s.tipo] || TIPOS_SERVICO.procedimento;
     const off = s.ativo === false;
     return `<li style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
       <span>${t[0]} ${esc(s.nome)}${off ? ' <small class="item-date">(fora do catálogo)</small>' : ''}</span>
       <small class="item-date">${esc(t[1])}${s.tipo === 'pacote' ? ` · ${s.sessoes || 1} sessões · ${formatCurrency(precoPorSessao(s))}/sessão` : ''}${s.comissaoPct ? ` · comissão ${s.comissaoPct}%` : ''}</small>
-      <small class="item-notes">💰 ${formatCurrency(s.preco)} − custo ${formatCurrency(s.custo || 0)}${m.comissao ? ' − comissão ' + formatCurrency(m.comissao) : ''} = <strong style="color:${m.lucro >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(m.lucro)}</strong> <span class="margem-pct">(${m.pct}%)</span></small>
+      <small class="item-notes">💰 ${formatCurrency(s.preco)} − custo ${formatCurrency(s.custo || 0)}${m.comissao ? ' − comissão ' + formatCurrency(m.comissao) : ''} = <strong style="color:${m.lucro >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(m.lucro)}</strong> <span class="margem-pct">(${m.pct}%)</span></small>
       ${s.notas ? `<small class="item-notes">${esc(s.notas)}</small>` : ''}</div>
       <div class="item-actions"><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Voltar ao catálogo' : 'Tirar do catálogo'}" onclick="alternarServicoAtivo(${s.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarServico(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerServico(${s.id})">✕</button></div></li>`;
   }).join('');
@@ -7362,14 +7387,14 @@ function renderRepasses() {
   const aberto = repasses.filter(r => !r.pago);
   const info = document.getElementById('repasse-resumo');
   if (info) info.innerHTML = aberto.length
-    ? `<span>💸 A repassar: <strong style="color:#ef4444">${formatCurrency(aberto.reduce((a, r) => a + r.valor, 0))}</strong> (${aberto.length})</span>`
+    ? `<span>💸 A repassar: <strong style="color:var(--perigo)">${formatCurrency(aberto.reduce((a, r) => a + r.valor, 0))}</strong> (${aberto.length})</span>`
     : '<span>Nenhuma comissão em aberto.</span>';
   const lista = [...repasses].sort((a, b) => (a.pago === b.pago ? b.criadoEm - a.criadoEm : a.pago ? 1 : -1));
   el.innerHTML = lista.length ? lista.map(r => `<li style="${r.pago ? 'opacity:0.55' : ''}"><div class="transaction-info" style="flex:1">
       <span>👤 ${esc(r.pessoa)}${r.pago ? ` <span class="badge-paid">pago ${r.pagoEm ? isoParaBR(r.pagoEm).slice(0, 5) : ''}</span>` : ' <span class="badge-topay">a repassar</span>'}</span>
       <small class="item-date">${esc(r.servicoNome || '')} · ${r.pct}% de ${formatCurrency(r.base)}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:#ef4444">${formatCurrency(r.valor)}</strong><button class="mini-btn ${r.pago ? 'on' : ''}" title="${r.pago ? 'Desfazer' : 'Pagar e lançar em Finanças'}" onclick="pagarRepasse(${r.id})">💵</button></div></li>`).join('')
-    : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Comissões aparecem aqui quando um serviço com % é marcado como feito e tem responsável.</li>';
+      <div class="item-actions"><strong style="margin-right:6px; color:var(--perigo)">${formatCurrency(r.valor)}</strong><button class="mini-btn ${r.pago ? 'on' : ''}" title="${r.pago ? 'Desfazer' : 'Pagar e lançar em Finanças'}" onclick="pagarRepasse(${r.id})">💵</button></div></li>`).join('')
+    : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Comissões aparecem aqui quando um serviço com % é marcado como feito e tem responsável.</li>';
 }
 
 // --- painel da clínica ------------------------------------------------------
@@ -7389,10 +7414,10 @@ function indicadoresClinica(ym) {
 function renderPainelClinica() {
   const el = document.getElementById('clinica-painel'); if (!el) return;
   const ym = hojeISO().slice(0, 7); const i = indicadoresClinica(ym);
-  const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+  const tile = (ic, v, r, cor) => `<div class="stat-tile" style="--tom:${cor || 'var(--txt-forte)'}"><span class="stat-icon">${ic}</span><strong>${v}</strong><small>${r}</small></div>`;
   el.innerHTML = `<div class="stat-grid">
       ${tile('💰', formatCurrency(i.faturamento), `faturado em ${nomeMes(ym).toLowerCase()}`, '#22c55e')}
-      ${tile('🎯', formatCurrency(i.lucro), 'depois de custo e comissão', i.lucro >= 0 ? '#22c55e' : '#ef4444')}
+      ${tile('🎯', formatCurrency(i.lucro), 'depois de custo e comissão', i.lucro >= 0 ? 'var(--ok)' : 'var(--perigo)')}
       ${tile('🧾', formatCurrency(i.ticket), `ticket médio · ${plural(i.doMes.length, 'atendimento', 'atendimentos')}`)}
       ${tile('📈', i.conversao + '%', 'do funil vira atendimento')}
       ${tile('🔮', formatCurrency(i.pipeline), 'em negociação agora', '#38bdf8')}
@@ -7557,7 +7582,7 @@ function renderMaquinas() {
       <span>🖨️ ${esc(m.nome)}${alerta ? ' <span class="badge-topay">manutenção</span>' : ''}</span>
       <small class="item-date">${m.potenciaW || 0} W · ${formatCurrency(ch)}/h${m.manutencaoCadaH ? ` · ${Math.round(m.horasRodadas || 0)}h rodadas (revisar a cada ${m.manutencaoCadaH}h)` : ` · ${Math.round(m.horasRodadas || 0)}h rodadas`}</small></div>
       <div class="item-actions">${alerta ? `<button class="mini-btn" title="Marcar manutenção feita" onclick="manutencaoFeita(${m.id})">🔧</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarMaquina(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMaquina(${m.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Nenhuma impressora. Cadastre uma para o custo por hora entrar no preço.</li>';
+  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma impressora. Cadastre uma para o custo por hora entrar no preço.</li>';
 }
 function manutencaoFeita(id) {
   const m = maquinaPorId(id); if (!m) return;
@@ -7604,9 +7629,9 @@ function renderFilamentos() {
     return `<li><div class="transaction-info" style="flex:1">
       <span>${mat[0]} ${esc(nomeFilamento(f))}${f.marca ? ` <small class="item-date">${esc(f.marca)}</small>` : ''}${baixo ? ' <span class="badge-topay">acabando</span>' : ''}</span>
       <small class="item-date">${Math.round(Number(f.gramasRestantes) || 0)} g de ${f.gramasRolo || 1000} g · ${formatCurrency(custoPorGrama(f) * 1000)}/kg</small>
-      <div class="cat-bar" style="margin-top:4px"><div style="width:${pct}%; background:${baixo ? '#ef4444' : '#22c55e'}"></div></div></div>
+      <div class="cat-bar" style="margin-top:4px"><div style="width:${pct}%; background:${baixo ? 'var(--perigo)' : 'var(--ok)'}"></div></div></div>
       <div class="item-actions"><button class="mini-btn" title="Repor o rolo (volta ao cheio)" onclick="reporFilamento(${f.id})">↻</button><button class="mini-btn" title="Editar" onclick="editarFilamento(${f.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerFilamento(${f.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre os rolos: é daqui que sai o custo por grama de cada peça.</li>';
+  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre os rolos: é daqui que sai o custo por grama de cada peça.</li>';
 }
 function reporFilamento(id) {
   const f = filamentoPorId(id); if (!f) return;
@@ -7690,7 +7715,7 @@ function previaCusto() {
   };
   const c = custoProduto(p);
   if (!c.total) { el.innerHTML = ''; return; }
-  el.innerHTML = `🧵 ${formatCurrency(c.filamento)} + 🖨️ ${formatCurrency(c.maquina)} + 🧽 ${formatCurrency(c.mao)}${c.extra ? ' + ➕ ' + formatCurrency(c.extra) : ''} = <strong>${formatCurrency(c.total)}</strong> de custo · sugerido <strong style="color:#22c55e">${formatCurrency(precoSugerido(p))}</strong>`;
+  el.innerHTML = `🧵 ${formatCurrency(c.filamento)} + 🖨️ ${formatCurrency(c.maquina)} + 🧽 ${formatCurrency(c.mao)}${c.extra ? ' + ➕ ' + formatCurrency(c.extra) : ''} = <strong>${formatCurrency(c.total)}</strong> de custo · sugerido <strong style="color:var(--ok)">${formatCurrency(precoSugerido(p))}</strong>`;
 }
 function renderProdutos() {
   const ul = document.getElementById('prd-lista'); if (!ul) return;
@@ -7700,9 +7725,9 @@ function renderProdutos() {
     return `<li style="${p.ativo === false ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
       <span>🧩 ${esc(p.nome)}</span>
       <small class="item-date">${p.gramas || 0} g · ${p.horas || 0}h de máquina${p.minAcabamento ? ' · ' + p.minAcabamento + ' min de acabamento' : ''}</small>
-      <small class="item-notes">custo <strong>${formatCurrency(c.total)}</strong> · vende a <strong>${formatCurrency(preco)}</strong> · sobra <strong style="color:${lucro >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(lucro)}</strong> <span class="margem-pct">(${pct}%)</span></small></div>
+      <small class="item-notes">custo <strong>${formatCurrency(c.total)}</strong> · vende a <strong>${formatCurrency(preco)}</strong> · sobra <strong style="color:${lucro >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(lucro)}</strong> <span class="margem-pct">(${pct}%)</span></small></div>
       <div class="item-actions"><button class="mini-btn" title="Mandar para a fila" onclick="ordemDoProduto(${p.id})">▶</button><button class="mini-btn" title="Editar" onclick="editarProduto(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerProduto(${p.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">Cadastre uma peça com gramas e horas — o app calcula o custo e sugere o preço.</li>';
+  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre uma peça com gramas e horas — o app calcula o custo e sugere o preço.</li>';
 }
 function editarProduto(id) {
   const p = produtoPorId(id); if (!p) return;
@@ -7820,7 +7845,7 @@ function previaVenda() {
   if (!v.preco) { el.innerHTML = ''; return; }
   const r = liquidoVenda(v);
   const pct = r.bruto > 0 ? Math.round(r.liquido / r.bruto * 100) : 0;
-  el.innerHTML = `${formatCurrency(r.bruto)} − taxa ${formatCurrency(r.taxa)} − frete ${formatCurrency(r.frete)} − custo ${formatCurrency(r.custo)} = <strong style="color:${r.liquido >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(r.liquido)}</strong> <span class="margem-pct">(${pct}% do que o cliente pagou)</span>`;
+  el.innerHTML = `${formatCurrency(r.bruto)} − taxa ${formatCurrency(r.taxa)} − frete ${formatCurrency(r.frete)} − custo ${formatCurrency(r.custo)} = <strong style="color:${r.liquido >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(r.liquido)}</strong> <span class="margem-pct">(${pct}% do que o cliente pagou)</span>`;
 }
 function removerVenda(id) {
   const v = vendas.find(x => x.id === id); if (!v || !confirm('Apagar esta venda? O lançamento em Finanças sai junto.')) return;
@@ -7837,7 +7862,7 @@ function renderVendas() {
   const somaB = doMes.reduce((a, v) => a + liquidoVenda(v).bruto, 0);
   const r = document.getElementById('vnd-resumo');
   if (r) r.innerHTML = doMes.length
-    ? `<span>🧾 Vendido no mês: <strong>${formatCurrency(somaB)}</strong> (${doMes.length})</span><span>💚 Sobrou de verdade: <strong style="color:${somaL >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(somaL)}</strong></span>`
+    ? `<span>🧾 Vendido no mês: <strong>${formatCurrency(somaB)}</strong> (${doMes.length})</span><span>💚 Sobrou de verdade: <strong style="color:${somaL >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(somaL)}</strong></span>`
     : '<span>Nenhuma venda neste mês.</span>';
   ul.innerHTML = vendas.length ? [...vendas].sort((a, b) => (b.data || '').localeCompare(a.data || '')).slice(0, 30).map(v => {
     const p = produtoPorId(v.produtoId); const pl = PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto;
@@ -7845,8 +7870,8 @@ function renderVendas() {
     return `<li><div class="transaction-info" style="flex:1">
       <span>${pl[0]} ${esc(p ? p.nome : 'produto apagado')}${v.qtd > 1 ? ` ×${v.qtd}` : ''}</span>
       <small class="item-date">${esc(pl[1])} · ${isoParaBR(v.data)} · bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)} − custo ${formatCurrency(c.custo)}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${c.liquido >= 0 ? '#22c55e' : '#ef4444'}">${formatCurrency(c.liquido)}</strong><button class="mini-btn" title="Apagar" onclick="removerVenda(${v.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:#64748b; background:transparent; border:none;">As vendas entram aqui com taxa e frete descontados.</li>';
+      <div class="item-actions"><strong style="margin-right:6px; color:${c.liquido >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(c.liquido)}</strong><button class="mini-btn" title="Apagar" onclick="removerVenda(${v.id})">✕</button></div></li>`;
+  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">As vendas entram aqui com taxa e frete descontados.</li>';
 }
 
 // --- painel -----------------------------------------------------------------
@@ -7863,10 +7888,10 @@ function renderPainelProducao() {
   const taxaFalha = ordens.length ? Math.round(falhas / ordens.length * 100) : 0;
   const estoque = filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0), 0);
   const acabando = filamentos.filter(filamentoBaixo).length;
-  const tile = (ic, v, r, cor) => `<div class="stat-tile"><span class="stat-icon">${ic}</span><strong style="color:${cor || 'var(--txt-forte)'}">${v}</strong><small>${r}</small></div>`;
+  const tile = (ic, v, r, cor) => `<div class="stat-tile" style="--tom:${cor || 'var(--txt-forte)'}"><span class="stat-icon">${ic}</span><strong>${v}</strong><small>${r}</small></div>`;
   el.innerHTML = `<div class="stat-grid">
     ${tile('🧾', formatCurrency(bruto), `vendido em ${nomeMes(ym).toLowerCase()}`)}
-    ${tile('💚', formatCurrency(liquido), 'sobrou depois de tudo', liquido >= 0 ? '#22c55e' : '#ef4444')}
+    ${tile('💚', formatCurrency(liquido), 'sobrou depois de tudo', liquido >= 0 ? 'var(--ok)' : 'var(--perigo)')}
     ${tile('✂️', formatCurrency(taxas), 'foi em taxa e frete', taxas ? '#f59e0b' : undefined)}
     ${tile('📋', naFila.length, `na fila · ${horasFila.toFixed(1)}h de máquina`, '#38bdf8')}
     ${tile('🧵', (estoque / 1000).toFixed(2) + ' kg', acabando ? `${plural(acabando, 'rolo acabando', 'rolos acabando')}` : 'de filamento', acabando ? '#ef4444' : undefined)}
@@ -7882,7 +7907,7 @@ function renderPainelProducao() {
   const itens = Object.entries(porProduto).sort((a, b) => b[1] - a[1]);
   const total = itens.reduce((a, [, x]) => a + Math.abs(x), 0);
   if (det) det.innerHTML = `<div class="stat-lists"><div><h5>🧩 O que deu lucro este mês</h5>${
-    itens.length ? itens.map(([k, x]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${total ? Math.round(Math.abs(x) / total * 100) : 0}%; background:${x >= 0 ? '#22c55e' : '#ef4444'}"></div></div><span class="cat-val">${formatCurrency(x)}</span></div>`).join('')
+    itens.length ? itens.map(([k, x]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${total ? Math.round(Math.abs(x) / total * 100) : 0}%; background:${x >= 0 ? 'var(--ok)' : 'var(--perigo)'}"></div></div><span class="cat-val">${formatCurrency(x)}</span></div>`).join('')
       : '<div class="stat-line muted">nenhuma venda ainda</div>'}</div></div>`;
 }
 
@@ -8191,7 +8216,7 @@ function setAgendaStatus(estado, texto) {
   localStorage.setItem('lifeos_agenda_status', JSON.stringify({ estado, texto, quando: Date.now() }));
   const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   el.innerText = (estado === 'ok' ? '📆 Google Agenda ' + hora + ': ' : '📆 Google Agenda — erro: ') + texto;
-  el.style.color = estado === 'ok' ? '#22c55e' : '#ef4444';
+  el.style.color = estado === 'ok' ? 'var(--ok)' : 'var(--perigo)';
 }
 function enviarAgendaAgora() {
   if (!syncConfig.agenda) { toast('Marque "Enviar para o Google Calendar" e clique em Salvar e testar primeiro.'); return; }
@@ -8241,7 +8266,7 @@ function carregarSyncConfigNaTela() {
   if (t) t.value = syncConfig.token || '';
   const a = document.getElementById('sync-agenda'); if (a) a.checked = !!syncConfig.agenda;
   const st = JSON.parse(localStorage.getItem('lifeos_agenda_status') || 'null'); const el = document.getElementById('agenda-status');
-  if (st && el) { el.innerText = (st.estado === 'ok' ? '📆 Google Agenda ' + new Date(st.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ': ' : '📆 Google Agenda — erro: ') + st.texto; el.style.color = st.estado === 'ok' ? '#22c55e' : '#ef4444'; }
+  if (st && el) { el.innerText = (st.estado === 'ok' ? '📆 Google Agenda ' + new Date(st.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ': ' : '📆 Google Agenda — erro: ') + st.texto; el.style.color = st.estado === 'ok' ? 'var(--ok)' : 'var(--perigo)'; }
 }
 
 // Gatilhos automáticos: voltou a internet / voltou pro app (celular) / a cada 30 s com o app visível
@@ -8269,6 +8294,8 @@ updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); up
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));
 renderOrcamento();
 if (normalizarMalas()) salvar('trips', trips);
+if (desfazerIlustracoesErradas(saidas, 'nome')) salvar('saidas', saidas);
+if (desfazerIlustracoesErradas(media, 'title')) salvar('media', media);
 redesenharViagens(); verSecaoViagens('viagens'); redesenharRede(); verSecaoRede('contatos');
 redesenharLazer(); verSecaoLazer('midia');
 ['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarPlayerMusica));

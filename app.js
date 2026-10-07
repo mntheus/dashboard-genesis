@@ -3192,19 +3192,10 @@ const GRUPOS_MUSC = {
   gluteo:    ['🍑', 'Glúteos'],    abdomen: ['🧱', 'Abdômen'],
   cardio:    ['🏃', 'Cardio'],     mobilidade: ['🧘', 'Mobilidade']
 };
-/** Catálogo pronto — para não ter que digitar tudo do zero. */
-const EXERCICIOS = {
-  peito: ['Supino reto', 'Supino inclinado', 'Crucifixo', 'Crossover', 'Flexão de braço', 'Peck deck'],
-  costas: ['Puxada frontal', 'Remada curvada', 'Remada baixa', 'Barra fixa', 'Pulldown', 'Levantamento terra'],
-  ombro: ['Desenvolvimento', 'Elevação lateral', 'Elevação frontal', 'Crucifixo inverso', 'Encolhimento'],
-  biceps: ['Rosca direta', 'Rosca alternada', 'Rosca martelo', 'Rosca scott', 'Rosca concentrada'],
-  triceps: ['Tríceps pulley', 'Tríceps testa', 'Tríceps francês', 'Mergulho', 'Tríceps coice'],
-  perna: ['Agachamento', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Afundo', 'Panturrilha em pé', 'Stiff'],
-  gluteo: ['Elevação pélvica', 'Glúteo no cabo', 'Abdução', 'Agachamento sumô'],
-  abdomen: ['Abdominal supra', 'Prancha', 'Elevação de pernas', 'Abdominal infra', 'Prancha lateral'],
-  cardio: ['Esteira', 'Bicicleta', 'Elíptico', 'Corda', 'Escada', 'Remo'],
-  mobilidade: ['Alongamento geral', 'Yoga', 'Liberação miofascial', 'Mobilidade de quadril']
-};
+/** O catálogo saiu daqui: agora é o BANCO de `exercicios.js`, com grupo,
+ *  equipamento, dica e figura. `EXERCICIOS` (nomes por grupo) continua
+ *  existindo, DERIVADO do banco — duas listas da mesma coisa sempre divergem
+ *  (armadilha nº 21). O `exercicios.js` carrega ANTES do app.js. */
 function fichaPorId(id) { return fichas.find(f => f.id === Number(id)) || null; }
 function grupoDoExercicio(nome) {
   const n = (nome || '').toLowerCase();
@@ -3325,7 +3316,7 @@ function renderFichas() {
         <button class="btn-treinar" onclick="treinarComFicha(${f.id}, ${i})">🏋️ Treinar por este dia</button></div>`;
       h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => `
         <div class="ex-linha">
-          <span class="ex-ic">${iconeExercicio(e)}</span>
+          <span class="ex-ic ex-fig-ficha">${figuraDoNome(e.nome, e.grupo, 30)}</span>
           <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${(GRUPOS_MUSC[e.grupo] || ['', 'Geral'])[1]} · descanso ${e.descanso}s</small></span>
           <span class="ex-series">${e.series} × ${esc(e.reps)}</span>
           <span class="ex-carga">
@@ -3344,7 +3335,8 @@ function renderFichas() {
         <input type="text" id="ex-reps" value="10" title="repetições" style="max-width:70px">
         <input type="number" id="ex-carga" step="0.5" min="0" placeholder="kg">
         <input type="number" id="ex-descanso" min="0" step="15" value="60" title="descanso (s)">
-        <button class="mini-btn" onclick="addExercicio(${f.id}, ${i})">＋</button></div>`;
+        <button class="mini-btn" onclick="addExercicio(${f.id}, ${i})" title="Adicionar o que está escrito">＋</button>
+        <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i} })" title="Abrir o banco de exercícios">📚 Banco</button></div>`;
     }
     return h + '</div>';
   }).join('');

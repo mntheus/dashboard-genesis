@@ -2723,3 +2723,41 @@ body.mod-ligado .card.mod-recolhido { padding-top: 14px; }
 @media (max-width: 739px) {
   body[data-casca="nova"] > .container { scrollbar-gutter: auto; }
 }
+
+/* ══ BANCO DE EXERCÍCIOS (07/10) ══════════════════════════════════════════
+   A figura usa `currentColor`, então acompanha o tema sozinha. */
+.ex-banco { position: fixed; inset: 0; z-index: 2650; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,.45); backdrop-filter: blur(6px); }
+.ex-banco[hidden] { display: none !important; }
+body.ex-banco-aberto { overflow: hidden; }
+.ex-banco-folha { width: min(760px, 100%); max-height: 88vh; display: flex; flex-direction: column; gap: 10px;
+  background: var(--card); border: 1px solid var(--borda2); border-radius: var(--r4) var(--r4) 0 0;
+  padding: var(--s4) var(--s4) calc(var(--s4) + env(safe-area-inset-bottom, 0px)); box-shadow: var(--elev3); }
+@media (min-width: 760px) { .ex-banco { align-items: center; } .ex-banco-folha { border-radius: var(--r4); } }
+.ex-banco-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ex-banco-topo h3 { font-size: var(--t-titulo); font-weight: 600; margin-top: 2px; }
+.ex-banco-filtros { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.ex-banco-filtros span { flex: none; padding: 6px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  font-size: var(--t-apoio); color: var(--txt3); background: var(--bg); border: 1px solid var(--borda2); }
+.ex-banco-filtros span.active { color: var(--txt-forte); border-color: var(--acento);
+  background: color-mix(in srgb, var(--acento) 14%, transparent); }
+.ex-banco-lista { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.ex-cartao { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%;
+  padding: 10px 12px; background: var(--bg); border: 1px solid var(--borda2); border-radius: var(--r2); cursor: pointer; }
+.ex-cartao:hover { border-color: var(--acento); }
+.ex-cartao-fig { flex: none; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  color: var(--acento); background: var(--sup-2); border-radius: var(--r1); }
+.ex-cartao-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ex-cartao-txt strong { font-size: var(--t-corpo); color: var(--txt); }
+.ex-cartao-txt small { font-size: var(--t-micro); color: var(--txt4); }
+.ex-cartao-txt em { font-size: var(--t-apoio); color: var(--txt3); font-style: normal;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-banco-pe { margin: 0; }
+/* a figura ao lado do exercício já posto na ficha */
+.ex-fig-ficha { color: var(--acento); flex: none; }
+
+/* 🪤 numa coluna flex, só a lista pode encolher: sem `flex: none` o cabeçalho,
+   a busca e as duas barras de filtro eram esmagadas a um fio pela lista. */
+.ex-banco-topo, .ex-banco-filtros, .ex-banco-pe, #ex-banco-busca { flex: none; }
+.ex-banco-filtros { min-height: 36px; align-items: center; }

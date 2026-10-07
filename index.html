@@ -773,7 +773,7 @@
               <div><label for="workout-minutes">Minutos:</label><input type="number" id="workout-minutes" min="1" placeholder="60"></div>
               <div><label for="workout-intensity">Intensidade:</label><select id="workout-intensity"><option value="1">🔥 leve</option><option value="2" selected>🔥🔥 moderada</option><option value="3">🔥🔥🔥 pesada</option></select></div>
             </div>
-            <label for="workout-exercises">Exercícios (um por linha, opcional):</label><textarea id="workout-exercises" rows="3" placeholder="Supino 3x10 40kg&#10;Agachamento 4x8 60kg&#10;Esteira 20 min"></textarea>
+            <label for="workout-exercises">Exercícios (um por linha, opcional): <button type="button" class="mini-btn" onclick="abrirBancoExercicios({ tipo: &apos;treino&apos; })" title="Abrir o banco de exercícios">📚 Banco</button></label><textarea id="workout-exercises" rows="3" placeholder="Supino 3x10 40kg&#10;Agachamento 4x8 60kg&#10;Esteira 20 min"></textarea>
             <label for="workout-note">Como foi:</label><input type="text" id="workout-note" placeholder="opcional">
             <div style="display:flex; gap:10px;"><button type="submit" id="workout-submit" style="flex:1">Registrar treino</button><button type="button" id="workout-cancel" class="btn" hidden onclick="cancelarEdicaoTreino()">Cancelar</button></div>
           </form>
@@ -1572,6 +1572,7 @@
       } catch (e) { return false; }
     })();
   </script>
+  <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>
   <script src="nucleo.js"></script>

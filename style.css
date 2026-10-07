@@ -2360,3 +2360,230 @@ body.ap-ativa { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .ap-tela, .ap-caixa { transition: none; }
 }
+
+/* ══ BLOCO 1 · a linha da tarefa em tela estreita (07/10) ═════════════════
+   `.task-main` e flex: [checkbox] [.task-body] [.item-actions]. Os 4 botoes de
+   acao (estrela, anexo, editar, apagar) tem `flex-shrink: 0` e ocupam 148 px
+   FIXOS; o titulo fica com a sobra. Medido em 07/10, com o estado salvo real:
+
+     Fold aberto em tela dividida (336 px) → titulo  31 px · botoes 148 px
+     Fold fechado                 (344 px) → titulo  39 px · botoes 148 px
+     Galaxy S24                   (360 px) → titulo  55 px · botoes 148 px
+     iPhone SE                    (375 px) → titulo  70 px · botoes 148 px
+
+   Com 31-70 px o titulo quebra uma palavra por linha ("Comprar / LP / de /
+   Gabriel / de / Isabela" = 5 linhas) e um nome longo sem espaco quebra LETRA
+   POR LETRA e toma a tela inteira. Nao e so Fold: pega Galaxy S24 e iPhone SE,
+   que sao os tamanhos mais comuns do mundo.
+
+   Correcao: abaixo de 560 px as acoes descem para a propria linha, alinhadas a
+   direita, e o titulo fica com a largura inteira. Sem mexer no JS. */
+@media (max-width: 560px) {
+  .task-main { flex-wrap: wrap; row-gap: 4px; }
+  .task-main > .item-actions { width: 100%; justify-content: flex-end; }
+}
+
+/* ══ ZONAS DA TELA · O RODAPÉ (07/10) ═════════════════════════════════════
+   Até aqui a barra "Como vamos atuar hoje?" era `position: fixed` por cima de
+   um `body` que rolava: o `padding-bottom` so garantia que o ULTIMO item subia
+   acima dela, mas no meio da rolagem o conteudo passava por baixo. Medido com
+   o estado salvo real: a barra cobria conteudo em 12 dos 16 formatos.
+
+   Agora o rodape e ZONA. O conteudo tem rolagem propria e TERMINA acima dele —
+   nao ha como se sobrepor. A separacao e um esmaecimento, nunca uma borda:
+   o conteudo se dissolve no fundo ao descer.
+
+   A VAGA DA IA ja fica reservada aqui. O modulo de agentes (visto no Jarvis do
+   amigo dele: conversa dos agentes a esquerda, canvas de agentes no centro,
+   detalhe do agente a direita) vai ganhar a sua barra nesta mesma zona: basta
+   a classe `com-ia` no body que a zona cresce e TUDO se reacomoda sozinho —
+   conteudo, Nucleo, janelas e esmaecimento. Nenhuma medida fica cravada. */
+:root {
+  --zona-rodape: calc(82px + env(safe-area-inset-bottom, 0px));
+  --zona-ia: 0px;                 /* vira --zona-ia-alta quando a barra da IA existir */
+  --zona-ia-alta: 66px;
+
+}
+body.com-ia { --zona-ia: var(--zona-ia-alta); }
+/** A soma das duas: o que o conteudo precisa deixar livre embaixo. */
+body[data-casca="nova"] { --zona-baixo: calc(var(--zona-rodape) + var(--zona-ia)); }
+
+body[data-casca="nova"] {
+  height: 100vh; height: 100dvh;
+  padding-bottom: 0;
+  overflow: hidden;               /* quem rola agora e a zona do conteudo */
+}
+body[data-casca="nova"] > .container {
+  height: calc(100% - var(--zona-baixo));
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-gutter: stable;
+  padding-bottom: var(--s5);
+  overscroll-behavior: contain;   /* a rolagem nao vaza para a pagina */
+}
+/* 🪤 07/10: aqui havia um esmaecimento `linear-gradient(to top, var(--bg), transparent)`.
+   Ele pintava a cor de fundo DO TEMA, mas o Nucleo forca palco escuro proprio
+   (`body.nu-ativo { background: #02040a }`) — entao com tema claro saia uma
+   BARRA BRANCA atravessando o Nucleo inteiro. Ele viu e reprovou na hora.
+   A divisao entre as zonas ja existe por construcao: o conteudo termina acima
+   do rodape e nao tem como invadi-lo. Nao precisa de pintura nenhuma por cima.
+   Se um dia voltar um esmaecimento aqui, ele tem de usar a cor REAL do que esta
+   atras (que muda entre pagina e Nucleo), nunca `--bg` direto. */
+/* a vaga da barra do agente de IA: fica logo acima da barra de acao */
+body[data-casca="nova"] .cs-ia {
+  position: fixed; z-index: 1600; left: 50%; transform: translateX(-50%);
+  bottom: var(--zona-rodape);
+  width: min(680px, calc(100vw - 28px));
+}
+body[data-casca="nova"] .cs-ia[hidden] { display: none; }
+@media (min-width: 901px) { body[data-casca="nova"] .cs-ia { left: calc(50% + 52px); } }
+
+/* o Nucleo tambem obedece a zona: o palco para de cobrir o rodape */
+body[data-casca="nova"].nu-ativo .nu-palco { bottom: var(--zona-baixo); }
+/* no celular as janelas empilham ACIMA da zona, nao em cima dela */
+body[data-casca="nova"] #paineis[data-modo="celular"],
+body[data-casca="nova"] #paineis[data-modo="canto"] { bottom: calc(var(--zona-baixo) + 8px); }
+/* o aviso temporario tambem sobe: a zona e so do rodape */
+body[data-casca="nova"] .toast { bottom: calc(var(--zona-baixo) + 10px); }
+
+/* ══ ZONAS DA TELA · O TRILHO DE ABAS (07/10) ═════════════════════════════
+   Dois defeitos resolvidos aqui.
+
+   1) "No topo" NUNCA funcionou no PC. A regra que faz o trilho lateral era
+      `body[data-casca="nova"] .tabs` — sem nenhuma condicao de `data-abas`.
+      Entao, com a casca nova, dava no mesmo escolher "No topo" ou "Na lateral":
+      sempre saia lateral. Ele reclamou disso no audio de 07/10.
+      Agora `[data-abas="topo"]` vira uma barra CENTRALIZADA numa zona propria
+      em cima, e a zona desconta a altura do conteudo sozinha.
+
+   2) O trilho no modo "aparece ao passar o mouse" DESLIZAVA POR CIMA do
+      conteudo (medido: 47.154 px2 na meia tela 1080p). Como nada sobrepoe nada,
+      agora ele EMPURRA: fechado o conteudo ocupa a borda inteira; aberto, o
+      conteudo anda 88 px para a direita, com transicao. */
+:root { --zona-topo: 56px; }
+
+@media (min-width: 901px) {
+
+  /* ── ABAS NO TOPO: barra horizontal centralizada, em zona propria ──────── */
+  body[data-casca="nova"][data-abas="topo"] {
+    padding-left: 16px;
+    padding-top: calc(var(--zona-topo) + 16px);
+  }
+  body[data-casca="nova"][data-abas="topo"] .tabs {
+    left: 50%; right: auto; top: 12px; bottom: auto;
+    transform: translateX(-50%);
+    width: auto; max-width: calc(100vw - 32px); height: var(--zona-topo);
+    flex-direction: row; align-items: center; gap: 2px;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 0 var(--s2); border-radius: 999px;
+    opacity: 1;                      /* o modo "auto" so vale para o lateral */
+  }
+  body[data-casca="nova"][data-abas="topo"] .tab-btn {
+    width: auto; min-width: 54px; min-height: 44px; padding: 5px 10px;
+  }
+  body[data-casca="nova"][data-abas="topo"] .tab-btn .tab-rot { max-width: 86px; }
+  /* o risco do ativo deita: vai para baixo do botao, nao para o lado */
+  body[data-casca="nova"][data-abas="topo"] .tab-btn.active::before {
+    left: 10px; right: 10px; top: auto; bottom: -4px;
+    width: auto; height: 3px;
+  }
+  body[data-casca="nova"][data-abas="topo"] #btn-settings { margin-top: 0; }
+  /* a borda sensivel e o esconde-esconde nao existem no modo topo */
+  body[data-casca="nova"][data-abas="topo"] .cs-borda-trilho { display: none; }
+  /* a barra de acao e a vaga da IA voltam ao centro de verdade (sem o trilho a esquerda) */
+  body[data-casca="nova"][data-abas="topo"] .cs-barra,
+  body[data-casca="nova"][data-abas="topo"] .cs-ia { left: 50%; }
+
+  /* ── TRILHO LATERAL QUE APARECE NO MOUSE: empurra, nao cobre ──────────── */
+  body[data-casca="nova"][data-abas="lateral"][data-trilho="auto"] {
+    transition: padding-left .32s cubic-bezier(.2,.8,.2,1);
+  }
+  body[data-casca="nova"][data-abas="lateral"][data-trilho="auto"].trilho-aberto {
+    padding-left: 104px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-casca="nova"][data-abas="lateral"][data-trilho="auto"] { transition: none; }
+}
+/* O modo "auto" esconde o trilho com translateX + opacity, e `.trilho-aberto .tabs`
+   tem especificidade MAIOR que a minha regra de topo — sem isto, a barra do topo
+   saltava para o canto ao passar o mouse na borda. Travado nos dois estados. */
+@media (min-width: 901px) {
+  body[data-casca="nova"][data-abas="topo"] .tabs,
+  body[data-casca="nova"][data-abas="topo"].trilho-aberto .tabs {
+    transform: translateX(-50%); opacity: 1;
+  }
+}
+
+/* A BARRINHA DE JANELAS mora DENTRO da zona do rodape (07/10).
+   Antes ela ficava logo ACIMA da zona, no canto de baixo a direita — e quando a
+   margem direita era curta ela encostava na coluna do meio (medido: 1.374 px2 no
+   notebook 13" e 1.676 px2 na meia tela 1080p). A zona do rodape tem sobra na
+   direita: a barra de acao e centralizada e nao passa de 680 px de largura. */
+body[data-casca="nova"] #paineis[data-modo="canto"] { bottom: 14px; }
+
+/* ══ ZONAS DA TELA · A LARGURA (07/10) ════════════════════════════════════
+   Medido antes, com o estado salvo real, em 16 formatos:
+     ultrawide 3440 → 43%   ·   desktop 1080p → 57%   ·   notebook 15" → 72%
+     notebook 13" → 86%     ·   meia tela ultrawide → 64%
+   Causa: `.container { max-width: 1100px }` com uma unica excecao em 2300px que
+   so subia para 1480px. Nao era o monitor dele — pegava TODO desktop e TODO
+   notebook de 15".
+
+   Duas coisas resolvem isso juntas, e uma sem a outra nao adianta:
+
+   1) A COLUNA CENTRAL cresce por degraus ate um teto generoso.
+   2) Os CARTOES FLUEM EM COLUNAS em vez de empilhar. Sem isto, alargar so
+      estica texto: cada aba e uma pilha vertical de `.card`, entao uma coluna de
+      1800 px viraria linhas de texto de 1800 px — pior de ler, nao melhor.
+      Com a grade, "ver tudo de uma vez" finalmente acontece.
+
+   A LATERAL so e reservada quando ha janela aberta (`body.com-paineis`). Sem
+   janela, a coluna fica com a largura inteira: espaco guardado para nada e
+   desperdicio igual ao de antes. */
+:root { --col-max: 1100px; --zona-lateral: 0px; }
+
+@media (min-width:  901px) { :root { --col-max: 1180px; } }
+@media (min-width: 1280px) { :root { --col-max: 1500px; } }   /* sem lateral: num 13" ela comia 26% da tela (armadilha 19) */
+@media (min-width: 1700px) { :root { --col-max: 1800px; --zona-lateral: 360px; } }   /* so daqui para cima cabe lateral */
+@media (min-width: 2400px) { :root { --col-max: 2400px; --zona-lateral: 420px; } }
+
+/* a coluna central: o teto vira variavel (antes era 1100 cravado) */
+body[data-casca="nova"] > .container { max-width: var(--col-max); }
+/* no modo "abas na lateral" a grade do trilho tinha teto proprio de 1280 */
+@media (min-width: 901px) {
+  body[data-casca="nova"][data-abas="lateral"] > .container { max-width: var(--col-max); }
+}
+/* a zona lateral so existe quando ha janela para morar nela */
+@media (min-width: 1700px) {
+  body[data-casca="nova"].com-paineis { padding-right: var(--zona-lateral); }
+}
+/* bem largo, as janelas podem usar os DOIS lados */
+@media (min-width: 2400px) {
+  body[data-casca="nova"][data-abas="topo"].com-paineis { padding-left: var(--zona-lateral); }
+}
+
+/* ── OS CARTOES FLUEM EM COLUNAS ──────────────────────────────────────────
+   So na aba ATIVA: `.tab-content` sem `.active` e `display: none`, e trocar isso
+   para grid acenderia TODAS as abas de uma vez. */
+@media (min-width: 1280px) {   /* a grade de cartoes comeca antes da lateral: nao depende dela */
+  body[data-casca="nova"] .tab-content.active {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: var(--s4);
+    align-items: start;
+  }
+  /* o que e cabecalho atravessa todas as colunas */
+  body[data-casca="nova"] .tab-content.active > .cs-hero,
+  body[data-casca="nova"] .tab-content.active > .aba-cfg-btn,
+  body[data-casca="nova"] .tab-content.active > .focus-header-tabs,
+  body[data-casca="nova"] .tab-content.active > .life-os-banner,
+  body[data-casca="nova"] .tab-content.active > .janelas-atalho,
+  body[data-casca="nova"] .tab-content.active > .balance-card,
+  body[data-casca="nova"] .tab-content.active > .summary-row { grid-column: 1 / -1; }
+  /* blocos que ja sao grade por dentro pedem duas colunas para respirar */
+  body[data-casca="nova"] .tab-content.active > .life-os-grid,
+  body[data-casca="nova"] .tab-content.active > .fin-two-col,
+  body[data-casca="nova"] .tab-content.active > .agenda-sec { grid-column: 1 / -1; }
+  /* o Nucleo nao e pagina de cartao: continua inteiro */
+  body[data-casca="nova"] #nucleo.tab-content.active { display: block; }
+}

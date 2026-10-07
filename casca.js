@@ -374,6 +374,11 @@ function montarEsqueleto() {
         <div class="cs-grade-itens"></div>
       </div>
     </div>
+    <!-- VAGA DO AGENTE DE IA — a zona do rodapé já guarda o lugar dela.
+         Nasce escondida; quando o módulo de agentes chegar, é só preencher este
+         div e pôr a classe "com-ia" no body: o conteúdo, o Núcleo, as janelas e
+         o esmaecimento se reacomodam sozinhos (ver a variavel zona-ia no style.css). -->
+    <div id="cs-ia" class="cs-ia" hidden aria-label="Agente de IA"></div>
     <div id="cs-barra" class="cs-barra">
       <button class="cs-grade-btn" onclick="abrirGrade()" title="Todas as áreas">${ic('grade')}</button>
       <div class="cs-barra-campo">
@@ -389,8 +394,13 @@ function montarEsqueleto() {
   // Uma faixa fina e invisível na beira chama o trilho; sair do trilho o recolhe.
   const borda = document.createElement('div'); borda.className = 'cs-borda-trilho'; borda.setAttribute('aria-hidden', 'true');
   document.body.appendChild(borda);
-  const abre = () => document.body.classList.add('trilho-aberto');
-  const fecha = () => document.body.classList.remove('trilho-aberto');
+  // Abrir/fechar o trilho EMPURRA o conteudo 88 px (nada sobrepoe nada), entao a
+  // coluna do meio muda de lugar e as laterais mudam de tamanho. As janelas
+  // precisam ser recolocadas junto, senao a que estava na margem fica por cima
+  // do conteudo (medido: 5.512 px2 no desktop 1080p).
+  const recolocar = () => { if (typeof recolocarPaineis === 'function') setTimeout(recolocarPaineis, 340); };
+  const abre = () => { document.body.classList.add('trilho-aberto'); recolocar(); };
+  const fecha = () => { document.body.classList.remove('trilho-aberto'); recolocar(); };
   borda.addEventListener('mouseenter', abre);
   const nav = document.querySelector('.tabs');
   if (nav) { nav.addEventListener('mouseleave', fecha); nav.addEventListener('focusin', abre); nav.addEventListener('focusout', e => { if (!nav.contains(e.relatedTarget)) fecha(); }); nav.addEventListener('click', () => setTimeout(fecha, 150)); }

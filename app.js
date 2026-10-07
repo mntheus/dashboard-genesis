@@ -6934,26 +6934,87 @@ function tocarPaineis(...quais) {
 
 // --- onde cada janela fica --------------------------------------------------
 /** Calcula a posição: margem da direita, depois da esquerda, senão canto. */
+/** AS ZONAS DA TELA (07/10) — a regra que impede sobreposicao.
+ *  A coluna do meio e do CONTEUDO; as margens sao das JANELAS. Esta funcao
+ *  devolve as faixas de x onde uma janela de largura L pode ficar. Uma janela
+ *  anda livre entre as laterais e por toda a altura, mas nunca entra no meio.
+ *  Mora aqui sozinha de proposito: o posicionamento automatico e o arraste
+ *  precisam obedecer a MESMA regra (duas superficies para a mesma funcao sempre
+ *  divergem — armadilha no 21). */
+/** Altura da ZONA DO RODAPE (barra "Como vamos atuar hoje?" + vaga da barra do
+ *  agente de IA). Lida do LAYOUT, nao de um numero cravado: a zona do conteudo
+ *  termina exatamente no topo do rodape, entao a sobra abaixo dela E a zona.
+ *  Assim, quando a barra da IA entrar (classe `com-ia` no body), tudo se
+ *  reacomoda sozinho — conteudo, Nucleo, janelas e esmaecimento.
+ *  🪤 Nao da para ler `--zona-baixo` com getPropertyValue: custom property
+ *  devolve o texto `calc(...)`, que vira NaN no parseFloat. */
+function alturaZonaBaixo() {
+  const c = document.querySelector('.container');
+  if (c) {
+    const sobra = window.innerHeight - c.getBoundingClientRect().bottom;
+    if (sobra > 10 && sobra < window.innerHeight * 0.5) return Math.round(sobra);
+  }
+  return 82;
+}
+const CALHA = 16;   // folga entre a coluna do meio e a lateral: serve de divisao visual
+function zonasLaterais(L, esp) {
+  esp = esp || medirEspaco();
+  const z = [];
+  if (esp.cabeEsq) z.push({ min: CALHA, max: Math.max(CALHA, esp.esq - L - CALHA) });
+  if (esp.cabeDir) z.push({ min: esp.r.right + CALHA, max: Math.max(esp.r.right + CALHA, window.innerWidth - L - CALHA) });
+  return z;
+}
+/** Encaixa um x na lateral mais proxima. Sem lateral nenhuma, devolve null. */
+function encaixarNaLateral(x, L, esp) {
+  const zonas = zonasLaterais(L, esp);
+  if (!zonas.length) return null;
+  const perto = (a, b) => Math.abs((a.min + a.max) / 2 - x) <= Math.abs((b.min + b.max) / 2 - x) ? a : b;
+  const z = zonas.reduce(perto);
+  return Math.round(Math.max(z.min, Math.min(z.max, x)));
+}
 function recolocarPaineis() {
   const wrap = document.getElementById('paineis'); if (!wrap || wrap.hidden) return;
   const c = cfgFlut(); const esp = medirEspaco(); const L = esp.L;
   wrap.dataset.modo = esp.modo;
   const ativos = (c.ativos || []).filter(k => PAINEIS[k]);
   if (esp.modo !== 'margem') {   // barrinha: o CSS posiciona, sem style inline
-    ativos.forEach(k => { const el = document.getElementById('pf-' + k); if (el) el.removeAttribute('style'); });
+    // 🪤 07/10: aqui a janela aberta usava 330 px fixos e passava por cima da
+    // coluna do meio quando a margem era menor (medido: 1.540 px2 a 1920, onde a
+    // margem tem 320 px e falta so 12 px para o modo "margem" ligar). Agora ela
+    // se encolhe para caber na margem que existe. Abaixo de 240 px nao da para
+    // encolher mais sem ficar inutil: ai ela abre por cima DE PROPOSITO, porque
+    // foi ele quem mandou abrir — e so nesse caso.
+    const cabe = Math.round(esp.dir - 14);
+    ativos.forEach(k => {
+      const el = document.getElementById('pf-' + k); if (!el) return;
+      el.removeAttribute('style');
+      if (cabe >= 240 && cabe < 330) el.style.width = cabe + 'px';
+    });
     return;
   }
   let yDir = 14, yEsq = 14;
-  const limite = window.innerHeight - 14;
+  // o pe util e o topo da ZONA DO RODAPE (barra de acao + vaga da IA), lido do
+  // proprio CSS: se a zona crescer (a barra da IA aparecer), as janelas sobem
+  // sozinhas. Nenhuma medida cravada aqui.
+  const limite = window.innerHeight - alturaZonaBaixo() - 14;
   ativos.forEach(k => {
     const el = document.getElementById('pf-' + k); if (!el) return;
     el.style.width = L + 'px';
     const salvo = (c.pos || {})[k];
-    if (salvo) {   // você arrastou: manda ela pro lugar que escolheu (sem sair da tela)
-      el.style.right = 'auto'; el.style.bottom = 'auto';
-      el.style.left = Math.max(4, Math.min(window.innerWidth - L - 4, salvo.x)) + 'px';
-      el.style.top = Math.max(4, Math.min(window.innerHeight - 46, salvo.y)) + 'px';
-      return;
+    if (salvo) {
+      // 🪤 07/10: a posicao salva de um arraste mandava mais que tudo e a janela
+      // ficava EM CIMA do conteudo, para sempre e em qualquer tela. Medido com o
+      // estado salvo real: 943.084 px2 de conteudo tapados no ultrawide e 700.941
+      // no desktop 1080p. Agora a posicao salva escolhe a LATERAL e a altura; a
+      // coluna central e intocavel.
+      const x = encaixarNaLateral(salvo.x, L, esp);
+      if (x !== null) {
+        el.style.right = 'auto'; el.style.bottom = 'auto';
+        el.style.left = x + 'px';
+        el.style.top = Math.max(4, Math.min(window.innerHeight - alturaZonaBaixo() - 46, salvo.y)) + 'px';
+        return;
+      }
+      // sem lateral nenhuma: cai na regra de baixo (empilha e encolhe), sem cobrir nada
     }
     const alt = el.offsetHeight + 12;
     // com as duas margens livres, cada janela vai para a coluna mais curta
@@ -6990,9 +7051,14 @@ function pegarPainel(ev, k) {
 function moverPainel(ev) {
   if (!pfArrasto) return;
   const { el, dx, dy } = pfArrasto;
+  const L = el.offsetWidth, alvoX = ev.clientX - dx;
+  // o arraste obedece a MESMA regra do posicionamento automatico: a janela
+  // desliza entre as laterais e pela altura, mas nao entra na coluna do meio.
+  const naLateral = encaixarNaLateral(alvoX, L);
+  const x = naLateral !== null ? naLateral : Math.max(4, Math.min(window.innerWidth - L - 4, alvoX));
   el.style.right = 'auto'; el.style.bottom = 'auto';
-  el.style.left = Math.max(4, Math.min(window.innerWidth - el.offsetWidth - 4, ev.clientX - dx)) + 'px';
-  el.style.top = Math.max(4, Math.min(window.innerHeight - 46, ev.clientY - dy)) + 'px';
+  el.style.left = x + 'px';
+  el.style.top = Math.max(4, Math.min(window.innerHeight - alturaZonaBaixo() - 46, ev.clientY - dy)) + 'px';
 }
 function soltarPainel() {
   if (!pfArrasto) return;

@@ -2562,28 +2562,164 @@ body[data-casca="nova"] > .container { max-width: var(--col-max); }
   body[data-casca="nova"][data-abas="topo"].com-paineis { padding-left: var(--zona-lateral); }
 }
 
-/* ── OS CARTOES FLUEM EM COLUNAS ──────────────────────────────────────────
-   So na aba ATIVA: `.tab-content` sem `.active` e `display: none`, e trocar isso
-   para grid acenderia TODAS as abas de uma vez. */
-@media (min-width: 1280px) {   /* a grade de cartoes comeca antes da lateral: nao depende dela */
-  body[data-casca="nova"] .tab-content.active {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: var(--s4);
-    align-items: start;
-  }
-  /* o que e cabecalho atravessa todas as colunas */
-  body[data-casca="nova"] .tab-content.active > .cs-hero,
-  body[data-casca="nova"] .tab-content.active > .aba-cfg-btn,
-  body[data-casca="nova"] .tab-content.active > .focus-header-tabs,
-  body[data-casca="nova"] .tab-content.active > .life-os-banner,
-  body[data-casca="nova"] .tab-content.active > .janelas-atalho,
-  body[data-casca="nova"] .tab-content.active > .balance-card,
-  body[data-casca="nova"] .tab-content.active > .summary-row { grid-column: 1 / -1; }
-  /* blocos que ja sao grade por dentro pedem duas colunas para respirar */
-  body[data-casca="nova"] .tab-content.active > .life-os-grid,
-  body[data-casca="nova"] .tab-content.active > .fin-two-col,
-  body[data-casca="nova"] .tab-content.active > .agenda-sec { grid-column: 1 / -1; }
-  /* o Nucleo nao e pagina de cartao: continua inteiro */
-  body[data-casca="nova"] #nucleo.tab-content.active { display: block; }
+
+/* ══ GRADE DE MÓDULOS — altura uniforme, sem buracos (07/10, 2ª volta) ═════
+   O que ele apontou depois de usar:
+   1. mover era "movimento de xadrez": só trocava de lugar com outro;
+   2. módulos de alturas diferentes deixavam BURACO que não dava para preencher.
+      Medido em Negócios a 1920: Mercado 856 px, Investimentos 459, Carteira 226
+      — a linha inteira virava 856 e sobravam 397 px e 630 px de coluna vazia;
+   3. ele quer tudo "quadradinho" e ROLAR DENTRO do módulo quando tem mais coisa;
+   4. ao virar meia tela o desenho "quebrava".
+
+   O (4) não era transbordo — medido a 960 px não há rolagem lateral nenhuma. Era
+   a grade LIGANDO E DESLIGANDO de repente em 1280 px: a 1281 três colunas, a
+   1279 uma só. Agora a grade vale em TODA largura e o `min(340px, 100%)` faz
+   ela virar uma coluna sozinha no celular — sem degrau, sem ponto de quebra.
+
+   (1), (2) e (3) têm uma raiz só: a altura era a do conteúdo. Agora a linha é
+   uma UNIDADE fixa, cada módulo ocupa um número inteiro de unidades, o que
+   sobra de conteúdo rola dentro dele, e `dense` preenche os buracos sozinho. */
+:root { --mod-u: 42px; }            /* a unidade de altura da grade */
+
+body[data-casca="nova"] .tab-content.active {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  /* linha de altura FIXA. Quem nao e modulo (cabecalho, barra de saldo) recebe
+     um span calculado no JS a partir da altura natural (ajustarNaoModulos). */
+  grid-auto-rows: var(--mod-u);   /* FIXA: com minmax(u, auto) a linha crescia com o conteudo e todos os modulos viravam 1040px */
+  grid-auto-flow: row dense;        /* é isto que tapa o buraco que ele viu */
+  gap: var(--s4);
+  align-items: stretch;
+}
+/* o Núcleo não é página de cartão */
+body[data-casca="nova"] #nucleo.tab-content.active { display: block; }
+
+/* cabeçalho e companhia atravessam todas as colunas e mantêm a altura natural */
+body[data-casca="nova"] .tab-content.active > .cs-hero,
+body[data-casca="nova"] .tab-content.active > .aba-cfg-btn,
+body[data-casca="nova"] .tab-content.active > .focus-header-tabs,
+body[data-casca="nova"] .tab-content.active > .life-os-banner,
+body[data-casca="nova"] .tab-content.active > .janelas-atalho,
+body[data-casca="nova"] .tab-content.active > .balance-card,
+body[data-casca="nova"] .tab-content.active > .summary-row,
+body[data-casca="nova"] .tab-content.active > .life-os-grid,
+body[data-casca="nova"] .tab-content.active > .fin-two-col,
+body[data-casca="nova"] .tab-content.active > .agenda-sec { grid-column: 1 / -1; }
+
+/* ── o módulo ocupa um número inteiro de unidades ────────────────────────── */
+body.mod-ligado .tab-content.active > .card {
+  grid-column: span var(--mod-col, 1);
+  grid-row: span var(--mod-lin, 9);
+  display: flex; flex-direction: column;
+  overflow: hidden;                 /* quem rola é o corpo, não o cartão */
+  min-height: 0;
+}
+body.mod-ligado .card > .mod-corpo {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;     /* a rolagem do módulo não vaza para a página */
+  margin-right: -6px; padding-right: 6px;   /* a barrinha de rolagem não corta o conteúdo */
+}
+body.mod-ligado .card.mod-recolhido { grid-row: span 1; }
+body.mod-ligado .card.mod-recolhido > .mod-corpo { display: none; }
+
+/* módulo aninhado (dentro de uma seção) não entra na grade da aba: não tem
+   como dar altura de unidade a quem não é filho da grade */
+body.mod-ligado .tab-content.active .agenda-sec .card { grid-row: auto; overflow: visible; }
+body.mod-ligado .tab-content.active .agenda-sec .card > .mod-corpo { overflow: visible; }
+
+/* enquanto arrasta, o lugar de destino fica marcado */
+.card.mod-movendo { opacity: .55; outline: 2px dashed var(--acento); outline-offset: 2px; }
+
+/* ══ MÓDULOS MÓVEIS E RECOLHÍVEIS (07/10) ═════════════════════════════════
+   A alça fica no alto à direita do cartão e só aparece quando o ponteiro chega
+   perto — "nada grita na tela", como o Núcleo. No toque ela fica sempre visível,
+   porque não existe passar o mouse. */
+.card { position: relative; }
+
+.mod-alca {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  display: flex; gap: 2px;
+  opacity: 0; transition: opacity var(--mov);
+  pointer-events: none;
+}
+body.mod-ligado .card:hover > .mod-alca,
+body.mod-ligado .card:focus-within > .mod-alca,
+body.mod-ligado .card.mod-recolhido > .mod-alca { opacity: 1; pointer-events: auto; }
+@media (pointer: coarse) {
+  body.mod-ligado .card > .mod-alca { opacity: .55; pointer-events: auto; }
+}
+body:not(.mod-ligado) .mod-alca { display: none; }
+
+.mod-btn {
+  width: 36px; height: 36px; min-height: 36px; padding: 0; line-height: 1; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sup-2); color: var(--txt4);
+  border: 1px solid var(--fio-sutil); border-radius: 8px;
+  font-size: .8rem; cursor: pointer;
+}
+.mod-btn:hover { color: var(--txt); border-color: var(--borda4); }
+.mod-mover { cursor: grab; touch-action: none; }   /* so no botao: area grande trava a rolagem (armadilha 20) */
+body.mod-arrastando .mod-mover { cursor: grabbing; }
+
+/* recolhido: sobra o título e a alça */
+.card.mod-recolhido { padding-top: 14px; padding-bottom: 14px; }
+
+
+.card.mod-recolhido .mod-recolher { transform: rotate(-90deg); }
+
+/* enquanto arrasta */
+.card.mod-movendo { opacity: .6; outline: 2px dashed var(--acento); outline-offset: 3px; }
+body.mod-arrastando { user-select: none; }
+body.mod-arrastando .card { transition: transform var(--mov); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mod-alca, body.mod-arrastando .card { transition: none; }
+}
+/* o rótulo do recolhido: só aparece quando o módulo está fechado, e dá nome a
+   cartão que não tem <h2> (senão recolhia para uma faixa vazia de 30 px) */
+.mod-titulo { display: none; }
+.card.mod-recolhido > .mod-titulo {
+  display: block; margin: 0; padding-right: 60px;
+  font-size: var(--t-corpo); font-weight: 600; color: var(--txt2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card.mod-recolhido > *:not(.mod-alca):not(.mod-titulo) { display: none !important; }
+/* A alça precisa de FAIXA PRÓPRIA, não de flutuar sobre o cartão.
+   Medido em 07/10: solta no canto, ela cobria o botão "📍 Este mês" (1.656 px²)
+   e um campo do Histórico (681 px²). Nada sobrepõe nada — vale também para o
+   que eu mesmo acrescento. Com os módulos ligados, todo cartão reserva uma
+   faixa no alto; com eles desligados, nada muda. */
+body.mod-ligado .card { padding-top: 52px; }   /* a faixa tem de ser MAIOR que a alca: uma regra global da 44px de altura aos botoes */
+body.mod-ligado .card.mod-recolhido { padding-top: 14px; }
+
+/* UMA COLUNA SÓ: altura natural, sem rolagem interna.
+   A altura uniforme existe para alinhar módulos LADO A LADO. Quando só cabe uma
+   coluna (celular, Fold fechado, meia tela estreita) não há vizinho com quem
+   alinhar — e o tamanho fixo vira defeito: medido no celular, "Outubro de 2026"
+   ficava com 486 px para ~150 px de conteúdo, um vazio enorme, obrigando a
+   rolar muito mais. O contrário de "ver tudo de uma vez".
+   740 px é onde a segunda coluna passa a caber (minmax de 340 + calha). */
+@media (max-width: 739px) {
+  /* a linha tambem solta: com grid-auto-rows fixo em 42px, `grid-row: auto` da
+     UMA linha de 42px e o corpo do modulo colapsa (medido: todos com 70px) */
+  body[data-casca="nova"] .tab-content.active { grid-auto-rows: auto; }
+  body.mod-ligado .tab-content.active > .card { grid-row: auto; overflow: visible; display: block; }
+  body.mod-ligado .tab-content.active > .card > .mod-corpo { overflow: visible; margin-right: 0; padding-right: 0; }
+}
+
+/* ── Higiene de largura no estreito (07/10) ───────────────────────────────
+   As três regras abaixo são corretas por si (nada deve ser mais largo que o
+   seu cartão), mas SEJA HONESTO COM QUEM LER DEPOIS: nenhuma delas eliminou os
+   8 px (Fold fechado 344) e 16 px (Fold em tela dividida 336) de rolagem
+   lateral que sobram SÓ na aba Finanças. Tentei as três e medi: continuam.
+   O que se sabe: nenhum elemento fora de um contêiner com rolagem ultrapassa a
+   borda (checagem que ignora retângulos não recortados — armadilha 44), e não
+   há sobreposição nenhuma. Fica como dívida aberta no PLANO.md. */
+.fin-month-nav { flex-wrap: wrap; }
+.fin-month-nav h2 { min-width: 0; flex: 1 1 auto; }
+.focus-header-tabs, .filter-row { max-width: 100%; min-width: 0; }
+@media (max-width: 739px) {
+  body[data-casca="nova"] > .container { scrollbar-gutter: auto; }
 }

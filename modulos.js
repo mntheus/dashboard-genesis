@@ -279,12 +279,23 @@ function ajustarNaoModulos() {
       const pos = getComputedStyle(el).position;
       if (pos === 'absolute' || pos === 'fixed') return;   // não entra no fluxo da grade
       el.style.gridRow = '';                               // mede sem o span de antes
+      // 🪤 armadilha nº 53: medir a altura que o elemento JÁ TEM confirma o
+      // achatamento (a barra de micro-abas da Saúde ficava presa em 18 px).
+      // `align-self: start` solta o elemento da linha e deixa ver a altura
+      // NATURAL; a margem entra na conta, porque a grade reserva espaço para
+      // ela também (os 20 px de margem da barra eram o que faltava).
+      const alinhamento = el.style.alignSelf;
+      el.style.alignSelf = 'start';
+      const est2 = getComputedStyle(el);
+      const margem = (parseFloat(est2.marginTop) || 0) + (parseFloat(est2.marginBottom) || 0);
       // 🪤 a altura da CAIXA mente quando o elemento é ele mesmo uma grade: o
       // `.life-os-grid` media 18 px e tinha 1029 px de conteúdo — recebia
       // `span 1` e transbordava mil pixels POR CIMA de tudo abaixo. Foi a
       // sobreposição que ele viu no Painel. `scrollHeight` conta o conteúdo.
-      const h = Math.max(el.getBoundingClientRect().height, el.scrollHeight);
-      if (!h) return;
+      const natural = Math.max(el.getBoundingClientRect().height, el.scrollHeight);
+      el.style.alignSelf = alinhamento;
+      if (!natural) return;
+      const h = natural + margem;
       el.style.gridRow = 'span ' + Math.max(1, Math.ceil((h + gap) / (u + gap)));
       vigiarAltura(el);
     });

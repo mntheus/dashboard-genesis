@@ -592,6 +592,8 @@ function verificarNovoDia() {
     habits.forEach(h => h.done = false);
     habitLog.date = hoje;
     salvar('habits', habits); salvar('habitlog', habitLog); mudou = true;
+    // remédio sem dose hoje já nasce cumprido (saude.js); só agora, com ontem fechado
+    if (typeof sincronizarHabitosRemedios === 'function') sincronizarHabitosRemedios();
   }
   verificarNovoDiaAgua();
   if (mudou) { gerarRotinas(true); gerarPlantoesFixos(true); renderShifts(); }
@@ -653,7 +655,11 @@ function renderFocusTab() {
   document.getElementById('progress-text').innerText = `${progress}% Concluído`;
 }
 
-function toggleHabit(index) { habits[index].done = !habits[index].done; salvar('habits', habits); renderFocusTab(); renderJournal(); atualizarSaudacao(); }
+function toggleHabit(index) {
+  habits[index].done = !habits[index].done; salvar('habits', habits); renderFocusTab(); renderJournal(); atualizarSaudacao();
+  // hábito que lembra um remédio: marcar aqui conta as doses de hoje (saude.js)
+  if (habits[index].medId && typeof aoMarcarHabitoRemedio === 'function') aoMarcarHabitoRemedio(habits[index]);
+}
 function separarIconeTexto(str) {
   const iconMatch = str.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
   const icon = iconMatch ? iconMatch[0] : '📌';
@@ -3045,6 +3051,7 @@ function salvarPerfilCorpo() {
   const c = perfilCorpo();
   c.altura = parseFloat(document.getElementById('corpo-altura').value) || 0;
   c.sexo = document.getElementById('corpo-sexo').value;
+  const nasc = document.getElementById('corpo-nascimento'); if (nasc) c.nascimento = nasc.value || '';
   salvar('profile', profile); renderSaude();
 }
 function ultimaMedida() { return [...measures].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null; }
@@ -3112,10 +3119,13 @@ function renderMedidas() {
   const c = perfilCorpo();
   const a = document.getElementById('corpo-altura'); if (a && !a.value && c.altura) a.value = c.altura;
   const s = document.getElementById('corpo-sexo'); if (s) s.value = c.sexo || '';
+  const nas = document.getElementById('corpo-nascimento'); if (nas && document.activeElement !== nas) nas.value = c.nascimento || '';
   const u = ultimaMedida();
   // --- o painel do corpo -----------------------------------------------------
   const p = document.getElementById('corpo-painel');
-  if (p) {
+  // 08/10: os oito quadradinhos iguais viraram o mapa das medidas (saude.js)
+  if (p && typeof painelDoCorpo === 'function') p.innerHTML = painelDoCorpo();
+  else if (p) {
     if (!u) p.innerHTML = '<div class="stat-line muted">Registre a primeira medida para ver IMC, faixa de peso e composição.</div>';
     else {
       const imc = calcIMC(u.weight, c.altura);
@@ -3143,7 +3153,9 @@ function renderMedidas() {
   }
   // --- gráfico do peso -------------------------------------------------------
   const hist = [...measures].filter(m => m.weight > 0).sort((a2, b) => (a2.date || '').localeCompare(b.date || '')).slice(-12);
-  if (ch) {
+  // 08/10: as barras "que eram só um print" viraram a linha viva do saude.js
+  if (ch && typeof spGraficoPeso === 'function') ch.innerHTML = spFaixasHtml() + spGraficoPeso('secao', 190, Math.max(320, Math.round(ch.clientWidth || 640)));
+  else if (ch) {
     if (hist.length < 2) ch.innerHTML = '<div class="stat-line muted">Duas pesagens e o gráfico aparece.</div>';
     else {
       const min = Math.min(...hist.map(m => m.weight)), max = Math.max(...hist.map(m => m.weight));
@@ -3456,7 +3468,7 @@ function renderDietas() {
             <span class="ref-macros">${x.kcal ? x.kcal + ' kcal' : ''}${x.prot ? ' · ' + x.prot + 'g P' : ''}</span>
             <button class="mini-btn xs" onclick="removerItemDieta(${d.id}, ${i}, ${x.id})">✕</button></div>`).join('')}
           <div class="ref-novo">
-            <input type="text" id="di-ali-${i}" placeholder="alimento">
+            <input type="text" id="di-ali-${i}" placeholder="alimento (o banco preenche kcal)" list="alimentos-banco" onchange="alimentoEscolhido(${i})">
             <input type="text" id="di-qtd-${i}" placeholder="qtd" style="max-width:80px">
             <input type="number" id="di-kcal-${i}" placeholder="kcal" style="max-width:80px">
             <input type="number" id="di-prot-${i}" placeholder="prot" style="max-width:70px">
@@ -3475,6 +3487,8 @@ function verSecaoSaude(s, el) {
   if (el) el.classList.add('active');
   else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'treinos', 'medidas', 'comida', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
+  // o gráfico do peso mede a largura de onde está: escondido, ela é zero
+  if (s === 'medidas' && typeof renderMedidas === 'function') renderMedidas();
 }
 
 /** Move os cards que já existiam para dentro das seções novas, pelo título.
@@ -3544,133 +3558,27 @@ function removerMedico(id) { const m = medical.find(x => x.id === id); if (!m ||
 function renderMedico() {
   const ul = document.getElementById('medical-list'); if (!ul) return; ul.innerHTML = '';
   const hoje = hojeISO();
-  const abertos = medical.filter(m => !m.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
-  const feitos = medical.filter(m => m.done).sort((a, b) => (b.doneAt || b.date || '').localeCompare(a.doneAt || a.date || '')).slice(0, 8);
-  if (!medical.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Seus próprios cuidados: consulta, exame, vacina, remédio. Com data, vira compromisso 🩺 no calendário.</li>'; return; }
+  // remédio de uso contínuo (com `rotina`) tem o seu próprio quadro, acima
+  const pontuais = medical.filter(m => !m.rotina);
+  const abertos = pontuais.filter(m => !m.done).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  const feitos = pontuais.filter(m => m.done).sort((a, b) => (b.doneAt || b.date || '').localeCompare(a.doneAt || a.date || '')).slice(0, 8);
+  if (!pontuais.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Seus próprios cuidados: consulta, exame, vacina, remédio. Com data, vira compromisso 🩺 no calendário.</li>'; return; }
   const linha = m => { const k = TIPOS_MEDICO[m.kind] || TIPOS_MEDICO.outro; const atras = m.date && m.date < hoje && !m.done; return `<li class="health-item" style="${m.done ? 'opacity:0.5' : ''}"><div class="transaction-info" style="flex:1"><span>${k[0]} ${esc(m.title)} <small class="item-date">${k[1]}${m.date ? ' · ' + rotuloData(m.date) + (m.time ? ' ' + esc(m.time) : '') : ' · sem data'}${atras ? ' <span class="badge-topay">passou</span>' : ''}</small></span>${m.place || m.notes ? `<small class="item-notes">${esc([m.place, m.notes].filter(Boolean).join(' · '))}</small>` : ''}</div><div class="item-actions"><button class="mini-btn ${m.done ? 'on' : ''}" title="${m.done ? 'Reabrir' : 'Concluído'}" onclick="concluirMedico(${m.id})">${m.done ? '↩' : '✓'}</button><button class="mini-btn" title="Editar" onclick="editarMedico(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMedico(${m.id})">✕</button></div></li>`; };
   abertos.forEach(m => ul.innerHTML += linha(m));
-  if (feitos.length) { ul.innerHTML += `<li class="date-sep">Concluídos <small>${medical.filter(m => m.done).length}</small></li>`; feitos.forEach(m => ul.innerHTML += linha(m)); }
+  if (feitos.length) { ul.innerHTML += `<li class="date-sep">Concluídos <small>${pontuais.filter(m => m.done).length}</small></li>`; feitos.forEach(m => ul.innerHTML += linha(m)); }
 }
 
 // --- Painel do módulo ---
-/** Um mini-gráfico de linha, desenhado aqui mesmo (sem biblioteca, sem rede).
- *  `pontos` = [{x: ISO, y: número}]. Devolve '' se não houver o que mostrar. */
-function faixinha(pontos, cor, largura, altura) {
-  if (!pontos || pontos.length < 2) return '';
-  const L = largura || 150, A = altura || 34, m = 4;
-  const ys = pontos.map(p => p.y);
-  const min = Math.min(...ys), max = Math.max(...ys);
-  const vao = (max - min) || 1;
-  const px = i => m + (i * (L - 2 * m)) / (pontos.length - 1);
-  const py = y => A - m - ((y - min) / vao) * (A - 2 * m);
-  const d = pontos.map((p, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)} ${py(p.y).toFixed(1)}`).join(' ');
-  const area = `${d} L${px(pontos.length - 1).toFixed(1)} ${A} L${px(0).toFixed(1)} ${A} Z`;
-  const ult = pontos[pontos.length - 1];
-  return `<svg class="faixinha" viewBox="0 0 ${L} ${A}" width="${L}" height="${A}" aria-hidden="true">
-    <path d="${area}" fill="${cor}" opacity=".12"/>
-    <path d="${d}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${px(pontos.length - 1).toFixed(1)}" cy="${py(ult.y).toFixed(1)}" r="2.6" fill="${cor}"/></svg>`;
-}
-
-/** Quantos dias seguidos, contando de hoje para trás, tiveram treino.
- *  Ontem sem treino não zera se hoje ainda não acabou — começa a contar de ontem. */
-function sequenciaTreino() {
-  const dias = new Set(workouts.map(w => w.date));
-  let n = 0; const d = new Date();
-  if (!dias.has(isoDe(d))) d.setDate(d.getDate() - 1);   // hoje ainda dá tempo
-  while (dias.has(isoDe(d))) { n++; d.setDate(d.getDate() - 1); }
-  return n;
-}
-
-/** O dia de ficha que está há mais tempo sem ser treinado. É a resposta para
- *  "o que eu faço hoje?", que é a primeira pergunta ao abrir a aba. */
-function proximoDiaDeTreino() {
-  let melhor = null;
-  fichas.forEach(f => (f.dias || []).forEach((d, i) => {
-    if (!d.exercicios || !d.exercicios.length) return;
-    const quando = d.ultimoUso || '0000-00-00';
-    if (!melhor || quando < melhor.quando) melhor = { ficha: f, dia: d, i, quando };
-  }));
-  return melhor;
-}
-
-function renderPainelSaude() {
-  const el = document.getElementById('health-dash'); if (!el) return;
-  verificarNovoDiaAgua();
-  const hoje = hojeISO();
-  const ini = inicioSemanaISO(); const fim = new Date(); fim.setDate(fim.getDate() + (6 - fim.getDay())); const fimISO = isoDe(fim);
-  const semana = workouts.filter(w => w.date >= ini && w.date <= fimISO);
-  const minSemana = semana.reduce((a, w) => a + (w.minutes || 0), 0);
-  const pesos = [...measures].filter(m => m.weight > 0).sort((a, b) => a.date.localeCompare(b.date));
-  const ultimo = pesos[pesos.length - 1], anterior = pesos[pesos.length - 2];
-  const delta = ultimo && anterior ? (ultimo.weight - anterior.weight) : 0;
-  const prox = medical.filter(m => !m.done && m.date && m.date >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0];
-  const goal = hydration.goal || 2500; const pct = Math.min(100, Math.round((hydration.ml || 0) / goal * 100));
-  const treinoHoje = workouts.filter(w => w.date === hoje);
-  const comidaHoje = meals.filter(m => m.date === hoje);
-  const seq = sequenciaTreino();
-  const sugestao = proximoDiaDeTreino();
-
-  // ── 1. O DIA: o que fazer agora, sem entrar nas micro-abas ───────────────
-  let h = '<div class="sa-dia">';
-  if (treinoHoje.length) {
-    const t = treinoHoje[0]; const ic = (TIPOS_TREINO[t.type] || TIPOS_TREINO.outro);
-    h += `<div class="sa-hoje feito"><span class="sa-hoje-ic">${ic[0]}</span>
-      <div><strong>Treino de hoje feito</strong>
-      <small>${esc(ic[1])}${t.minutes ? ' · ' + t.minutes + ' min' : ''}${t.note ? ' · ' + esc(t.note).slice(0, 38) : ''}</small></div></div>`;
-  } else if (sugestao) {
-    const ha = sugestao.quando === '0000-00-00' ? 'nunca treinado' : 'último ' + rotuloData(sugestao.quando);
-    h += `<div class="sa-hoje"><span class="sa-hoje-ic">🏋️</span>
-      <div><strong>Hoje: ${esc(sugestao.dia.nome)}</strong>
-      <small>${esc(sugestao.ficha.nome)} · ${plural(sugestao.dia.exercicios.length, 'exercício', 'exercícios')} · ${ha}</small></div>
-      <button class="btn-treinar" onclick="treinarComFicha(${sugestao.ficha.id}, ${sugestao.i})">Treinar</button></div>`;
-  } else {
-    h += `<div class="sa-hoje"><span class="sa-hoje-ic">🏋️</span>
-      <div><strong>Sem treino registrado hoje</strong>
-      <small>Monte uma ficha e o painel passa a sugerir o dia da vez.</small></div>
-      <button class="btn-treinar" onclick="verSecaoSaude('treinos')">Fichas</button></div>`;
-  }
-  h += '</div>';
-
-  // ── 2. COMO ESTOU INDO ───────────────────────────────────────────────────
-  const tile = (icone, valor, rotulo, cor, extra) =>
-    `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small>${extra || ''}</div>`;
-  h += '<div class="stat-grid">';
-  h += tile('🏋️', `${semana.length}`, `${palavra(semana.length, 'treino', 'treinos')} nesta semana · ${minSemana} min`, '#22c55e');
-  h += tile('🔥', seq ? `${seq}` : '—', seq ? `${palavra(seq, 'dia seguido', 'dias seguidos')} treinando` : 'sem sequência ainda', '#fb923c');
-  h += tile('⚖️', ultimo ? `${ultimo.weight} kg` : '—',
-    ultimo ? `${isoParaBR(ultimo.date)}${anterior ? ` · ${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')} kg` : ''}` : 'sem pesagem',
-    '#f472b6', faixinha(pesos.slice(-12).map(p => ({ x: p.date, y: p.weight })), '#f472b6'));
-  h += tile('🍽️', `${comidaHoje.length}`, comidaHoje.length ? `${palavra(comidaHoje.length, 'refeição', 'refeições')} hoje` : 'nada anotado hoje', '#facc15');
-  h += tile('🩺', prox ? rotuloData(prox.date) : '—',
-    prox ? `${(TIPOS_MEDICO[prox.kind] || TIPOS_MEDICO.outro)[1]}: ${esc(prox.title).slice(0, 26)}` : 'nada marcado', '#a78bfa');
-  h += '</div>';
-
-  // ── 3. ÁGUA (continua à mão, que é o que ele usa mais vezes por dia) ─────
-  h += `<div class="water-box"><div class="water-bar"><div style="width:${pct}%"></div></div>
-    <div class="water-btns">
-      <span class="water-val">${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L de ${(goal / 1000).toFixed(1).replace('.', ',')} L</span>
-      <button class="mini-btn" onclick="beberAgua(250)">+250 ml</button>
-      <button class="mini-btn" onclick="beberAgua(500)">+500 ml</button>
-      <button class="mini-btn" onclick="beberAgua(750)">+750 ml</button>
-      <button class="mini-btn" onclick="beberAgua(-250)" title="Tirar 250 ml">−250</button>
-      <button class="mini-btn" onclick="definirMetaAgua()" title="Mudar meta">🎯 meta</button></div></div>`;
-
-  // ── 4. ATALHOS: as quatro coisas que ele registra, sem caçar micro-aba ───
-  h += `<div class="sa-atalhos">
-    <button class="mini-btn" onclick="verSecaoSaude('treinos')">🏋️ Treinos e fichas</button>
-    <button class="mini-btn" onclick="verSecaoSaude('medidas')">⚖️ Pesar</button>
-    <button class="mini-btn" onclick="verSecaoSaude('comida')">🍽️ Refeição</button>
-    <button class="mini-btn" onclick="verSecaoSaude('medico')">🩺 Consultas e exames</button></div>`;
-  el.innerHTML = h;
-}
+// O painel visual (treino, corpo, comida, médico) mora em saude.js desde 08/10.
+// Saíram daqui: faixinha, sequenciaTreino, proximoDiaDeTreino e renderPainelSaude.
 function preencherSelectsSaude() {
   const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
   f('workout-type', TIPOS_TREINO); f('meal-type', TIPOS_REFEICAO); f('meal-quality', QUALIDADE_REFEICAO); f('medical-kind', TIPOS_MEDICO);
 }
 function renderSaude() {
-  organizarSaude(); preencherSelectsSaude(); renderPainelSaude(); renderTreinos();
+  organizarSaude(); preencherSelectsSaude(); sincronizarHabitosRemedios(); renderPainelSaude(); renderTreinos();
   renderMedidas(); renderRefeicoes(); renderMedico(); renderFichas(); renderDietas();
+  renderRotinaMedica(); renderPrevencao(); preencherBancoAlimentos();
 }
 
 // ============================================================================

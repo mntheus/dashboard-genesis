@@ -744,8 +744,9 @@
         <div class="card" style="margin-top: 20px;">
           <h2>📊 O seu corpo hoje</h2>
           <p class="hint">A altura fica guardada no perfil (muda pouco). Com ela o app calcula <strong>IMC</strong>, a faixa de peso da sua altura e a relação cintura/quadril. Os pontos de corte são os de referência da OMS — servem de referência, não de diagnóstico.</p>
-          <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-bottom: 12px;">
+          <div class="corpo-perfil" style="display: grid; grid-template-columns: 1fr 1.2fr 1.4fr; gap: 10px; margin-bottom: 12px;">
             <div><label for="corpo-altura">Altura (cm):</label><input type="number" id="corpo-altura" min="0" step="0.5" placeholder="175" onchange="salvarPerfilCorpo()"></div>
+            <div><label for="corpo-nascimento">Nascimento:</label><input type="date" id="corpo-nascimento" onchange="salvarPerfilCorpo()"></div>
             <div><label for="corpo-sexo">Referência para os cortes:</label><select id="corpo-sexo" onchange="salvarPerfilCorpo()">
               <option value="">— não informar —</option><option value="m">Masculina</option><option value="f">Feminina</option></select></div>
           </div>
@@ -760,7 +761,40 @@
           <div id="dietas-lista"></div>
         </div>
       </div>
-      <div id="sec-sa-medico" class="agenda-sec" hidden></div>
+      <div id="sec-sa-medico" class="agenda-sec sa-sec-duas" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="rotina-medica">
+          <h2>💊 Remédios e cuidados de rotina</h2>
+          <p class="hint">O que você toma ou faz <strong>todo dia</strong> (ou em dias certos): remédio, suplemento, colírio, medir a pressão. Cada um aparece no <strong>porta-comprimidos</strong> do Painel na hora certa e, se quiser, entra na <strong>lista de hábitos</strong> — marcar lá ou aqui dá no mesmo. Com estoque, o app avisa quando estiver acabando.</p>
+          <h3 class="rot-novo-tit">＋ Cadastrar remédio, suplemento ou cuidado</h3>
+            <form id="rotina-form" onsubmit="salvarRotina(event)">
+              <input type="hidden" id="rotina-id">
+              <div class="rot-linha">
+                <div><label for="rotina-tipo">Tipo:</label><select id="rotina-tipo" onchange="preencherSugestoesRotina()"></select></div>
+                <div class="rot-largo"><label for="rotina-nome">O quê:</label><input type="text" id="rotina-nome" list="rotina-sugestoes" placeholder="Losartana · Vitamina D · Medir a pressão" required autocomplete="off"><datalist id="rotina-sugestoes"></datalist></div>
+                <div><label for="rotina-dose">Dose:</label><input type="text" id="rotina-dose" placeholder="50 mg · 1 comp."></div>
+              </div>
+              <div class="rot-linha">
+                <div><label for="rotina-horarios">Horários:</label><input type="text" id="rotina-horarios" placeholder="8h 20h" autocomplete="off"></div>
+                <div><label for="rotina-dias">Dias:</label><select id="rotina-dias" onchange="mostrarSemanaRotina()"><option value="todos">Todos os dias</option><option value="uteis">Dias úteis</option><option value="escolhidos">Escolher os dias</option></select></div>
+                <div><label for="rotina-ate">Até (vazio = contínuo):</label><input type="date" id="rotina-ate"></div>
+              </div>
+              <div class="rot-semana" id="rotina-semana" hidden></div>
+              <div class="rot-linha">
+                <div><label for="rotina-estoque">Estoque (unidades):</label><input type="number" id="rotina-estoque" min="0" step="1" placeholder="opcional"></div>
+                <div><label for="rotina-pordose">Unidades por dose:</label><input type="number" id="rotina-pordose" min="0" step="0.5" value="1"></div>
+                <div class="rot-check"><label><input type="checkbox" id="rotina-habito" checked> 🎮 Lembrar nos hábitos</label></div>
+              </div>
+              <label for="rotina-notas">Observação:</label><input type="text" id="rotina-notas" placeholder="em jejum, com comida, receita vence em…">
+              <div style="display:flex; gap:10px;"><button type="submit" id="rotina-submit" style="flex:1">Adicionar à rotina</button><button type="button" class="btn" id="rotina-cancel" hidden onclick="cancelarRotina()">Cancelar</button></div>
+            </form>
+          <div id="rotina-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;" data-mod="prevencao">
+          <h2>🛡️ Prevenção em dia</h2>
+          <p class="hint">O que um adulto costuma refazer de tempos em tempos. O anel mostra quanto do intervalo já passou desde a última vez. O app reconhece sozinho o que você já registrou em <strong>Consultas, exames e vacinas</strong>; ✓ fiz registra uma data antiga, 📅 marca na agenda e 🙈 esconde o que não se aplica. Intervalos de referência geral (Ministério da Saúde e SBIm) — toque no intervalo para mudar.</p>
+          <div id="prevencao-lista"></div>
+        </div>
+      </div>
       <div class="fin-two-col">
         <div class="card">
           <h2>🏋️ Treinos</h2>
@@ -1572,6 +1606,8 @@
       } catch (e) { return false; }
     })();
   </script>
+  <script src="saude-dados.js"></script>
+  <script src="saude.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

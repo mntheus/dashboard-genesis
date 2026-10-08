@@ -3286,7 +3286,8 @@ function treinarComFicha(id, i) {
   document.getElementById('workout-note').value = `${f.nome} — ${d.nome}`;
   const min = document.getElementById('workout-minutes'); if (!min.value) min.value = 60;
   if (typeof redesenharListas === 'function') redesenharListas();
-  f.ultimoUso = hojeISO(); salvar('fichas', fichas);
+  // guarda também QUAL dia foi treinado: é o que deixa o painel sugerir o próximo
+  f.ultimoUso = hojeISO(); d.ultimoUso = hojeISO(); salvar('fichas', fichas);
   toast(`🏋️ ${d.nome} carregado com ${plural(d.exercicios.length, 'exercício', 'exercícios')}. Ajuste e registre.`, 6000);
 }
 function renderFichas() {
@@ -3552,24 +3553,116 @@ function renderMedico() {
 }
 
 // --- Painel do módulo ---
+/** Um mini-gráfico de linha, desenhado aqui mesmo (sem biblioteca, sem rede).
+ *  `pontos` = [{x: ISO, y: número}]. Devolve '' se não houver o que mostrar. */
+function faixinha(pontos, cor, largura, altura) {
+  if (!pontos || pontos.length < 2) return '';
+  const L = largura || 150, A = altura || 34, m = 4;
+  const ys = pontos.map(p => p.y);
+  const min = Math.min(...ys), max = Math.max(...ys);
+  const vao = (max - min) || 1;
+  const px = i => m + (i * (L - 2 * m)) / (pontos.length - 1);
+  const py = y => A - m - ((y - min) / vao) * (A - 2 * m);
+  const d = pontos.map((p, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)} ${py(p.y).toFixed(1)}`).join(' ');
+  const area = `${d} L${px(pontos.length - 1).toFixed(1)} ${A} L${px(0).toFixed(1)} ${A} Z`;
+  const ult = pontos[pontos.length - 1];
+  return `<svg class="faixinha" viewBox="0 0 ${L} ${A}" width="${L}" height="${A}" aria-hidden="true">
+    <path d="${area}" fill="${cor}" opacity=".12"/>
+    <path d="${d}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${px(pontos.length - 1).toFixed(1)}" cy="${py(ult.y).toFixed(1)}" r="2.6" fill="${cor}"/></svg>`;
+}
+
+/** Quantos dias seguidos, contando de hoje para trás, tiveram treino.
+ *  Ontem sem treino não zera se hoje ainda não acabou — começa a contar de ontem. */
+function sequenciaTreino() {
+  const dias = new Set(workouts.map(w => w.date));
+  let n = 0; const d = new Date();
+  if (!dias.has(isoDe(d))) d.setDate(d.getDate() - 1);   // hoje ainda dá tempo
+  while (dias.has(isoDe(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+/** O dia de ficha que está há mais tempo sem ser treinado. É a resposta para
+ *  "o que eu faço hoje?", que é a primeira pergunta ao abrir a aba. */
+function proximoDiaDeTreino() {
+  let melhor = null;
+  fichas.forEach(f => (f.dias || []).forEach((d, i) => {
+    if (!d.exercicios || !d.exercicios.length) return;
+    const quando = d.ultimoUso || '0000-00-00';
+    if (!melhor || quando < melhor.quando) melhor = { ficha: f, dia: d, i, quando };
+  }));
+  return melhor;
+}
+
 function renderPainelSaude() {
   const el = document.getElementById('health-dash'); if (!el) return;
   verificarNovoDiaAgua();
+  const hoje = hojeISO();
   const ini = inicioSemanaISO(); const fim = new Date(); fim.setDate(fim.getDate() + (6 - fim.getDay())); const fimISO = isoDe(fim);
-  const semana = workouts.filter(w => w.date >= ini && w.date <= fimISO); const minSemana = semana.reduce((a, w) => a + (w.minutes || 0), 0);
-  const pesos = [...measures].filter(m => m.weight > 0).sort((a, b) => a.date.localeCompare(b.date)); const ultimo = pesos[pesos.length - 1]; const anterior = pesos[pesos.length - 2];
+  const semana = workouts.filter(w => w.date >= ini && w.date <= fimISO);
+  const minSemana = semana.reduce((a, w) => a + (w.minutes || 0), 0);
+  const pesos = [...measures].filter(m => m.weight > 0).sort((a, b) => a.date.localeCompare(b.date));
+  const ultimo = pesos[pesos.length - 1], anterior = pesos[pesos.length - 2];
   const delta = ultimo && anterior ? (ultimo.weight - anterior.weight) : 0;
-  const prox = medical.filter(m => !m.done && m.date && m.date >= hojeISO()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const prox = medical.filter(m => !m.done && m.date && m.date >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0];
   const goal = hydration.goal || 2500; const pct = Math.min(100, Math.round((hydration.ml || 0) / goal * 100));
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
-  let html = '<div class="stat-grid">';
-  html += tile('🏋️', `${semana.length}`, `treino${semana.length === 1 ? '' : 's'} nesta semana · ${minSemana} min`, '#22c55e');
-  html += tile('💧', `${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L`, `de ${(goal / 1000).toFixed(1).replace('.', ',')} L hoje (${pct}%)`, '#38bdf8');
-  html += tile('⚖️', ultimo ? `${ultimo.weight} kg` : '—', ultimo ? `${isoParaBR(ultimo.date)}${anterior ? ` · ${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')} kg` : ''}` : 'sem pesagem', '#f472b6');
-  html += tile('🩺', prox ? rotuloData(prox.date) : '—', prox ? `${(TIPOS_MEDICO[prox.kind] || TIPOS_MEDICO.outro)[1]}: ${esc(prox.title).slice(0, 28)}` : 'nada marcado', '#a78bfa');
-  html += '</div>';
-  html += `<div class="water-box"><div class="water-bar"><div style="width:${pct}%"></div></div><div class="water-btns"><button class="mini-btn" onclick="beberAgua(250)">+250 ml</button><button class="mini-btn" onclick="beberAgua(500)">+500 ml</button><button class="mini-btn" onclick="beberAgua(750)">+750 ml</button><button class="mini-btn" onclick="beberAgua(-250)" title="Tirar 250 ml">−250</button><button class="mini-btn" onclick="definirMetaAgua()" title="Mudar meta">🎯 meta</button></div></div>`;
-  el.innerHTML = html;
+  const treinoHoje = workouts.filter(w => w.date === hoje);
+  const comidaHoje = meals.filter(m => m.date === hoje);
+  const seq = sequenciaTreino();
+  const sugestao = proximoDiaDeTreino();
+
+  // ── 1. O DIA: o que fazer agora, sem entrar nas micro-abas ───────────────
+  let h = '<div class="sa-dia">';
+  if (treinoHoje.length) {
+    const t = treinoHoje[0]; const ic = (TIPOS_TREINO[t.type] || TIPOS_TREINO.outro);
+    h += `<div class="sa-hoje feito"><span class="sa-hoje-ic">${ic[0]}</span>
+      <div><strong>Treino de hoje feito</strong>
+      <small>${esc(ic[1])}${t.minutes ? ' · ' + t.minutes + ' min' : ''}${t.note ? ' · ' + esc(t.note).slice(0, 38) : ''}</small></div></div>`;
+  } else if (sugestao) {
+    const ha = sugestao.quando === '0000-00-00' ? 'nunca treinado' : 'último ' + rotuloData(sugestao.quando);
+    h += `<div class="sa-hoje"><span class="sa-hoje-ic">🏋️</span>
+      <div><strong>Hoje: ${esc(sugestao.dia.nome)}</strong>
+      <small>${esc(sugestao.ficha.nome)} · ${plural(sugestao.dia.exercicios.length, 'exercício', 'exercícios')} · ${ha}</small></div>
+      <button class="btn-treinar" onclick="treinarComFicha(${sugestao.ficha.id}, ${sugestao.i})">Treinar</button></div>`;
+  } else {
+    h += `<div class="sa-hoje"><span class="sa-hoje-ic">🏋️</span>
+      <div><strong>Sem treino registrado hoje</strong>
+      <small>Monte uma ficha e o painel passa a sugerir o dia da vez.</small></div>
+      <button class="btn-treinar" onclick="verSecaoSaude('treinos')">Fichas</button></div>`;
+  }
+  h += '</div>';
+
+  // ── 2. COMO ESTOU INDO ───────────────────────────────────────────────────
+  const tile = (icone, valor, rotulo, cor, extra) =>
+    `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small>${extra || ''}</div>`;
+  h += '<div class="stat-grid">';
+  h += tile('🏋️', `${semana.length}`, `${palavra(semana.length, 'treino', 'treinos')} nesta semana · ${minSemana} min`, '#22c55e');
+  h += tile('🔥', seq ? `${seq}` : '—', seq ? `${palavra(seq, 'dia seguido', 'dias seguidos')} treinando` : 'sem sequência ainda', '#fb923c');
+  h += tile('⚖️', ultimo ? `${ultimo.weight} kg` : '—',
+    ultimo ? `${isoParaBR(ultimo.date)}${anterior ? ` · ${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')} kg` : ''}` : 'sem pesagem',
+    '#f472b6', faixinha(pesos.slice(-12).map(p => ({ x: p.date, y: p.weight })), '#f472b6'));
+  h += tile('🍽️', `${comidaHoje.length}`, comidaHoje.length ? `${palavra(comidaHoje.length, 'refeição', 'refeições')} hoje` : 'nada anotado hoje', '#facc15');
+  h += tile('🩺', prox ? rotuloData(prox.date) : '—',
+    prox ? `${(TIPOS_MEDICO[prox.kind] || TIPOS_MEDICO.outro)[1]}: ${esc(prox.title).slice(0, 26)}` : 'nada marcado', '#a78bfa');
+  h += '</div>';
+
+  // ── 3. ÁGUA (continua à mão, que é o que ele usa mais vezes por dia) ─────
+  h += `<div class="water-box"><div class="water-bar"><div style="width:${pct}%"></div></div>
+    <div class="water-btns">
+      <span class="water-val">${((hydration.ml || 0) / 1000).toFixed(1).replace('.', ',')} L de ${(goal / 1000).toFixed(1).replace('.', ',')} L</span>
+      <button class="mini-btn" onclick="beberAgua(250)">+250 ml</button>
+      <button class="mini-btn" onclick="beberAgua(500)">+500 ml</button>
+      <button class="mini-btn" onclick="beberAgua(750)">+750 ml</button>
+      <button class="mini-btn" onclick="beberAgua(-250)" title="Tirar 250 ml">−250</button>
+      <button class="mini-btn" onclick="definirMetaAgua()" title="Mudar meta">🎯 meta</button></div></div>`;
+
+  // ── 4. ATALHOS: as quatro coisas que ele registra, sem caçar micro-aba ───
+  h += `<div class="sa-atalhos">
+    <button class="mini-btn" onclick="verSecaoSaude('treinos')">🏋️ Treinos e fichas</button>
+    <button class="mini-btn" onclick="verSecaoSaude('medidas')">⚖️ Pesar</button>
+    <button class="mini-btn" onclick="verSecaoSaude('comida')">🍽️ Refeição</button>
+    <button class="mini-btn" onclick="verSecaoSaude('medico')">🩺 Consultas e exames</button></div>`;
+  el.innerHTML = h;
 }
 function preencherSelectsSaude() {
   const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };

@@ -436,10 +436,71 @@
 
     <!-- Módulo 4: Tarefas -->
     <div id="tasks" class="tab-content">
+      <div id="sec-tar-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="tar-rapida" aria-label="Nova tarefa rápida" placeholder="O que precisa fazer?" autocomplete="off" enterkeyhint="done" oninput="tarRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); tarRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="tarRapidaAdicionar()">↵</button>
+        </div>
+        <div id="tar-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="tarefas-secoes">
+        <span class="active" onclick="verSecaoTarefas('foco', this)">🎯 Foco</span>
+        <span onclick="verSecaoTarefas('listas', this)">📋 Listas</span>
+        <span onclick="verSecaoTarefas('rotinas', this)">🔄 Rotinas</span>
+      </div>
+      <div id="sec-tar-foco" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="tar-foco">
+          <h2>🎯 Foco do dia</h2>
+          <div id="tar-foco"></div>
+        </div>
+      </div>
+      <div id="sec-tar-listas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="tar-listas">
+          <h2>📋 Listas</h2>
+          <div class="focus-header-tabs task-tabs tar-chips" id="task-lists"></div>
+          <div id="task-list-tools" class="task-tools tar-ferramentas"></div>
+          <div id="task-list" class="tar-listas"></div>
+        </div>
+      </div>
+      <div id="sec-tar-rotinas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="tar-rotinas">
+          <h2>🔄 Rotinas</h2>
+          <p class="hint">Coisas que voltam sempre: o app cria a tarefa sozinho na data certa e, ao concluir, já agenda a próxima. A trilha mostra as últimas vezes — verde fez, vermelho passou.</p>
+          <div id="rot-cartoes"></div>
+          <div class="tar-rot-botoes">
+            <button type="button" class="btn" onclick="tarNovaRotina()">＋ Nova rotina</button>
+            <button type="button" class="btn" onclick="criarRotinasSugeridas()">✨ Rotinas sugeridas</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🔄 Nova rotina</h2>
+          <form id="rot-form">
+            <input type="hidden" id="rot-id">
+            <label for="rot-text">O que precisa voltar sempre?</label><input type="text" id="rot-text" placeholder="Ex: Conferir extrato e lançar gastos da semana" required>
+            <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
+              <div><label for="rot-freq">Com que frequência:</label><select id="rot-freq" onchange="camposPorFrequencia()"></select></div>
+              <div><label for="rot-list">Lista:</label><select id="rot-list"></select></div>
+            </div>
+            <div id="rot-semana"><label>Dias da semana:</label><div id="rot-weekdays" class="dias-semana"></div></div>
+            <div id="rot-mes" hidden><label for="rot-monthday">Dia do mês:</label><input type="number" id="rot-monthday" min="1" max="28" value="1"></div>
+            <div id="rot-intervalo" hidden><label for="rot-interval">A cada quantos dias:</label><input type="number" id="rot-interval" min="1" max="365" value="7"></div>
+            <details class="task-more">
+              <summary>Mais detalhes (observação, estrela, subtarefas)</summary>
+              <label for="rot-notes">Observação:</label><input type="text" id="rot-notes" placeholder="opcional">
+              <label class="check-line"><input type="checkbox" id="rot-star"> ⭐ Criar com estrela</label>
+              <label for="rot-subtasks">Subtarefas (uma por linha):</label><textarea id="rot-subtasks" rows="3" placeholder="Abrir app do banco&#10;Lançar gastos no Genesis&#10;Conferir pendentes"></textarea>
+            </details>
+            <div style="display:flex; gap:10px;">
+              <button type="submit" id="rot-submit" style="flex:1">Criar rotina</button>
+              <button type="button" id="rot-cancel" class="btn" hidden onclick="cancelarEdicaoRotina()">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div id="sec-tar-folhas" class="agenda-sec tar-folhas">
       <div class="card" style="margin-top: 20px;">
-        <div class="focus-header-tabs task-tabs" id="task-lists"></div>
-        <div id="task-list-tools" class="task-tools"></div>
-        <h2 id="task-form-title" style="margin-top: 14px;">Nova Tarefa</h2>
+        <h2 id="task-form-title">Nova Tarefa</h2>
         <form id="task-form">
           <input type="hidden" id="task-id">
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
@@ -461,35 +522,6 @@
           </div>
         </form>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <ul id="task-list" class="transaction-list task-list"></ul>
-      </div>
-      <div class="card" style="margin-top: 20px;" id="rotinas-card">
-        <h2>🔄 Rotinas</h2>
-        <p class="hint">Coisas que voltam sempre: o app cria a tarefa sozinho na data certa (e some do caminho até lá). Ao concluir, a próxima já fica agendada. Tarefas de rotina aparecem com 🔄 na lista.</p>
-        <form id="rot-form">
-          <input type="hidden" id="rot-id">
-          <label for="rot-text">O que precisa voltar sempre?</label><input type="text" id="rot-text" placeholder="Ex: Conferir extrato e lançar gastos da semana" required>
-          <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
-            <div><label for="rot-freq">Com que frequência:</label><select id="rot-freq" onchange="camposPorFrequencia()"></select></div>
-            <div><label for="rot-list">Lista:</label><select id="rot-list"></select></div>
-          </div>
-          <div id="rot-semana"><label>Dias da semana:</label><div id="rot-weekdays" class="dias-semana"></div></div>
-          <div id="rot-mes" hidden><label for="rot-monthday">Dia do mês:</label><input type="number" id="rot-monthday" min="1" max="28" value="1"></div>
-          <div id="rot-intervalo" hidden><label for="rot-interval">A cada quantos dias:</label><input type="number" id="rot-interval" min="1" max="365" value="7"></div>
-          <details class="task-more">
-            <summary>Mais detalhes (observação, estrela, subtarefas)</summary>
-            <label for="rot-notes">Observação:</label><input type="text" id="rot-notes" placeholder="opcional">
-            <label class="check-line"><input type="checkbox" id="rot-star"> ⭐ Criar com estrela</label>
-            <label for="rot-subtasks">Subtarefas (uma por linha):</label><textarea id="rot-subtasks" rows="3" placeholder="Abrir app do banco&#10;Lançar gastos no Genesis&#10;Conferir pendentes"></textarea>
-          </details>
-          <div style="display:flex; gap:10px;">
-            <button type="submit" id="rot-submit" style="flex:1">Criar rotina</button>
-            <button type="button" id="rot-cancel" class="btn" hidden onclick="cancelarEdicaoRotina()">Cancelar</button>
-          </div>
-        </form>
-        <ul id="rot-list-ul" class="transaction-list" style="margin-top: 15px;"></ul>
-        <button type="button" class="btn" style="width:100%; margin-top:10px" onclick="criarRotinasSugeridas()">✨ Criar rotinas sugeridas (extrato, cabelo, revisão do app, backup…)</button>
       </div>
     </div>
 
@@ -1703,6 +1735,7 @@
   <script src="negocios.js"></script>
   <script src="inventario.js"></script>
   <script src="financas.js"></script>
+  <script src="tarefas.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

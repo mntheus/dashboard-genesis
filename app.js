@@ -1765,18 +1765,9 @@ function ordenarTarefas(a, b) {
   return (a.createdAt || a.id || 0) - (b.createdAt || b.id || 0);
 }
 
-function renderTaskLists() {
-  const el = document.getElementById('task-lists'); if (!el) return;
-  const cont = id => tasks.filter(t => !t.done && (id === '__star' ? t.starred : id === '__all' ? true : t.list === id)).length;
-  const aba = (id, nome, icone) => `<span class="${taskView === id ? 'active' : ''}" onclick="verLista('${id}', this)">${icone} ${esc(nome)} <small>${cont(id)}</small></span>`;
-  el.innerHTML = aba('__star', 'Com estrela', '⭐') + tasklists.map(l => aba(l.id, l.name, '📋')).join('') + aba('__all', 'Todas', '🗂️') +
-    `<span class="add-list" onclick="novaLista()">+ Nova lista</span>`;
-  const tools = document.getElementById('task-list-tools');
-  if (tools) tools.innerHTML = (taskView !== '__star' && taskView !== '__all') ? `<button class="mini-btn" onclick="renomearLista('${taskView}')" title="Renomear lista">✎ ${esc(listaNome(taskView))}</button>${taskView !== 'padrao' ? `<button class="mini-btn" onclick="apagarLista('${taskView}')" title="Apagar lista">✕</button>` : ''}` : '';
-  const sel = document.getElementById('task-list-select'); if (sel) sel.innerHTML = tasklists.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
-  if (sel && !document.getElementById('task-id').value) sel.value = (taskView !== '__star' && taskView !== '__all') ? taskView : 'padrao';
-}
-function verLista(id, el) { taskView = id; renderTaskLists(); renderTasks(); }
+// O desenho da aba (foco, matriz, cartões, rotinas com trilha) mora no tarefas.js (08/10).
+function renderTaskLists() { tarRenderChips(); }
+function verLista(id, el) { taskView = id; if (typeof verSecaoTarefas === 'function' && tarefasSecao !== 'listas') verSecaoTarefas('listas'); renderTaskLists(); renderTasks(); }
 function novaLista() {
   const nome = prompt('Nome da nova lista (ex: Trabalho, Casa, Estudos, Negócios):'); if (!nome || !nome.trim()) return;
   const l = { id: 'l' + novoId(), name: nome.trim() }; tasklists.push(l); salvar('tasklists', tasklists); taskView = l.id; renderTaskLists(); renderTasks();
@@ -1838,43 +1829,7 @@ function editarTarefa(id) {
   document.getElementById('task-desc').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('task-desc').focus();
 }
 
-function renderTasks() {
-  const list = document.getElementById('task-list'); list.innerHTML = '';
-  const hoje = hojeISO();
-  const vis = tarefasVisiveis();
-  const abertas = vis.filter(t => !t.done).sort(ordenarTarefas);
-  const feitas = vis.filter(t => t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
-  const grupos = [
-    ['⚠️ Atrasadas', abertas.filter(t => t.due && t.due < hoje)],
-    ['📌 Hoje', abertas.filter(t => t.due === hoje)],
-    ['📅 Próximas', abertas.filter(t => t.due && t.due > hoje)],
-    ['📝 Sem prazo', abertas.filter(t => !t.due)]
-  ];
-  if (!abertas.length && !feitas.length) { list.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada por aqui. Adicione uma tarefa acima.</li>'; return; }
-  grupos.forEach(([titulo, itens]) => {
-    if (!itens.length) return;
-    list.innerHTML += `<li class="date-sep">${titulo} <small>${itens.length}</small></li>`;
-    itens.forEach(t => list.innerHTML += linhaTarefa(t));
-  });
-  if (feitas.length) {
-    list.innerHTML += `<li class="date-sep toggle-done" onclick="taskShowDone = !taskShowDone; renderTasks();">${taskShowDone ? '▾' : '▸'} Concluídas <small>${feitas.length}</small></li>`;
-    if (taskShowDone) feitas.forEach(t => list.innerHTML += linhaTarefa(t));
-  }
-}
-function linhaTarefa(t) {
-  const p = prazoInfo(t); const subs = t.subtasks || []; const feitasSub = subs.filter(s => s.done).length; const aberto = !!taskExpanded[t.id];
-  return `<li class="task-item ${t.done ? 'done' : ''}" style="border-left-color:${t.starred ? '#fbbf24' : COR_TAREFA}">
-    <div class="task-main">
-      <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggleTask(${t.id})" style="accent-color: var(--info);">
-      <div class="task-body" onclick="editarTarefa(${t.id})">
-        <span class="task-text">${t.routineId ? '<span class="rot-tag" title="Tarefa de rotina">🔄</span> ' : ''}${textoComLink(t.text)}</span>
-        <div class="task-meta">${p.rotulo ? `<span class="due ${p.classe}">📅 ${esc(p.rotulo)}</span>` : ''}${taskView === '__star' || taskView === '__all' ? `<span class="task-list-tag">📋 ${esc(listaNome(t.list))}</span>` : ''}${subs.length ? `<span class="sub-count" onclick="event.stopPropagation(); taskExpanded[${t.id}] = !taskExpanded[${t.id}]; renderTasks();">☑ ${feitasSub}/${subs.length}</span>` : ''}${!t.done ? `<span class="quick-dates" onclick="event.stopPropagation()"><button class="mini-btn xs" title="Prazo: hoje" onclick="adiarTarefa(${t.id}, 0)">hoje</button><button class="mini-btn xs" title="Prazo: amanhã" onclick="adiarTarefa(${t.id}, 1)">amanhã</button><button class="mini-btn xs" title="Prazo: +7 dias" onclick="adiarTarefa(${t.id}, 7)">+7d</button></span>` : ''}${t.notes ? `<span class="task-notes">${linkify(esc(t.notes))}</span>` : ''}${chipsAnexos(t, 'task', t.id)}</div>
-      </div>
-      <div class="item-actions"><button class="mini-btn star ${t.starred ? 'on' : ''}" title="${t.starred ? 'Tirar estrela' : 'Marcar com estrela'}" onclick="alternarEstrela(${t.id})">${t.starred ? '★' : '☆'}</button><button class="mini-btn${nAnexos(t) ? ' on' : ''}" title="Anexos: link ou imagem" onclick="event.stopPropagation(); abrirAnexos('task', ${t.id})">📎${nAnexos(t) || ''}</button><button class="mini-btn" title="Editar" onclick="editarTarefa(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removeTask(${t.id})">✕</button></div>
-    </div>
-    ${subs.length && aberto ? `<div class="subtasks">${subs.map((s, i) => `<div class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="toggleSubtask(${t.id}, ${i})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarSubtarefa(${t.id}, ${i}, this)" title="Clique para editar o texto">${textoComLink(s.text)}</span></div>`).join('')}</div>` : ''}
-  </li>`;
-}
+function renderTasks() { tarRender(); }
 function adiarTarefa(id, dias) {
   const t = tasks.find(x => x.id === id); if (!t) return;
   const d = new Date(); d.setDate(d.getDate() + dias); t.due = isoDe(d);
@@ -2048,7 +2003,7 @@ function cancelarEdicaoRotina() {
 }
 function editarRotina(id) {
   const r = routines.find(x => x.id === id); if (!r) return;
-  changeTab('tasks');
+  changeTab('tasks'); verSecaoTarefas('rotinas');
   document.getElementById('rot-id').value = r.id; document.getElementById('rot-text').value = r.text;
   document.getElementById('rot-freq').value = r.freq; camposPorFrequencia();
   document.querySelectorAll('#rot-weekdays input').forEach(c => c.checked = (r.weekdays || []).includes(Number(c.value)));
@@ -2085,20 +2040,7 @@ function criarRotinasSugeridas() {
   salvar('routines', routines); gerarRotinas(true); renderRotinas(); renderTaskLists(); renderTasks();
   toast(`🔄 ${n} rotinas sugeridas criadas — ajuste ou apague o que não usar.`, 6000);
 }
-function renderRotinas() {
-  const ul = document.getElementById('rot-list-ul'); if (!ul) return; ul.innerHTML = '';
-  preencherFreqs();
-  if (!routines.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma rotina ainda. Use as sugestões abaixo ou crie a sua.</li>'; return; }
-  [...routines].sort((a, b) => (a.active === false ? 1 : 0) - (b.active === false ? 1 : 0) || (a.next || '').localeCompare(b.next || '')).forEach(r => {
-    const off = r.active === false;
-    const aberta = tasks.find(t => t.routineId === r.id && !t.done);
-    ul.innerHTML += `<li class="rotina-item" style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
-        <span>🔄 ${esc(r.text)}${off ? ' <small class="item-date">(pausada)</small>' : ''}${aberta ? ' <span class="badge-unpaid">em aberto</span>' : ''}</span>
-        <small class="item-date">${esc(descricaoRotina(r))} · próxima <strong>${off ? '—' : rotuloData(r.next || hojeISO())}</strong>${r.count ? ` · feita ${r.count}×` : ''} · lista ${esc(listaNome(r.list))}</small>
-        ${(r.subtasks || []).length ? `<small class="item-notes">${r.subtasks.map(esc).join(' · ')}</small>` : ''}</div>
-      <div class="item-actions"><button class="mini-btn" title="Criar tarefa para hoje" onclick="gerarRotinaAgora(${r.id})">▶</button><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Reativar' : 'Pausar'}" onclick="alternarRotina(${r.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarRotina(${r.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerRotina(${r.id})">✕</button></div></li>`;
-  });
-}
+function renderRotinas() { preencherFreqs(); tarRenderRotinas(); }
 
 // --- NOTAS (estilo Google Keep) ---
 // Modelo: { id, title, content, checklist: [{ text, done }] | null, color, labels: [], pinned, archived, createdAt, updatedAt }

@@ -30,6 +30,7 @@
       https://script.googleusercontent.com
       https://api.bcb.gov.br
       https://api.coingecko.com
+      https://brapi.dev
       https://api.artic.edu
       https://pt.wikipedia.org
       https://en.wikipedia.org;
@@ -597,31 +598,52 @@
 
     <!-- Módulo 8: Negócios & Investimentos -->
     <div id="business" class="tab-content">
-      <div class="card" id="card-mercado" style="margin-top: 20px;">
-        <h2>📈 Mercado</h2>
-        <p class="hint">Cotações de duas fontes públicas, sem cadastro e sem chave: <strong>Banco Central</strong> (dólar, euro, CDI, Selic, IPCA, IGP-M) e <strong>CoinGecko</strong> (cripto em reais). Escolha o que acompanhar e o período; o gráfico é desenhado na hora. Sem internet, ele mostra a última cotação guardada.</p>
-        <label class="check-line"><input type="checkbox" id="mercado-ligar" onchange="alternarMercadoLigado()"> Buscar cotações automaticamente</label>
-        <div class="chips" id="mercado-chips" style="margin-top:10px"></div>
-        <div class="focus-header-tabs agenda-tabs" id="mercado-periodos" style="margin-top:10px">
-          <span onclick="mudarPeriodoMercado('15d', this)">15 dias</span>
-          <span onclick="mudarPeriodoMercado('1m', this)">1 mês</span>
-          <span class="active" onclick="mudarPeriodoMercado('3m', this)">3 meses</span>
-          <span onclick="mudarPeriodoMercado('6m', this)">6 meses</span>
-          <span onclick="mudarPeriodoMercado('1a', this)">1 ano</span>
-        </div>
-        <div id="mercado-corpo" class="mkt-grade"></div>
-        <div class="cv-barra">
-          <small id="mercado-status" class="item-date"></small>
-          <button type="button" class="mini-btn" onclick="atualizarMercado(true)">↻ atualizar agora</button>
-          <button type="button" class="mini-btn" onclick="usarIndicadoresDoMercado()" title="Copia CDI, Selic e IPCA para os indicadores de referência">📌 usar nos indicadores</button>
-        </div>
-        <p class="hint" style="margin-top:8px">⚠️ <strong>Ainda não cobre ações da B3, ouro nem NVIDIA.</strong> Essas fontes ou pedem cadastro (brapi.dev, token gratuito) ou não liberam leitura pelo navegador (Yahoo Finance), o que exigiria um intermediário no seu Apps Script. Quando você quiser, a gente decide isso — o valor atual desses ativos continua sendo o que você digita na carteira.</p>
+      <div class="focus-header-tabs agenda-tabs" id="negocios-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoNegocios('painel', this)">📊 Painel</span>
+        <span onclick="verSecaoNegocios('mercado', this)">📈 Mercado</span>
+        <span onclick="verSecaoNegocios('noticias', this)">📰 Notícias</span>
+        <span onclick="verSecaoNegocios('carteira', this)">💼 Carteira</span>
+        <span onclick="verSecaoNegocios('metas', this)">🎯 Metas</span>
+        <span onclick="verSecaoNegocios('projetos', this)">🚀 Projetos</span>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>📈 Negócios & Investimentos</h2>
-        <div id="biz-dash"></div>
+      <div id="sec-ng-painel" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="negocios-painel">
+          <h2>📈 Negócios & Investimentos</h2>
+          <div id="biz-dash"></div>
+        </div>
+      </div>
+      <div id="sec-ng-mercado" class="agenda-sec" hidden>
+        <div class="card" id="card-mercado" style="margin-top: 20px;">
+          <h2>📈 Mercado</h2>
+          <div class="ng-barra">
+            <div class="sp-faixas" id="mercado-periodos"></div>
+            <small id="mercado-status" class="item-date"></small>
+            <span class="ng-barra-acoes">
+              <button type="button" class="mini-btn" onclick="atualizarMercado(true)" title="Buscar de novo agora">↻</button>
+              <button type="button" class="mini-btn ng-mais" onclick="abrirAcompanhar()">＋ acompanhar</button>
+            </span>
+          </div>
+          <div id="mercado-fita" class="ng-fita"></div>
+          <div id="mercado-corpo"></div>
+          <details class="ng-fontes" id="mercado-fontes">
+            <summary>⚙️ Fontes e conexões</summary>
+            <label class="check-line"><input type="checkbox" id="mercado-ligar" onchange="alternarMercadoLigado()"> Buscar cotações automaticamente</label>
+            <div id="mercado-fontes-corpo"></div>
+          </details>
+        </div>
+      </div>
+      <div id="sec-ng-noticias" class="agenda-sec" hidden>
+        <div class="card" id="card-noticias" style="margin-top: 20px;">
+          <h2>📰 Notícias</h2>
+          <div id="noticias-corpo"></div>
+        </div>
+      </div>
+      <div id="sec-ng-carteira" class="agenda-sec ng-sec-duas" hidden>
+        <div class="card ng-largo" style="margin-top: 20px;" data-mod="carteira-visao">
+          <h2>💼 A carteira de relance</h2>
+          <div id="carteira-vis"></div>
         <details class="task-more" style="margin-top: 10px;"><summary>📊 Anotar indicadores de referência (CDI, Selic, IPCA)</summary>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 10px; margin-top: 8px;">
+          <div class="ng-ind-grade">
             <div><label for="ind-cdi">CDI % a.a.</label><input type="number" id="ind-cdi" step="0.01" placeholder="10,65"></div>
             <div><label for="ind-selic">Selic % a.a.</label><input type="number" id="ind-selic" step="0.01" placeholder="10,75"></div>
             <div><label for="ind-ipca">IPCA % 12m</label><input type="number" id="ind-ipca" step="0.01" placeholder="4,5"></div>
@@ -630,9 +652,9 @@
           <button type="button" class="btn" style="width:100%" onclick="salvarIndicadores()">Salvar indicadores</button>
           <p class="hint" style="margin-top:8px">Sem cotação automática de propósito: você anota o valor do mês e usa como régua pra comparar sua rentabilidade.</p>
         </details>
-      </div>
+        </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>Carteira</h2>
+        <h2>📋 Ativos</h2>
         <p class="hint">Cada ativo com sua classe. O <strong>valor atual</strong> você atualiza quando quiser (💰) — o app calcula o resultado contra o que foi aportado.</p>
         <form id="asset-form">
           <input type="hidden" id="asset-id">
@@ -653,10 +675,9 @@
           </div>
           <div style="display:flex; gap:10px;"><button type="submit" id="asset-submit" style="flex:1">Adicionar ativo</button><button type="button" id="asset-cancel" class="btn" hidden onclick="cancelarEdicaoAtivo()">Cancelar</button></div>
         </form>
-        <ul id="asset-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        <div id="asset-list" class="ng-ativos"></div>
       </div>
-      <div class="fin-two-col">
-        <div class="card">
+        <div class="card" style="margin-top: 20px;">
           <h2>Aportes e resgates</h2>
           <form id="move-form">
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
@@ -674,7 +695,13 @@
           </form>
           <ul id="move-list" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
-        <div class="card">
+      </div>
+      <div id="sec-ng-metas" class="agenda-sec ng-sec-duas" hidden>
+        <div class="card ng-largo" style="margin-top: 20px;" data-mod="metas-trilhas">
+          <h2>🗺️ As trilhas</h2>
+          <div id="goal-list"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
           <h2>🎯 Metas</h2>
           <form id="goal-form">
             <input type="hidden" id="goal-id">
@@ -687,9 +714,9 @@
             <label for="goal-note">Observação:</label><input type="text" id="goal-note" placeholder="opcional">
             <div style="display:flex; gap:10px;"><button type="submit" id="goal-submit" style="flex:1">Adicionar meta</button><button type="button" id="goal-cancel" class="btn" hidden onclick="cancelarEdicaoMeta()">Cancelar</button></div>
           </form>
-          <ul id="goal-list" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
       </div>
+      <div id="sec-ng-projetos" class="agenda-sec" hidden>
       <div class="card" style="margin-top: 20px;">
         <h2>🚀 Projetos de negócio</h2>
         <p class="hint">Cada ideia vira um cartão com estágio, próximos passos (checklist), custo previsto × gasto e contatos. Tarefas do dia a dia ficam na lista "Negócios" em Tarefas; anotações, em Notas com o marcador "negócios".</p>
@@ -709,11 +736,8 @@
           <label for="project-notes">Observações:</label><input type="text" id="project-notes" placeholder="opcional">
           <div style="display:flex; gap:10px;"><button type="submit" id="project-submit" style="flex:1">Adicionar projeto</button><button type="button" id="project-cancel" class="btn" hidden onclick="cancelarEdicaoProjeto()">Cancelar</button></div>
         </form>
-        <div class="focus-header-tabs filter-row" id="project-filters" style="margin-top: 14px;">
-          <span class="active" onclick="filtrarProjetos('ativos', this)">🚀 Ativos</span>
-          <span onclick="filtrarProjetos('todos', this)">🗂️ Todos</span>
-        </div>
         <div id="project-list"></div>
+      </div>
       </div>
     </div>
 
@@ -1608,6 +1632,7 @@
   </script>
   <script src="saude-dados.js"></script>
   <script src="saude.js"></script>
+  <script src="negocios.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

@@ -578,12 +578,11 @@ function cartoesDoAnel() {
   if (s) C.push({ id: 'saida', rot: marcada ? 'PRÓXIMA SAÍDA' : 'QUE TAL IR?', tit: s.nome, sub: [s.data ? brCurto(s.data) : '', s.cidade || s.local || ''].filter(Boolean).join(' · '), img: s.img, txt: s.sobre, acao: () => irPara('leisure', 'verSecaoLazer', 'sair') });
   const aniv = aniversariosProximos(21)[0];
   if (aniv) C.push({ id: 'aniv', rot: aniv.dias === 0 ? 'ANIVERSÁRIO HOJE' : 'ANIVERSÁRIO', tit: aniv.c.nome, sub: `${brCurto(aniv.iso)}${aniv.idade ? ' · ' + aniv.idade + ' anos' : ''}${aniv.dias ? ' · em ' + plural(aniv.dias, 'dia', 'dias') : ''}`, acao: () => irPara('net', 'verSecaoRede', 'contatos') });
-  const cot = tenta(() => JSON.parse(localStorage.getItem('lifeos_cotacoes')));
-  const dolar = cot && (cot.dolar || cot.usd);
-  const pts = dolar && (dolar.pontos || dolar.dados || dolar);
-  const ult = Array.isArray(pts) && pts.length ? pts[pts.length - 1] : null;
-  const v = ult && (ult.v ?? ult.valor ?? ult[1]);
-  if (v) C.push({ id: 'dolar', rot: 'MERCADO', tit: `Dólar ${formatCurrency(Number(v))}`, sub: 'Banco Central', acao: () => changeTab('business') });
+  // 08/10: o cartão do mercado mostra o primeiro FAVORITO do radar (antes lia
+  // `cot.usd`, um formato que o cache nunca teve — por isso não aparecia).
+  const fav = tenta(() => typeof ngRadarOrdenado === 'function' ? ngRadarOrdenado()[0] : null);
+  const ult = fav && tenta(() => ultimaCotacao(fav.k));
+  if (ult && isFinite(ult.v)) C.push({ id: 'dolar', rot: 'MERCADO', tit: `${fav.nome} ${ngFmt(ult.v, fav, ult.moeda)}`, sub: (NG_FONTES[fav.fonte] || ['', ''])[1], acao: () => { changeTab('business'); ngIrParaAtivo(fav.k); } });
   const fechados = fechadosHoje();
   return C.filter(c => !fechados.includes(c.id));
 }

@@ -900,8 +900,8 @@ document.getElementById('day-modal').addEventListener('click', (e) => { if (e.ta
 let agendaSecao = 'cal';
 function verSecaoAgenda(secao, el) {
   agendaSecao = secao;
-  document.querySelectorAll('#agenda-secoes span').forEach(s => s.classList.remove('active'));
-  const spans = document.querySelectorAll('#agenda-secoes span');
+  document.querySelectorAll('#agenda-secoes > span').forEach(s => s.classList.remove('active'));
+  const spans = document.querySelectorAll('#agenda-secoes > span');
   const ordem = ['cal', 'compromissos', 'reunioes', 'plantoes'];
   if (el) el.classList.add('active'); else if (spans[ordem.indexOf(secao)]) spans[ordem.indexOf(secao)].classList.add('active');
   ['cal', 'compromissos', 'plantoes'].forEach(s => { const d = document.getElementById('sec-' + s); if (d) d.hidden = !(secao === s || (secao === 'reunioes' && s === 'compromissos')); });
@@ -2554,18 +2554,7 @@ function removerAtivo(id) {
   if (!confirm(`Apagar "${a.name}"?${n ? ` As ${n} movimentações dele também somem (os lançamentos em Finanças ficam).` : ''}`)) return;
   assets = assets.filter(x => x.id !== id); moves = moves.filter(m => m.assetId !== id); salvar('assets', assets); salvar('moves', moves); redesenharNegocios();
 }
-function renderAtivos() {
-  const ul = document.getElementById('asset-list'); if (!ul) return; ul.innerHTML = '';
-  if (!assets.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre seu primeiro ativo — ex: "CDB Nubank" (Renda fixa) ou "Reserva Tesouro Selic".</li>'; return; }
-  const hoje = hojeISO();
-  [...assets].sort((a, b) => (a.archived === b.archived ? (b.current || 0) - (a.current || 0) : a.archived ? 1 : -1)).forEach(a => {
-    const c = classeAtivo(a.klass); const inv = investidoEm(a.id); const res = (a.current || 0) - inv; const p = inv ? res / inv * 100 : 0;
-    const venc = a.due ? (a.due < hoje ? `<span class="badge-topay">venceu ${isoParaBR(a.due)}</span>` : `<span class="item-date">vence ${isoParaBR(a.due)}</span>`) : '';
-    ul.innerHTML += `<li class="asset-item" style="border-left-color:${c.cor}; ${a.archived ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1"><span>${c.icone} ${esc(a.name)} <small class="category-badge" style="color:${c.cor}; background:${c.cor}22">${c.nome}</small>${a.institution ? ` <small class="item-date">${esc(a.institution)}</small>` : ''}${a.rate ? ` <small class="item-date">· ${esc(a.rate)}</small>` : ''} ${venc}${a.archived ? ' <small class="item-date">· arquivado</small>' : ''}</span>
-        <small class="item-date">investido ${formatCurrency(inv)} · resultado <span style="color:${res >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(res)} (${pct(p)})</span> · valor de ${isoParaBR(a.currentAt || hoje)}</small>${a.notes ? `<small class="item-notes">${esc(a.notes)}</small>` : ''}</div>
-      <div class="item-actions"><strong style="margin-right:6px">${formatCurrency(a.current)}</strong><button class="mini-btn" title="Atualizar valor atual" onclick="atualizarValorAtivo(${a.id})">💰</button><button class="mini-btn" title="Editar" onclick="editarAtivo(${a.id})">✎</button><button class="mini-btn" title="${a.archived ? 'Reativar' : 'Arquivar'}" onclick="arquivarAtivo(${a.id})">${a.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removerAtivo(${a.id})">✕</button></div></li>`;
-  });
-}
+// renderAtivos mora em negocios.js (os ativos em cartões) desde 08/10.
 
 // --- Movimentações (aportes / resgates) ---
 document.getElementById('move-form').addEventListener('submit', (e) => {
@@ -2614,19 +2603,7 @@ document.getElementById('goal-form').addEventListener('submit', (e) => {
 function cancelarEdicaoMeta() { document.getElementById('goal-form').reset(); document.getElementById('goal-id').value = ''; document.getElementById('goal-submit').innerText = 'Adicionar meta'; document.getElementById('goal-cancel').hidden = true; }
 function editarMeta(id) { const g = goals.find(x => x.id === id); if (!g) return; document.getElementById('goal-id').value = g.id; document.getElementById('goal-name').value = g.name; document.getElementById('goal-target').value = g.target; document.getElementById('goal-deadline').value = g.deadline || ''; document.getElementById('goal-link').value = g.linkedTo; document.getElementById('goal-note').value = g.note || ''; document.getElementById('goal-submit').innerText = 'Salvar meta'; document.getElementById('goal-cancel').hidden = false; document.getElementById('goal-name').focus(); }
 function removerMeta(id) { const g = goals.find(x => x.id === id); if (!g || !confirm(`Apagar a meta "${g.name}"?`)) return; goals = goals.filter(x => x.id !== id); salvar('goals', goals); redesenharNegocios(); }
-function renderMetas() {
-  const ul = document.getElementById('goal-list'); if (!ul) return; ul.innerHTML = '';
-  if (!goals.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Ex: "Reserva de 6 meses" (R$ 30.000, vinculada à reserva) ou "Capital pra clínica".</li>'; return; }
-  goals.forEach(g => {
-    const atual = valorMeta(g); const p = g.target ? Math.min(100, Math.round(atual / g.target * 100)) : 0; const falta = Math.max(0, g.target - atual);
-    let porMes = '';
-    if (g.deadline && falta > 0) { const [y, m, d] = g.deadline.split('-').map(Number); const meses = Math.max(1, Math.round((new Date(y, m - 1, d) - new Date()) / (30.44 * 86400000))); porMes = ` · ${formatCurrency(falta / meses)}/mês por ${meses} ${meses === 1 ? 'mês' : 'meses'}`; }
-    ul.innerHTML += `<li class="goal-item" style="border-left-color:${p >= 100 ? 'var(--ok)' : 'var(--atencao)'}"><div class="transaction-info" style="flex:1"><span>🎯 ${esc(g.name)} ${p >= 100 ? '<span class="badge-paid">alcançada</span>' : ''}<small class="item-date"> · ${rotuloVinculo(g)}${g.deadline ? ' · até ' + isoParaBR(g.deadline) : ''}</small></span>
-        <div class="cat-bar" style="margin-top:6px"><div style="width:${p}%; background:${p >= 100 ? 'var(--ok)' : 'var(--atencao)'}"></div></div>
-        <small class="item-date">${formatCurrency(atual)} de ${formatCurrency(g.target)} (${p}%)${falta > 0 ? ` · faltam ${formatCurrency(falta)}${porMes}` : ''}</small>${g.note ? `<small class="item-notes">${esc(g.note)}</small>` : ''}</div>
-      <div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarMeta(${g.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMeta(${g.id})">✕</button></div></li>`;
-  });
-}
+// renderMetas mora em negocios.js (a trilha de cada meta) desde 08/10.
 
 // --- Projetos de negócio ---
 document.getElementById('project-form').addEventListener('submit', (e) => {
@@ -2649,25 +2626,7 @@ function mudarEstagio(id, stage) { const p = projects.find(x => x.id === id); if
 function togglePasso(id, i) { const p = projects.find(x => x.id === id); if (!p || !p.steps[i]) return; p.steps[i].done = !p.steps[i].done; p.updatedAt = Date.now(); salvar('projects', projects); renderProjetos(); }
 function removerProjeto(id) { const p = projects.find(x => x.id === id); if (!p || !confirm(`Apagar o projeto "${p.name}"?`)) return; projects = projects.filter(x => x.id !== id); salvar('projects', projects); redesenharNegocios(); }
 function filtrarProjetos(f, el) { projectFilter = f; document.querySelectorAll('#project-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderProjetos(); }
-function renderProjetos() {
-  const el = document.getElementById('project-list'); if (!el) return; el.innerHTML = '';
-  let lista = [...projects]; if (projectFilter === 'ativos') lista = lista.filter(p => !['pausado', 'encerrado'].includes(p.stage));
-  lista.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  if (!lista.length) { el.innerHTML = '<div class="stat-line muted" style="text-align:center; padding:16px;">Nenhum projeto aqui. Ex: "Clínica popular", "Telemedicina", "Curso online".</div>'; return; }
-  el.innerHTML = '<div class="note-grid">' + lista.map(p => {
-    const e = ESTAGIOS_PROJETO[p.stage] || ESTAGIOS_PROJETO.ideia; const feitos = (p.steps || []).filter(s => s.done).length; const tot = (p.steps || []).length;
-    const gastoPct = p.budget ? Math.min(100, Math.round((p.spent || 0) / p.budget * 100)) : 0;
-    return `<div class="note-card project-card" style="border-color:${e[2]}">
-      <div class="note-header"><h4>${e[0]} ${esc(p.name)}</h4><div class="item-actions"><button class="mini-btn" title="Editar" onclick="editarProjeto(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerProjeto(${p.id})">✕</button></div></div>
-      <select class="stage-select" style="color:${e[2]}" onchange="mudarEstagio(${p.id}, this.value)">${Object.entries(ESTAGIOS_PROJETO).map(([k, v]) => `<option value="${k}" ${k === p.stage ? 'selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
-      ${p.desc ? `<div class="note-body">${esc(p.desc)}</div>` : ''}
-      ${tot ? `<div class="note-check"><small class="item-date">Próximos passos · ${feitos}/${tot}</small>${p.steps.map((s, i) => `<label class="subtask ${s.done ? 'done' : ''}"><input type="checkbox" ${s.done ? 'checked' : ''} onclick="togglePasso(${p.id}, ${i})"> ${esc(s.text)}</label>`).join('')}</div>` : ''}
-      ${p.budget || p.spent ? `<div><small class="item-date">💸 gasto ${formatCurrency(p.spent || 0)}${p.budget ? ` de ${formatCurrency(p.budget)} previstos (${gastoPct}%)` : ''}</small><div class="cat-bar" style="margin-top:4px"><div style="width:${gastoPct}%; background:${gastoPct > 100 ? 'var(--perigo)' : 'var(--atencao)'}"></div></div></div>` : ''}
-      ${p.contacts ? `<small class="item-notes">👥 ${esc(p.contacts)}</small>` : ''}${p.notes ? `<small class="item-notes">${esc(p.notes)}</small>` : ''}
-      <div class="note-foot"><small class="item-date" style="margin-left:auto">${new Date(p.updatedAt || p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div>
-    </div>`;
-  }).join('') + '</div>';
-}
+// renderProjetos mora em negocios.js (o quadro de colunas) desde 08/10.
 
 // --- Indicadores de referência (manuais) e evolução mensal ---
 function salvarIndicadores() {
@@ -2679,267 +2638,12 @@ function registrarSnapshot() {
   if (!wealth.snapshots) wealth.snapshots = {};
   if (wealth.snapshots[m] !== total && (assets.length || wealth.snapshots[m] !== undefined)) { wealth.snapshots[m] = total; salvar('wealth', wealth); }
 }
-function renderPainelNegocios() {
-  const el = document.getElementById('biz-dash'); if (!el) return;
-  registrarSnapshot();
-  const total = patrimonioTotal(); const inv = investidoTotal(); const res = total - inv; const p = inv ? res / inv * 100 : 0; const reserva = totalClasse('reserva');
-  const mes = hojeISO().slice(0, 7); const aportadoMes = moves.filter(m => m.type === 'aporte' && !m.initial && m.date.startsWith(mes)).reduce((a, m) => a + m.amount, 0);
-  const tile = (icone, valor, rotulo, cor) => `<div class="stat-tile" style="--tom:${cor}"><span class="stat-icon">${icone}</span><strong>${valor}</strong><small>${rotulo}</small></div>`;
-  let html = '<div class="stat-grid">';
-  html += tile('🏦', formatCurrency(total), 'patrimônio investido (valor atual)', '#38bdf8');
-  html += tile('📥', formatCurrency(inv), `aportado no total · ${formatCurrency(aportadoMes)} neste mês`, '#a78bfa');
-  html += tile('📈', formatCurrency(res), `resultado simples (${pct(p)})`, res >= 0 ? 'var(--ok)' : 'var(--perigo)');
-  html += tile('🛟', formatCurrency(reserva), 'reserva de emergência', '#22c55e');
-  html += '</div>';
-  // por classe
-  const classes = Object.keys(CLASSES_ATIVO).map(k => ({ k, v: totalClasse(k) })).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
-  if (classes.length) html += '<div class="cat-block" style="margin-top:14px"><h5>Por classe</h5>' + classes.map(({ k, v }) => { const c = classeAtivo(k); return `<div class="cat-row"><span class="cat-name">${c.icone} ${c.nome}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${c.cor}"></div></div><span class="cat-val">${formatCurrency(v)} <small>${Math.round(v / total * 100)}%</small></span></div>`; }).join('') + '</div>';
-  // evolução mensal (últimos 6 meses com registro)
-  const snaps = Object.entries(wealth.snapshots || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
-  if (snaps.length >= 2) { const max = Math.max(1, ...snaps.map(s => s[1])); html += '<div class="cat-block"><h5>Evolução do patrimônio</h5><div class="fin-meses" style="height:120px">' + snaps.map(([m, v]) => `<div class="mes-col" title="${formatCurrency(v)}"><div class="mes-bars" style="height:70px"><div class="mes-bar" style="width:60%; height:${Math.round(v / max * 100)}%; background:var(--info)"></div></div><small>${nomeMes(m).slice(0, 3)}</small><small class="mes-saldo" style="color:var(--txt3)">${(v / 1000).toFixed(1)}k</small></div>`).join('') + '</div></div>'; }
-  // vencimentos próximos (60 dias)
-  const lim = new Date(); lim.setDate(lim.getDate() + 60); const limISO = isoDe(lim); const hoje = hojeISO();
-  const venc = assets.filter(a => !a.archived && a.due && a.due <= limISO).sort((a, b) => a.due.localeCompare(b.due));
-  if (venc.length) html += '<div class="cat-block"><h5>⏰ Vencimentos nos próximos 60 dias</h5>' + venc.map(a => `<div class="stat-line ${a.due < hoje ? 'muted' : ''}"><strong>${isoParaBR(a.due)}</strong> · ${esc(a.name)} · ${formatCurrency(a.current)}${a.due < hoje ? ' (vencido)' : ''}</div>`).join('') + '</div>';
-  // indicadores
-  const ind = wealth.indicators || {};
-  html += `<div class="ind-row"><span>📊 Referência${ind.ref ? ' (' + esc(ind.ref) + ')' : ''}:</span> <span>CDI <strong>${ind.cdi ? ind.cdi.toString().replace('.', ',') + '%' : '—'}</strong></span> <span>Selic <strong>${ind.selic ? ind.selic.toString().replace('.', ',') + '%' : '—'}</strong></span> <span>IPCA <strong>${ind.ipca ? ind.ipca.toString().replace('.', ',') + '%' : '—'}</strong></span> <span class="item-date">· a.a., anotados por você</span></div>`;
-  el.innerHTML = html;
-  ['cdi', 'selic', 'ipca'].forEach(k => { const i = document.getElementById('ind-' + k); if (i && document.activeElement !== i) i.value = ind[k] || ''; }); const r = document.getElementById('ind-ref'); if (r && document.activeElement !== r) r.value = ind.ref || '';
-}
-function redesenharNegocios() { preencherSelectsNegocios(); renderPainelNegocios(); renderAtivos(); renderMovimentos(); renderMetas(); renderProjetos(); renderMercado(); }
+// renderPainelNegocios mora em negocios.js (o painel em quadros) desde 08/10.
+function redesenharNegocios() { preencherSelectsNegocios(); renderAtivos(); renderMovimentos(); redesenharNegociosVisual(); }
 
 // ============================================================================
-// MERCADO — cotações e gráficos (aprovado por ele em 30/09/2026)
-//
-// A decisão de 13/09 era "sem cotações automáticas SEM APROVAÇÃO DA FONTE". Ele
-// aprovou exatamente duas, depois de eu testar oito:
-//   • BANCO CENTRAL (api.bcb.gov.br, série SGS) → dólar, euro, CDI, Selic, IPCA, IGP-M
-//   • COINGECKO (api.coingecko.com)             → cripto em reais
-// As duas passaram nos três critérios ao mesmo tempo: sem cadastro nem chave,
-// `access-control-allow-origin: *` (funcionam direto do navegador, sem servidor)
-// e com histórico, que é o que permite desenhar gráfico.
-//
-// REPROVADAS e por quê: Yahoo Finance (NVIDIA, ouro, índices) e Frankfurter
-// respondem 200 mas SEM CORS; os RSS de notícia também não liberam. Para essas
-// seria preciso um proxy — o próprio Apps Script dele. Ficou para depois, e ele
-// pediu para eu REOFERECER brapi (ações da B3, token gratuito) e o proxy quando
-// voltarmos aqui. Está registrado no CLAUDE.md.
-//
-// O CACHE NÃO SINCRONIZA de propósito: cotação é dado público e refazível, não é
-// dado dele. Ocupar célula da planilha com isso seria desperdício. Fica em
-// `lifeos_cotacoes`, local, fora de SYNC_MODULOS — como `lifeos_arte_dia`.
+// MERCADO e NOTÍCIAS moram em negocios.js desde 08/10 (radar, brapi, ponte no Apps Script).
 // ============================================================================
-const ATIVOS_MERCADO = {
-  usd:   { nome: 'Dólar',          ic: '💵', fonte: 'bcb',  serie: 1,     un: 'R$', casas: 4, cor: '#22c55e' },
-  eur:   { nome: 'Euro',           ic: '💶', fonte: 'bcb',  serie: 21619, un: 'R$', casas: 4, cor: '#38bdf8' },
-  btc:   { nome: 'Bitcoin',        ic: '🪙', fonte: 'coin', id: 'bitcoin',  un: 'R$', casas: 0, cor: '#f59e0b' },
-  eth:   { nome: 'Ethereum',       ic: '💠', fonte: 'coin', id: 'ethereum', un: 'R$', casas: 0, cor: '#a78bfa' },
-  sol:   { nome: 'Solana',         ic: '🌀', fonte: 'coin', id: 'solana',   un: 'R$', casas: 2, cor: '#14b8a6' },
-  cdi:   { nome: 'CDI (a.a.)',     ic: '🏦', fonte: 'bcb',  serie: 4389,  un: '%',  casas: 2, cor: '#0ea5e9', taxa: true },
-  selic: { nome: 'Selic meta',     ic: '🎯', fonte: 'bcb',  serie: 432,   un: '%',  casas: 2, cor: '#f472b6', taxa: true },
-  ipca:  { nome: 'IPCA 12 meses',  ic: '📊', fonte: 'bcb',  serie: 13522, un: '%',  casas: 2, cor: '#fb923c', taxa: true },
-  igpm:  { nome: 'IGP-M (mês)',    ic: '📉', fonte: 'bcb',  serie: 189,   un: '%',  casas: 2, cor: '#94a3b8', taxa: true }
-};
-const PERIODOS_MERCADO = { '15d': 15, '1m': 30, '3m': 90, '6m': 180, '1a': 365 };
-const MERCADO_VALIDADE_MS = 6 * 3600 * 1000;   // cotação de hoje serve; de ontem, busca de novo
-let mercadoPeriodo = '3m';
-let mercadoBuscando = false;
-
-function lerCotacoes() {
-  try { return JSON.parse(localStorage.getItem('lifeos_cotacoes')) || { em: 0, dados: {} }; }
-  catch (e) { return { em: 0, dados: {} }; }
-}
-function gravarCotacoes(c) {
-  try { localStorage.setItem('lifeos_cotacoes', JSON.stringify(c)); } catch (e) { /* memória cheia: segue sem cache */ }
-}
-function cfgMercado() {
-  prefs.mercado = prefs.mercado || {};
-  if (prefs.mercado.ligado === undefined) prefs.mercado.ligado = true;
-  if (!Array.isArray(prefs.mercado.escolhidos)) prefs.mercado.escolhidos = ['usd', 'btc', 'cdi', 'ipca'];
-  return prefs.mercado;
-}
-function gravarMercado() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); }
-function brParaISO(d) { const [a, m, y] = d.split('/'); return `${y}-${m}-${a}`; }
-
-/** Uma série do Banco Central, por intervalo de datas (funciona para série
- *  diária e mensal igual — por isso não uso `ultimos/N`). */
-async function serieBCB(serie, dias) {
-  const fim = new Date(); const ini = new Date(); ini.setDate(ini.getDate() - dias);
-  const fmt = d => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-  const r = await fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados?formato=json&dataInicial=${fmt(ini)}&dataFinal=${fmt(fim)}`);
-  if (!r.ok) throw new Error('BCB ' + r.status);
-  const j = await r.json();
-  return j.map(x => ({ d: brParaISO(x.data), v: parseFloat(x.valor) })).filter(x => isFinite(x.v));
-}
-async function serieCoin(id, dias) {
-  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=brl&days=${dias}&interval=daily`);
-  if (!r.ok) throw new Error('CoinGecko ' + r.status);
-  const j = await r.json();
-  return (j.prices || []).map(p => ({ d: isoDe(new Date(p[0])), v: p[1] })).filter(x => isFinite(x.v));
-}
-/** Uma tentativa e, se falhar, mais uma depois de um respiro.
- *  MOTIVO REAL: a API do Banco Central oscila. Testando daqui eu peguei um 502 e
- *  uma resposta vazia no meio de várias respostas 200 — sem repetir, um soluço
- *  desses deixaria o gráfico em branco até o usuário clicar em ↻. */
-async function buscarSerie(chave, periodo) {
-  const a = ATIVOS_MERCADO[chave]; if (!a) return null;
-  const dias = PERIODOS_MERCADO[periodo] || 90;
-  const pega = () => a.fonte === 'bcb' ? serieBCB(a.serie, dias) : serieCoin(a.id, dias);
-  let pontos = [];
-  try { pontos = await pega(); }
-  catch (e) {
-    await new Promise(r => setTimeout(r, 700));
-    pontos = await pega();                 // se falhar de novo, o erro sobe e é mostrado
-  }
-  if (!pontos.length) return null;
-  return { pontos, em: Date.now() };
-}
-/** Busca o que falta ou está velho. Sequencial e com pausa: são fontes públicas
- *  e gratuitas, não se martela. */
-async function atualizarMercado(forcar) {
-  const c = cfgMercado();
-  if (!c.ligado) return;
-  if (mercadoBuscando) return;
-  if (!navigator.onLine) { renderMercado(); return; }
-  const cache = lerCotacoes();
-  const faltam = c.escolhidos.filter(k => {
-    const d = cache.dados[k + ':' + mercadoPeriodo];
-    return forcar || !d || (Date.now() - (d.em || 0)) > MERCADO_VALIDADE_MS;
-  });
-  if (!faltam.length) return;
-  mercadoBuscando = true; renderMercado();
-  // `finally` de propósito: se uma busca travar, a bandeira TEM de baixar, senão
-  // o status fica preso em "Buscando…" para sempre e mente para o usuário.
-  try {
-    for (const k of faltam) {
-      try {
-        const s = await buscarSerie(k, mercadoPeriodo);
-        if (s) { cache.dados[k + ':' + mercadoPeriodo] = s; cache.em = Date.now(); gravarCotacoes(cache); renderMercado(); }
-        else cache.dados[k + ':' + mercadoPeriodo] = { pontos: [], em: Date.now(), erro: 'sem dados' };
-      } catch (e) {
-        // guarda o erro MAS preserva os pontos que já existiam: uma cotação de
-        // ontem vale mais que um gráfico vazio.
-        const antigo = cache.dados[k + ':' + mercadoPeriodo] || {};
-        cache.dados[k + ':' + mercadoPeriodo] = { pontos: antigo.pontos || [], em: Date.now(), erro: e.message };
-        gravarCotacoes(cache);
-      }
-      await new Promise(r => setTimeout(r, 350));
-    }
-  } finally {
-    mercadoBuscando = false; renderMercado();
-  }
-}
-function mudarPeriodoMercado(p, el) {
-  mercadoPeriodo = p;
-  document.querySelectorAll('#mercado-periodos span').forEach(x => x.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderMercado(); atualizarMercado(false);
-}
-function alternarAtivoMercado(k) {
-  const c = cfgMercado();
-  c.escolhidos = c.escolhidos.includes(k) ? c.escolhidos.filter(x => x !== k) : [...c.escolhidos, k];
-  gravarMercado(); renderMercado(); atualizarMercado(false);
-}
-function alternarMercadoLigado() {
-  const c = cfgMercado(); c.ligado = !c.ligado; gravarMercado(); renderMercado();
-  if (c.ligado) atualizarMercado(true);
-}
-function fmtCotacao(v, a) {
-  if (!isFinite(v)) return '—';
-  if (a.un === '%') return v.toFixed(a.casas).replace('.', ',') + '%';
-  return formatCurrency(v);
-}
-/** Gráfico de linha em SVG, desenhado na hora — nenhuma biblioteca, porque o
- *  app tem de abrir offline (mesma razão do relógio analógico). */
-function graficoLinha(pontos, cor, largura, altura) {
-  if (pontos.length < 2) return '';
-  const vs = pontos.map(p => p.v);
-  let min = Math.min(...vs), max = Math.max(...vs);
-  if (max === min) { max += 1; min -= 1; }
-  const px = (i) => (i / (pontos.length - 1)) * (largura - 2) + 1;
-  const py = (v) => altura - 3 - ((v - min) / (max - min)) * (altura - 6);
-  const d = pontos.map((p, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(p.v).toFixed(1)}`).join(' ');
-  const area = `${d} L${px(pontos.length - 1).toFixed(1)},${altura} L${px(0).toFixed(1)},${altura} Z`;
-  return `<svg class="mkt-svg" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" aria-hidden="true">
-    <path d="${area}" fill="${cor}" opacity="0.14"></path>
-    <path d="${d}" fill="none" stroke="${cor}" stroke-width="1.6" stroke-linejoin="round"></path>
-  </svg>`;
-}
-function renderMercado() {
-  const el = document.getElementById('mercado-corpo'); if (!el) return;
-  const c = cfgMercado();
-  const chips = document.getElementById('mercado-chips');
-  if (chips) {
-    chips.innerHTML = Object.entries(ATIVOS_MERCADO).map(([k, a]) =>
-      `<span class="chip${c.escolhidos.includes(k) ? ' active' : ''}" onclick="alternarAtivoMercado('${k}')">${a.ic} ${esc(a.nome)}</span>`).join('');
-  }
-  const bt = document.getElementById('mercado-ligar');
-  if (bt) bt.checked = c.ligado;
-  const st = document.getElementById('mercado-status');
-  const cache = lerCotacoes();
-  if (st) {
-    st.innerText = !c.ligado ? '⚪ Cotações desligadas — os valores dos ativos seguem só o que você digita.'
-      : mercadoBuscando ? '🔄 Buscando…'
-      : !navigator.onLine ? '🔴 Sem internet — mostrando a última cotação guardada.'
-      : cache.em ? '🟢 Atualizado às ' + new Date(cache.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      : '⚪ Ainda não busquei nada.';
-  }
-  if (!c.ligado) { el.innerHTML = ''; return; }
-  if (!c.escolhidos.length) {
-    el.innerHTML = '<div class="stat-line muted">Escolha acima o que você quer acompanhar.</div>';
-    return;
-  }
-  el.innerHTML = c.escolhidos.map(k => {
-    const a = ATIVOS_MERCADO[k]; if (!a) return '';
-    const d = cache.dados[k + ':' + mercadoPeriodo];
-    const pts = (d && d.pontos) || [];
-    if (!pts.length) {
-      return `<div class="mkt-card"><div class="mkt-cab"><strong>${a.ic} ${esc(a.nome)}</strong>
-        <small>${mercadoBuscando ? 'buscando…' : (d && d.erro ? 'não veio: ' + esc(d.erro) : 'sem dados ainda')}</small></div></div>`;
-    }
-    const prim = pts[0].v, ult = pts[pts.length - 1].v;
-    const var_ = prim ? (ult - prim) / Math.abs(prim) * 100 : 0;
-    const sobe = ult >= prim;
-    const vs = pts.map(p => p.v);
-    return `<div class="mkt-card">
-      <div class="mkt-cab">
-        <strong>${a.ic} ${esc(a.nome)}</strong>
-        <span class="mkt-valor">${fmtCotacao(ult, a)}</span>
-        <span class="mkt-var ${sobe ? 'sobe' : 'desce'}">${sobe ? '▲' : '▼'} ${Math.abs(var_).toFixed(2).replace('.', ',')}%</span>
-        ${d.erro ? `<small class="mkt-velho" title="${esc(d.erro)}">⚠️ não consegui atualizar agora</small>` : ''}
-      </div>
-      ${graficoLinha(pts, a.cor, 300, 54)}
-      <div class="mkt-pe">
-        <small>${isoParaBR(pts[0].d).slice(0, 5)} · ${fmtCotacao(prim, a)}</small>
-        <small>mín ${fmtCotacao(Math.min(...vs), a)} · máx ${fmtCotacao(Math.max(...vs), a)}</small>
-        <small>${isoParaBR(pts[pts.length - 1].d).slice(0, 5)}</small>
-      </div>
-    </div>`;
-  }).join('');
-}
-/** Leva CDI, Selic e IPCA reais para os indicadores manuais de Negócios, que
- *  já eram usados nas comparações de rentabilidade. */
-function usarIndicadoresDoMercado() {
-  const cache = lerCotacoes();
-  const pega = k => {
-    const d = cache.dados[k + ':' + mercadoPeriodo] || Object.values(PERIODOS_MERCADO).map((_, i) => null).find(() => false);
-    if (d && d.pontos && d.pontos.length) return d.pontos[d.pontos.length - 1].v;
-    const outro = Object.keys(cache.dados).find(x => x.startsWith(k + ':') && (cache.dados[x].pontos || []).length);
-    return outro ? cache.dados[outro].pontos[cache.dados[outro].pontos.length - 1].v : null;
-  };
-  const cdi = pega('cdi'), selic = pega('selic'), ipca = pega('ipca');
-  if (cdi === null && selic === null && ipca === null) {
-    toast('Ligue as cotações e escolha CDI, Selic ou IPCA primeiro.', 6000); return;
-  }
-  wealth.indicators = wealth.indicators || {};
-  if (cdi !== null) wealth.indicators.cdi = Math.round(cdi * 100) / 100;
-  if (selic !== null) wealth.indicators.selic = Math.round(selic * 100) / 100;
-  if (ipca !== null) wealth.indicators.ipca = Math.round(ipca * 100) / 100;
-  wealth.indicators.ref = 'Banco Central · ' + isoParaBR(hojeISO());
-  salvar('wealth', wealth); redesenharNegocios();
-  toast('📈 Indicadores atualizados com os números do Banco Central.', 6000);
-}
 
 // ============================================================================
 // SAÚDE (módulo J)
@@ -3483,9 +3187,9 @@ function renderDietas() {
 let saudeSecao = 'painel';
 function verSecaoSaude(s, el) {
   saudeSecao = s;
-  document.querySelectorAll('#saude-secoes span').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#saude-secoes > span').forEach(x => x.classList.remove('active'));
   if (el) el.classList.add('active');
-  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes > span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'treinos', 'medidas', 'comida', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
   // o gráfico do peso mede a largura de onde está: escondido, ela é zero
   if (s === 'medidas' && typeof renderMedidas === 'function') renderMedidas();
@@ -4069,7 +3773,7 @@ let lazerSecao = 'midia';
 
 function verSecaoLazer(s, el) {
   lazerSecao = s;
-  const abas = document.querySelectorAll('#lazer-secoes span');
+  const abas = document.querySelectorAll('#lazer-secoes > span');
   abas.forEach(x => x.classList.remove('active'));
   const alvo = el || abas[['midia', 'saidas', 'musica'].indexOf(s)];
   if (alvo) alvo.classList.add('active');
@@ -4911,7 +4615,7 @@ function renderMilhas() {
 let viagensSecao = 'viagens';
 function verSecaoViagens(s, el) {
   viagensSecao = s;
-  const abas = document.querySelectorAll('#viagens-secoes span');
+  const abas = document.querySelectorAll('#viagens-secoes > span');
   abas.forEach(x => x.classList.remove('active'));
   const alvo = el || abas[['viagens', 'milhas'].indexOf(s)];
   if (alvo) alvo.classList.add('active');
@@ -5147,7 +4851,7 @@ function copiarNaMarra(txt, feito) {
 let redeSecao = 'contatos';
 function verSecaoRede(s, el) {
   redeSecao = s;
-  const abas = document.querySelectorAll('#rede-secoes span');
+  const abas = document.querySelectorAll('#rede-secoes > span');
   abas.forEach(x => x.classList.remove('active'));
   const alvo = el || abas[['contatos', 'curriculo'].indexOf(s)];
   if (alvo) alvo.classList.add('active');
@@ -7504,9 +7208,9 @@ function renderPainelClinica() {
 let clinicaSecao = 'painel';
 function verSecaoClinica(s, el) {
   clinicaSecao = s;
-  document.querySelectorAll('#clinica-secoes span').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#clinica-secoes > span').forEach(x => x.classList.remove('active'));
   if (el) el.classList.add('active');
-  else { const i = ['painel', 'funil', 'servicos'].indexOf(s); const sp = document.querySelectorAll('#clinica-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  else { const i = ['painel', 'funil', 'servicos'].indexOf(s); const sp = document.querySelectorAll('#clinica-secoes > span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'funil', 'servicos'].forEach(k => { const d = document.getElementById('sec-cl-' + k); if (d) d.hidden = k !== s; });
 }
 function renderClinica() {
@@ -7974,9 +7678,9 @@ function renderPainelProducao() {
 let producaoSecao = 'painel';
 function verSecaoProducao(s, el) {
   producaoSecao = s;
-  document.querySelectorAll('#producao-secoes span').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#producao-secoes > span').forEach(x => x.classList.remove('active'));
   if (el) el.classList.add('active');
-  else { const i = ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].indexOf(s); const sp = document.querySelectorAll('#producao-secoes span')[i]; if (sp) sp.classList.add('active'); }
+  else { const i = ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].indexOf(s); const sp = document.querySelectorAll('#producao-secoes > span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].forEach(k => { const d = document.getElementById('sec-pr-' + k); if (d) d.hidden = k !== s; });
 }
 function renderProducao() {
@@ -8368,6 +8072,8 @@ document.getElementById('session-date').value = hojeISO(); garantirRitual(); red
 // Cotações: desenha na hora com o que está guardado e busca o que faltar depois,
 // para não atrasar a abertura do app.
 setTimeout(() => atualizarMercado(false), 1500);
+// notícias só com a ponte já confirmada (sem ela, nem tenta: evita uma ida ao script à toa)
+setTimeout(() => { if (typeof ngPonteEstado === 'function' && ngPonteEstado() === 'ok') ngNoticias(false); }, 4000);
 aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 if (!profile.name && !window.GENESIS_PRIMEIRO_USO && !localStorage.getItem('lifeos_perfil_avisado')) { localStorage.setItem('lifeos_perfil_avisado', '1'); setTimeout(() => toast('👤 Bem-vindo ao Genesis! Coloque seu nome em ⚙️ Config → Perfil.', 8000), 1500); }
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

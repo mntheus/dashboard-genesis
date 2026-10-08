@@ -527,50 +527,58 @@
 
     <!-- Módulo 5: Notas -->
     <div id="notes" class="tab-content">
-      <div class="card" style="margin-top: 20px;">
-        <h2 id="note-form-title">Nova Anotação</h2>
-        <form id="note-form">
-          <input type="hidden" id="note-id">
-          <div class="focus-header-tabs" id="note-tipo" style="border:none; padding:0; margin-bottom: 4px;"><span class="active" onclick="alternarTipoNota('texto', this)">📝 Texto</span><span onclick="alternarTipoNota('lista', this)">☑️ Lista de verificação</span></div>
-          <label for="note-title">Título:</label><input type="text" id="note-title" placeholder="opcional">
-          <textarea id="note-content" rows="5" placeholder="Escreva sua nota..."></textarea>
-          <textarea id="note-checklist" rows="5" placeholder="Um item por linha — cole o link junto que o app mostra o nome e um 🔗&#10;Ex: Leite&#10;Purificador Consul CPC34 https://loja.com/produto&#10;Café" hidden></textarea>
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: end;">
-            <div><label for="note-labels-input">Marcadores (separados por vírgula):</label><input type="text" id="note-labels-input" placeholder="trabalho, ideias, negócios"></div>
-            <label class="check-line" style="margin-bottom: 12px;"><input type="checkbox" id="note-pin"> 📌 Fixar no topo</label>
-          </div>
-          <div class="color-row"><span style="font-size:0.8rem; color:var(--txt3)">Cor:</span><div id="note-colors" class="color-dots"></div></div>
-          <div style="display:flex; gap:10px;">
-            <button type="submit" id="note-submit" style="flex:1">Salvar Nota</button>
-            <button type="button" id="note-cancel" class="btn" hidden onclick="cancelarEdicaoNota()">Cancelar</button>
-          </div>
-        </form>
-      </div>
-      <div class="card" style="margin-top: 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;"><h2 style="margin:0">Suas Notas</h2><small id="note-count" class="item-date"></small></div>
-        <input type="search" id="note-search" placeholder="🔍 buscar em título, conteúdo ou marcador" oninput="buscarNotas(this.value)" style="margin: 12px 0 10px;">
-        <div class="focus-header-tabs filter-row" id="note-filters">
-          <span class="active" onclick="filtrarNotas('ativas', this)">📝 Notas</span>
-          <span onclick="filtrarNotas('fixadas', this)">📌 Fixadas</span>
-          <span onclick="filtrarNotas('arquivadas', this)">🗄️ Arquivadas</span>
+      <div id="sec-nt-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="nt-rapida" aria-label="Nova nota rápida" placeholder="Anotar…" autocomplete="off" enterkeyhint="done" oninput="ntRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); ntRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Salvar" onclick="ntRapidaAdicionar()">↵</button>
         </div>
-        <div id="note-labels" class="chips"></div>
-        <div id="note-list"></div>
+        <div id="nt-rapida-previa" class="tar-rapida-previa"></div>
       </div>
-      <div class="card" style="margin-top: 20px;" id="entregas-card">
-        <h2>📦 Compras e entregas</h2>
-        <p class="hint">Nas listas de compras, o 🛒 de cada item manda ele pra cá e tira da lista. Aqui você acompanha até chegar — ▶ avança o status (🛒 comprado → 🚚 a caminho → 📦 entregue).</p>
-        <div id="entrega-resumo" class="summary-row"></div>
-        <div class="focus-header-tabs filter-row" id="entrega-filtros">
-          <span class="active" onclick="filtrarEntregas('andamento', this)">🚚 A caminho</span>
-          <span onclick="filtrarEntregas('entregues', this)">📦 Entregues</span>
-          <span onclick="filtrarEntregas('todas', this)">🗂️ Todas</span>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="notas-secoes">
+        <span class="active" onclick="verSecaoNotas('notas', this)">📝 Notas</span>
+        <span onclick="verSecaoNotas('listas', this)">☑️ Listas</span>
+        <span id="nt-aba-entregas" onclick="verSecaoNotas('entregas', this)">📦 Entregas</span>
+      </div>
+      <div id="sec-nt-filtros" class="agenda-sec nt-filtros">
+        <div class="nt-filtros-linha">
+          <input type="search" id="note-search" placeholder="🔍 buscar em título, texto ou marcador" aria-label="Buscar nas notas" oninput="buscarNotas(this.value)">
+          <div class="focus-header-tabs filter-row" id="note-filters">
+            <span class="active" onclick="filtrarNotas('ativas', this)">Todas</span>
+            <span onclick="filtrarNotas('fixadas', this)">📌 Fixadas</span>
+            <span onclick="filtrarNotas('arquivadas', this)">🗄️ Arquivo</span>
+          </div>
+          <div class="focus-header-tabs filter-row nt-vista" id="nt-vista"></div>
         </div>
-        <ul id="entrega-lista" class="transaction-list"></ul>
-        <button type="button" class="btn" style="width:100%; margin-top:10px" onclick="novaCompraAvulsa()">＋ Registrar uma compra</button>
+        <div id="note-labels" class="chips nt-marcadores"></div>
+      </div>
+      <div id="sec-nt-notas" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="nt-notas">
+          <div class="nt-cab"><h2>📝 Notas</h2><small id="note-count" class="item-date"></small></div>
+          <div id="note-list"></div>
+        </div>
+      </div>
+      <div id="sec-nt-listas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="nt-listas">
+          <h2>☑️ Listas</h2>
+          <div id="nt-listas"></div>
+        </div>
+      </div>
+      <div id="sec-nt-entregas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" id="entregas-card" data-mod="nt-entregas">
+          <h2>📦 Compras e entregas</h2>
+          <p class="hint">Nas listas, o 🛒 de cada item manda a compra para cá e tira da lista. ▶ avança a etapa: 🛒 comprado → 🚚 a caminho → 📦 entregue.</p>
+          <div id="entrega-resumo" class="nt-ent-resumo"></div>
+          <div class="focus-header-tabs filter-row nt-ent-filtros" id="entrega-filtros">
+            <span class="active" onclick="filtrarEntregas('andamento', this)">🚚 A caminho</span>
+            <span onclick="filtrarEntregas('entregues', this)">📦 Entregues</span>
+            <span onclick="filtrarEntregas('todas', this)">🗂️ Todas</span>
+          </div>
+          <div id="entrega-lista"></div>
+          <button type="button" class="btn" style="width:100%; margin-top:12px" onclick="novaCompraAvulsa()">＋ Registrar uma compra</button>
+        </div>
       </div>
     </div>
-
     <!-- Módulo 7: Estudos -->
     <div id="studies" class="tab-content">
       <div class="card" style="margin-top: 20px;">
@@ -1640,6 +1648,12 @@
     </div>
   </div>
 
+  <div id="nt-leitor" class="modal-overlay" onclick="if (event.target === this) ntFechar()" onkeydown="if (event.key === 'Escape') ntFechar()">
+    <div class="modal-content nt-leitor-caixa">
+      <div class="modal-header"><h3 id="nt-leitor-tit">📝 Nota</h3><button type="button" class="close-modal" title="Fechar (salva sozinha)" onclick="ntFechar()">✕</button></div>
+      <div class="modal-body" id="nt-leitor-corpo"></div>
+    </div>
+  </div>
   <div id="compra-modal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header"><h3>🛒 Comprei</h3><button class="close-modal" onclick="fecharCompra()">✕</button></div>
@@ -1736,6 +1750,7 @@
   <script src="inventario.js"></script>
   <script src="financas.js"></script>
   <script src="tarefas.js"></script>
+  <script src="notas.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

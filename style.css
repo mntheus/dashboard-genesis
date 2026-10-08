@@ -4001,3 +4001,163 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .tar-rot-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
 .tar-rot-botoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 8px; margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { .tar-rot-trilha i.aberta, .concluindo { animation: none; } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   NOTAS (08/10) — a barra rápida (a mesma de Tarefas), o mural de post-its, o
+   caderno de duas colunas, a nota aberta, as listas de mercado e o rastreador.
+   ════════════════════════════════════════════════════════════════════════════ */
+#note-list, #nt-listas, #entrega-lista, #nt-leitor-corpo, #nt-cad-pagina { container-type: inline-size; }
+#notas-secoes { justify-content: center; margin: 0; padding-bottom: 6px; }
+
+/* filtros: busca, Todas/Fixadas/Arquivo, Mural/Caderno e os marcadores */
+.nt-filtros { margin: 0; }
+.nt-filtros-linha { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; max-width: 1100px; margin: 0 auto; }
+.nt-filtros-linha input#note-search { flex: 1 1 240px; max-width: 420px; min-width: 0; margin: 0; }
+.nt-filtros-linha .filter-row { border-bottom: none; padding-bottom: 0; flex-wrap: wrap; justify-content: center; }
+.nt-vista span { border: 1px solid var(--fio-sutil); }
+.nt-vista[hidden] { display: none !important; }
+.nt-marcadores { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 8px auto 0; max-width: 1100px; }
+.nt-marcadores:empty { display: none; }
+/* no celular os marcadores viram UMA faixa que desliza (eram 3 linhas antes da primeira nota) */
+@media (max-width: 600px) { .nt-marcadores { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; } .nt-marcadores::-webkit-scrollbar { display: none; } .nt-marcadores > span { flex: 0 0 auto; } }
+.nt-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.nt-marc { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: .68rem; font-weight: 600; line-height: 1.65; color: var(--txt2); background: color-mix(in srgb, var(--txt3) 14%, transparent); white-space: nowrap; }
+.nt-marc::before { content: '#'; opacity: .55; margin-right: 1px; }
+.nt-novo { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 6px 14px; border-radius: var(--r2); font-size: var(--t-apoio); font-weight: 600; color: var(--acento); border: 1px dashed color-mix(in srgb, var(--acento) 55%, transparent); }
+.nt-novo:hover { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.nt-pe { display: flex; justify-content: center; margin-top: var(--s3); }
+
+/* o mural de post-its: colunas que se enchem como tijolos */
+.nt-mural { columns: 230px; column-gap: 12px; }
+.nt-post {
+  --nh: transparent;
+  position: relative; break-inside: avoid; display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; padding: 14px 14px 10px;
+  border-radius: 4px 4px 14px 4px; cursor: pointer; outline: none;
+  background: var(--sup-1); border: 1px solid var(--fio-sutil); box-shadow: var(--elev1);
+  transform: rotate(var(--rot, 0deg)); transition: transform var(--mov), box-shadow var(--mov);
+}
+.nt-post.cor { background: color-mix(in srgb, var(--nh) 20%, var(--card, var(--bg))); border-color: color-mix(in srgb, var(--nh) 45%, transparent); border-top: 4px solid var(--nh); }
+.nt-post:hover, .nt-post:focus-visible { transform: none; box-shadow: var(--elev2); }
+.nt-post:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.nt-post.arquivada { opacity: .6; }
+.nt-tacha { position: absolute; top: -9px; left: 50%; transform: translateX(-50%) rotate(12deg); font-size: 1.05rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.nt-post h4 { margin: 0; font-size: var(--t-corpo); font-weight: 700; color: var(--txt-forte); overflow-wrap: anywhere; }
+.nt-post-corpo { position: relative; max-height: 240px; overflow: hidden; white-space: pre-wrap; font-size: var(--t-apoio); line-height: 1.5; color: var(--txt2); overflow-wrap: anywhere; }
+.nt-post-corpo a { color: var(--info); }
+.nt-post footer { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 2px; }
+.nt-post footer small { margin-left: auto; font-size: .66rem; color: var(--txt4); }
+
+/* o caderno: a lista à esquerda, a página aberta à direita */
+.nt-caderno { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: var(--s3); align-items: start; }
+.nt-cad-lista { display: flex; flex-direction: column; gap: 4px; max-height: min(72vh, 900px); overflow-y: auto; padding-right: 4px; }
+.nt-cad-lista.estreita { max-height: none; overflow: visible; padding-right: 0; }
+.nt-cad-lista .nt-novo { margin-bottom: 4px; }
+.nt-cad-item {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 9px 12px;
+  border-radius: var(--r2); border-left: 4px solid var(--nh); background: var(--sup-1); transition: background var(--mov);
+}
+.nt-cad-item:hover { background: var(--sup-2); }
+.nt-cad-item.sel { background: color-mix(in srgb, var(--acento) 14%, var(--sup-1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 40%, transparent); }
+.nt-cad-item:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.nt-cad-item b { font-size: var(--t-apoio); color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-cad-item span { font-size: .72rem; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-cad-item small { font-size: .64rem; color: var(--txt4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-cad-pagina { min-width: 0; padding: 16px 18px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+
+/* a nota aberta (pop-up ou página do caderno) */
+/* a regra geral limita o pop-up a 360 px: a nota aberta precisa de página de verdade */
+/* a barra do Jarvis (embaixo, camada 1600) e o trilho de abas (em cima) ficam acima dos pop-ups: a nota não encosta neles */
+#nt-leitor { padding: 60px 16px 86px; }
+#nt-leitor .modal-content.nt-leitor-caixa { width: min(720px, 100%); max-width: 720px; max-height: calc(100dvh - 146px); overflow-y: auto; }
+.nt-ed { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nt-ed input.nt-ed-tit { margin: 0; padding: 6px 2px; border: none; border-bottom: 2px solid color-mix(in srgb, var(--nh) 70%, var(--fio-sutil)); border-radius: 0; background: transparent; font-size: 1.25rem; font-weight: 700; color: var(--txt-forte); box-shadow: none; }
+.nt-ed input.nt-ed-tit:focus { outline: none; border-bottom-color: var(--acento); }
+.nt-ed textarea.nt-ed-txt { margin: 0; min-height: 160px; resize: vertical; line-height: 1.6; font-size: var(--t-corpo); background: var(--sup-2); border: 1px solid var(--fio-sutil); }
+.nt-ed-cores { display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-cor { all: unset; box-sizing: border-box; position: relative; cursor: pointer; width: 24px; height: 24px; border-radius: 50%; background: var(--c); border: 2px solid color-mix(in srgb, var(--c) 80%, var(--borda3)); }
+.nt-cor::before { content: ''; position: absolute; inset: -6px; }
+.nt-cor.sel { outline: 2px solid var(--txt-forte); outline-offset: 2px; }
+.nt-cor:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.nt-ed input.nt-ed-marc { margin: 0; font-size: var(--t-apoio); }
+.nt-ed-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nt-ed-acoes .mini-btn { min-height: 32px; }
+.nt-ed-salvo { margin-left: auto; font-size: .68rem; color: var(--txt4); }
+.nt-ed-itens { display: flex; flex-direction: column; gap: 2px; }
+.nt-it { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 2px 0; }
+.nt-it.nivel-1 { padding-left: 24px; }
+.nt-it.nivel-2 { padding-left: 48px; }
+.nt-it > input[type=checkbox] { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; accent-color: var(--ok); }
+.nt-it input.nt-it-tx { flex: 1; min-width: 0; margin: 0; padding: 6px 8px; font-size: var(--t-apoio); background: transparent; border: 1px solid transparent; box-shadow: none; }
+.nt-it input.nt-it-tx:focus { border-color: var(--fio-sutil); background: var(--sup-2); outline: none; }
+.nt-it.feito input.nt-it-tx { text-decoration: line-through; color: var(--txt4); }
+.nt-it-ferr { display: inline-flex; flex-wrap: nowrap; gap: 2px; flex: 0 0 auto; opacity: .55; }
+.nt-it:hover .nt-it-ferr, .nt-it:focus-within .nt-it-ferr { opacity: 1; }
+.nt-it-ferr .mini-btn { min-height: 28px; min-width: 28px; padding: 0 4px; }
+/* no celular: uma linha por item; as ferramentas só no item tocado */
+@container (max-width: 520px) { .nt-it { flex-wrap: wrap; } .nt-it-ferr { display: none; } .nt-it.ativo .nt-it-ferr { display: inline-flex; width: 100%; justify-content: flex-end; opacity: 1; } }
+.nt-add input { margin: 4px 0 0; width: 100%; font-size: var(--t-apoio); }
+
+/* as listas de mercado */
+.nt-listas-grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); align-items: start; }
+.nt-lista {
+  --nh: var(--ok);
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px; border-radius: var(--r2);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--nh) 12%, transparent), transparent 70px), var(--sup-1);
+  border: 1px solid color-mix(in srgb, var(--nh) 30%, var(--fio-sutil));
+}
+.nt-lista.arquivada { opacity: .6; }
+.nt-lista header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.nt-lista h4 { flex: 1; min-width: 0; margin: 0; font-size: var(--t-corpo); font-weight: 700; color: var(--txt-forte); overflow-wrap: anywhere; }
+.nt-lista-n { flex: 0 0 auto; padding: 1px 9px; border-radius: 999px; font-size: .74rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--txt2); background: var(--sup-2); }
+.nt-lista-n.completa { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.nt-barra { height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.nt-barra i { display: block; height: 100%; border-radius: 3px; background: var(--nh); transition: width .35s ease; }
+.nt-itens { display: flex; flex-direction: column; }
+.nt-li { display: flex; align-items: center; gap: 6px; min-width: 0; border-bottom: 1px dashed var(--fio-sutil); }
+.nt-li:last-child { border-bottom: none; }
+.nt-li.nivel-1 { padding-left: 22px; }
+.nt-li.nivel-2 { padding-left: 44px; }
+.card .nt-li-ok, .nt-li-ok { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 38px; margin: 0; cursor: pointer; font-size: var(--t-apoio); color: var(--txt); }
+.nt-li-ok input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; accent-color: var(--nh); }
+.nt-li-tx { min-width: 0; overflow-wrap: anywhere; }
+.nt-li.feito .nt-li-tx { text-decoration: line-through; color: var(--txt4); }
+.nt-li-comprei { all: unset; box-sizing: border-box; position: relative; flex: 0 0 auto; cursor: pointer; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; opacity: .5; transition: opacity var(--mov), background var(--mov); }
+.nt-li-comprei::before { content: ''; position: absolute; inset: -5px; }
+.nt-li:hover .nt-li-comprei, .nt-li-comprei:focus-visible { opacity: 1; }
+.nt-li-comprei:hover { background: var(--sup-2); }
+.nt-li-vazio { padding: 10px 2px; font-size: var(--t-apoio); color: var(--txt4); }
+.nt-feitos { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; min-height: 32px; font-size: var(--t-apoio); font-weight: 600; color: var(--txt3); }
+.nt-itens.feitos { opacity: .8; }
+.nt-lista footer { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.nt-lista-acoes { display: inline-flex; gap: 4px; margin-left: auto; }
+.nt-lista .mini-btn { min-height: 30px; }
+
+/* o rastreador de entregas */
+.nt-ent-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.nt-ent-filtros { justify-content: center; border-bottom: none; padding-bottom: 0; margin-bottom: 10px; flex-wrap: wrap; }
+.nt-ent-grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); align-items: start; }
+.nt-ent {
+  --st: var(--info);
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px; border-radius: var(--r2);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--st) 11%, transparent), transparent 60px), var(--sup-1);
+  border: 1px solid color-mix(in srgb, var(--st) 32%, var(--fio-sutil));
+}
+.nt-ent header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nt-ent header b { flex: 1 1 140px; min-width: 0; font-size: var(--t-corpo); color: var(--txt-forte); overflow-wrap: anywhere; }
+.nt-ent header small { color: var(--txt3); font-size: .72rem; }
+.nt-trilha { display: flex; align-items: center; gap: 0; padding: 4px 2px; }
+.nt-passo { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; font-size: 1rem; background: var(--sup-2); border: 2px solid var(--fio-sutil); filter: grayscale(1); opacity: .55; }
+.nt-passo.feito { filter: none; opacity: 1; border-color: color-mix(in srgb, var(--st) 60%, transparent); }
+.nt-passo.atual { filter: none; opacity: 1; border-color: var(--st); box-shadow: 0 0 0 4px color-mix(in srgb, var(--st) 22%, transparent); }
+.nt-fio { flex: 1; height: 3px; min-width: 16px; background: var(--fio-sutil); border-radius: 2px; }
+.nt-passo.feito + .nt-fio { background: color-mix(in srgb, var(--st) 70%, transparent); }
+.nt-ent.st-problema .nt-passo.atual { border-color: var(--perigo); box-shadow: 0 0 0 4px color-mix(in srgb, var(--perigo) 25%, transparent); }
+.nt-ent-info { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; font-size: var(--t-apoio); color: var(--txt2); }
+.nt-ent-info b { color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.nt-ent-info b.atras { color: var(--perigo); }
+.nt-ent-info b.hoje { color: var(--atencao); }
+[data-tema="claro"] .nt-ent-info b.hoje { color: #a16207; }
+.nt-ent-sub { font-size: .7rem; color: var(--txt4); overflow-wrap: anywhere; }
+.nt-ent-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-ent .mini-btn { min-height: 30px; }
+.nt-ent .nt-avancar { font-weight: 700; color: var(--st); border-color: color-mix(in srgb, var(--st) 50%, transparent); }

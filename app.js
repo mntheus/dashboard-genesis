@@ -2106,46 +2106,9 @@ function filtrarMarcador(l) { noteLabel = l; renderNotes(); }
 function filtrarNotas(f, el) { noteFilter = f; document.querySelectorAll('#note-filters span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderNotes(); }
 function buscarNotas(v) { noteSearch = (v || '').trim().toLowerCase(); renderNotes(); }
 
-document.getElementById('note-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const id = document.getElementById('note-id').value;
-  const title = document.getElementById('note-title').value.trim();
-  const content = noteTipo === 'texto' ? document.getElementById('note-content').value.trim() : '';
-  const linhas = noteTipo === 'lista' ? document.getElementById('note-checklist').value.split('\n').map(s => s.trim()).filter(Boolean) : [];
-  if (!title && !content && !linhas.length) return;
-  const labels = document.getElementById('note-labels-input').value.split(',').map(s => s.trim()).filter(Boolean);
-  const dados = { title, content, color: noteColorSel, labels, pinned: document.getElementById('note-pin').checked, updatedAt: Date.now() };
-  if (id) {
-    const n = notes.find(x => String(x.id) === id); if (!n) return;
-    const antigas = n.checklist || [];
-    Object.assign(n, dados); n.checklist = noteTipo === 'lista' ? linhas.map(l => ({ text: l, done: !!(antigas.find(a => a.text === l) || {}).done })) : null;
-  } else {
-    notes.push({ id: novoId(), archived: false, createdAt: Date.now(), checklist: noteTipo === 'lista' ? linhas.map(l => ({ text: l, done: false })) : null, ...dados });
-  }
-  salvar('notes', notes); cancelarEdicaoNota(); renderNotes();
-  toast(id ? '📝 Nota atualizada.' : '📝 Nota salva.');
-});
-function cancelarEdicaoNota() {
-  document.getElementById('note-form').reset(); document.getElementById('note-id').value = '';
-  noteColorSel = 'default'; renderPaletaNota(); alternarTipoNota('texto', document.querySelector('#note-tipo span'));
-  document.getElementById('note-form-title').innerText = 'Nova Anotação';
-  document.getElementById('note-submit').innerText = 'Salvar Nota';
-  document.getElementById('note-cancel').hidden = true;
-}
-function editarNota(id) {
-  const n = notes.find(x => x.id === id); if (!n) return;
-  changeTab('notes');
-  document.getElementById('note-id').value = n.id; document.getElementById('note-title').value = n.title || '';
-  const lista = Array.isArray(n.checklist);
-  alternarTipoNota(lista ? 'lista' : 'texto', document.querySelectorAll('#note-tipo span')[lista ? 1 : 0]);
-  document.getElementById('note-content').value = n.content || ''; document.getElementById('note-checklist').value = lista ? n.checklist.map(c => c.text).join('\n') : '';
-  document.getElementById('note-labels-input').value = (n.labels || []).join(', '); document.getElementById('note-pin').checked = !!n.pinned;
-  noteColorSel = n.color || 'default'; renderPaletaNota();
-  document.getElementById('note-form-title').innerText = 'Editar nota';
-  document.getElementById('note-submit').innerText = 'Salvar alterações';
-  document.getElementById('note-cancel').hidden = false;
-  document.getElementById('note-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('note-title').focus();
-}
+// A nota se edita ABERTA (pop-up ou página do caderno) — notas.js (08/10). O formulário saiu.
+function cancelarEdicaoNota() { if (typeof ntFechar === 'function') ntFechar(); }
+function editarNota(id) { changeTab('notes'); ntAbrir(id); }
 function fixarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.pinned = !n.pinned; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); }
 function arquivarNota(id) { const n = notes.find(x => x.id === id); if (!n) return; n.archived = !n.archived; if (n.archived) n.pinned = false; n.updatedAt = Date.now(); salvar('notes', notes); renderNotes(); toast(n.archived ? '🗄️ Nota arquivada.' : '📤 Nota desarquivada.'); }
 /** Troca o texto do item por um campo; Enter ou sair salva, Esc cancela. */
@@ -2181,33 +2144,7 @@ function removeNote(id) {
   notes = notes.filter(x => x.id !== id); salvar('notes', notes); renderNotes();
 }
 
-function renderNotes() {
-  if (typeof tocarPaineis === 'function') tocarPaineis('notas');
-  const list = document.getElementById('note-list'); if (!list) return; list.innerHTML = '';
-  renderFiltrosNota();
-  let vis = notes.filter(n => noteFilter === 'arquivadas' ? n.archived : !n.archived);
-  if (noteFilter === 'fixadas') vis = vis.filter(n => n.pinned);
-  if (noteLabel) vis = vis.filter(n => (n.labels || []).includes(noteLabel));
-  if (noteSearch) vis = vis.filter(n => `${n.title || ''} ${n.content || ''} ${(n.checklist || []).map(c => c.text).join(' ')} ${(n.labels || []).join(' ')}`.toLowerCase().includes(noteSearch));
-  vis.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
-  const fixadas = vis.filter(n => n.pinned); const outras = vis.filter(n => !n.pinned);
-  const cont = document.getElementById('note-count'); if (cont) cont.innerText = `${vis.length} nota${vis.length === 1 ? '' : 's'}`;
-  if (!vis.length) { list.innerHTML = '<div class="stat-line muted" style="text-align:center; padding:20px;">Nenhuma nota aqui.</div>'; return; }
-  const secao = (titulo, itens) => itens.length ? `<div class="note-section-title">${titulo} <small>${itens.length}</small></div><div class="note-grid">${itens.map(cardNota).join('')}</div>` : '';
-  list.innerHTML = (fixadas.length && noteFilter !== 'fixadas' ? secao('📌 Fixadas', fixadas) + secao('Outras', outras) : `<div class="note-grid">${vis.map(cardNota).join('')}</div>`);
-}
-function cardNota(n) {
-  const c = corNota(n.color); const lista = Array.isArray(n.checklist);
-  const feitos = lista ? n.checklist.filter(i => i.done).length : 0;
-  const quando = new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  return `<div class="note-card" data-id="${n.id}" style="--nh:${c.hue || 'transparent'}" onclick="editarNota(${n.id})">
-    <div class="note-header"><h4>${n.pinned ? '📌 ' : ''}${esc(n.title || (lista ? 'Lista' : 'Sem título'))}</h4><div class="item-actions" onclick="event.stopPropagation()"><button class="mini-btn ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" onclick="fixarNota(${n.id})">📌</button><button class="mini-btn" title="Editar" onclick="editarNota(${n.id})">✎</button><button class="mini-btn" title="${n.archived ? 'Desarquivar' : 'Arquivar'}" onclick="arquivarNota(${n.id})">${n.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removeNote(${n.id})">✕</button></div></div>
-    ${lista ? `<div class="note-check" onclick="event.stopPropagation()">${n.checklist.map((i, k) => ({ i, k })).sort((a, b) => (n.checklist.some(x => x.nivel) ? a.k - b.k : (a.i.done === b.i.done ? a.k - b.k : a.i.done ? 1 : -1))).map(({ i, k }) => `<div class="subtask nivel-${i.nivel || 0} ${i.done ? 'done' : ''}"><input type="checkbox" ${i.done ? 'checked' : ''} onclick="toggleItemNota(${n.id}, ${k})" title="Marcar"> <span class="sub-txt" onclick="event.stopPropagation(); editarItemNota(${n.id}, ${k}, this)" title="Clique para editar o texto">${textoComLink(i.text)}</span>${chipsAnexos(i, 'item', n.id, k)}<span class="item-tools"><button class="mini-btn xs" title="Recuar (subitem)" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, 1)">⇥</button><button class="mini-btn xs" title="Avançar" onclick="event.stopPropagation(); indentarItem(${n.id}, ${k}, -1)">⇤</button><button class="mini-btn xs" title="Virar tarefa" onclick="event.stopPropagation(); itemViraTarefa(${n.id}, ${k})">✅</button><button class="mini-btn xs${nAnexos(i) ? ' on' : ''}" title="Anexos: link ou imagem" onclick="event.stopPropagation(); abrirAnexos('item', ${n.id}, ${k})">📎</button><button class="mini-btn xs" title="Comprei — mandar para Entregas" onclick="event.stopPropagation(); abrirCompra(${n.id}, ${k})">🛒</button></span></div>`).join('')}
-      <div class="note-add"><input type="text" placeholder="+ novo item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); adicionarItemNota(${n.id}, this); }"><button class="mini-btn" title="Adicionar" onclick="adicionarItemNota(${n.id}, this.previousElementSibling)">＋</button></div>
-      <div class="note-tools"><small class="item-date">${feitos}/${n.checklist.length} feitos</small>${feitos ? `<button class="mini-btn xs" onclick="desmarcarTodosNota(${n.id})" title="Desmarcar todos (lista reutilizável)">↺ desmarcar</button><button class="mini-btn xs" onclick="limparFeitosNota(${n.id})" title="Apagar os marcados">🧹 limpar feitos</button>` : ''}</div></div>` : (n.content ? `<div class="note-body">${linkify(esc(n.content))}</div>` : '')}
-    <div class="note-foot">${(n.labels || []).map(l => `<span class="chip small">🏷️ ${esc(l)}</span>`).join('')}<small class="item-date" style="margin-left:auto">${quando}</small></div>
-  </div>`;
-}
+function renderNotes() { if (typeof tocarPaineis === 'function') tocarPaineis('notas'); ntRender(); }
 
 // ============================================================================
 // ESTUDOS (módulo H)
@@ -3617,31 +3554,7 @@ function devolverParaLista(id) {
   salvar('notes', notes); salvar('orders', orders); renderNotes(); renderEntregas();
   toast(`↩️ "${o.item}" voltou para a lista "${n.title}".`);
 }
-function renderEntregas() {
-  const ul = document.getElementById('entrega-lista'); if (!ul) return; ul.innerHTML = '';
-  const hoje = hojeISO();
-  let lista = [...orders];
-  if (entregaFiltro === 'andamento') lista = lista.filter(o => o.status !== 'entregue');
-  else if (entregaFiltro === 'entregues') lista = lista.filter(o => o.status === 'entregue');
-  lista.sort((a, b) => (a.eta || '9999').localeCompare(b.eta || '9999') || b.id - a.id);
-  const andamento = orders.filter(o => o.status !== 'entregue');
-  const resumo = document.getElementById('entrega-resumo');
-  if (resumo) {
-    const total = andamento.reduce((a, o) => a + (Number(o.amount) || 0), 0);
-    const atrasadas = andamento.filter(o => o.eta && o.eta < hoje).length;
-    resumo.innerHTML = `<span>📦 ${andamento.length} a caminho${total ? ' · ' + formatCurrency(total) : ''}</span>${atrasadas ? `<span style="color:var(--perigo)">⚠️ ${atrasadas} passou da previsão</span>` : ''}<span>✅ ${orders.filter(o => o.status === 'entregue').length} entregue(s)</span>`;
-  }
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada aqui. Nas listas de compras, use o 🛒 do item para mandá-lo pra cá.</li>'; return; }
-  lista.forEach(o => {
-    const st = STATUS_ENTREGA[o.status] || STATUS_ENTREGA.comprado;
-    const atrasada = o.status !== 'entregue' && o.eta && o.eta < hoje;
-    ul.innerHTML += `<li class="entrega-item" style="border-left-color:${st[2]}"><div class="transaction-info" style="flex:1">
-        <span>${st[0]} ${esc(o.item)} ${o.url ? `<a class="link-chip" href="${esc(o.url)}" target="_blank" rel="noopener">${iconeDoLink(o.url)}${o.store ? ' ' + esc(o.store) : ''}</a>` : (o.store ? `<small class="item-date">${esc(o.store)}</small>` : '')}</span>
-        <small class="item-date">${st[1]}${o.amount ? ' · ' + formatCurrency(o.amount) : ''} · comprado ${isoParaBR(o.boughtAt)}${o.eta ? ` · previsão <strong style="color:${atrasada ? 'var(--perigo)' : 'var(--txt2)'}">${rotuloData(o.eta)}</strong>` : ''}${o.deliveredAt ? ` · entregue ${isoParaBR(o.deliveredAt)}` : ''}</small>
-        ${o.tracking ? `<small class="item-notes">🔎 ${esc(o.tracking)}</small>` : ''}</div>
-      <div class="item-actions">${o.status !== 'entregue' ? `<button class="mini-btn" title="Avançar status" onclick="avancarEntrega(${o.id})">▶</button>` : ''}<button class="mini-btn ${o.status === 'problema' ? 'on' : ''}" title="Marcar problema" onclick="problemaEntrega(${o.id})">⚠️</button><button class="mini-btn" title="Previsão e rastreio" onclick="editarEntrega(${o.id})">✎</button><button class="mini-btn" title="Voltar para a lista de compras" onclick="devolverParaLista(${o.id})">↩️</button><button class="mini-btn" title="Apagar" onclick="removerEntrega(${o.id})">✕</button></div></li>`;
-  });
-}
+function renderEntregas() { ntRenderEntregas(); }
 // ============================================================================
 // ESTRUTURA: busca global, item de lista → tarefa, subitens (indentação)
 // ============================================================================
@@ -5561,7 +5474,8 @@ const AJUSTES_ABA = {
   ],
   'btn-notes': [
     { k: 'entregas', nome: 'Card de compras e entregas', pad: true },
-    { k: 'arquivadas', nome: 'Mostrar as arquivadas junto', pad: false }
+    { k: 'arquivadas', nome: 'Mostrar as arquivadas junto', pad: false },
+    { k: 'caderno', nome: 'Notas como caderno (duas colunas) em vez de mural', pad: false }
   ],
   'btn-finances': [
     { k: 'mesAtual', nome: 'Abrir sempre no mês de hoje', pad: true },
@@ -5598,7 +5512,9 @@ function aplicarAjustesAba() {
   const ca = document.getElementById('arte-card');
   if (ca && typeof cfgArte === 'function') ca.hidden = !(f.arte && cfgArte().ligado);
   const t = cfgAba('btn-tasks'); mostra('rotinas-card', t.rotinas);
-  const n = cfgAba('btn-notes'); mostra('entregas-card', n.entregas);
+  const n = cfgAba('btn-notes'); mostra('entregas-card', n.entregas); mostra('nt-aba-entregas', n.entregas);
+  if (!n.entregas && typeof notasSecao !== 'undefined' && notasSecao === 'entregas') verSecaoNotas('notas');
+  if (typeof ntRender === 'function' && document.getElementById('note-list')) ntRender();
   const fi = cfgAba('btn-finances');
   mostra('orcamento-card', fi.orcamento); mostra('recorrentes-card', fi.recorrentes);
   mostra('fin-graficos', fi.graficos);

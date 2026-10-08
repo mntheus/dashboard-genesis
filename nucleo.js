@@ -142,6 +142,13 @@ function setoresDaArea(id) {
         () => changeTab('business'), 'nenhum projeto');
       break;
     }
+    case 'inventory': {
+      const inv = typeof inventario !== 'undefined' ? inventario : [];
+      setor('Mais valiosos', [...inv].sort((a, b) => invValorTotal(b) - invValorTotal(a)).slice(0, 8)
+        .map(x => it(`${x.ic || ''} ${x.nome}`, formatCurrency(invValorTotal(x)), 0, () => { changeTab('inventory'); invSelecionar(x.id); })),
+        () => changeTab('inventory'), 'mochila vazia');
+      break;
+    }
     case 'health': {
       const med = (typeof medical !== 'undefined' ? medical : []).filter(m => m.date && m.date >= hoje).sort((a, b) => a.date.localeCompare(b.date));
       setor('Consultas e exames', med.map(m => it(m.title || m.kind, brCurto(m.date), m.date === hoje ? 1 : 0, () => irPara('health', 'verSecaoSaude', 'medico'))),

@@ -63,6 +63,7 @@
       <button class="tab-btn" id="btn-notes" onclick="changeTab('notes')">📝 Notas</button>
       <button class="tab-btn" id="btn-studies" onclick="changeTab('studies')">📚 Estudos</button>
       <button class="tab-btn" id="btn-business" onclick="changeTab('business')">📈 Negócios</button>
+      <button class="tab-btn" id="btn-inventory" onclick="changeTab('inventory')">🎒 Inventário</button>
       <button class="tab-btn" id="btn-health" onclick="changeTab('health')">🩺 Saúde</button>
       <button class="tab-btn" id="btn-leisure" onclick="changeTab('leisure')">🎬 Lazer</button>
       <button class="tab-btn" id="btn-trips" onclick="changeTab('trips')">✈️ Viagens</button>
@@ -737,6 +738,45 @@
           <div style="display:flex; gap:10px;"><button type="submit" id="project-submit" style="flex:1">Adicionar projeto</button><button type="button" id="project-cancel" class="btn" hidden onclick="cancelarEdicaoProjeto()">Cancelar</button></div>
         </form>
         <div id="project-list"></div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Inventário: os bens como itens de jogo (08/10) -->
+    <div id="inventory" class="tab-content">
+      <div id="sec-inv" class="agenda-sec">
+      <div class="card" style="margin-top: 20px;" data-mod="inv-mochila">
+        <h2>🎒 A mochila</h2>
+        <div id="inv-topo"></div>
+        <div id="inv-corpo"></div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>🎒 Novo item</h2>
+        <form id="inv-form" onsubmit="salvarItemInventario(event)">
+          <input type="hidden" id="inv-id"><input type="hidden" id="inv-ic">
+          <div class="inv-form-linha">
+            <div class="inv-largo"><label for="inv-nome">O quê:</label><input type="text" id="inv-nome" placeholder="Apartamento do centro · Civic 2019 · Impressora Bambu" required autocomplete="off"></div>
+            <div><label for="inv-cat">Categoria:</label><select id="inv-cat" onchange="invDesenharIcones()"></select></div>
+          </div>
+          <label>Figura:</label><div class="inv-icones" id="inv-icones"></div>
+          <div class="inv-form-linha">
+            <div><label for="inv-qtd">Quantidade:</label><input type="number" id="inv-qtd" min="1" step="1" value="1"></div>
+            <div><label for="inv-valor">Vale hoje (R$, cada):</label><input type="number" id="inv-valor" min="0" step="0.01" placeholder="vazio = estimar"></div>
+            <div><label for="inv-compra">Paguei (R$, cada):</label><input type="number" id="inv-compra" min="0" step="0.01" placeholder="opcional"></div>
+          </div>
+          <div class="inv-form-linha">
+            <div><label for="inv-data">Desde:</label><input type="date" id="inv-data"></div>
+            <div><label for="inv-estado">Estado:</label><select id="inv-estado"></select></div>
+            <div><label for="inv-dep">Deprecia (% ao ano):</label><input type="number" id="inv-dep" min="0" max="100" step="0.5" oninput="this.dataset.mexeu = '1'"></div>
+          </div>
+          <div class="inv-form-linha">
+            <div><label for="inv-dono">De quem:</label><select id="inv-dono"><option value="pessoal">🙋 Pessoal</option><option value="empresa">🏭 Da empresa</option></select></div>
+            <div><label for="inv-onde">Onde está:</label><input type="text" id="inv-onde" placeholder="casa, consultório, oficina…"></div>
+            <div><label for="inv-garantia">Garantia até:</label><input type="date" id="inv-garantia"></div>
+          </div>
+          <label for="inv-notas">Observação:</label><input type="text" id="inv-notas" placeholder="número de série, nota fiscal no Drive, seguro…">
+          <div style="display:flex; gap:10px;"><button type="submit" id="inv-submit" style="flex:1">Guardar no inventário</button><button type="button" class="btn" id="inv-cancel" hidden onclick="cancelarItemInventario()">Cancelar</button></div>
+        </form>
       </div>
       </div>
     </div>
@@ -1633,6 +1673,7 @@
   <script src="saude-dados.js"></script>
   <script src="saude.js"></script>
   <script src="negocios.js"></script>
+  <script src="inventario.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

@@ -3527,3 +3527,111 @@ body.ex-banco-aberto { overflow: hidden; }
 .ng-ind-grade { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); gap: 10px; margin-top: 8px; }
 .ng-ind-grade input { width: 100%; min-width: 0; box-sizing: border-box; }
 @media (max-width: 640px) { .ng-ind-grade { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   INVENTÁRIO (08/10) — os bens como itens de jogo. Slots com moldura e brilho
+   na cor da RARIDADE (comum cinza → incomum verde → raro azul → épico roxo →
+   lendário dourado, que ainda ganha um reflexo passando).
+   ════════════════════════════════════════════════════════════════════════════ */
+.ng-completo { all: unset; cursor: pointer; display: block; margin-top: 4px; font-size: .7rem; color: var(--txt3); }
+.ng-completo b { color: var(--atencao); }
+.ng-completo:hover { color: var(--txt-forte); }
+
+.inv-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.inv-topo > div { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); min-width: 0; }
+.inv-nivel > div, .inv-completo > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inv-nivel strong { font-size: 1.15rem; color: var(--atencao); }
+.inv-topo small { font-size: .66rem; color: var(--txt3); letter-spacing: .5px; }
+.inv-bens { flex-direction: column; align-items: flex-start !important; justify-content: center; gap: 2px !important; }
+.inv-bens strong, .inv-completo strong { font-size: 1.3rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.inv-bens span { font-size: .72rem; color: var(--txt3); }
+.inv-completo span { display: flex; align-items: center; gap: 5px; font-size: .7rem; color: var(--txt3); }
+.inv-completo span i { width: 8px; height: 8px; border-radius: 50%; }
+.inv-anel2 { flex: none; }
+.inv-anel2-a { fill: none; stroke-width: 5; }
+.inv-raros { flex-wrap: wrap; align-content: center; gap: 6px 10px !important; }
+.inv-raro { display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; font-weight: 700; color: var(--txt-forte); }
+.inv-raro i { width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px; background: var(--r); box-shadow: 0 0 6px var(--r); }
+.inv-raros small { flex-basis: 100%; font-size: .7rem !important; letter-spacing: 0 !important; }
+.inv-raros small b { color: var(--txt-forte); }
+
+.inv-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.inv-abas { display: flex; flex-wrap: wrap; gap: 4px; }
+.inv-abas button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 10px; font-size: .95rem;
+  background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.inv-abas button b { font-size: .7rem; color: var(--txt3); }
+.inv-abas button.on { border-color: var(--atencao); background: color-mix(in srgb, var(--atencao) 14%, var(--sup-1)); }
+.inv-filtros { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.inv-filtros select { min-height: 34px; padding: 4px 8px; font-size: .78rem; width: auto; flex: none; }
+.inv-prod { color: var(--info); border-color: color-mix(in srgb, var(--info) 50%, transparent); }
+
+.inv-palco { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+@media (min-width: 900px) { .inv-palco { grid-template-columns: minmax(0, 1fr) 300px; } }
+@media (max-width: 899px) { .inv-palco.com-ficha #inv-ficha { order: -1; } }
+.inv-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; padding: 10px; border-radius: var(--r2);
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--txt) 3%, transparent) 0 8px, transparent 8px 16px), var(--sup-2);
+  border: 1px solid var(--fio-sutil); box-shadow: inset 0 2px 10px rgba(0,0,0,.25); }
+
+.inv-slot, .card .inv-slot {
+  all: unset; box-sizing: border-box; position: relative; cursor: pointer; aspect-ratio: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 4px;
+  border-radius: 12px; overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--r, var(--txt4)) 26%, transparent), transparent 62%), linear-gradient(180deg, color-mix(in srgb, var(--txt) 6%, var(--card, var(--bg))), var(--card, var(--bg)));
+  border: 2px solid color-mix(in srgb, var(--r, var(--txt4)) 70%, transparent);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 0 10px color-mix(in srgb, var(--r, transparent) 30%, transparent);
+  transition: transform var(--mov), box-shadow var(--mov);
+}
+.inv-slot:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 0 16px color-mix(in srgb, var(--r, transparent) 55%, transparent); }
+.inv-slot.sel { outline: 2px solid var(--txt-forte); outline-offset: 2px; }
+.inv-slot-fig { font-size: 2.3rem; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0,0,0,.4)); }
+.inv-slot-fig img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; display: block; }
+.inv-slot-nome { font-size: .64rem; color: var(--txt-forte); font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+.inv-slot-val { font-size: .62rem; color: var(--r, var(--txt3)); font-weight: 700; font-variant-numeric: tabular-nums; }
+.inv-qtd { position: absolute; right: 5px; top: 4px; font-size: .72rem; color: #fff; background: rgba(0,0,0,.6); padding: 0 5px; border-radius: 6px; }
+.inv-emp { position: absolute; left: 5px; top: 4px; font-style: normal; font-size: .7rem; }
+/* o lendário ganha um reflexo passando, como item raro de jogo */
+.inv-slot.r-lendario::after, .inv-ficha.r-lendario .inv-ficha-fig::after {
+  content: ''; position: absolute; inset: -40%; background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.28) 50%, transparent 58%);
+  animation: inv-reflexo 3.6s ease-in-out infinite; pointer-events: none;
+}
+@keyframes inv-reflexo { 0% { transform: translateX(-60%); } 55%, 100% { transform: translateX(60%); } }
+.inv-novo { --r: var(--fio-sutil); border-style: dashed !important; background: transparent !important; box-shadow: none !important; }
+.inv-novo .inv-slot-fig { font-size: 1.8rem; color: var(--txt3); filter: none; }
+.inv-novo .inv-slot-nome { color: var(--txt3); }
+.inv-vazio { cursor: default; border: 1px dashed color-mix(in srgb, var(--txt) 10%, transparent); background: color-mix(in srgb, var(--txt) 2%, transparent); box-shadow: none; }
+.inv-vazio:hover { transform: none; box-shadow: none; }
+
+.inv-ficha { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 14px; border-radius: 16px; text-align: center;
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--r) 22%, transparent), transparent 55%), var(--sup-1);
+  border: 2px solid color-mix(in srgb, var(--r) 65%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--r) 25%, transparent); }
+@media (min-width: 900px) { .inv-ficha { position: sticky; top: 12px; } }
+.inv-ficha.vazia { --r: var(--fio-sutil); box-shadow: none; color: var(--txt3); }
+.inv-ficha.vazia > span { font-size: 2.4rem; opacity: .6; }
+.inv-ficha.vazia strong { color: var(--txt); }
+.inv-ficha.vazia small { font-size: .74rem; }
+.inv-ficha-fig { position: relative; overflow: hidden; width: 96px; height: 96px; border-radius: 18px; display: grid; place-items: center; font-size: 3.6rem;
+  background: radial-gradient(circle, color-mix(in srgb, var(--r) 30%, transparent), transparent 70%); border: 2px solid var(--r); }
+.inv-ficha-fig img { width: 100%; height: 100%; object-fit: cover; }
+.inv-ficha-raro { font-size: .64rem; font-weight: 800; letter-spacing: 2px; color: var(--r); }
+.inv-ficha h3 { margin: 0; font-size: 1.1rem; color: var(--txt-forte); }
+.inv-ficha-cat { font-size: .72rem; color: var(--txt3); }
+.inv-attrs { width: 100%; display: flex; flex-direction: column; gap: 3px; margin-top: 6px; text-align: left; }
+.inv-attr { display: flex; justify-content: space-between; gap: 10px; padding: 5px 8px; border-radius: 8px; background: var(--sup-2); font-size: .76rem; }
+.inv-attr span { color: var(--txt3); }
+.inv-attr b { color: var(--txt-forte); text-align: right; font-variant-numeric: tabular-nums; }
+.inv-estrelas { color: var(--atencao); letter-spacing: 1px; }
+.inv-ficha-notas { margin: 2px 0 0; font-size: .74rem; color: var(--txt); text-align: left; width: 100%; }
+.inv-ficha-acoes { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 6px; }
+.inv-ficha-acoes .mini-btn { min-height: 32px; }
+
+/* o formulário */
+.inv-form-linha { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.inv-form-linha:first-of-type { grid-template-columns: 2fr 1fr; }
+@media (max-width: 640px) { .inv-form-linha, .inv-form-linha:first-of-type { grid-template-columns: 1fr 1fr; } .inv-largo { grid-column: 1 / -1; } }
+.inv-icones { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.card .inv-ic-op, .inv-ic-op { all: unset; cursor: pointer; width: 42px; height: 42px; display: grid; place-items: center; font-size: 1.5rem; border-radius: 10px; border: 1px solid var(--fio-sutil); background: var(--sup-1); }
+.inv-ic-op.on { border: 2px solid var(--atencao); background: color-mix(in srgb, var(--atencao) 14%, var(--sup-1)); }
+@media (prefers-reduced-motion: reduce) { .inv-slot.r-lendario::after, .inv-ficha.r-lendario .inv-ficha-fig::after { animation: none; } }
+
+/* celular estreito: 3 slots por linha, e não 2 */
+@media (max-width: 480px) { .inv-grade { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; padding: 8px; } .inv-slot-fig { font-size: 1.8rem; } .inv-slot-nome { font-size: .6rem; } }

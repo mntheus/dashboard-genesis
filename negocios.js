@@ -182,6 +182,8 @@ async function ngPonte(acao, extra) {
   const j = await r.json();
   if (!j.ok) {
     if (/acao desconhecida/.test(j.erro || '')) { ngMarcarPonte(false); throw new Error('ponte-velha'); }
+    // o script já tem a ponte, mas o Google ainda não deu a permissão de buscar fora
+    if (/UrlFetchApp|external_request/i.test(j.erro || '')) throw new Error('ponte-sem-permissao');
     throw new Error(j.erro || 'a ponte não respondeu');
   }
   ngMarcarPonte(true);
@@ -191,6 +193,7 @@ function ngMsgErro(e) {
   const m = String((e && e.message) || e || '');
   if (m === 'sem-sync') return 'ligue a sincronização (Config) — a ponte usa o mesmo script';
   if (m === 'ponte-velha') return 'falta atualizar o script do Google (1 passo seu)';
+  if (m === 'ponte-sem-permissao') return 'o script do Google ainda não tem a permissão de buscar sites de fora (pendência anotada)';
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'a fonte não respondeu agora';
   return m;
 }
@@ -737,7 +740,7 @@ function renderCarteiraVis() {
     <div class="ng-cart-rosca">${ngRosca(190)}
       <ul class="ng-legenda">${cls.map(x => `<li class="${sel === x.k ? 'sel' : ''}" onclick="ngTocarClasse('${x.k}')" style="--c:${x.c.cor}"><i></i>${x.c.icone} ${x.c.nome}<b>${Math.round(x.p * 100)}%</b></li>`).join('')}</ul></div>
     <div class="ng-cart-lado">
-      <div class="ng-cart-num"><strong>${formatCurrency(total)}</strong><span class="${res >= 0 ? 'sobe' : 'desce'}">${res >= 0 ? '▲' : '▼'} ${formatCurrency(Math.abs(res))} (${pct(p)}) sobre o aportado</span></div>
+      <div class="ng-cart-num"><strong>${formatCurrency(total)}</strong><span class="${res >= 0 ? 'sobe' : 'desce'}">${res >= 0 ? '▲' : '▼'} ${formatCurrency(Math.abs(res))} (${pct(p)}) sobre o aportado</span>${ngLinhaCompleto(total)}</div>
       ${sel ? `<div class="ng-cart-classe" style="--c:${classeAtivo(sel).cor}"><strong>${classeAtivo(sel).icone} ${classeAtivo(sel).nome}</strong>${assets.filter(a => !a.archived && a.klass === sel).sort((a, b) => (b.current || 0) - (a.current || 0)).map(a => `<span>${esc(a.name)}<b>${formatCurrency(a.current)}</b></span>`).join('')}</div>` : ''}
       ${series.length ? '<div id="cart-graf"></div>' : '<div class="sp-vazio">A linha do patrimônio aparece com o segundo mês de registro.</div>'}
       <div class="ng-cart-regua">📏 Régua${ind.ref ? ' (' + esc(ind.ref) + ')' : ''}: <span>CDI <b>${ind.cdi ? spNum(ind.cdi, 2) + '%' : '—'}</b></span><span>Selic <b>${ind.selic ? spNum(ind.selic, 2) + '%' : '—'}</b></span><span>IPCA <b>${ind.ipca ? spNum(ind.ipca, 2) + '%' : '—'}</b></span></div>
@@ -914,7 +917,8 @@ function ngQuadroCarteira() {
     <button type="button" class="sp-cab" onclick="verSecaoNegocios('carteira')"><span class="sp-ic">💼</span><span class="sp-tit">Carteira</span>
       <small>${plural(ativos.length, 'ativo', 'ativos')}</small><span class="sp-ir">›</span></button>
     ${ativos.length ? `<div class="ng-q-cart">${ngRosca(132)}<div class="ng-q-cart-num"><strong>${formatCurrency(total)}</strong>
-      <span class="${res >= 0 ? 'sobe' : 'desce'}">${res >= 0 ? '▲' : '▼'} ${pct(p)}</span><small>sobre ${formatCurrency(inv)} aportados</small></div></div>
+      <span class="${res >= 0 ? 'sobe' : 'desce'}">${res >= 0 ? '▲' : '▼'} ${pct(p)}</span><small>sobre ${formatCurrency(inv)} aportados</small>
+      ${ngLinhaCompleto(total)}</div></div>
       <div class="sp-info">${info}</div>
       ${venc ? `<div class="sp-aviso ng-venc">⏰ <strong>${esc(venc.name)}</strong> vence ${rotuloData(venc.due).toLowerCase()} (${isoParaBR(venc.due).slice(0, 5)})</div>` : ''}`
       : '<div class="sp-vazio">Cadastre o primeiro ativo em Carteira.</div>'}
@@ -963,7 +967,7 @@ function ngManchetes() {
   return `<section class="sp-quadro ng-q-noticias">
     <button type="button" class="sp-cab" onclick="verSecaoNegocios('noticias')"><span class="sp-ic">📰</span><span class="sp-tit">Notícias</span>
       <small>${ngEstado.buscandoNoticias ? 'buscando…' : c.em ? 'atualizado ' + ngHa(new Date(c.em).toISOString()) : ''}</small><span class="sp-ir">›</span></button>
-    <div class="ng-manchetes">${lista.map(it => ngCartaoNoticia(it, true)).join('') || '<div class="sp-vazio">Buscando as manchetes…</div>'}</div></section>`;
+    <div class="ng-manchetes">${lista.map(it => ngCartaoNoticia(it, true)).join('') || `<div class="sp-vazio">${ngEstado.buscandoNoticias ? 'Buscando as manchetes…' : ngEstado.erroNoticias ? '⚠️ ' + esc(ngEstado.erroNoticias) : 'Abra a micro-aba Notícias para buscar.'}</div>`}</div></section>`;
 }
 function renderPainelNegocios() {
   const el = document.getElementById('biz-dash'); if (!el) return;
@@ -1018,4 +1022,12 @@ function renderAtivos() {
       <div class="ng-ativo-acoes"><button class="mini-btn" title="Atualizar o valor de hoje" onclick="atualizarValorAtivo(${a.id})">💰 valor</button><button class="mini-btn" title="Editar" onclick="editarAtivo(${a.id})">✎</button><button class="mini-btn" title="${a.archived ? 'Reativar' : 'Arquivar'}" onclick="arquivarAtivo(${a.id})">${a.archived ? '📤' : '🗄️'}</button><button class="mini-btn" title="Apagar" onclick="removerAtivo(${a.id})">✕</button></div>
     </div>`;
   }).join('');
+}
+
+/** "Patrimônio completo" = o investido + os bens do Inventário (decisão dele em
+ *  08/10: mostrar OS DOIS — as metas continuam no investido). */
+function ngLinhaCompleto(investido) {
+  const bens = typeof valorBens === 'function' ? valorBens() : 0;
+  if (!bens) return '';
+  return `<button type="button" class="ng-completo" onclick="changeTab('inventory')" title="Abrir o Inventário">🎒 + ${formatCurrency(bens)} em bens = <b>${formatCurrency(investido + bens)}</b> no patrimônio completo</button>`;
 }

@@ -22,6 +22,7 @@ const ICONES = {
   notes:    'M6.5 3.5h8l4 4v13h-12zM14 3.5v4.5h4.5M9.5 12.5h6M9.5 16h4',
   studies:  'M4.5 5.5a2 2 0 012-2h12v14h-12a2 2 0 00-2 2zM4.5 19.5v-14M8.5 7.5h6',
   business: 'M3.5 17l5.5-5.5 4 4 7.5-7.5M15 8h5.5v5.5',
+  inventory: 'M8.5 7.5V6a3.5 3.5 0 017 0v1.5M5.5 7.5h13a1 1 0 011 1v10a2 2 0 01-2 2h-11a2 2 0 01-2-2v-10a1 1 0 011-1zM4.5 12.5h15M10 12.5v2h4v-2',
   health:   'M3 12h4l2.5-6 4 12 2.5-6h5',
   leisure:  'M3.5 8.5a2 2 0 002-2h13a2 2 0 002 2v1.5a2 2 0 000 4v1.5a2 2 0 00-2 2h-13a2 2 0 00-2-2V14a2 2 0 000-4zM13.5 6.5v11',
   trips:    'M12 20.5a8.5 8.5 0 110-17 8.5 8.5 0 010 17zM3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17',
@@ -40,7 +41,7 @@ function ic(nome, cls) { return `<svg class="ic ${cls || ''}" viewBox="0 0 24 24
 // nome curto de cada área (o nome longo continua nas listas da Config)
 const NOMES_CASCA = {
   focus: 'Painel', home: 'Agenda', finances: 'Finanças', tasks: 'Tarefas', notes: 'Notas',
-  studies: 'Estudos', business: 'Negócios', health: 'Saúde', leisure: 'Lazer', trips: 'Viagens',
+  studies: 'Estudos', business: 'Negócios', inventory: 'Inventário', health: 'Saúde', leisure: 'Lazer', trips: 'Viagens',
   net: 'Rede', clinic: 'Clínica', prod: 'Produção', settings: 'Config'
 };
 function nomeAba(id) {
@@ -145,6 +146,11 @@ function estadoDaAba(id) {
       case 'business': {
         const pat = (assets || []).reduce((a, x) => a + (Number(x.current) || 0), 0);
         return pat ? `Patrimônio ${brl(pat)}.` : 'Carteira ainda vazia.';
+      }
+      case 'inventory': {
+        const bens = typeof valorBens === 'function' ? valorBens() : 0;
+        const n = (typeof inventario !== 'undefined' ? inventario : []).reduce((a, x) => a + (Number(x.qtd) || 1), 0);
+        return n ? `${plural(n, 'item', 'itens')} · ${brl(bens)} em bens.` : 'A mochila ainda está vazia.';
       }
       case 'health': {
         const h = typeof hydration !== 'undefined' ? hydration : null;

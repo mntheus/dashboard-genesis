@@ -2761,3 +2761,65 @@ body.ex-banco-aberto { overflow: hidden; }
    a busca e as duas barras de filtro eram esmagadas a um fio pela lista. */
 .ex-banco-topo, .ex-banco-filtros, .ex-banco-pe, #ex-banco-busca { flex: none; }
 .ex-banco-filtros { min-height: 36px; align-items: center; }
+
+/* ══ FICHA DE TREINO · harmonização (07/10) ═══════════════════════════════
+   Ele viu e disse: "o layout tá meio quebrado e fora de harmonização".
+   Medido num cartão de 1485 px: a coluna do NOME ficava com 1043 px para um
+   texto de ~130 px, porque era `1fr` e comia toda a sobra — daí ~900 px de
+   vazio no meio e os controles espremidos na borda direita.
+
+   Agora o conteúdo da ficha vive numa FAIXA de largura máxima: chips do dia,
+   linhas de exercício e o formulário começam e terminam no mesmo lugar. Numa
+   coluna larga a lista lê como um bloco alinhado, não como uma linha esticada
+   de ponta a ponta. */
+.ficha-dias, .ficha-acoes, .ex-linha, .ex-novo { max-width: 880px; }
+
+.ex-linha {
+  grid-template-columns: 42px minmax(0, 19rem) 72px 124px auto;
+  column-gap: 14px; row-gap: 6px;
+  padding: 9px 13px; border-radius: var(--r2);
+}
+.ex-linha:hover { background: var(--sup-2); }
+/* a figura ganha o mesmo tratamento do banco: dá ritmo à lista */
+.ex-ic.ex-fig-ficha {
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  background: var(--sup-2); border-radius: var(--r1); color: var(--acento);
+}
+.ex-series { text-align: right; font-variant-numeric: tabular-nums; }
+.ex-carga { justify-content: flex-end; }
+.ex-carga strong { font-variant-numeric: tabular-nums; }
+.ex-linha .item-actions { justify-content: flex-end; }
+
+/* o botão de treinar deixa de voar para a borda do cartão: fica na mesma faixa */
+.ficha-dias { align-items: center; }
+.btn-treinar { margin-left: auto; white-space: nowrap; }
+
+/* ── estreito: a linha vira duas, em vez de espremer cinco colunas ──────── */
+@media (max-width: 620px) {
+  .ex-linha {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-areas: 'fig nome acoes' '.  series carga';
+  }
+  .ex-linha > .ex-ic { grid-area: fig; }
+  .ex-linha > .ex-nome { grid-area: nome; }
+  .ex-linha > .item-actions { grid-area: acoes; }
+  .ex-linha > .ex-series { grid-area: series; text-align: left; }
+  .ex-linha > .ex-carga { grid-area: carga; justify-content: flex-start; }
+}
+/* A lista tinha recuo próprio de 13 px e as bordas direitas não se encontravam
+   com as das outras faixas (969 contra 956). O recuo agora é da própria linha. */
+.ex-lista { padding: 0; }
+
+/* No estreito o nome ganha a linha INTEIRA: com os botões ao lado ele era
+   cortado ("Cadeira ex…", "Agachame…"). Tudo o mais desce para a 2ª linha. */
+@media (max-width: 620px) {
+  .ex-linha {
+    grid-template-columns: 42px auto minmax(0, 1fr) auto;
+    grid-template-areas: 'fig nome nome nome' '. series carga acoes';
+  }
+  .ex-linha > .ex-nome { grid-area: nome; }
+  .ex-linha > .ex-series { grid-area: series; text-align: left; }
+  .ex-linha > .ex-carga { grid-area: carga; justify-content: flex-start; }
+  .ex-linha > .item-actions { grid-area: acoes; justify-content: flex-end; }
+  .ex-nome strong { white-space: normal; }
+}

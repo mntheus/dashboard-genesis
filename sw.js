@@ -1,6 +1,6 @@
 // Genesis — guardião offline.
 // ⚠️ SUBA O NÚMERO a cada publicação: é o que faz o celular baixar a versão nova.
-const CACHE_NAME = 'genesis-cache-v27';
+const CACHE_NAME = 'genesis-cache-v28';
 
 const urlsToCache = [
   './',
@@ -19,6 +19,7 @@ const urlsToCache = [
   './financas.js',
   './tarefas.js',
   './notas.js',
+  './lazer.js',
   './modulos.js',
   './jarvis3d.js',
   './vendor/three.module.min.js',

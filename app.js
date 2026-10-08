@@ -3641,6 +3641,7 @@ function verSecaoLazer(s, el) {
   document.getElementById('sec-midia').hidden = s !== 'midia';
   document.getElementById('sec-saidas').hidden = s !== 'saidas';
   document.getElementById('sec-musica').hidden = s !== 'musica';
+  if (typeof lzAoTrocar === 'function') lzAoTrocar();
 }
 function preencherSelectsLazer() {
   const f = (id, obj) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join(''); };
@@ -3695,34 +3696,8 @@ function notaMidia(id, n) { const m = media.find(x => x.id === id); if (!m) retu
 function removerMidia(id) { const m = media.find(x => x.id === id); if (!m || !confirm(`Apagar "${m.title}"?`)) return; media = media.filter(x => x.id !== id); salvar('media', media); renderMidia(); }
 function filtrarMidia(f, el) { midiaFiltro = f; document.querySelectorAll('#midia-filtros span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderMidia(); }
 function estrelas(m) { return [1, 2, 3, 4, 5].map(n => `<span class="estrela ${(m.rating || 0) >= n ? 'on' : ''}" onclick="event.stopPropagation(); notaMidia(${m.id}, ${n})" title="${n} de 5">★</span>`).join(''); }
-function renderMidia() {
-  const ul = document.getElementById('midia-lista'); if (!ul) return; ul.innerHTML = '';
-  let lista = [...media];
-  if (midiaFiltro !== 'todos') lista = lista.filter(m => m.status === midiaFiltro);
-  lista.sort((a, b) => (b.watchedAt || b.addedAt || '').localeCompare(a.watchedAt || a.addedAt || ''));
-  const resumo = document.getElementById('midia-resumo');
-  if (resumo) {
-    const vistos = media.filter(m => m.status === 'visto');
-    const nota = vistos.filter(m => m.rating).reduce((a, m, _, arr) => a + m.rating / arr.length, 0);
-    resumo.innerHTML = `<span>🔖 ${media.filter(m => m.status === 'quero').length} na fila</span><span>▶️ ${media.filter(m => m.status === 'assistindo').length} assistindo</span><span>✅ ${vistos.length} vistos</span>${nota ? `<span>⭐ nota média ${nota.toFixed(1).replace('.', ',')}</span>` : ''}`;
-  }
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nada aqui ainda. Anote aquele filme que te indicaram.</li>'; return; }
-  lista.forEach(m => {
-    const t = TIPOS_MIDIA[m.kind] || TIPOS_MIDIA.outro; const s = STATUS_MIDIA[m.status] || STATUS_MIDIA.quero;
-    const serie = m.kind === 'serie' || m.kind === 'anime';
-    const buscando = ilustrando.has(m.id);
-    const capa = m.img
-      ? `<img class="midia-capa" src="${esc(m.img)}" alt="${esc(m.title)}" loading="lazy" onerror="this.remove();">`
-      : (buscando ? '<div class="midia-capa vazia">⏳</div>' : '');
-    ul.innerHTML += `<li class="midia-item" style="border-left-color:${s[2]}">${capa}<div class="transaction-info" style="flex:1">
-        <span>${t[0]} ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(m.title)} ${iconeDoLink(m.url)}</a>` : esc(m.title)} <small class="category-badge" style="color:${s[2]}; background:${s[2]}22">${s[1]}</small></span>
-        <small class="item-date">${t[1]}${m.where ? ' · ' + esc(m.where) : ''}${m.who ? ' · indicou: ' + esc(m.who) : ''}${serie && m.season ? ` · T${m.season}E${m.episode || 0}` : ''}${m.watchedAt ? ' · visto ' + isoParaBR(m.watchedAt) : ''}</small>
-        <div class="midia-nota">${estrelas(m)}${serie ? `<span class="ep-ctrl"><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, -1)">−</button><small>ep</small><button class="mini-btn xs" onclick="event.stopPropagation(); proximoEpisodio(${m.id}, 1)">+</button></span>` : ''}</div>
-        ${m.sobre ? `<small class="item-notes saida-sobre">${esc(m.sobre)}${m.wiki ? ` <a href="${esc(m.wiki)}" target="_blank" rel="noopener" title="Ler na Wikipedia">↗</a>` : ''}</small>` : ''}
-        ${m.comment ? `<small class="item-notes">${esc(m.comment)}</small>` : ''}</div>
-      <div class="item-actions">${m.status !== 'visto' ? `<button class="mini-btn" title="Avançar status" onclick="avancarStatusMidia(${m.id})">▶</button>` : ''}<button class="mini-btn" title="${m.img ? 'Buscar de novo' : 'Buscar capa e sinopse na Wikipedia'}" ${buscando ? 'disabled' : ''} onclick="ilustrarMidia(${m.id})">${buscando ? '⏳' : '🌐'}</button><button class="mini-btn" title="Editar" onclick="editarMidia(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMidia(${m.id})">✕</button></div></li>`;
-  });
-}
+// O desenho de Lazer (estante, ingressos, álbum, discos) mora no lazer.js (08/10).
+function renderMidia() { lzRenderMidia(); }
 
 // ============================================================================
 // SAIR — museus, shows, exposições, o que for. "Ilustrado": com internet, o
@@ -3965,61 +3940,7 @@ function filtrarSaidas(f, el) {
 function estrelasSaida(s) {
   return [1, 2, 3, 4, 5].map(n => `<span class="estrela ${(s.nota || 0) >= n ? 'on' : ''}" onclick="event.stopPropagation(); notaSaida(${s.id}, ${n})" title="${n} de 5">★</span>`).join('');
 }
-function renderSaidas() {
-  const el = document.getElementById('saida-lista'); if (!el) return;
-  const hoje = hojeISO();
-  const resumo = document.getElementById('saida-resumo');
-  if (resumo) {
-    const quero = saidas.filter(s => s.status === 'quero').length;
-    const marcados = saidas.filter(s => s.status === 'marcado');
-    const fui = saidas.filter(s => s.status === 'fui');
-    const gasto = fui.reduce((a, s) => a + (Number(s.valor) || 0), 0);
-    const prox = marcados.filter(s => s.data && s.data >= hoje).sort((a, b) => a.data.localeCompare(b.data))[0];
-    resumo.innerHTML = `<span>💭 ${quero} na vontade</span><span>📅 ${marcados.length} ${palavra(marcados.length, 'marcado', 'marcados')}</span>`
-      + `<span>✅ ${fui.length} ${palavra(fui.length, 'já foi', 'já foram')}</span>`
-      + (gasto ? `<span>💸 ${formatCurrency(gasto)} em lazer</span>` : '')
-      + (prox ? `<span>⏭️ próximo: <strong>${esc(prox.nome)}</strong> ${rotuloData(prox.data)}</span>` : '');
-  }
-  let lista = [...saidas];
-  if (saidaFiltro !== 'todos') lista = lista.filter(s => s.status === saidaFiltro);
-  lista.sort((a, b) => {
-    const pa = a.status === 'marcado' && a.data ? '0' + a.data : '1' + (b.addedAt || '');
-    const pb = b.status === 'marcado' && b.data ? '0' + b.data : '1' + (a.addedAt || '');
-    return pa.localeCompare(pb);
-  });
-  if (!lista.length) {
-    el.innerHTML = `<div class="stat-line muted">Nada neste filtro. Anote um museu que quer conhecer ou um show que quer ir — com internet, o app busca a foto e um resumo sozinho.</div>`;
-    return;
-  }
-  el.innerHTML = lista.map(s => {
-    const t = TIPOS_SAIDA[s.tipo] || TIPOS_SAIDA.outro;
-    const st = STATUS_SAIDA[s.status] || STATUS_SAIDA.quero;
-    const atrasado = s.status === 'marcado' && s.data && s.data < hoje;
-    const buscando = ilustrando.has(s.id);
-    const foto = s.img
-      ? `<img class="saida-foto" src="${esc(s.img)}" alt="${esc(s.nome)}" loading="lazy" onerror="this.parentNode.classList.add('sem-foto'); this.remove();">`
-      : `<div class="saida-icone">${buscando ? '⏳' : t[0]}</div>`;
-    return `<div class="saida-card${s.img ? '' : ' sem-foto'}" style="border-left-color:${st[2]}">
-      <div class="saida-capa">${foto}</div>
-      <div class="saida-corpo">
-        <div class="saida-topo">
-          <strong>${t[0]} ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.nome)} ${iconeDoLink(s.url)}</a>` : esc(s.nome)}</strong>
-          <span class="category-badge" style="color:${st[2]}; background:${st[2]}22">${st[0]} ${st[1]}</span>
-        </div>
-        <small class="item-date">${t[1]}${s.cidade ? ' · ' + esc(s.cidade) : ''}${s.data ? ' · ' + rotuloData(s.data) + (s.hora ? ' às ' + esc(s.hora) : '') : ''}${atrasado ? ' <span class="badge-topay">já passou</span>' : ''}${s.valor ? ' · ' + formatCurrency(s.valor) : ''}${s.com ? ' · com ' + esc(s.com) : ''}</small>
-        ${s.sobre ? `<p class="saida-sobre">${esc(s.sobre)}${s.wiki ? ` <a href="${esc(s.wiki)}" target="_blank" rel="noopener" title="Ler na Wikipedia">↗</a>` : ''}</p>` : ''}
-        ${s.notas ? `<small class="item-notes">${linkify(s.notas)}</small>` : ''}
-        <div class="saida-acoes">
-          <span class="midia-nota">${estrelasSaida(s)}</span>
-          ${s.status !== 'fui' ? `<button class="mini-btn" title="Avançar" onclick="avancarStatusSaida(${s.id})">▶</button>` : ''}
-          <button class="mini-btn" title="${s.img ? 'Buscar de novo na Wikipedia' : 'Buscar foto e descrição na Wikipedia'}" ${buscando ? 'disabled' : ''} onclick="ilustrarSaida(${s.id})">${buscando ? '⏳' : '🌐'}</button>
-          ${s.img ? `<button class="mini-btn" title="Tirar a ilustração" onclick="tirarIlustracao(${s.id})">🚫</button>` : ''}
-          <button class="mini-btn" title="Editar" onclick="editarSaida(${s.id})">✎</button>
-          <button class="mini-btn" title="Apagar" onclick="removerSaida(${s.id})">✕</button>
-        </div>
-      </div></div>`;
-  }).join('');
-}
+function renderSaidas() { lzRenderSaidas(); }
 
 // --- Música: atalhos de playlist ---
 document.getElementById('play-form').addEventListener('submit', (e) => {
@@ -4030,13 +3951,7 @@ document.getElementById('play-form').addEventListener('submit', (e) => {
   salvar('playlists', playlists); document.getElementById('play-form').reset(); renderPlaylists(); toast('🎵 Playlist salva.');
 });
 function removerPlaylist(id) { const p = playlists.find(x => x.id === id); if (!p || !confirm(`Apagar "${p.name}"?`)) return; playlists = playlists.filter(x => x.id !== id); salvar('playlists', playlists); renderPlaylists(); }
-function renderPlaylists() {
-  const el = document.getElementById('play-lista'); if (!el) return;
-  if (!playlists.length) { el.innerHTML = '<div class="stat-line muted">Cole aqui os links das suas playlists (Spotify, YouTube, o que usar) e organize por momento.</div>'; return; }
-  const porMomento = {};
-  playlists.forEach(p => { (porMomento[p.moment] = porMomento[p.moment] || []).push(p); });
-  el.innerHTML = Object.entries(MOMENTOS).filter(([k]) => porMomento[k]).map(([k, mm]) => `<div class="play-grupo"><h5>${mm[0]} ${mm[1]}</h5><div class="play-chips">${porMomento[k].map(p => `<span class="play-chip"><a href="${esc(p.url)}" target="_blank" rel="noopener">${iconeDoLink(p.url)} ${esc(p.name)}</a><button class="mini-btn xs" title="Apagar" onclick="removerPlaylist(${p.id})">✕</button></span>`).join('')}</div></div>`).join('');
-}
+function renderPlaylists() { lzRenderPlaylists(); }
 
 // --- Música: tocador de arquivos do aparelho ---
 let faixas = []; let faixaAtual = -1;

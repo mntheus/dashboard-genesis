@@ -4161,3 +4161,152 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .nt-ent-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
 .nt-ent .mini-btn { min-height: 30px; }
 .nt-ent .nt-avancar { font-weight: 700; color: var(--st); border-color: color-mix(in srgb, var(--st) 50%, transparent); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LAZER (08/10) — a estante de capas, os ingressos e o álbum, os discos.
+   ════════════════════════════════════════════════════════════════════════════ */
+#midia-lista, #saida-lista, #play-lista, #lz-detalhe-corpo { container-type: inline-size; }
+#lazer-secoes { justify-content: center; margin: 0; padding-bottom: 6px; }
+.lz-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 12px; }
+@media (max-width: 420px) { .lz-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.lz-resumo .tar-num b { font-size: 1.15rem; }
+.lz-vazio { padding: 12px; text-align: center; font-size: var(--t-apoio); color: var(--txt4); border: 1px dashed var(--borda2); border-radius: var(--r2); }
+.lz-tit-agora { color: var(--atencao); }
+.lz-tit-visto { color: var(--ok); }
+#midia-lista .tar-gr-tit, #saida-lista .tar-gr-tit { margin-top: var(--s3); }
+.lz-largados { margin-top: var(--s3); }
+.lz-largados summary { cursor: pointer; min-height: 34px; display: flex; align-items: center; gap: 6px; font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase; font-weight: 700; color: var(--txt4); }
+.lz-largados[open] summary { margin-bottom: 8px; }
+
+/* a capa (foto ou cartão colorido) */
+.lz-capa {
+  --cor: #64748b;
+  position: relative; overflow: hidden; display: grid; place-items: center; aspect-ratio: 2 / 3; width: 100%; border-radius: 8px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cor) 75%, #000), color-mix(in srgb, var(--cor) 30%, #000));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.lz-capa img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lz-capa-ic { font-size: 1.9rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.lz-capa img + .lz-capa-ic { display: none; }
+.lz-capa-tit { position: absolute; left: 6px; right: 6px; bottom: 8px; text-align: center; font-size: .72rem; font-weight: 700; line-height: 1.25; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lz-capa.media { width: 96px; flex: 0 0 auto; }
+.lz-capa.det { width: 140px; flex: 0 0 auto; }
+
+/* a estante */
+.lz-estante { display: grid; gap: 14px 12px; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.lz-estante.menor { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+/* no celular: 3 capas por linha (2 obrigavam a rolar demais) e a capa do "assistindo" menor */
+@container (max-width: 480px) { .lz-estante, .lz-estante.menor { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; } .lz-capa.media { width: 72px; } .lz-capa-ic { font-size: 1.5rem; } }
+.lz-poster { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 5px; min-width: 0; transition: transform var(--mov); }
+.lz-poster:hover { transform: translateY(-3px); }
+.lz-poster:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; border-radius: 8px; }
+.lz-poster-nome { font-size: .76rem; font-weight: 600; color: var(--txt-forte); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lz-poster-sub { font-size: .66rem; color: var(--txt4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lz-poster-nota { font-size: .72rem; letter-spacing: 1px; color: var(--atencao); white-space: nowrap; }
+.lz-poster-nota i { font-style: normal; color: var(--txt4); opacity: .5; }
+
+/* assistindo agora */
+.lz-agora-grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); }
+.lz-agora {
+  display: flex; gap: 12px; min-width: 0; padding: 10px; border-radius: var(--r2);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--atencao) 14%, transparent), transparent 70%), var(--sup-1);
+  border: 1px solid color-mix(in srgb, var(--atencao) 35%, var(--fio-sutil));
+}
+.lz-agora-capa { all: unset; cursor: pointer; flex: 0 0 auto; }
+.lz-agora-info { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; flex: 1; }
+.lz-agora-info b { font-size: var(--t-corpo); color: var(--txt-forte); cursor: pointer; overflow-wrap: anywhere; }
+.lz-agora-info small { font-size: .72rem; color: var(--txt3); }
+.lz-ep { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lz-ep-n { font-size: 1.25rem; font-weight: 800; color: var(--txt-forte); font-variant-numeric: tabular-nums; margin-right: 4px; white-space: nowrap; }
+.lz-agora .mini-btn, .lz-det-acoes .mini-btn, .lz-ing-canhoto .mini-btn, .lz-pl .mini-btn { min-height: 32px; }
+.lz-ep-mais { font-weight: 700; color: var(--atencao); border-color: color-mix(in srgb, var(--atencao) 50%, transparent); }
+
+/* o detalhe (pop-up) — folga para a barra do Jarvis e o trilho (armadilha 61) */
+#lz-detalhe { padding: 60px 16px 86px; }
+#lz-detalhe .modal-content.lz-detalhe-caixa { width: min(600px, 100%); max-width: 600px; max-height: calc(100dvh - 146px); overflow-y: auto; }
+.lz-det { display: flex; gap: 16px; align-items: flex-start; }
+@container (max-width: 440px) { .lz-det { flex-direction: column; align-items: center; } .lz-det .lz-capa.det, .lz-det .lz-foto.det { width: 120px; } }
+.lz-det-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.lz-det-info h3 { margin: 0; font-size: 1.2rem; color: var(--txt-forte); overflow-wrap: anywhere; }
+.lz-det-info small { font-size: .74rem; color: var(--txt3); }
+.lz-sobre { margin: 0; font-size: var(--t-apoio); line-height: 1.55; color: var(--txt2); }
+.lz-sobre a { color: var(--info); }
+.lz-coment { margin: 0; font-size: var(--t-apoio); font-style: italic; color: var(--txt2); }
+.lz-estrelas .estrela { font-size: 1.35rem; }
+.lz-det-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--fio-sutil); }
+
+/* a foto de uma saída */
+.lz-foto { position: relative; overflow: hidden; display: grid; place-items: center; aspect-ratio: 16 / 10; width: 100%; border-radius: 8px; background: linear-gradient(150deg, color-mix(in srgb, var(--info) 35%, var(--sup-2)), var(--sup-2)); }
+.lz-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lz-foto-ic { font-size: 1.8rem; }
+.lz-foto img + .lz-foto-ic { display: none; }
+.lz-foto.ing { width: 92px; aspect-ratio: 1; flex: 0 0 auto; }
+.lz-foto.det { width: 170px; aspect-ratio: 4 / 3; flex: 0 0 auto; }
+
+/* o ingresso: corpo + canhoto picotado */
+.lz-ingressos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); }
+.lz-ingresso {
+  position: relative; display: flex; min-width: 0; cursor: pointer; border-radius: 12px; outline: none;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--info) 16%, var(--sup-1)), var(--sup-1));
+  border: 1px solid color-mix(in srgb, var(--info) 35%, var(--fio-sutil)); box-shadow: var(--elev1);
+}
+.lz-ingresso:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.lz-ing-corpo { flex: 1; min-width: 0; display: flex; gap: 12px; padding: 12px; }
+.lz-ing-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lz-ing-tipo { font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--info); }
+.lz-ing-info b { font-size: var(--t-corpo); color: var(--txt-forte); overflow-wrap: anywhere; }
+.lz-ing-info span { font-size: .74rem; color: var(--txt3); overflow-wrap: anywhere; }
+.lz-ing-info strong { color: var(--txt-forte); }
+.lz-ing-canhoto {
+  position: relative; flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 6px;
+  border-left: 2px dashed color-mix(in srgb, var(--info) 45%, var(--fio-sutil)); text-align: center;
+}
+.lz-ing-canhoto::before, .lz-ing-canhoto::after { content: ''; position: absolute; left: -9px; width: 16px; height: 16px; border-radius: 50%; background: var(--card, var(--bg)); }
+.lz-ing-canhoto::before { top: -9px; }
+.lz-ing-canhoto::after { bottom: -9px; }
+.lz-ing-canhoto small { font-size: .64rem; font-weight: 700; letter-spacing: .1em; color: var(--txt3); }
+.lz-ing-canhoto b { font-size: 1.25rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.lz-ing-canhoto span { font-size: .68rem; font-weight: 700; color: var(--txt3); }
+.lz-ing-canhoto.hoje span { color: var(--atencao); }
+.lz-ing-canhoto.atras span { color: var(--perigo); }
+.lz-fui { margin-top: 4px; }
+@container (max-width: 380px) { .lz-foto.ing { width: 64px; } .lz-ing-canhoto { flex-basis: 88px; } }
+
+/* o mural do "quero ir" */
+.lz-mural { display: grid; gap: 12px 10px; grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr)); }
+.lz-quero { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 6px 6px 10px; border-radius: 12px; background: var(--sup-1); border: 1px solid var(--fio-sutil); transition: transform var(--mov), box-shadow var(--mov); }
+.lz-quero:hover { transform: translateY(-2px); box-shadow: var(--elev1); }
+.lz-quero:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.lz-quero-nome { padding: 0 4px; font-size: var(--t-apoio); font-weight: 700; color: var(--txt-forte); overflow-wrap: anywhere; }
+.lz-quero-sub { padding: 0 4px; font-size: .68rem; color: var(--txt4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* o álbum do "já fui": polaroides */
+.lz-album { display: grid; gap: 14px 10px; grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr)); }
+.lz-polaroide { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 7px 10px; cursor: pointer; border-radius: 4px; outline: none; background: color-mix(in srgb, #fff 6%, var(--sup-1)); border: 1px solid var(--fio-sutil); box-shadow: var(--elev1); transform: rotate(-.6deg); transition: transform var(--mov); }
+.lz-polaroide:nth-child(even) { transform: rotate(.5deg); }
+.lz-polaroide:hover, .lz-polaroide:focus-visible { transform: none; }
+.lz-polaroide:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.lz-polaroide .lz-foto { border-radius: 2px; aspect-ratio: 1; }
+.lz-pol-nome { font-size: .76rem; font-weight: 700; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lz-polaroide small { font-size: .66rem; color: var(--txt4); }
+.lz-polaroide .estrela { font-size: 1rem; }
+
+/* os discos */
+.lz-discos { display: grid; gap: 16px 12px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.lz-disco { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 6px; border-radius: 12px; text-align: center; }
+.lz-disco:focus-visible { outline: 2px solid var(--cor); outline-offset: 2px; }
+.lz-vinil {
+  position: relative; display: grid; place-items: center; width: min(104px, 100%); aspect-ratio: 1; border-radius: 50%;
+  background: repeating-radial-gradient(circle, #111 0 2px, #1d1d1f 2px 4px); box-shadow: 0 6px 16px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.04);
+  transition: transform .6s ease;
+}
+.lz-disco:hover .lz-vinil { transform: rotate(40deg); }
+.lz-rotulo { width: 44%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; font-size: 1.3rem; background: radial-gradient(circle, var(--cor) 0 72%, color-mix(in srgb, var(--cor) 60%, #000) 73%); }
+.lz-disco b { font-size: var(--t-apoio); color: var(--txt-forte); }
+.lz-disco small { font-size: .68rem; color: var(--txt3); }
+.lz-disco.vazio .lz-vinil { opacity: .45; }
+.lz-disco.vazio small { color: var(--acento); }
+.lz-momento-lista { display: flex; flex-direction: column; gap: 6px; }
+.lz-pl { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.lz-pl a { flex: 1; min-width: 0; color: var(--txt-forte); font-size: var(--t-apoio); overflow-wrap: anywhere; }
+.lz-tocador { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

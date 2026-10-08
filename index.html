@@ -1017,16 +1017,58 @@
 
     <!-- Módulo 10: Lazer -->
     <div id="leisure" class="tab-content">
-      <div class="focus-header-tabs agenda-tabs" id="lazer-secoes">
+      <div id="sec-lz-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="lz-rapida" aria-label="Adicionar rápido" placeholder="O que quer assistir?" autocomplete="off" enterkeyhint="done" oninput="lzRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); lzRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="lzRapidaAdicionar()">↵</button>
+        </div>
+        <div id="lz-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="lazer-secoes">
         <span class="active" onclick="verSecaoLazer('midia', this)">🎬 Filmes e séries</span>
         <span onclick="verSecaoLazer('saidas', this)">🎟️ Sair</span>
         <span onclick="verSecaoLazer('musica', this)">🎵 Música</span>
       </div>
-      <div id="sec-saidas" class="agenda-sec" hidden>
+      <div id="sec-midia" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="lz-estante">
+          <h2>🎬 Filmes, séries e documentários</h2>
+          <div id="midia-resumo" class="lz-resumo"></div>
+          <div id="midia-lista"></div>
+        </div>
         <div class="card" style="margin-top: 20px;">
+          <h2>🎬 Novo filme ou série</h2>
+          <form id="midia-form">
+            <input type="hidden" id="midia-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+              <div><label for="midia-title">Título:</label><input type="text" id="midia-title" placeholder="O Poço" required></div>
+              <div><label for="midia-kind">Tipo:</label><select id="midia-kind"></select></div>
+              <div><label for="midia-status">Status:</label><select id="midia-status"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="midia-where">Onde assistir:</label><input type="text" id="midia-where" placeholder="Netflix, cinema..."></div>
+              <div><label for="midia-who">Quem indicou:</label><input type="text" id="midia-who" placeholder="opcional"></div>
+              <div><label for="midia-season">Temporada:</label><input type="number" id="midia-season" min="0" placeholder="1"></div>
+              <div><label for="midia-ep">Episódio:</label><input type="number" id="midia-ep" min="0" placeholder="0"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
+              <div><label for="midia-url">Link (trailer, ficha, streaming):</label><input type="text" id="midia-url" placeholder="opcional"></div>
+              <div><label for="midia-rating">Nota (0-5):</label><input type="number" id="midia-rating" min="0" max="5" placeholder="0"></div>
+            </div>
+            <label for="midia-comment">Comentário:</label><input type="text" id="midia-comment" placeholder="o que achou">
+            <div style="display:flex; gap:10px;"><button type="submit" id="midia-submit" style="flex:1">Adicionar</button><button type="button" id="midia-cancel" class="btn" hidden onclick="cancelarEdicaoMidia()">Cancelar</button></div>
+          </form>
+        </div>
+      </div>
+      <div id="sec-saidas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="lz-saidas">
           <h2>🎟️ Museus, shows e o que mais der vontade</h2>
-          <p class="hint">Anote o lugar ou o evento e, se houver internet, o app busca sozinho uma <strong>foto e um resumo</strong> na Wikipedia — o item deixa de ser uma linha e vira um cartão. Com data, entra no calendário. Depois de ir, dê a sua nota.</p>
-          <div id="saida-resumo" class="fin-summary-line"></div>
+          <div id="saida-resumo" class="lz-resumo"></div>
+          <div id="saida-lista"></div>
+          <p class="hint" style="margin-top:12px">As fotos e os resumos vêm da <strong>Wikipedia</strong>. O app guarda só o endereço da imagem, nunca a imagem em si — é o que deixa isso sincronizar entre os aparelhos sem quebrar nada.</p>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎟️ Novo programa</h2>
           <form id="saida-form">
             <input type="hidden" id="saida-id">
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
@@ -1053,54 +1095,28 @@
               <button type="button" class="btn" onclick="ilustrarTodasSaidas()" title="Busca foto e resumo de todos os que ainda não têm">✨ Ilustrar os que faltam</button>
             </div>
           </form>
-          <div class="filter-chips" id="saida-filtros" style="margin-top:14px">
-            <span class="active" onclick="filtrarSaidas('todos', this)">Todos</span>
-            <span onclick="filtrarSaidas('quero', this)">💭 Quero ir</span>
-            <span onclick="filtrarSaidas('marcado', this)">📅 Marcados</span>
-            <span onclick="filtrarSaidas('fui', this)">✅ Já fui</span>
-          </div>
-          <div id="saida-lista" class="saida-lista"></div>
-          <p class="hint" style="margin-top:10px">As fotos e os resumos vêm da <strong>Wikipedia</strong>. O app guarda só o endereço da imagem, nunca a imagem em si — é o que deixa isso sincronizar entre os seus aparelhos sem quebrar nada.</p>
-        </div>
-      </div>
-      <div id="sec-midia" class="agenda-sec">
-        <div class="card" style="margin-top: 20px;">
-          <h2>🎬 Filmes, séries e documentários</h2>
-          <p class="hint">Aquilo que te indicaram e você não quer esquecer. Dê a nota clicando nas estrelas; em série, os botões − ep + marcam onde você parou.</p>
-          <form id="midia-form">
-            <input type="hidden" id="midia-id">
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
-              <div><label for="midia-title">Título:</label><input type="text" id="midia-title" placeholder="O Poço" required></div>
-              <div><label for="midia-kind">Tipo:</label><select id="midia-kind"></select></div>
-              <div><label for="midia-status">Status:</label><select id="midia-status"></select></div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
-              <div><label for="midia-where">Onde assistir:</label><input type="text" id="midia-where" placeholder="Netflix, cinema..."></div>
-              <div><label for="midia-who">Quem indicou:</label><input type="text" id="midia-who" placeholder="opcional"></div>
-              <div><label for="midia-season">Temporada:</label><input type="number" id="midia-season" min="0" placeholder="1"></div>
-              <div><label for="midia-ep">Episódio:</label><input type="number" id="midia-ep" min="0" placeholder="0"></div>
-            </div>
-            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
-              <div><label for="midia-url">Link (trailer, ficha, streaming):</label><input type="text" id="midia-url" placeholder="opcional"></div>
-              <div><label for="midia-rating">Nota (0-5):</label><input type="number" id="midia-rating" min="0" max="5" placeholder="0"></div>
-            </div>
-            <label for="midia-comment">Comentário:</label><input type="text" id="midia-comment" placeholder="o que achou">
-            <div style="display:flex; gap:10px;"><button type="submit" id="midia-submit" style="flex:1">Adicionar</button><button type="button" id="midia-cancel" class="btn" hidden onclick="cancelarEdicaoMidia()">Cancelar</button></div>
-          </form>
-          <div id="midia-resumo" class="summary-row" style="margin-top:14px"></div>
-          <div class="focus-header-tabs filter-row" id="midia-filtros">
-            <span class="active" onclick="filtrarMidia('quero', this)">🔖 Quero ver</span>
-            <span onclick="filtrarMidia('assistindo', this)">▶️ Assistindo</span>
-            <span onclick="filtrarMidia('visto', this)">✅ Vistos</span>
-            <span onclick="filtrarMidia('todos', this)">🗂️ Todos</span>
-          </div>
-          <ul id="midia-lista" class="transaction-list"></ul>
         </div>
       </div>
       <div id="sec-musica" class="agenda-sec" hidden>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="lz-discos">
           <h2>🎵 Playlists por momento</h2>
-          <p class="hint">Atalhos para as suas playlists (Spotify, YouTube, o que usar). Um toque abre no app de música.</p>
+          <div id="play-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;" data-mod="lz-tocador">
+          <h2>▶️ Tocar do aparelho</h2>
+          <p class="hint">Músicas guardadas neste aparelho tocam sem sair do app. Valem para esta sessão — o navegador não guarda os arquivos, então da próxima vez é só escolher de novo.</p>
+          <div class="lz-tocador">
+            <button type="button" class="btn" onclick="document.getElementById('faixas-arquivo').click()">🎵 Escolher músicas</button>
+            <input type="file" id="faixas-arquivo" accept="audio/*" multiple hidden onchange="carregarFaixas(this)">
+            <button type="button" class="mini-btn" title="Anterior" onclick="faixaAnterior()">⏮</button>
+            <button type="button" class="mini-btn" title="Próxima" onclick="faixaProxima()">⏭</button>
+            <span id="faixa-atual" class="item-date"></span>
+          </div>
+          <audio id="audio-player" controls style="width:100%; margin-top:12px;" onended="faixaProxima()"></audio>
+          <div id="faixas-lista" class="faixas-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎵 Nova playlist</h2>
           <form id="play-form">
             <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 10px;">
               <div><label for="play-name">Nome:</label><input type="text" id="play-name" placeholder="Lo-fi para plantão" required></div>
@@ -1109,24 +1125,9 @@
             <label for="play-url">Link:</label><input type="text" id="play-url" placeholder="https://open.spotify.com/playlist/..." required>
             <button type="submit">Salvar playlist</button>
           </form>
-          <div id="play-lista" style="margin-top: 16px;"></div>
-        </div>
-        <div class="card" style="margin-top: 20px;">
-          <h2>▶️ Tocar do aparelho</h2>
-          <p class="hint">Escolha músicas guardadas neste aparelho e toque sem sair do app. Elas valem para esta sessão — o navegador não guarda arquivos, então da próxima vez é só escolher de novo.</p>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <button type="button" class="btn" onclick="document.getElementById('faixas-arquivo').click()">🎵 Escolher músicas</button>
-            <input type="file" id="faixas-arquivo" accept="audio/*" multiple hidden onchange="carregarFaixas(this)">
-            <button type="button" class="mini-btn" onclick="faixaAnterior()">⏮</button>
-            <button type="button" class="mini-btn" onclick="faixaProxima()">⏭</button>
-            <span id="faixa-atual" class="item-date"></span>
-          </div>
-          <audio id="audio-player" controls style="width:100%; margin-top:12px;" onended="faixaProxima()"></audio>
-          <div id="faixas-lista" class="faixas-lista"></div>
         </div>
       </div>
     </div>
-
     <!-- Módulo 11: Viagens -->
     <div id="trips" class="tab-content">
       <div class="focus-header-tabs agenda-tabs" id="viagens-secoes" style="margin-top:20px">
@@ -1654,6 +1655,12 @@
       <div class="modal-body" id="nt-leitor-corpo"></div>
     </div>
   </div>
+  <div id="lz-detalhe" class="modal-overlay" onclick="if (event.target === this) lzFecharDetalhe()" onkeydown="if (event.key === 'Escape') lzFecharDetalhe()">
+    <div class="modal-content lz-detalhe-caixa">
+      <div class="modal-header"><h3 id="lz-detalhe-tit">🎬</h3><button type="button" class="close-modal" title="Fechar" onclick="lzFecharDetalhe()">✕</button></div>
+      <div class="modal-body" id="lz-detalhe-corpo"></div>
+    </div>
+  </div>
   <div id="compra-modal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header"><h3>🛒 Comprei</h3><button class="close-modal" onclick="fecharCompra()">✕</button></div>
@@ -1751,6 +1758,7 @@
   <script src="financas.js"></script>
   <script src="tarefas.js"></script>
   <script src="notas.js"></script>
+  <script src="lazer.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

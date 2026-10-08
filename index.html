@@ -326,6 +326,7 @@
 
     <!-- Módulo 2: Finanças -->
     <div id="finances" class="tab-content">
+      <div id="fin-topo" class="agenda-sec fin-topo">
       <div class="card fin-month-bar" style="margin-top: 20px;">
         <div class="fin-month-nav"><button type="button" class="mini-btn" onclick="mudarMesFin(-1)">◀</button><h2 id="fin-month-label" style="margin:0">Mês</h2><button type="button" class="mini-btn" onclick="mudarMesFin(1)">▶</button><button type="button" class="mini-btn" onclick="irParaMesAtual()">📍 Este mês</button></div>
         <div class="focus-header-tabs" id="fin-modo" style="border:none; padding:0;"><span class="active" onclick="alternarModoFin('mes', this)">📅 Mês</span><span onclick="alternarModoFin('tudo', this)">♾️ Tudo</span></div>
@@ -337,6 +338,25 @@
         <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color: var(--txt-forte)">R$ 0,00</h3></div>
       </div>
       <div id="fin-extra" class="summary-row" style="padding: 0 6px;"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs" id="financas-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoFinancas('painel', this)">📊 Painel</span>
+        <span onclick="verSecaoFinancas('lancamentos', this)">🧾 Lançamentos</span>
+        <span onclick="verSecaoFinancas('orcamento', this)">🫙 Orçamento</span>
+        <span onclick="verSecaoFinancas('recorrentes', this)">🔁 Recorrentes</span>
+        <span onclick="verSecaoFinancas('analise', this)">🔎 Análise</span>
+      </div>
+      <div id="sec-fin-painel" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="fin-painel">
+          <h2>💰 O mês em um olhar</h2>
+          <div id="fin-painel"></div>
+        </div>
+      </div>
+      <div id="sec-fin-lancamentos" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="fin-extrato">
+          <h2>📥 Extrato do banco</h2>
+          <div id="fin-extrato"></div>
+        </div>
       <div class="card" style="margin-top: 20px;">
         <h2 id="finance-form-title">Nova Transação</h2>
         <form id="finance-form">
@@ -358,10 +378,19 @@
           </div>
         </form>
       </div>
-      <div class="fin-two-col" id="fin-graficos">
-        <div class="card"><h2>Por categoria</h2><div id="fin-categorias"></div></div>
-        <div class="card"><h2>Últimos 6 meses</h2><p class="hint">Verde = receitas, vermelho = despesas (só o efetivado). Clique num mês pra abrir.</p><div id="fin-meses" class="fin-meses"></div></div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Histórico</h2>
+        <input type="search" id="fin-search" placeholder="🔍 buscar por descrição, categoria ou observação" oninput="buscarFin(this.value)" style="margin-bottom: 10px;">
+        <div class="focus-header-tabs filter-row" id="fin-filters">
+          <span class="active" onclick="filtrarFin('todas', this)">📋 Todas</span>
+          <span onclick="filtrarFin('receitas', this)">💰 Receitas</span>
+          <span onclick="filtrarFin('despesas', this)">💸 Despesas</span>
+          <span onclick="filtrarFin('pendentes', this)">⏳ Pendentes</span>
+        </div>
+        <ul id="transaction-list" class="transaction-list"></ul>
       </div>
+      </div>
+      <div id="sec-fin-orcamento" class="agenda-sec" hidden>
       <div class="card" style="margin-top: 20px;" id="orcamento-card">
         <h2>📋 Orçamento do mês</h2>
         <p class="hint">Quanto você planeja em cada rubrica × quanto <strong>de fato</strong> entrou ou saiu no mês que está aberto acima. As rubricas viram as categorias dos lançamentos — barra vermelha é estouro. Estrutura baseada na planilha de organização financeira que você usa.</p>
@@ -372,6 +401,8 @@
           <button type="button" class="btn" style="flex:1" onclick="criarOrcamentoModelo()">📋 Usar o modelo (cria as rubricas)</button>
         </div>
       </div>
+      </div>
+      <div id="sec-fin-recorrentes" class="agenda-sec" hidden>
       <div class="card" style="margin-top: 20px;" id="recorrentes-card">
         <h2>🔁 Recorrentes <small class="rec-mes-rot">· <span id="rec-mes"></span></small></h2>
         <p class="hint">Contas e entradas que se repetem todo mês (aluguel, internet, salário CLT, assinaturas). No começo de cada mês o lançamento é gerado como pendente — dá baixa aqui mesmo com o 💵 quando pagar/receber. O selo mostra a situação do <strong>mês que está na tela</strong>; se você navegar para outro mês, o card acompanha. Pagar atrasado nunca muda o mês do lançamento.</p>
@@ -393,16 +424,13 @@
         </form>
         <ul id="rec-list" class="transaction-list" style="margin-top: 15px;"></ul>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>Histórico</h2>
-        <input type="search" id="fin-search" placeholder="🔍 buscar por descrição, categoria ou observação" oninput="buscarFin(this.value)" style="margin-bottom: 10px;">
-        <div class="focus-header-tabs filter-row" id="fin-filters">
-          <span class="active" onclick="filtrarFin('todas', this)">📋 Todas</span>
-          <span onclick="filtrarFin('receitas', this)">💰 Receitas</span>
-          <span onclick="filtrarFin('despesas', this)">💸 Despesas</span>
-          <span onclick="filtrarFin('pendentes', this)">⏳ Pendentes</span>
+      </div>
+      <div id="sec-fin-analise" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="fin-analise" id="fin-graficos">
+          <h2>🔎 Análise</h2>
+          <div id="fin-analise"></div>
         </div>
-        <ul id="transaction-list" class="transaction-list"></ul>
+        <div class="card" style="margin-top: 20px;"><h2>📋 Por categoria</h2><div id="fin-categorias"></div></div>
       </div>
     </div>
 
@@ -1674,6 +1702,7 @@
   <script src="saude.js"></script>
   <script src="negocios.js"></script>
   <script src="inventario.js"></script>
+  <script src="financas.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

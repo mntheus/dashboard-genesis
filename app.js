@@ -1111,6 +1111,8 @@ function renderFinances() {
     tList.appendChild(li);
   });
   renderCategoriasFin(); renderMesesFin();
+  // 08/10: o painel visual, a análise e o cartão do extrato moram em financas.js
+  if (typeof renderFinVisual === 'function') renderFinVisual();
 }
 
 function renderCategoriasFin() {

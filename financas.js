@@ -39,51 +39,102 @@ const FIN_CORES = ['#22c55e', '#38bdf8', '#a78bfa', '#f472b6', '#fb923c', '#facc
  *  categoria + o que sobrou) à direita, ligados por faixas proporcionais. O que
  *  ainda está pendente entra também, mais claro — o plantão a receber é dinheiro
  *  do mês, só não chegou. */
-function finRio(ym, L, A) {
+// F1 (09/10, ditado dele: "o rio do mês mais moderno, mais minimalista"): desenhado na LARGURA REAL
+// (antes nascia com 340 px e era esticado — na tela larga as letras inchavam), faixas finas, rótulos
+// do lado de fora com nome e valor, as colunas dizem o que são e a parte clara de cada barra é o que
+// ainda não caiu na conta (o plantão a receber é dinheiro do mês, só não chegou).
+function finRio(ym, L) {
+  // nem espremido (celular dividido) nem um fio de 1500 px (ultrawide): acima de 980 o desenho fica no meio
+  L = Math.min(980, Math.max(220, Math.round(L || 340)));
   const ts = finDoMes(ym, false);
-  const agrupa = (tipo, max) => {
+  const agrupa = (tipo, max, total) => {
     const m = {}; ts.filter(t => t.type === tipo).forEach(t => { const c = t.category || 'Outros'; m[c] = m[c] || { v: 0, pend: 0 }; m[c].v += Number(t.amount) || 0; if (transacaoPendente(t)) m[c].pend += Number(t.amount) || 0; });
     let l = Object.entries(m).map(([c, x]) => ({ c, v: x.v, pend: x.pend })).sort((a, b) => b.v - a.v);
-    if (l.length > max) { const resto = l.slice(max - 1); l = l.slice(0, max - 1); l.push({ c: 'Outras', v: resto.reduce((a, x) => a + x.v, 0), pend: resto.reduce((a, x) => a + x.pend, 0), varias: resto.map(x => x.c) }); }
+    // as miudezas (menos de 4% do mês) viram "Outras": um fio de 1 px não se lê
+    const corte = l.findIndex((x, i) => i >= max - 1 || (i >= 2 && x.v < total * 0.04));
+    if (corte > 0 && corte < l.length - 1) { const resto = l.slice(corte); l = l.slice(0, corte); l.push({ c: 'Outras', v: resto.reduce((a, x) => a + x.v, 0), pend: resto.reduce((a, x) => a + x.pend, 0), varias: resto.map(x => x.c) }); }
     return l;
   };
-  const ent = agrupa('income', 5), sai = agrupa('expense', 6);
+  const E0 = finSoma(ts, 'income'), S0 = finSoma(ts, 'expense'), T0 = Math.max(E0, S0);
+  const ent = agrupa('income', 4, T0), sai = agrupa('expense', 5, T0);
   const E = ent.reduce((a, x) => a + x.v, 0), S = sai.reduce((a, x) => a + x.v, 0);
   if (!E && !S) return '<div class="sp-vazio">Nenhum lançamento neste mês ainda.</div>';
   const sobra = E - S;
   if (sobra > 0) sai.push({ c: 'Sobrou', v: sobra, pend: 0, sobra: true });
-  else if (sobra < 0) ent.push({ c: 'Faltou (tirado do saldo)', v: -sobra, pend: 0, falta: true });
-  const tot = Math.max(E, S);
-  const gap = 6, top = 8, alt = A - 16;
-  const escala = (alt - gap * Math.max(ent.length, sai.length)) / tot;
-  const xL = 6, wN = 12, xR = L - 18, xM1 = L * 0.42, xM2 = L * 0.58;
-  const posiciona = l => { let y = top; return l.map(x => { const h = Math.max(3, x.v * escala); const o = { ...x, y, h }; y += h + gap; return o; }); };
-  const P = posiciona(ent), Q = posiciona(sai);
+  else if (sobra < 0) ent.push({ c: 'Faltou', v: -sobra, pend: 0, falta: true });
+  const tot = Math.max(E, S), n = Math.max(ent.length, sai.length);
+  const estreito = L < 400, minusculo = L < 300, nomeMax = minusculo ? 9 : estreito ? 11 : 18;
+  const corta = s => s.length > nomeMax ? s.slice(0, nomeMax - 1) + '…' : s;
+  // colunas: rótulos | barra | rio | tronco | rio | barra | rótulos
+  const labE = minusculo ? 68 : estreito ? 84 : 118, labS = minusculo ? 80 : estreito ? 96 : 140;
+  const xE = labE, xS = L - labS, xT = (xE + xS) / 2, wB = 3;
+  const cab = 18, top = cab + 8, gap = 9;
+  const A = Math.round(Math.max(150, Math.min(280, top + n * 34 + 6)));
+  const alt = A - top - 4;
+  const escala = (alt - gap * (n - 1)) / tot;
+  const pilha = l => { const hs = l.map(x => Math.max(2, x.v * escala)); const soma = hs.reduce((a, h) => a + h, 0) + gap * (l.length - 1); let y = top + Math.max(0, (alt - soma) / 2); return l.map((x, i) => { const o = { ...x, y, h: hs[i] }; y += hs[i] + gap; return o; }); };
+  const P = pilha(ent), Q = pilha(sai);
   const tronco = { y: top + (alt - tot * escala) / 2, h: tot * escala };
-  let html = '';
-  // faixas de entrada → tronco (cor da fonte) e tronco → saídas (cor do destino)
+  const cE = (p, i) => p.falta ? 'var(--perigo)' : FIN_CORES[i % FIN_CORES.length];
+  const cS = (q, i) => q.sobra ? 'var(--ok)' : FIN_CORES[(i + 3) % FIN_CORES.length];
+  // curva "mais reta" (pedido dele): a dobra fica perto das pontas e o meio vira uma diagonal limpa
+  const DOBRA = 0.26;
+  const a1 = xE + wB + (xT - xE - wB) * DOBRA, b1 = xT - (xT - xE - wB) * DOBRA;
+  const a2 = xT + (xS - xT) * DOBRA, b2 = xS - (xS - xT) * DOBRA;
+  let html = `<text class="fin-rio-col" x="${xE - 8}" y="11" text-anchor="end">ENTROU</text>
+    <text class="fin-rio-col" x="${xT}" y="11" text-anchor="middle">O MÊS</text>
+    <text class="fin-rio-col" x="${xS + 8}" y="11">PARA ONDE FOI</text>`;
+  // barra de cada ponta: cheia = já caiu na conta; clara = ainda vai cair
+  const barra = (x, o, cor, extra) => {
+    const hp = o.v ? Math.min(o.h, o.h * (o.pend || 0) / o.v) : 0;
+    return `<rect x="${x}" y="${o.y}" width="${wB}" height="${o.h}" rx="1.5" class="fin-rio-no claro" style="fill:${cor}"${extra || ''}/>` +
+      (o.h - hp > 0.5 ? `<rect x="${x}" y="${o.y + hp}" width="${wB}" height="${o.h - hp}" rx="1.5" class="fin-rio-no" style="fill:${cor}"${extra || ''}/>` : '');
+  };
   let yT = tronco.y;
   P.forEach((p, i) => {
-    const cor = p.falta ? 'var(--perigo)' : FIN_CORES[i % FIN_CORES.length]; const h = p.v * escala;
-    html += `<path class="fin-rio-faixa${p.pend ? ' pend' : ''}" d="M${xL + wN} ${p.y} C${xM1} ${p.y}, ${xM1} ${yT}, ${xM2 - 2} ${yT} L${xM2 - 2} ${yT + h} C${xM1} ${yT + h}, ${xM1} ${p.y + h}, ${xL + wN} ${p.y + h} Z" style="fill:${cor}"><title>${esc(p.c)}: ${formatCurrency(p.v)}${p.pend ? ` (${formatCurrency(p.pend)} ainda a receber)` : ''}</title></path>`;
-    html += `<rect x="${xL}" y="${p.y}" width="${wN}" height="${p.h}" rx="3" style="fill:${cor}"/>`;
+    const cor = cE(p, i), h = p.v * escala;
+    html += `<path class="fin-rio-faixa${p.pend && p.pend >= p.v ? ' pend' : ''}" d="M${xE + wB} ${p.y} C${a1} ${p.y}, ${b1} ${yT}, ${xT} ${yT} L${xT} ${yT + h} C${b1} ${yT + h}, ${a1} ${p.y + p.h}, ${xE + wB} ${p.y + p.h} Z" style="fill:${cor}"><title>${esc(p.c)}: ${formatCurrency(p.v)}${p.pend ? ` (${formatCurrency(p.pend)} ainda a receber)` : ''}</title></path>`;
+    html += barra(xE, p, cor);
     yT += h;
   });
   yT = tronco.y;
   Q.forEach((q, i) => {
-    const cor = q.sobra ? 'var(--ok)' : FIN_CORES[(i + 3) % FIN_CORES.length]; const h = q.v * escala;
-    const k = `'${i}'`;
-    html += `<path class="fin-rio-faixa saida${q.pend ? ' pend' : ''}${finEstado.rio === String(i) ? ' sel' : ''}" onclick="finTocarRio(${k})" d="M${xM2 + 2} ${yT} C${L * 0.7} ${yT}, ${L * 0.7} ${q.y}, ${xR} ${q.y} L${xR} ${q.y + h} C${L * 0.7} ${q.y + h}, ${L * 0.7} ${yT + h}, ${xM2 + 2} ${yT + h} Z" style="fill:${cor}"><title>${esc(q.c)}: ${formatCurrency(q.v)}${q.pend ? ` (${formatCurrency(q.pend)} ainda a pagar)` : ''}</title></path>`;
-    html += `<rect x="${xR}" y="${q.y}" width="${wN}" height="${q.h}" rx="3" style="fill:${cor}" onclick="finTocarRio(${k})"/>`;
+    const cor = cS(q, i), h = q.v * escala, k = `'${i}'`, toque = ` onclick="finTocarRio(${k})"`;
+    html += `<path class="fin-rio-faixa saida${q.pend && q.pend >= q.v ? ' pend' : ''}${finEstado.rio === String(i) ? ' sel' : ''}"${toque} d="M${xT} ${yT} C${a2} ${yT}, ${b2} ${q.y}, ${xS} ${q.y} L${xS} ${q.y + q.h} C${b2} ${q.y + q.h}, ${a2} ${yT + h}, ${xT} ${yT + h} Z" style="fill:${cor}"><title>${esc(q.c)}: ${formatCurrency(q.v)}${q.pend ? ` (${formatCurrency(q.pend)} ainda a pagar)` : ''}</title></path>`;
+    html += barra(xS, q, cor, toque);
     yT += h;
   });
-  html += `<rect class="fin-rio-tronco" x="${xM2 - 2}" y="${tronco.y}" width="4" height="${tronco.h}" rx="2"/>`;
-  // rótulos: entradas por dentro à esquerda, saídas por dentro à direita
-  const rot = (x, y, h, txt, val, anc) => h >= 12 ? `<text class="fin-rio-rot" x="${x}" y="${y + Math.min(h / 2 + 4, h - 2)}" text-anchor="${anc}">${esc(txt)} <tspan>${finCompacto(val)}</tspan></text>` : '';
-  P.forEach(p => { html += rot(xL + wN + 5, p.y, p.h, p.c, p.v, 'start'); });
-  Q.forEach(q => { html += rot(xR - 5, q.y, q.h, q.c, q.v, 'end'); });
+  html += `<rect class="fin-rio-tronco" x="${xT - 1}" y="${tronco.y}" width="2" height="${tronco.h}" rx="1"/>`;
+  // rótulos do lado de fora; quando dois ficam perto demais, o de baixo desce (nunca um sobre o outro)
+  let fundo = 0;
+  const rotulos = (lista, x, anc, lado) => {
+    let ult = -99;
+    lista.forEach((o, i) => {
+      // nome e valor em duas linhas quando há altura; a 2ª linha fica 15 px abaixo (com 13 as caixas encostavam)
+      const dois = o.h >= 22 || n <= 3, alto = dois ? 27 : 13;
+      let y = Math.max(o.y + o.h / 2 - alto / 2 + 10, ult + 4 + 10); ult = y + alto - 10;
+      const pct = lado === 's' && E ? ` · ${Math.round(o.v / E * 100)}%` : '';
+      const sel = lado === 's' && finEstado.rio === String(i) ? ' sel' : '';
+      const toque = lado === 's' ? ` onclick="finTocarRio('${i}')"` : '';
+      html += dois
+        ? `<text class="fin-rio-rot${sel}" x="${x}" y="${y}" text-anchor="${anc}"${toque}>${esc(corta(o.c))}</text><text class="fin-rio-val" x="${x}" y="${y + 15}" text-anchor="${anc}"${toque}>${finCompacto(o.v)}${pct}</text>`
+        : `<text class="fin-rio-rot${sel}" x="${x}" y="${y}" text-anchor="${anc}"${toque}>${esc(corta(o.c))} <tspan class="fin-rio-val">${finCompacto(o.v)}</tspan></text>`;
+    });
+    fundo = Math.max(fundo, ult);
+  };
+  rotulos(P, xE - 8, 'end', 'e');
+  rotulos(Q, xS + wB + 8, 'start', 's');
   finEstado.rioDados = Q;
-  return `<svg class="fin-rio" viewBox="0 0 ${L} ${A}" role="img" aria-label="Para onde foi o dinheiro do mês">${html}</svg>`;
+  const AT = Math.ceil(Math.max(A, fundo + 4));   // o último rótulo empurrado não sai do desenho
+  return `<svg class="fin-rio" viewBox="0 0 ${L} ${AT}" width="${L}" height="${AT}" role="img" aria-label="Para onde foi o dinheiro do mês">${html}</svg>
+    <div class="fin-rio-leg"><span><i></i>já caiu na conta</span><span><i class="claro"></i>ainda vai cair (a receber · a pagar)</span></div>`;
+}
+/** Redesenha o rio na largura que ele tem de verdade (e de novo quando ela muda). */
+function finRioAjustar() {
+  const caixa = document.querySelector('#fin-painel .fin-rio-caixa'); if (!caixa) return;
+  const w = Math.round(caixa.clientWidth); if (!w) return;
+  if (Math.abs(w - (finEstado.rioLarg || 0)) < 6) return;
+  finEstado.rioLarg = w; caixa.innerHTML = finRio(finMesAtual(), w);
 }
 function finTocarRio(i) { finEstado.rio = finEstado.rio === i ? '' : i; renderFinPainel(); }
 function finInfoRio() {
@@ -225,15 +276,18 @@ function renderFinPainel() {
   const lembrete = diasExtrato === null || diasExtrato >= 7
     ? `<button type="button" class="fin-lembrete" onclick="verSecaoFinancas('lancamentos'); abrirImportarExtrato()">📥 ${diasExtrato === null ? 'Importe o extrato do banco: o app lança e categoriza sozinho' : `Último extrato há ${diasExtrato} dias — hora da importação da semana`}</button>` : '';
   el.innerHTML = `${lembrete}<div class="sp-grade fin-grade">
-    ${finQuadro('fin-q-rio', '🌊', 'O rio do mês', `${formatCurrency(E)} entrou · ${formatCurrency(S)} saiu`, `${finRio(ym, 340, 190)}<div class="sp-info">${finInfoRio()}</div>`, 'analise')}
+    ${finQuadro('fin-q-rio', '🌊', 'O rio do mês', `${formatCurrency(E)} entrou · ${formatCurrency(S)} saiu`, `<div class="fin-rio-caixa">${finRio(ym, 340)}</div><div class="sp-info">${finInfoRio()}</div>`, 'analise')}
     ${finQuadro('fin-q-cal', '🗓️', 'O mês dia a dia', nomeMes(ym), `${finCalendario(ym)}<div class="sp-info">${finInfoDia()}</div>`, 'lancamentos')}
     ${finQuadro('fin-q-potes', '🫙', 'Orçamento', 'potes do mês', finPotes(ym), 'orcamento')}
     ${finQuadro('fin-q-fila', '⏳', 'A receber e a pagar', 'baixa num toque', finFila(), 'lancamentos')}
     ${finQuadro('fin-q-tend', '📈', '12 meses', 'entrou × saiu', finQuadroTendencia(ym), 'analise')}
   </div>`;
-  // em tela larga o rio ocupa 2 colunas: redesenha na largura de verdade (esticado, as letras inchavam)
-  const q = el.querySelector('.fin-q-rio'); const svg = q && q.querySelector('svg.fin-rio');
-  if (svg) { const w = Math.round(q.clientWidth - 28); if (w > 420) svg.outerHTML = finRio(ym, w, Math.round(Math.min(260, 190 + (w - 340) / 8))); }
+  // o rio se redesenha na largura de verdade — agora e sempre que ela mudar (aba escondida mede 0:
+  // o vigia pega a largura quando a aba aparece; antes o desenho ficava esticado com letras enormes)
+  finEstado.rioLarg = 0; finRioAjustar();
+  const caixa = el.querySelector('.fin-rio-caixa');
+  if (finEstado.rioVigia) finEstado.rioVigia.disconnect();
+  if (caixa && typeof ResizeObserver === 'function') { finEstado.rioVigia = new ResizeObserver(() => finRioAjustar()); finEstado.rioVigia.observe(caixa); }
 }
 
 // ═════════════════════════════ A ANÁLISE ══════════════════════════════════

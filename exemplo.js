@@ -146,6 +146,10 @@
     nota('', 'Ligar para a contabilidade sobre o pró-labore', { labels: ['empresa'] }),
     nota('Doses de pediatria', 'Dipirona 10–15 mg/kg/dose\nIbuprofeno 5–10 mg/kg/dose\nParacetamol 10–15 mg/kg/dose', { color: 'red', labels: ['trabalho'] }),
     nota('Viagem a Ouro Preto', 'Pousada perto da praça Tiradentes; ver feriado de novembro.', { color: 'green', labels: ['viagem'] }),
+    nota('Treino da semana', 'Seg: peito e tríceps\nQua: costas e bíceps\nSex: pernas', { color: 'mint', labels: ['saúde'] }),
+    nota('Presente da mãe', 'Livro de receitas ou o vaso da feira de sábado.', { color: 'rose' }),
+    nota('Frase para o site', '"Cuidar de criança é cuidar de família inteira."', { color: 'indigo', labels: ['empresa'] }),
+    nota('Conserto do carro', 'Pastilha de freio e alinhamento — orçamento de R$ 480.', { color: 'coral' }),
     lista('Compras', ['Leite', 'Café', { text: 'Pão', done: true }, 'Purificador de água https://www.mercadolivre.com.br/', { text: 'Ovos', done: true }, 'Detergente'], { pinned: true, labels: ['casa'] }),
     lista('Mala do plantão', ['Estetoscópio', 'Carregador', { text: 'Jaleco', done: true }, 'Lanche', { text: "Garrafa d'água", nivel: 1 }, { text: 'Barra de cereal', nivel: 1 }], { color: 'blue', labels: ['trabalho'] }),
     lista('Impressão 3D — peças', [{ text: 'Suporte de celular', done: true }, { text: 'Organizador de cabos', done: true }], { color: 'green', labels: ['empresa'] })

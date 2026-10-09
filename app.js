@@ -2044,16 +2044,26 @@ function renderRotinas() { preencherFreqs(); tarRenderRotinas(); }
 
 // --- NOTAS (estilo Google Keep) ---
 // Modelo: { id, title, content, checklist: [{ text, done }] | null, color, labels: [], pinned, archived, createdAt, updatedAt }
+// 09/10 (ditado dele: "uma gama um pouco maior de cores"): de 9 para 17, na ordem do arco-íris.
+// As chaves antigas continuam as mesmas (a cor fica gravada na nota e sincroniza).
 const CORES_NOTA = {
   default: { nome: 'Padrão',  bg: '#121212', borda: '#2a2a2a', hue: '' },
   red:     { nome: 'Vermelho', bg: '#3b1f1f', borda: '#7f1d1d', hue: '#ef4444' },
+  coral:   { nome: 'Coral',    bg: '#3d221c', borda: '#9a3b2a', hue: '#fb7c5c' },
   orange:  { nome: 'Laranja',  bg: '#3d2a14', borda: '#9a3412', hue: '#f97316' },
+  amber:   { nome: 'Âmbar',    bg: '#3d3014', borda: '#92600e', hue: '#f59e0b' },
   yellow:  { nome: 'Amarelo',  bg: '#3d3414', borda: '#a16207', hue: '#eab308' },
+  lime:    { nome: 'Lima',     bg: '#26331a', borda: '#4d7c0f', hue: '#84cc16' },
   green:   { nome: 'Verde',    bg: '#14301f', borda: '#166534', hue: '#22c55e' },
+  mint:    { nome: 'Menta',    bg: '#13302a', borda: '#0f766e', hue: '#34d399' },
   teal:    { nome: 'Azul-petróleo', bg: '#0f2f33', borda: '#0e7490', hue: '#14b8a6' },
+  cyan:    { nome: 'Ciano',    bg: '#0f2a36', borda: '#0e7490', hue: '#22d3ee' },
   blue:    { nome: 'Azul',     bg: '#142a3d', borda: '#1d4ed8', hue: '#3b82f6' },
+  indigo:  { nome: 'Índigo',   bg: '#1d1f3d', borda: '#4338ca', hue: '#6366f1' },
   purple:  { nome: 'Roxo',     bg: '#2a1a3d', borda: '#6d28d9', hue: '#8b5cf6' },
   pink:    { nome: 'Rosa',     bg: '#3d1a2e', borda: '#be185d', hue: '#ec4899' },
+  rose:    { nome: 'Rosé',     bg: '#3a2229', borda: '#9f4d5f', hue: '#e8a0b0' },
+  brown:   { nome: 'Marrom',   bg: '#30241a', borda: '#78532f', hue: '#a47148' },
   gray:    { nome: 'Cinza',    bg: '#26272b', borda: '#52525b', hue: '#8b8d98' }
 };
 let noteFilter = 'ativas';   // 'ativas' | 'fixadas' | 'arquivadas'

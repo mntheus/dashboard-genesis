@@ -3652,15 +3652,24 @@ body.ex-banco-aberto { overflow: hidden; }
   font-size: var(--t-apoio); color: var(--txt-forte); background: color-mix(in srgb, var(--info) 12%, var(--sup-1)); border: 1px dashed color-mix(in srgb, var(--info) 55%, transparent); }
 .fin-lembrete:hover { background: color-mix(in srgb, var(--info) 20%, var(--sup-1)); }
 
-/* o rio */
-.fin-rio { width: 100%; height: auto; display: block; overflow: visible; }
-.fin-rio-faixa { opacity: .42; transition: opacity var(--mov); }
+/* o rio (F1, 09/10): desenhado no tamanho real — nunca esticado; faixas finas e calmas */
+.fin-rio-caixa { min-width: 0; }
+.fin-rio { display: block; max-width: 100%; height: auto; margin: 2px auto 0; overflow: visible; }
+.fin-rio-faixa { opacity: .26; transition: opacity var(--mov); }
 .fin-rio-faixa.saida { cursor: pointer; }
-.fin-rio-faixa:hover, .fin-rio-faixa.sel { opacity: .8; }
-.fin-rio-faixa.pend { opacity: .22; }
-.fin-rio-tronco { fill: var(--txt3); }
-.fin-rio-rot { font-size: 10.5px; fill: var(--txt-forte); font-weight: 600; pointer-events: none; paint-order: stroke; stroke: var(--card, var(--bg)); stroke-width: 3px; stroke-linejoin: round; }
-.fin-rio-rot tspan { fill: var(--txt3); font-weight: 500; }
+.fin-rio-faixa:hover, .fin-rio-faixa.sel { opacity: .6; }
+.fin-rio-faixa.pend { opacity: .13; }
+.fin-rio-no.claro { opacity: .35; }
+.fin-rio-tronco { fill: var(--txt3); opacity: .7; }
+.fin-rio-col { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; fill: var(--txt4); }
+.fin-rio-rot { font-size: 11.5px; font-weight: 600; fill: var(--txt-forte); }
+.fin-rio-rot.sel { fill: var(--acento); }
+.fin-rio-val { font-size: 10.5px; font-weight: 500; fill: var(--txt3); font-variant-numeric: tabular-nums; }
+.fin-rio-rot[onclick], .fin-rio-val[onclick], .fin-rio-no[onclick] { cursor: pointer; }
+.fin-rio-leg { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 6px; font-size: .68rem; color: var(--txt3); }
+.fin-rio-leg span { display: inline-flex; align-items: center; gap: 5px; }
+.fin-rio-leg i { width: 3px; height: 12px; border-radius: 1.5px; background: var(--txt2); }
+.fin-rio-leg i.claro { opacity: .35; }
 
 /* o calendário */
 .fin-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
@@ -5514,6 +5523,46 @@ body[data-casca="nova"] .tab-content.active > .cs-barra-aba { grid-column: 1 / -
   .cs-barra-aba > .focus-header-tabs { flex-basis: 100%; overflow-x: auto; scrollbar-width: none; }
 }
 
+/* T1 (09/10) — "acabou de entrar": a tarefa nova aparece logo abaixo da barra, dizendo para onde foi */
+.cs-barra-aba:has(.tar-recentes:not(:empty)) { align-items: flex-start; }
+.cs-barra-aba:has(.tar-recentes:not(:empty)) > .focus-header-tabs { margin-top: 4px !important; }
+.tar-recentes:empty { display: none; }
+.tar-recentes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; min-width: 0; }
+.tar-rec-rot { flex: none; font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--txt3); }
+.tar-rec {
+  display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; max-width: 100%; height: 36px; padding: 0 4px 0 8px;
+  border-radius: 10px; background: var(--sup-1); border: 1px solid color-mix(in srgb, var(--cor) 35%, var(--fio-sutil)); border-left: 3px solid var(--cor);
+}
+.tar-rec .tar-ok { width: 20px; height: 20px; margin: 0; border-width: 2px; }
+.tar-rec .tar-ok::before { inset: -8px; }
+.tar-rec .tar-ok svg { width: 12px; height: 12px; }
+.tar-rec.feita .tar-ok { background: var(--cor); }
+.tar-rec.feita .tar-ok svg { stroke-dashoffset: 0; }
+.tar-rec-tx { flex: 0 1 auto; min-width: 0; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-apoio); font-weight: 600; color: var(--txt-forte); }
+.tar-rec.feita .tar-rec-tx { text-decoration: line-through; color: var(--txt4); }
+.tar-rec > .tar-due, .tar-rec > .tar-lt, .tar-rec > .tar-mini { flex: none; white-space: nowrap; }
+.tar-rec-ir, .tar-rec-x, .tar-rec-fechar {
+  all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 9px; border-radius: 8px; font-size: .74rem; font-weight: 600; white-space: nowrap;
+}
+.tar-rec-ir { color: var(--tom); background: color-mix(in srgb, var(--tom) 14%, transparent); }
+.tar-quad-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600; white-space: nowrap; color: var(--tom); background: color-mix(in srgb, var(--tom) 14%, transparent); }
+.tar-rec-ir:hover { background: color-mix(in srgb, var(--tom) 26%, transparent); }
+.tar-rec-x { padding: 0 8px; color: var(--txt3); }
+.tar-rec-fechar { width: 28px; padding: 0; color: var(--txt4); }
+.tar-rec-x:hover, .tar-rec-fechar:hover { background: var(--sup-2); color: var(--txt-forte); }
+.tar-rec-ir:focus-visible, .tar-rec-x:focus-visible, .tar-rec-fechar:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+/* no celular: um item por linha, o texto ocupa o que sobrar e as etiquetas menores saem */
+@media (max-width: 700px) {
+  .tar-rec { flex: 1 1 100%; }
+  .tar-rec-tx { flex: 1; max-width: none; }
+  .tar-rec > .tar-lt, .tar-rec > .tar-mini { display: none; }
+}
+/* o cartão novo pisca onde foi parar (e na faixa) */
+.tar-c.recem, .tar-rec.recem { animation: tar-chegou 1.8s ease-out; }
+@keyframes tar-chegou { 0%, 35% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 60%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .tar-c.recem, .tar-rec.recem { animation: none; } }
+
 /* filtros numa linha: rola para o lado, esmaece na ponta e ganha setinha; marcadores num seletor */
 #sec-nt-filtros { position: relative; }
 #sec-nt-filtros .nt-filtros-linha { flex-wrap: nowrap; justify-content: flex-start; max-width: none; overflow-x: auto; scrollbar-width: none; gap: 8px; padding: 2px 0; }
@@ -5540,6 +5589,51 @@ body[data-casca="nova"] .tab-content.active > .cs-barra-aba { grid-column: 1 / -
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: min(520px, 100%); max-height: 50vh; overflow-y: auto;
   margin: 0; padding: 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--borda); box-shadow: 0 22px 48px -18px var(--sombra);
 }
+/* ── AS CORES DO MURAL (09/10): Transparente (a de antes) · Aquarela · Paleta ── */
+/* Aquarela: cor cheia, contraste grande entre as notas; o pigmento junta na borda e clareia no meio, como no papel */
+#notes[data-nt-cor="aquarela"] .nt-post.cor {
+  border: none; border-radius: 18px 10px 16px 8px / 10px 16px 8px 18px;
+  background:
+    radial-gradient(110% 75% at 20% 15%, color-mix(in srgb, var(--nh) 10%, transparent), transparent 60%),
+    radial-gradient(85% 70% at 85% 92%, color-mix(in srgb, var(--nh) 34%, transparent), transparent 70%),
+    color-mix(in srgb, var(--nh) 36%, var(--card, var(--bg)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nh) 50%, transparent), inset 0 0 26px -6px color-mix(in srgb, var(--nh) 80%, transparent), var(--elev1);
+}
+#notes[data-nt-cor="aquarela"] .nt-post.cor:nth-child(3n+1) { border-radius: 10px 18px 9px 16px / 16px 9px 18px 10px; }
+#notes[data-nt-cor="aquarela"] .nt-post.cor:nth-child(3n+2) { border-radius: 16px 9px 18px 12px / 9px 18px 12px 16px; }
+#notes[data-nt-cor="aquarela"] .nt-post.cor .nt-post-corpo { color: var(--txt); }
+#notes[data-nt-cor="aquarela"] .nt-lista { background: linear-gradient(180deg, color-mix(in srgb, var(--nh) 30%, transparent), color-mix(in srgb, var(--nh) 8%, transparent) 90px), var(--sup-1); border-color: color-mix(in srgb, var(--nh) 50%, transparent); }
+/* Paleta: o mural inteiro numa família só — chapado, sem faixa, sem inclinação (o mais calmo dos três) */
+#notes[data-nt-cor="paleta"] .nt-post { --rot: 0deg; border-radius: 12px; }
+#notes[data-nt-cor="paleta"] .nt-post.cor { background: color-mix(in srgb, var(--nh) var(--nt-mix, 34%), var(--card, var(--bg))); border: 1px solid color-mix(in srgb, var(--nh) 45%, transparent); }
+/* nos temas claros o tom claro some no branco: mais tinta */
+[data-tema="claro"], [data-tema="papel"], [data-tema="nevoa"], [data-tema="menta"] { --nt-mix: 50%; }
+#notes[data-nt-cor="aquarela"] .nt-post.cor footer small, #notes[data-nt-cor="paleta"] .nt-post.cor footer small { color: color-mix(in srgb, var(--txt) 65%, transparent); }
+#notes[data-nt-cor="paleta"] .nt-lista { background: color-mix(in srgb, var(--nh) 12%, var(--sup-1)); border-color: color-mix(in srgb, var(--nh) 28%, transparent); }
+/* o botão "🎨" (mesma pílula dos marcadores) e o pop-up dele */
+.nt-cores-bt { padding-left: 8px; }
+.nt-cores-amostra { display: inline-flex; flex: none; }
+.nt-cores-amostra i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--card); margin-left: -4px; }
+.nt-cores-amostra i:first-child { margin-left: 0; }
+.nt-cores-pop { display: none; }
+#sec-nt-filtros.cores-aberto .nt-cores-pop {
+  display: flex; flex-direction: column; gap: 10px;
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: min(440px, 100%); max-height: 60vh; overflow-y: auto;
+  padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--borda); box-shadow: 0 22px 48px -18px var(--sombra);
+}
+.nt-cores-linha { display: flex; flex-direction: column; gap: 6px; }
+.nt-cores-rot { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--txt3); }
+.nt-cores-seg { display: inline-flex; align-self: flex-start; max-width: 100%; padding: 2px; gap: 2px; border-radius: 999px; border: 1px solid var(--fio-sutil); background: var(--sup-2); }
+.nt-cores-seg button, .nt-cores-fams button { min-height: 0; margin: 0; box-shadow: none; cursor: pointer; font-size: var(--t-apoio); font-weight: 600; color: var(--txt2); }
+.nt-cores-seg button { height: 30px; padding: 0 14px; border: none; border-radius: 999px; background: transparent; }
+.nt-cores-seg button.on { background: color-mix(in srgb, var(--acento) 22%, transparent); color: var(--txt-forte); }
+.nt-cores-fams { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 6px; }
+.nt-cores-fams button { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--fio-sutil); background: var(--sup-1); text-align: left; }
+.nt-cores-fams button.on { border-color: color-mix(in srgb, var(--acento) 60%, transparent); background: color-mix(in srgb, var(--acento) 12%, var(--sup-1)); color: var(--txt-forte); }
+.nt-cores-dica { margin: 0; font-size: .7rem; color: var(--txt4); }
+.nt-cores-cfg { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+/* no celular a pílula mostra só as bolinhas */
+@media (max-width: 600px) { .nt-cores-bt > span:not(.nt-cores-amostra) { display: none; } }
 /* a setinha tem LUGAR PRÓPRIO ao lado da linha (flutuando por cima, cobria o último filtro no celular) */
 .cs-rola-host { position: relative; display: flex; align-items: center; gap: 6px; }
 .cs-rola-host > .nt-filtros-linha { flex: 1; min-width: 0; }

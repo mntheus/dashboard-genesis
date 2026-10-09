@@ -482,14 +482,31 @@ function juntarBarras() {
     const busca = t.busca && document.getElementById(t.busca[0]); if (busca) busca.placeholder = t.busca[1];   // o texto longo saía cortado
   });
   montarMarcadoresNotas();
+  montarCoresNotas();
 }
+/** "🎨" ao lado dos marcadores: o estilo das cores do mural (Transparente · Aquarela · Paleta). */
+function montarCoresNotas() {
+  const linha = document.querySelector('#sec-nt-filtros .nt-filtros-linha'), sec = document.getElementById('sec-nt-filtros');
+  if (!linha || !sec || document.getElementById('nt-cores-bt') || typeof ntHtmlCores !== 'function') return;
+  const bt = document.createElement('button'); bt.type = 'button'; bt.id = 'nt-cores-bt'; bt.className = 'nt-marc-bt nt-cores-bt';
+  bt.title = 'Cores do mural';
+  bt.onclick = e => { e.stopPropagation(); sec.classList.remove('marc-aberto'); sec.classList.toggle('cores-aberto'); };
+  linha.appendChild(bt);
+  const pop = document.createElement('div'); pop.id = 'nt-cores-pop'; pop.className = 'nt-cores-pop';
+  // cada escolha redesenha o pop-up: o botão clicado sai da página e o "clique fora" achava que era fora
+  pop.addEventListener('click', e => e.stopPropagation());
+  sec.appendChild(pop);
+  aplicarCoresNotas();
+}
+if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-notes'] = () => typeof ntHtmlCores === 'function'
+  ? `<h4 class="dev-titulo">Cores das notas</h4><div class="nt-cores-cfg">${ntHtmlCores()}</div>` : '';
 /** Os marcadores das Notas saem da linha de baixo e viram um seletor (# marcadores ▾). */
 function montarMarcadoresNotas() {
   const linha = document.querySelector('#sec-nt-filtros .nt-filtros-linha'), pop = document.getElementById('note-labels');
   if (!linha || !pop || document.getElementById('nt-marc-bt')) return;
   const bt = document.createElement('button'); bt.type = 'button'; bt.id = 'nt-marc-bt'; bt.className = 'nt-marc-bt';
   bt.title = 'Filtrar por marcador';
-  bt.onclick = e => { e.stopPropagation(); document.getElementById('sec-nt-filtros').classList.toggle('marc-aberto'); };
+  bt.onclick = e => { e.stopPropagation(); const f = document.getElementById('sec-nt-filtros'); f.classList.remove('cores-aberto'); f.classList.toggle('marc-aberto'); };
   linha.appendChild(bt);
   pop.classList.add('nt-marc-pop');
   atualizarBotaoMarcadores();
@@ -506,6 +523,7 @@ function atualizarBotaoMarcadores() {
 document.addEventListener('click', e => {
   const f = document.getElementById('sec-nt-filtros');
   if (f && f.classList.contains('marc-aberto') && !e.target.closest('#note-labels, #nt-marc-bt')) f.classList.remove('marc-aberto');
+  if (f && f.classList.contains('cores-aberto') && !e.target.closest('#nt-cores-pop, #nt-cores-bt')) f.classList.remove('cores-aberto');
 });
 if (typeof renderFiltrosNota === 'function') {
   const _rfn = renderFiltrosNota;

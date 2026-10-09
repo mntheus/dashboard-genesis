@@ -24,7 +24,59 @@ let notasSecao = 'notas';
 const ntEstado = { aberta: null, salvarTimer: null, feitosAbertos: {}, itemAtivo: -1 };
 
 // ───────────────────────────── utilidades ─────────────────────────────────
-function ntHue(n) { return corNota(n.color).hue || ''; }
+// ── AS CORES DO MURAL (09/10, ditado dele): "uma gama maior de cores, dividida em cores com contraste
+//    grande entre elas, como uma aquarela; cores mais transparentes, tipo as de agora; e gamas
+//    minimalistas, tipo paleta inteira — uma mais acinzentada, uma esverdeada, uma azulada, uma rosé.
+//    Para a gente fazer esses testes sem encher muito o visual." O ESTILO vale por aparelho (prefs) e não
+//    mexe no dado: a nota continua guardando a cor dela; na PALETA cada cor vira um tom da família.
+const NT_ESTILOS_COR = { transparente: 'Transparente', aquarela: 'Aquarela', paleta: 'Paleta' };
+// seis tons por família, alternando claro / médio / fundo (vizinhos no arco-íris caem em tons bem diferentes)
+const NT_PALETAS = {
+  grafite: { nome: 'Grafite', tons: ['#e4e4e7', '#a1a1aa', '#3f3f46', '#cbd5e1', '#475569', '#8b98ab'] },
+  salvia:  { nome: 'Sálvia',  tons: ['#dbe7c9', '#9dbf8a', '#3f6b4f', '#b9d4b0', '#55805e', '#7fa88f'] },
+  oceano:  { nome: 'Oceano',  tons: ['#cfe0f3', '#7eaee0', '#2f5f8f', '#9cc9d9', '#3a6ea8', '#5d8fc4'] },
+  rose:    { nome: 'Rosé',    tons: ['#f7d6dd', '#e597a9', '#93415a', '#f2b9a8', '#b8566f', '#d27a8f'] },
+  areia:   { nome: 'Areia',   tons: ['#f1e6d0', '#d9bd8c', '#7d5d3a', '#e6cfa8', '#a07a4a', '#c4a06e'] },
+  lavanda: { nome: 'Lavanda', tons: ['#e6defa', '#b3a1e0', '#58449a', '#cfc0ef', '#7059b8', '#9884d4'] }
+};
+function ntCfgCores() {
+  const c = cfgAba('btn-notes');
+  if (!NT_ESTILOS_COR[c.corEstilo]) c.corEstilo = 'transparente';
+  if (!NT_PALETAS[c.corPaleta]) c.corPaleta = 'salvia';
+  return c;
+}
+function ntHue(n) {
+  const k = n.color || 'default', base = corNota(k).hue || '';
+  if (!base) return '';
+  const c = ntCfgCores();
+  if (c.corEstilo !== 'paleta') return base;
+  const tons = NT_PALETAS[c.corPaleta].tons, chaves = Object.keys(CORES_NOTA).filter(x => x !== 'default');
+  return tons[Math.max(0, chaves.indexOf(k)) % tons.length];
+}
+function aplicarCoresNotas() {
+  const s = document.getElementById('notes'); if (!s) return;
+  const c = ntCfgCores(); s.dataset.ntCor = c.corEstilo; s.dataset.ntPaleta = c.corPaleta;
+  const pop = document.getElementById('nt-cores-pop'); if (pop) pop.innerHTML = ntHtmlCores();
+  const bt = document.getElementById('nt-cores-bt'); if (bt) bt.innerHTML = `<span class="nt-cores-amostra">${ntAmostra(c)}</span><span>${NT_ESTILOS_COR[c.corEstilo]}${c.corEstilo === 'paleta' ? ' · ' + NT_PALETAS[c.corPaleta].nome : ''}</span>`;
+}
+function ntMudarCores(campo, v) {
+  ntCfgCores()[campo] = v;
+  if (campo === 'corPaleta') ntCfgCores().corEstilo = 'paleta';
+  gravarCfgAba();
+  aplicarCoresNotas(); renderNotes();
+  if (typeof renderConfigAba === 'function' && typeof abaConfigAtual !== 'undefined' && abaConfigAtual === 'btn-notes') renderConfigAba();
+}
+/** Quatro bolinhas que mostram o estilo (no botão e em cada família). */
+function ntAmostra(c, paleta) {
+  const tons = paleta ? NT_PALETAS[paleta].tons : c.corEstilo === 'paleta' ? NT_PALETAS[c.corPaleta].tons : ['#ef4444', '#eab308', '#22c55e', '#3b82f6'];
+  return tons.slice(0, 4).map(t => `<i style="background:${t}"></i>`).join('');
+}
+function ntHtmlCores() {
+  const c = ntCfgCores();
+  return `<div class="nt-cores-linha"><span class="nt-cores-rot">Estilo</span><span class="nt-cores-seg">${Object.entries(NT_ESTILOS_COR).map(([k, nome]) => `<button type="button" class="${c.corEstilo === k ? 'on' : ''}" onclick="ntMudarCores('corEstilo', '${k}')">${nome}</button>`).join('')}</span></div>
+    <div class="nt-cores-linha"><span class="nt-cores-rot">Paletas</span><span class="nt-cores-fams">${Object.entries(NT_PALETAS).map(([k, p]) => `<button type="button" class="nt-fam${c.corEstilo === 'paleta' && c.corPaleta === k ? ' on' : ''}" onclick="ntMudarCores('corPaleta', '${k}')" title="Paleta ${p.nome}"><span class="nt-cores-amostra">${ntAmostra(c, k)}</span>${p.nome}</button>`).join('')}</span></div>
+    <p class="nt-cores-dica">Vale só neste aparelho. A cor de cada nota não muda: na paleta, cada cor vira um tom da família.</p>`;
+}
 function ntEhLista(n) { return Array.isArray(n.checklist); }
 function ntQuando(n) { return new Date(n.updatedAt || n.createdAt || n.id).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''); }
 function ntCaderno() { return !!cfgAba('btn-notes').caderno; }
@@ -101,7 +153,8 @@ function ntRapidaAdicionar() {
 // ═══════════════════════ 2. A NOTA ABERTA (o editor) ══════════════════════
 function ntEditorHTML(n) {
   const lista = ntEhLista(n), hue = ntHue(n);
-  const cores = Object.entries(CORES_NOTA).map(([k, c]) => `<button type="button" class="nt-cor${(n.color || 'default') === k ? ' sel' : ''}" style="--c:${c.hue || 'transparent'}" title="${c.nome}" onclick="ntCor(${n.id}, '${k}')"></button>`).join('');
+  // as bolinhas mostram a cor COMO ELA VAI APARECER (na paleta, o tom da família)
+  const cores = Object.entries(CORES_NOTA).map(([k, c]) => `<button type="button" class="nt-cor${(n.color || 'default') === k ? ' sel' : ''}" style="--c:${ntHue({ color: k }) || 'transparent'}" title="${c.nome}" onclick="ntCor(${n.id}, '${k}')"></button>`).join('');
   return `<div class="nt-ed${lista ? ' e-lista' : ''}" data-id="${n.id}" style="--nh:${hue || 'transparent'}">
     <input type="text" class="nt-ed-tit" value="${esc(n.title || '')}" placeholder="${lista ? 'Nome da lista' : 'Título'}" aria-label="Título" oninput="ntDigitou(${n.id}, 'title', this.value)">
     ${lista ? ntEdItens(n) : `<textarea class="nt-ed-txt" placeholder="Escreva…" aria-label="Texto da nota" oninput="ntDigitou(${n.id}, 'content', this.value); ntCrescer(this)">${esc(n.content || '')}</textarea>`}
@@ -343,6 +396,7 @@ function ntRenderVistasLeve() {
 }
 /** Chamado pelo renderNotes() do app.js. A nota aberta no pop-up se redesenha junto. */
 function ntRender() {
+  aplicarCoresNotas();
   renderFiltrosNota();
   ntRenderVistas();
   const m = document.getElementById('nt-leitor');

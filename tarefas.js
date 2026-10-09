@@ -158,6 +158,9 @@ function tarRapidaPrevia() {
   const lid = tarListaDestino(e);
   partes.push(e.listaNova ? `<span class="tar-lt" style="--cor:${TAR_CORES[tasklists.length % TAR_CORES.length]}">${esc(e.listaNova)} <small>(lista nova)</small></span>` : `<span class="tar-lt" style="--cor:${tarCorLista(lid)}">${esc(listaNome(lid))}</span>`);
   if (e.starred) partes.push('<span class="tar-estrela-tag">⭐ importante</span>');
+  // para onde ela vai (T1): o mesmo quadrante que a faixa "acabou de entrar" vai mostrar
+  const Qp = TAR_QUADS.find(q => q.k === tarQuadrante({ due: e.due, starred: e.starred }));
+  if (Qp) partes.splice(1, 0, `<span class="tar-quad-tag" style="--tom:${Qp.tom}">${Qp.ic} ${Qp.nome}</span>`);
   el.innerHTML = `<span class="tar-entendi">entendi:</span> <b>${esc(e.text || '…')}</b> ${partes.join(' ')}`;
 }
 function tarRapidaAdicionar() {
@@ -166,12 +169,60 @@ function tarRapidaAdicionar() {
   if (!e.text) { inp.focus(); return; }
   let list = tarListaDestino(e);
   if (e.listaNova) { const l = { id: 'l' + novoId(), name: e.listaNova }; tasklists.push(l); salvar('tasklists', tasklists); list = l.id; }
-  tasks.push({ id: novoId(), text: e.text, done: false, createdAt: Date.now(), list, due: e.due, notes: '', starred: e.starred, subtasks: [] });
+  const id = novoId();
+  tasks.push({ id, text: e.text, done: false, createdAt: Date.now(), list, due: e.due, notes: '', starred: e.starred, subtasks: [] });
   salvar('tasks', tasks);
+  // T1 (ditado dele): a tarefa nova sumia lá embaixo, num quadrante. Agora ela aparece logo abaixo da
+  // barra ("acabou de entrar") e o cartão dela pisca onde foi parar.
+  tarEstado.recentes = [{ id, em: Date.now() }, ...(tarEstado.recentes || []).filter(r => r.id !== id)].slice(0, 3);
+  tarEstado.novo = id; clearTimeout(tarEstado.novoTimer); tarEstado.novoTimer = setTimeout(() => { tarEstado.novo = null; }, 2500);
   inp.value = ''; tarRapidaPrevia();
   tarAtualizarTudo();
-  toast(`✅ ${e.text.slice(0, 40)}${e.due ? ' · ' + rotuloData(e.due) : ''}${e.listaNova ? ` · lista nova "${e.listaNova}"` : ''}`);
+  if (e.listaNova) toast(`✅ Lista nova "${e.listaNova}" criada.`);
   inp.focus();
+}
+
+// ── "ACABOU DE ENTRAR": a faixa logo abaixo da barra ──
+const TAR_RECENTE_MS = 10 * 60 * 1000;   // some sozinha depois de 10 minutos
+function tarRenderRecentes() {
+  const casa = document.getElementById('sec-tar-rapida'); if (!casa) return;
+  let el = document.getElementById('tar-recentes');
+  if (!el) { el = document.createElement('div'); el.id = 'tar-recentes'; el.className = 'tar-recentes'; el.setAttribute('aria-live', 'polite'); casa.appendChild(el); }
+  const agora = Date.now();
+  tarEstado.recentes = (tarEstado.recentes || []).filter(r => agora - r.em < TAR_RECENTE_MS && tasks.some(t => t.id === r.id));
+  const lst = tarEstado.recentes.map(r => tasks.find(t => t.id === r.id));
+  // 🪤 a caixa da barra está presa na linha da grade: crescer por DENTRO não muda o tamanho dela e o vigia
+  // da grade (modulos.js) não percebe — a faixa invadia o cartão de baixo nos tablets. Avisa a grade.
+  const reajustar = () => { if (typeof agendarAjuste === 'function') agendarAjuste(); };
+  if (!lst.length) { if (el.innerHTML) { el.innerHTML = ''; reajustar(); } return; }
+  setTimeout(reajustar, 0);
+  el.innerHTML = `<span class="tar-rec-rot">acabou de entrar</span>${lst.map(t => {
+    const Q = TAR_QUADS.find(q => q.k === tarQuadrante(t));
+    return `<div class="tar-rec${t.done ? ' feita' : ''}${tarEstado.novo === t.id ? ' recem' : ''}" style="--cor:${tarCorLista(t.list)}; --tom:${Q.tom}">
+      <button type="button" class="tar-ok" title="${t.done ? 'Desmarcar' : 'Concluir'}" onclick="tarConcluir(${t.id}, this)">${TAR_CHECK}</button>
+      <span class="tar-rec-tx" title="${esc(t.text)}">${esc(t.text)}</span>
+      ${tarTags(t, true)}
+      <button type="button" class="tar-rec-ir" title="Mostrar onde ela ficou" onclick="tarIrPara(${t.id})">${t.done ? '✓ feita' : `${Q.ic} ${Q.nome} →`}</button>
+      <button type="button" class="tar-rec-x" title="Desfazer: apagar esta tarefa" onclick="tarRecDesfazer(${t.id})">↶</button>
+    </div>`;
+  }).join('')}<button type="button" class="tar-rec-fechar" title="Esconder" onclick="tarEstado.recentes = []; tarRenderRecentes()">✕</button>`;
+}
+/** Leva até o cartão da tarefa (abre o quadrante se ela estiver no "+ N mais") e faz ele piscar. */
+function tarIrPara(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  if (!t.done && document.getElementById('tar-foco')) {
+    const k = tarQuadrante(t);
+    if (!document.querySelector(`#tar-foco .tar-c[data-id="${id}"]`)) { tarEstado.quadMais[k] = true; tarRenderFoco(); }
+  }
+  const c = document.querySelector(`#tar-foco .tar-c[data-id="${id}"], #tasks .tar-c[data-id="${id}"]`);
+  if (!c) { toast(t.done ? '✓ Ela já está feita.' : 'Ela está na lista ' + listaNome(t.list) + '.'); return; }
+  c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  c.classList.remove('recem'); void c.offsetWidth; c.classList.add('recem');
+}
+function tarRecDesfazer(id) {
+  tasks = tasks.filter(t => t.id !== id); salvar('tasks', tasks);
+  tarEstado.recentes = (tarEstado.recentes || []).filter(r => r.id !== id);
+  tarAtualizarTudo(); toast('↶ Tarefa desfeita.');
 }
 
 // ═════════════════════════════ 2. O CARTÃO VIVO ═══════════════════════════
@@ -189,7 +240,7 @@ function tarBarraSub(f, n) {
 function tarCartao(t, ctx) {
   const subs = t.subtasks || [], fs = subs.filter(s => s.done).length, ab = !!tarEstado.abertos[t.id];
   const comLista = ctx === 'quad' || taskView === '__star' || taskView === '__all';
-  return `<div class="tar-c${t.done ? ' feita' : ''}${ab ? ' aberto' : ''}" style="--cor:${tarCorLista(t.list)}" data-id="${t.id}"${t.done ? '' : ' draggable="true"'}>
+  return `<div class="tar-c${t.done ? ' feita' : ''}${ab ? ' aberto' : ''}${tarEstado.novo === t.id ? ' recem' : ''}" style="--cor:${tarCorLista(t.list)}" data-id="${t.id}"${t.done ? '' : ' draggable="true"'}>
     <div class="tar-c-linha">
       <button type="button" class="tar-ok" title="${t.done ? 'Desmarcar' : 'Concluir'}" onclick="tarConcluir(${t.id}, this)">${TAR_CHECK}</button>
       <div class="tar-c-corpo" onclick="tarAbrir(${t.id})" title="Toque para ver as opções">
@@ -219,7 +270,7 @@ function tarAbrir(id) { tarEstado.abertos[id] = !tarEstado.abertos[id]; tarRende
 /** O check com a animação: a bolinha enche, o cartão some, e aí grava. */
 function tarConcluir(id, btn) {
   const t = tasks.find(x => x.id === id); if (!t) return;
-  const caixa = btn && btn.closest('.tar-c, .tar-prox');
+  const caixa = btn && btn.closest('.tar-c, .tar-prox, .tar-rec');
   if (!t.done && caixa && !caixa.classList.contains('concluindo')) {
     caixa.classList.add('concluindo');
     setTimeout(() => { tarEstado.pulo = 0; toggleTask(id); }, 380);
@@ -436,6 +487,6 @@ function verSecaoTarefas(s, el) {
 }
 /** Chamado pelo renderTasks() do app.js: tudo que mostra tarefa se redesenha. */
 function tarRender() {
-  tarRenderFoco(); tarRenderGrupos(); tarRenderRotinas();
+  tarRenderFoco(); tarRenderGrupos(); tarRenderRotinas(); tarRenderRecentes();
   if (document.getElementById('tar-rapida-previa') && !document.getElementById('tar-rapida-previa').innerHTML) tarRapidaPrevia();
 }

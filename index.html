@@ -1130,15 +1130,50 @@
     </div>
     <!-- Módulo 11: Viagens -->
     <div id="trips" class="tab-content">
-      <div class="focus-header-tabs agenda-tabs" id="viagens-secoes" style="margin-top:20px">
+      <div id="sec-vg-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="vg-rapida" aria-label="Adicionar rápido" placeholder="Para onde?" autocomplete="off" enterkeyhint="done" oninput="vgRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); vgRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="vgRapidaAdicionar()">↵</button>
+        </div>
+        <div id="vg-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="viagens-secoes">
         <span class="active" onclick="verSecaoViagens('viagens', this)">✈️ Viagens</span>
         <span onclick="verSecaoViagens('milhas', this)">🎫 Milhas</span>
       </div>
-      <div id="sec-milhas" class="agenda-sec" hidden>
+      <div id="sec-viagens" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="vg-viagens">
+          <h2>✈️ Viagens</h2>
+          <div id="trip-lista"></div>
+        </div>
         <div class="card" style="margin-top: 20px;">
+          <h2>✈️ Nova viagem</h2>
+          <form id="trip-form">
+            <input type="hidden" id="trip-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
+              <div><label for="trip-destino">Destino:</label><input type="text" id="trip-destino" placeholder="Governador Valadares" required></div>
+              <div><label for="trip-inicio">Ida:</label><input type="date" id="trip-inicio"></div>
+              <div><label for="trip-fim">Volta:</label><input type="date" id="trip-fim"></div>
+              <div><label for="trip-status">Situação:</label><select id="trip-status"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 10px;">
+              <div><label for="trip-orcamento">Orçamento (R$):</label><input type="number" id="trip-orcamento" step="0.01" min="0"></div>
+              <div><label for="trip-notas">Notas:</label><input type="text" id="trip-notas" placeholder="com quem, por quê, links"></div>
+            </div>
+            <div style="display:flex; gap:10px;"><button type="submit" id="trip-submit" style="flex:1">Criar viagem</button><button type="button" id="trip-cancel" class="btn" hidden onclick="cancelarEdicaoViagem()">Cancelar</button></div>
+          </form>
+        </div>
+      </div>
+      <div id="sec-milhas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="vg-milhas">
           <h2>🎫 Milhas</h2>
-          <p class="hint">Saldo alto não quer dizer nada. O que decide é a comparação: <strong>quanto você paga</strong> por mil milhas e <strong>quanto você obtém</strong> quando resgata. Anote as compras e os resgates e o app faz as duas contas e dá o veredito.</p>
-          <div id="milha-resumo" class="fin-summary-line"></div>
+          <div id="milha-resumo" class="lz-resumo vg-resumo3"></div>
+          <div id="milha-lista"></div>
+          <p class="hint" style="margin-top:12px">Saldo alto não quer dizer nada: o que decide é <strong>quanto você paga</strong> por mil milhas e <strong>quanto obtém</strong> quando resgata. O saldo é digitado à mão de propósito (não existe API pública de programa de fidelidade) — a barra acima atualiza em um toque.</p>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎫 Novo programa</h2>
           <form id="milha-form">
             <input type="hidden" id="milha-id">
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
@@ -1159,33 +1194,9 @@
               <button type="button" class="btn" id="milha-cancel" hidden onclick="cancelarEdicaoMilha()">Cancelar</button>
             </div>
           </form>
-          <div id="milha-lista" class="milha-lista"></div>
-          <p class="hint" style="margin-top:10px">O saldo é digitado à mão de propósito: não existe API pública de programa de fidelidade. Use o 🔄 para atualizar em dois toques quando conferir no app da companhia.</p>
         </div>
       </div>
-      <div id="sec-viagens" class="agenda-sec">
-      <div class="card" style="margin-top: 20px;">
-        <h2>✈️ Viagens</h2>
-        <p class="hint">Cada viagem já nasce com lista de mala e de documentos. Clique na viagem para abrir e marcar os itens: o clique roda entre ⬜ ainda não · ✅ já tenho · 🛒 preciso comprar. O 📅 põe ida e volta na sua agenda.</p>
-        <form id="trip-form">
-          <input type="hidden" id="trip-id">
-          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
-            <div><label for="trip-destino">Destino:</label><input type="text" id="trip-destino" placeholder="Governador Valadares" required></div>
-            <div><label for="trip-inicio">Ida:</label><input type="date" id="trip-inicio"></div>
-            <div><label for="trip-fim">Volta:</label><input type="date" id="trip-fim"></div>
-            <div><label for="trip-status">Situação:</label><select id="trip-status"></select></div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 10px;">
-            <div><label for="trip-orcamento">Orçamento (R$):</label><input type="number" id="trip-orcamento" step="0.01" min="0"></div>
-            <div><label for="trip-notas">Notas:</label><input type="text" id="trip-notas" placeholder="com quem, por quê, links"></div>
-          </div>
-          <div style="display:flex; gap:10px;"><button type="submit" id="trip-submit" style="flex:1">Criar viagem</button><button type="button" id="trip-cancel" class="btn" hidden onclick="cancelarEdicaoViagem()">Cancelar</button></div>
-        </form>
-        <ul id="trip-lista" class="transaction-list" style="margin-top: 15px;"></ul>
-      </div>
-      </div>
     </div>
-
     <!-- Módulo 12: Rede -->
     <div id="net" class="tab-content">
       <div class="focus-header-tabs agenda-tabs" id="rede-secoes" style="margin-top:20px">
@@ -1661,6 +1672,12 @@
       <div class="modal-body" id="lz-detalhe-corpo"></div>
     </div>
   </div>
+  <div id="vg-detalhe" class="modal-overlay" onclick="if (event.target === this) vgFechar()" onkeydown="if (event.key === 'Escape') vgFechar()">
+    <div class="modal-content vg-detalhe-caixa">
+      <div class="modal-header"><h3 id="vg-detalhe-tit">✈️</h3><button type="button" class="close-modal" title="Fechar" onclick="vgFechar()">✕</button></div>
+      <div class="modal-body" id="vg-detalhe-corpo"></div>
+    </div>
+  </div>
   <div id="compra-modal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header"><h3>🛒 Comprei</h3><button class="close-modal" onclick="fecharCompra()">✕</button></div>
@@ -1759,6 +1776,7 @@
   <script src="tarefas.js"></script>
   <script src="notas.js"></script>
   <script src="lazer.js"></script>
+  <script src="viagens.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

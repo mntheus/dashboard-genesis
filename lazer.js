@@ -68,12 +68,12 @@ function lzRapidaPrevia() {
   const e = lzEntender(inp.value), p = [];
   if (e.tipo === 'midia') {
     const t = TIPOS_MIDIA[e.kind]; p.push(`<span class="tar-lt" style="--cor:${LZ_COR_TIPO[e.kind]}">${t[0]} ${t[1]}${e.kindDito ? '' : ' <small>(padrão)</small>'}</span>`);
-    if (e.where) p.push(`<span class="nt-marc">${esc(e.where)}</span>`);
+    if (e.where) p.push(`<span class="nt-marc sem-hash">${esc(e.where)}</span>`);
     p.push('<span class="tar-dica">🔖 vai para "quero ver"</span>');
   } else if (e.tipo === 'saida') {
     const t = TIPOS_SAIDA[e.tipoSaida]; p.push(`<span class="tar-lt" style="--cor:var(--info)">${t[0]} ${t[1]}</span>`);
     p.push(e.data ? `<span class="tar-due prox">📅 ${esc(rotuloDataLonga(e.data))}${e.hora ? ' · ' + e.hora : ''} → marcado</span>` : '<span class="tar-dica">💭 sem dia → "quero ir"</span>');
-    if (e.valor) p.push(`<span class="nt-marc">${formatCurrency(e.valor)}</span>`);
+    if (e.valor) p.push(`<span class="nt-marc sem-hash">${formatCurrency(e.valor)}</span>`);
   } else {
     const m = MOMENTOS[e.moment]; p.push(`<span class="tar-lt" style="--cor:${LZ_COR_MOMENTO[e.moment]}">${m[0]} ${m[1]}</span>`);
     p.push(e.url ? '<span class="tar-dica">🔗 link ok</span>' : '<span class="tar-due atras">falta o link</span>');
@@ -122,7 +122,7 @@ function lzDesenharDetalhe() {
     tit.textContent = `${t[0]} ${t[1]}`;
     html = `<div class="lz-det">${lzCapa(x, 'det')}<div class="lz-det-info">
       <h3>${esc(x.title)}</h3>
-      <div class="tar-tags"><span class="tar-lt" style="--cor:${s[2]}">${s[0]} ${s[1]}</span>${x.where ? `<span class="nt-marc">${esc(x.where)}</span>` : ''}${serie && x.season ? `<span class="nt-marc">T${x.season} · E${x.episode || 0}</span>` : ''}</div>
+      <div class="tar-tags"><span class="tar-lt" style="--cor:${s[2]}">${s[0]} ${s[1]}</span>${x.where ? `<span class="nt-marc sem-hash">${esc(x.where)}</span>` : ''}${serie && x.season ? `<span class="nt-marc sem-hash">T${x.season} · E${x.episode || 0}</span>` : ''}</div>
       ${x.who ? `<small>indicou: ${esc(x.who)}</small>` : ''}${x.watchedAt ? `<small>visto em ${isoParaBR(x.watchedAt)}</small>` : ''}
       <div class="midia-nota lz-estrelas">${estrelas(x)}</div>
       ${x.sobre ? `<p class="lz-sobre">${esc(x.sobre)}${x.wiki ? ` <a href="${esc(x.wiki)}" target="_blank" rel="noopener">Wikipedia ↗</a>` : ''}</p>` : ''}
@@ -144,7 +144,7 @@ function lzDesenharDetalhe() {
     tit.textContent = `${t[0]} ${t[1]}`;
     html = `<div class="lz-det">${lzFoto(x, 'det')}<div class="lz-det-info">
       <h3>${esc(x.nome)}</h3>
-      <div class="tar-tags"><span class="tar-lt" style="--cor:${s[2]}">${s[0]} ${s[1]}</span>${x.data ? `<span class="nt-marc">${esc(rotuloDataLonga(x.data))}${x.hora ? ' · ' + esc(x.hora) : ''}</span>` : ''}${x.valor ? `<span class="nt-marc">${formatCurrency(x.valor)}</span>` : ''}</div>
+      <div class="tar-tags"><span class="tar-lt" style="--cor:${s[2]}">${s[0]} ${s[1]}</span>${x.data ? `<span class="nt-marc sem-hash">${esc(rotuloDataLonga(x.data))}${x.hora ? ' · ' + esc(x.hora) : ''}</span>` : ''}${x.valor ? `<span class="nt-marc sem-hash">${formatCurrency(x.valor)}</span>` : ''}</div>
       ${[x.cidade, x.local, x.com ? 'com ' + x.com : ''].filter(Boolean).length ? `<small>${esc([x.cidade, x.local, x.com ? 'com ' + x.com : ''].filter(Boolean).join(' · '))}</small>` : ''}
       <div class="midia-nota lz-estrelas">${estrelasSaida(x)}</div>
       ${x.sobre ? `<p class="lz-sobre">${esc(x.sobre)}${x.wiki ? ` <a href="${esc(x.wiki)}" target="_blank" rel="noopener">Wikipedia ↗</a>` : ''}</p>` : ''}

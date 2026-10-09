@@ -4023,6 +4023,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .nt-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .nt-marc { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: .68rem; font-weight: 600; line-height: 1.65; color: var(--txt2); background: color-mix(in srgb, var(--txt3) 14%, transparent); white-space: nowrap; }
 .nt-marc::before { content: '#'; opacity: .55; margin-right: 1px; }
+/* o mesmo chip para informação que NÃO é marcador (onde assistir, valor, saldo): sem o # */
+.nt-marc.sem-hash::before { content: none; }
 .nt-novo { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 6px 14px; border-radius: var(--r2); font-size: var(--t-apoio); font-weight: 600; color: var(--acento); border: 1px dashed color-mix(in srgb, var(--acento) 55%, transparent); }
 .nt-novo:hover { background: color-mix(in srgb, var(--acento) 10%, transparent); }
 .nt-pe { display: flex; justify-content: center; margin-top: var(--s3); }
@@ -4067,8 +4069,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 /* a nota aberta (pop-up ou página do caderno) */
 /* a regra geral limita o pop-up a 360 px: a nota aberta precisa de página de verdade */
 /* a barra do Jarvis (embaixo, camada 1600) e o trilho de abas (em cima) ficam acima dos pop-ups: a nota não encosta neles */
-#nt-leitor { padding: 60px 16px 86px; }
-#nt-leitor .modal-content.nt-leitor-caixa { width: min(720px, 100%); max-width: 720px; max-height: calc(100dvh - 146px); overflow-y: auto; }
+#nt-leitor { padding: 80px 16px 86px; }
+#nt-leitor .modal-content.nt-leitor-caixa { width: min(720px, 100%); max-width: 720px; max-height: calc(100dvh - 166px); overflow-y: auto; }
 .nt-ed { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .nt-ed input.nt-ed-tit { margin: 0; padding: 6px 2px; border: none; border-bottom: 2px solid color-mix(in srgb, var(--nh) 70%, var(--fio-sutil)); border-radius: 0; background: transparent; font-size: 1.25rem; font-weight: 700; color: var(--txt-forte); box-shadow: none; }
 .nt-ed input.nt-ed-tit:focus { outline: none; border-bottom-color: var(--acento); }
@@ -4222,8 +4224,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .lz-ep-mais { font-weight: 700; color: var(--atencao); border-color: color-mix(in srgb, var(--atencao) 50%, transparent); }
 
 /* o detalhe (pop-up) — folga para a barra do Jarvis e o trilho (armadilha 61) */
-#lz-detalhe { padding: 60px 16px 86px; }
-#lz-detalhe .modal-content.lz-detalhe-caixa { width: min(600px, 100%); max-width: 600px; max-height: calc(100dvh - 146px); overflow-y: auto; }
+#lz-detalhe { padding: 80px 16px 86px; }
+#lz-detalhe .modal-content.lz-detalhe-caixa { width: min(600px, 100%); max-width: 600px; max-height: calc(100dvh - 166px); overflow-y: auto; }
 .lz-det { display: flex; gap: 16px; align-items: flex-start; }
 @container (max-width: 440px) { .lz-det { flex-direction: column; align-items: center; } .lz-det .lz-capa.det, .lz-det .lz-foto.det { width: 120px; } }
 .lz-det-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
@@ -4310,3 +4312,181 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .lz-pl { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
 .lz-pl a { flex: 1; min-width: 0; color: var(--txt-forte); font-size: var(--t-apoio); overflow-wrap: anywhere; }
 .lz-tocador { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIAGENS E MILHAS (08/10) — o cartão de embarque, o passaporte, os postais, a
+   viagem aberta com abas, a carteira de programas e a balança.
+   ════════════════════════════════════════════════════════════════════════════ */
+#trip-lista, #milha-lista, #vg-detalhe-corpo { container-type: inline-size; }
+#viagens-secoes { justify-content: center; margin: 0; padding-bottom: 6px; }
+#trip-lista .tar-gr-tit, #milha-lista .tar-gr-tit, #vg-detalhe-corpo .tar-gr-tit { margin-top: var(--s3); }
+.vg-resumo3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 420px) { .vg-resumo3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* o cartão de embarque */
+.vg-embarques { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); }
+.vg-embarque {
+  --cor: var(--info);
+  position: relative; display: flex; min-width: 0; cursor: pointer; border-radius: 14px; outline: none;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--cor) 20%, var(--sup-1)), var(--sup-1) 70%);
+  border: 1px solid color-mix(in srgb, var(--cor) 40%, var(--fio-sutil)); box-shadow: var(--elev1);
+}
+.vg-embarque:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.vg-embarque:hover { box-shadow: var(--elev2); }
+.vg-emb-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.vg-emb-rot { font-size: .62rem; letter-spacing: .1em; font-weight: 700; color: var(--txt3); }
+.vg-emb-dest { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.vg-emb-dest b { font-size: 1.3rem; font-weight: 800; color: var(--txt-forte); text-transform: uppercase; letter-spacing: .02em; overflow-wrap: break-word; min-width: 0; line-height: 1.15; }
+.vg-emb-dest.longo b, .vg-embarque.grande .vg-emb-dest.longo b { font-size: 1.05rem; }
+.vg-cod { flex: 0 0 auto; padding: 1px 7px; border-radius: 6px; font-size: .7rem; font-weight: 800; letter-spacing: .1em; color: var(--cor); border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent); }
+.vg-emb-datas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.vg-emb-datas span { font-size: 1rem; font-weight: 700; color: var(--txt-forte); }
+.vg-emb-datas i { font-style: normal; color: var(--cor); }
+.vg-emb-datas small { font-size: .72rem; color: var(--txt3); }
+.vg-emb-aneis { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.vg-anel { display: inline-flex; align-items: center; gap: 6px; }
+.vg-anel svg { width: 30px; height: 30px; flex: 0 0 auto; }
+.vg-anel .f { fill: none; stroke: var(--sup-2); stroke-width: 5; }
+.vg-anel .c { fill: none; stroke: var(--cor); stroke-width: 5; stroke-linecap: round; }
+.vg-anel .c.ok { stroke: var(--ok); }
+.vg-anel > span { display: flex; flex-direction: column; line-height: 1.15; }
+.vg-anel b { font-size: .76rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.vg-anel small { font-size: .64rem; color: var(--atencao); font-weight: 700; }
+.vg-orc { display: flex; align-items: center; gap: 8px; }
+.vg-orc-barra { flex: 1; max-width: 240px; height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.vg-orc-barra i { display: block; height: 100%; border-radius: 3px; background: var(--cor); }
+.vg-orc-barra.passou i { background: var(--perigo); }
+.vg-orc small { font-size: .7rem; color: var(--txt3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vg-emb-canhoto {
+  position: relative; flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 6px; text-align: center;
+  border-left: 2px dashed color-mix(in srgb, var(--cor) 45%, var(--fio-sutil));
+}
+.vg-emb-canhoto::before, .vg-emb-canhoto::after { content: ''; position: absolute; left: -9px; width: 16px; height: 16px; border-radius: 50%; background: var(--card, var(--bg)); }
+.vg-emb-canhoto::before { top: -9px; }
+.vg-emb-canhoto::after { bottom: -9px; }
+.vg-emb-canhoto small { font-size: .62rem; font-weight: 700; letter-spacing: .1em; color: var(--txt3); }
+.vg-emb-canhoto b { font-size: .95rem; font-weight: 800; color: var(--txt-forte); line-height: 1.2; overflow-wrap: anywhere; }
+.vg-emb-canhoto.hoje b { color: var(--atencao); }
+.vg-embarque.grande .vg-emb-dest b { font-size: 1.9rem; }
+.vg-embarque.grande .vg-emb-canhoto { flex-basis: 128px; }
+.vg-embarque.grande .vg-emb-canhoto b { font-size: 1.35rem; }
+/* no celular o canhoto vira uma faixa EMBAIXO (ao lado ele roubava a largura e tudo empilhava) */
+@container (max-width: 460px) {
+  .vg-embarque { flex-direction: column; }
+  .vg-embarque.grande .vg-emb-dest b { font-size: 1.45rem; }
+  .vg-emb-canhoto, .vg-embarque.grande .vg-emb-canhoto { flex: 0 0 auto; flex-direction: row; justify-content: center; gap: 8px; padding: 8px 12px; border-left: none; border-top: 2px dashed color-mix(in srgb, var(--cor) 45%, var(--fio-sutil)); }
+  .vg-emb-canhoto::before, .vg-emb-canhoto::after { left: auto; top: -9px; bottom: auto; }
+  .vg-emb-canhoto::before { left: -9px; }
+  .vg-emb-canhoto::after { right: -9px; }
+  .vg-embarque.grande .vg-emb-canhoto b, .vg-emb-canhoto b { font-size: 1rem; }
+}
+
+/* o passaporte: carimbos */
+.vg-passaporte { display: grid; gap: 14px 10px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); padding: 14px; border-radius: 12px; background: repeating-linear-gradient(0deg, transparent 0 22px, color-mix(in srgb, var(--txt4) 10%, transparent) 22px 23px), color-mix(in srgb, #7f1d1d 10%, var(--sup-1)); border: 1px solid var(--fio-sutil); }
+.vg-carimbo { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; min-width: 0; padding: 4px; }
+.vg-carimbo:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 50%; }
+.vg-car-anel {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 100%; max-width: 104px; aspect-ratio: 1; border-radius: 50%;
+  border: 3px double var(--cor); color: var(--cor); transform: rotate(var(--rot)); opacity: .9; text-align: center; padding: 8px; transition: transform var(--mov), opacity var(--mov);
+}
+.vg-carimbo:hover .vg-car-anel { transform: rotate(0deg) scale(1.05); opacity: 1; }
+.vg-car-anel b { font-size: .74rem; font-weight: 800; text-transform: uppercase; line-height: 1.1; overflow-wrap: break-word; max-width: 100%; }
+/* nome comprido ("Governador Valadares") encolhe em vez de quebrar no meio da palavra */
+.vg-car-anel.longo b { font-size: .58rem; letter-spacing: -.01em; }
+.vg-car-anel small { font-size: .58rem; font-weight: 700; letter-spacing: .06em; }
+.vg-car-anel i { font-style: normal; font-size: .56rem; font-weight: 700; letter-spacing: .1em; opacity: .8; }
+
+/* os postais das ideias */
+.vg-postais { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); }
+.vg-postal { all: unset; box-sizing: border-box; position: relative; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 96px; padding: 12px 56px 12px 12px; border-radius: 6px; background: color-mix(in srgb, var(--cor) 9%, var(--sup-1)); border: 1px dashed color-mix(in srgb, var(--cor) 50%, var(--fio-sutil)); }
+.vg-postal:hover { background: color-mix(in srgb, var(--cor) 15%, var(--sup-1)); }
+.vg-postal:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.vg-postal b { font-size: var(--t-corpo); color: var(--txt-forte); overflow-wrap: anywhere; font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+.vg-postal small { font-size: .7rem; color: var(--txt3); overflow-wrap: anywhere; }
+.vg-selo { position: absolute; top: 10px; right: 10px; width: 38px; height: 44px; display: grid; place-items: center; font-size: .6rem; font-weight: 800; letter-spacing: .06em; color: #fff; background: var(--cor); border: 2px dotted rgba(255,255,255,.7); outline: 2px solid var(--cor); }
+
+/* a viagem aberta */
+#vg-detalhe { padding: 80px 16px 86px; }
+#vg-detalhe .modal-content.vg-detalhe-caixa { width: min(680px, 100%); max-width: 680px; max-height: calc(100dvh - 166px); overflow-y: auto; }
+.vg-det-topo { --cor: var(--info); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border-radius: var(--r2); background: color-mix(in srgb, var(--cor) 12%, var(--sup-1)); border: 1px solid color-mix(in srgb, var(--cor) 35%, var(--fio-sutil)); }
+.vg-det-topo > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vg-det-topo b { font-size: var(--t-corpo); color: var(--txt-forte); }
+.vg-det-topo small { font-size: .74rem; color: var(--txt3); }
+.vg-det-topo select { width: auto; margin: 0; }
+.vg-abas { justify-content: center; flex-wrap: wrap; border-bottom: none; margin: 12px 0 6px; }
+.vg-abas span small { color: var(--txt4); font-size: .7rem; }
+.vg-aba { min-height: 120px; }
+.vg-resumo-lista { font-size: .74rem; color: var(--txt3); margin: 4px 0 8px; }
+.vg-itens { display: flex; flex-direction: column; gap: 4px; }
+.vg-item { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 2px 0; border-bottom: 1px dashed var(--fio-sutil); }
+.vg-item > span { flex: 1; min-width: 0; font-size: var(--t-apoio); color: var(--txt); overflow-wrap: anywhere; }
+.vg-item.tenho > span { color: var(--txt4); text-decoration: line-through; }
+.vg-item.comprar > span { color: var(--atencao); font-weight: 600; }
+.vg-item .mala-estado { flex: 0 0 auto; }
+.vg-reserva { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.vg-res-ic { font-size: 1.2rem; flex: 0 0 auto; }
+.vg-reserva > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vg-reserva b { font-size: var(--t-apoio); color: var(--txt-forte); overflow-wrap: anywhere; }
+.vg-reserva b a { color: inherit; }
+.vg-reserva small { font-size: .68rem; color: var(--txt4); overflow-wrap: anywhere; }
+.vg-reserva strong { font-size: var(--t-apoio); color: var(--txt-forte); white-space: nowrap; }
+.vg-form-res { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--fio-sutil); }
+.vg-form-res input, .vg-form-res select { margin: 0; width: 100%; min-width: 0; font-size: var(--t-apoio); }
+.vg-form-res .mini-btn { min-height: 36px; }
+.vg-roteiro { display: flex; flex-direction: column; gap: 6px; }
+.vg-dia { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: start; padding: 6px 0; border-bottom: 1px dashed var(--fio-sutil); }
+.vg-dia-rot { display: flex; flex-direction: column; }
+.vg-dia-rot b { font-size: var(--t-apoio); color: var(--txt-forte); }
+.vg-dia-rot small { font-size: .68rem; color: var(--txt4); }
+.vg-dia-itens { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.vg-rot-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: var(--sup-1); }
+.vg-rot-item span { flex: 1; min-width: 0; font-size: var(--t-apoio); overflow-wrap: anywhere; }
+
+/* a balança */
+.vg-balanca { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 20px; margin-bottom: var(--s3); padding: 10px 14px; border-radius: 12px; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.vg-balanca.vazia { justify-content: flex-start; font-size: var(--t-apoio); }
+.vg-bal-svg { width: min(260px, 100%); height: auto; overflow: visible; }
+.vg-bal-svg .pe { fill: var(--txt4); }
+.vg-bal-svg .braco { fill: var(--txt3); }
+.vg-bal-svg .fio { stroke: var(--txt4); stroke-width: 1.5; }
+.vg-bal-svg .prato.pago { fill: color-mix(in srgb, var(--info) 70%, transparent); }
+.vg-bal-svg .prato.obtido { fill: color-mix(in srgb, var(--ok) 70%, transparent); }
+.vg-bal-svg .eixo { fill: var(--acento); }
+.vg-bal-svg .rot { font-size: 10px; fill: var(--txt3); text-anchor: middle; text-transform: uppercase; letter-spacing: .08em; }
+.vg-bal-svg .val { font-size: 12px; font-weight: 700; fill: var(--txt-forte); text-anchor: middle; }
+.vg-bal-svg g { transition: transform .8s ease; }
+.vg-bal-ver { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 260px; }
+.vg-bal-ver b { font-size: 1.05rem; }
+.vg-bal-ver b.bom { color: var(--ok); }
+.vg-bal-ver b.ruim { color: var(--perigo); }
+.vg-bal-ver small { font-size: .74rem; color: var(--txt3); }
+
+/* a carteira de programas */
+.vg-carteira { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
+.vg-cartao {
+  --cor: var(--info);
+  all: unset; box-sizing: border-box; cursor: pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+  min-width: 0; aspect-ratio: 1.62; padding: 14px 16px; border-radius: 14px; color: #fff;
+  background: radial-gradient(circle at 85% 0%, rgba(255,255,255,.22), transparent 45%), linear-gradient(135deg, color-mix(in srgb, var(--cor) 85%, #000), color-mix(in srgb, var(--cor) 40%, #000));
+  box-shadow: 0 8px 20px rgba(0,0,0,.35); transition: transform var(--mov), box-shadow var(--mov);
+}
+.vg-cartao:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,0,0,.4); }
+.vg-cartao:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.vg-cartao-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vg-cartao-topo b { font-size: var(--t-corpo); font-weight: 800; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0,0,0,.4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vg-chip { flex: 0 0 auto; width: 34px; height: 26px; border-radius: 5px; background: linear-gradient(135deg, #f5d27a, #b98a2c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.vg-cartao-saldo { display: flex; align-items: baseline; gap: 6px; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; text-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.vg-cartao-saldo small { font-size: .72rem; font-weight: 600; opacity: .85; }
+.vg-cartao-pe { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: .74rem; opacity: .95; }
+.vg-cartao-pe .vence { padding: 1px 7px; border-radius: 999px; background: rgba(0,0,0,.35); color: #fde68a; font-weight: 700; animation: tar-pulso 1.8s ease-in-out infinite; }
+.vg-cartao-pe .venceu { padding: 1px 7px; border-radius: 999px; background: rgba(127,29,29,.7); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .vg-cartao-pe .vence { animation: none; } }
+/* o cartão grande: reservas e roteiro no meio, só se couber */
+.vg-emb-extra { display: none; }
+@container (min-width: 720px) { .vg-embarque.grande .vg-emb-extra { display: flex; flex-direction: column; justify-content: center; gap: 6px; flex: 0 1 300px; min-width: 0; padding: 12px 14px; border-left: 1px solid color-mix(in srgb, var(--cor) 25%, var(--fio-sutil)); } }
+.vg-emb-extra span { display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: var(--txt2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vg-emb-extra span small { color: var(--txt-forte); font-weight: 700; }
+.vg-emb-extra > small { font-size: .7rem; color: var(--txt4); }
+.vg-emb-extra .vg-emb-rot2 { color: var(--cor); font-weight: 600; }
+/* no celular o cartão de milhas fica mais achatado (no formato de cartão de verdade, 3 programas ocupavam a tela toda) */
+@container (max-width: 460px) { .vg-cartao { aspect-ratio: 2.3; padding: 12px 14px; } .vg-cartao-saldo { font-size: 1.45rem; } }

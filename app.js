@@ -4145,35 +4145,8 @@ function viagemNaAgenda(id) {
   salvar('events', events); redesenharAgenda(); toast('📅 Ida e volta criadas na agenda.');
 }
 function redesenharViagens() { renderViagens(); renderMilhas(); }
-function renderViagens() {
-  const ul = document.getElementById('trip-lista'); if (!ul) return; ul.innerHTML = '';
-  const sel = document.getElementById('trip-status'); if (sel && !sel.options.length) sel.innerHTML = Object.entries(STATUS_VIAGEM).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
-  if (!trips.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma viagem ainda. Crie uma — a mala e os documentos já vêm com uma lista básica.</li>'; return; }
-  [...trips].sort((a, b) => (a.inicio || '9999').localeCompare(b.inicio || '9999')).forEach(t => {
-    const s = STATUS_VIAGEM[t.status] || STATUS_VIAGEM.ideia; const aberta = viagemAberta === t.id;
-    const mala = t.mala || []; const docs = t.docs || [];
-    const faltam = t.inicio ? Math.round((new Date(t.inicio) - new Date(hojeISO())) / 86400000) : null;
-    ul.innerHTML += `<li class="viagem-item" style="border-left-color:${s[2]}"><div style="width:100%">
-      <div class="viagem-topo" onclick="abrirViagem(${t.id})">
-        <div class="transaction-info" style="flex:1"><span>${s[0]} ${esc(t.destino)} <small class="category-badge" style="color:${s[2]}; background:${s[2]}22">${s[1]}</small></span>
-          <small class="item-date">${t.inicio ? isoParaBR(t.inicio) : 'sem data'}${t.fim ? ' a ' + isoParaBR(t.fim) : ''}${t.inicio && t.fim ? ` · ${diasDeViagem(t)} dias` : ''}${faltam !== null && faltam > 0 && t.status !== 'feita' ? ` · faltam ${faltam} dias` : ''}${t.orcamento ? ` · orçamento ${formatCurrency(t.orcamento)}` : ''}${t.gasto ? ` · reservado ${formatCurrency(t.gasto)}` : ''}</small>
-          <small class="item-date">🧳 ${mala.filter(x => x.done).length}/${mala.length} · 📄 ${docs.filter(x => x.done).length}/${docs.length} · 🎟️ ${(t.reservas || []).length} reservas</small></div>
-        <div class="item-actions"><button class="mini-btn" title="Pôr ida e volta na agenda" onclick="event.stopPropagation(); viagemNaAgenda(${t.id})">📅</button><button class="mini-btn" title="Editar" onclick="event.stopPropagation(); editarViagem(${t.id})">✎</button><button class="mini-btn" title="Apagar" onclick="event.stopPropagation(); removerViagem(${t.id})">✕</button><button class="mini-btn">${aberta ? '▲' : '▼'}</button></div>
-      </div>
-      ${aberta ? `<div class="viagem-det" data-id="${t.id}">
-        ${t.notas ? `<small class="item-notes">${linkify(esc(t.notas))}</small>` : ''}
-        <div class="viagem-cols">
-          ${['mala', 'docs'].map(lista => `<div><h5>${lista === 'mala' ? '🧳 Mala' : '📄 Documentos'} <small style="font-weight:400; color:var(--txt4)">${contarMala(t[lista], 'tenho')} tenho · ${contarMala(t[lista], 'comprar')} comprar · ${contarMala(t[lista], 'falta')} a ver</small></h5>
-            ${(t[lista] || []).map((it, i) => { const e = estadoItem(it); const m = ESTADOS_MALA[e]; return `<div class="subtask item-mala ${e}"><button type="button" class="mala-estado" title="${m[1]} — clique para trocar" onclick="itemViagem(${t.id}, '${lista}', ${i})">${m[0]}</button><span class="sub-txt">${esc(it.text)}</span><button class="mini-btn xs" onclick="removerItemViagem(${t.id}, '${lista}', ${i})">✕</button></div>`; }).join('')}
-            ${contarMala(t[lista], 'comprar') ? `<button class="mini-btn" style="margin-top:5px" onclick="comprasDaViagem(${t.id})">🛒 mandar para as compras</button>` : ''}
-            <div class="note-add add-${lista}"><input type="text" placeholder="+ item" onkeydown="if (event.key === 'Enter') { event.preventDefault(); addItemViagem(${t.id}, '${lista}', this); }"><button class="mini-btn" onclick="addItemViagem(${t.id}, '${lista}', this.previousElementSibling)">＋</button></div></div>`).join('')}
-          <div><h5>🎟️ Reservas</h5>
-            ${(t.reservas || []).map((r, i) => `<div class="reserva">${TIPOS_RESERVA[r.tipo] || '📌'} ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.desc)} ${iconeDoLink(r.url)}</a>` : esc(r.desc)}${r.valor ? ` <small>${formatCurrency(r.valor)}</small>` : ''}<button class="mini-btn xs" onclick="removerReserva(${t.id}, ${i})">✕</button></div>`).join('') || '<div class="stat-line muted">nenhuma</div>'}
-            <button class="mini-btn" style="margin-top:6px" onclick="addReserva(${t.id})">＋ reserva</button></div>
-        </div></div>` : ''}
-    </div></li>`;
-  });
-}
+// O desenho de Viagens e Milhas (embarque, passaporte, carteira, balança) mora no viagens.js (08/10).
+function renderViagens() { vgRenderViagens(); }
 
 // ============================================================================
 // MILHAS (módulo 46: `milhas`)
@@ -4304,88 +4277,7 @@ function ligarMovViagem(id, movId, tripId) {
   salvar('milhas', milhas); renderMilhas();
 }
 
-function renderMilhas() {
-  const el = document.getElementById('milha-lista'); if (!el) return;
-  const dl = document.getElementById('milha-programas');
-  const resumo = document.getElementById('milha-resumo');
-  const total = milhas.reduce((a, p) => a + (Number(p.saldo) || 0), 0);
-  const valor = milhas.reduce((a, p) => a + valorDoSaldo(p), 0);
-  const vencendo = milhas.filter(p => { const d = diasAteValidade(p); return d !== null && d >= 0 && d <= 90 && p.saldo > 0; });
-  const todosMovs = milhas.flatMap(p => p.movs || []);
-  const pago = rsPorMilheiro(todosMovs.filter(m => ['compra', 'transferencia'].includes(m.tipo) && Number(m.valor) > 0));
-  const obtido = rsPorMilheiro(todosMovs.filter(m => m.tipo === 'resgate' && Number(m.valor) > 0));
-  if (resumo) {
-    resumo.innerHTML = `<span>🎫 <strong>${total.toLocaleString('pt-BR')}</strong> milhas em ${plural(milhas.length, 'programa', 'programas')}</span>`
-      + (valor ? `<span>💰 valem ~<strong>${formatCurrency(valor)}</strong></span>` : '')
-      + (pago ? `<span>💳 pagou <strong>${formatCurrency(pago)}</strong>/milheiro</span>` : '')
-      + (obtido ? `<span>✈️ obteve <strong style="color:${obtido >= pago ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(obtido)}</strong>/milheiro</span>` : '')
-      + (vencendo.length ? `<span style="color:var(--atencao)">⌛ ${plural(vencendo.length, 'programa vencendo', 'programas vencendo')} em 90 dias</span>` : '');
-  }
-  if (dl && !dl.children.length) dl.innerHTML = PROGRAMAS_MILHAS.map(p => `<option value="${esc(p)}">`).join('');
-  if (!milhas.length) {
-    el.innerHTML = '<div class="stat-line muted">Nenhum programa ainda. Cadastre um (Latam Pass, Smiles, Livelo…) com o saldo que o app da companhia mostra. Depois anote as compras e os resgates: é isso que revela se as milhas estão te pagando ou te custando.</div>';
-    return;
-  }
-  el.innerHTML = milhas.map(p => {
-    const aberta = milhaAberta === p.id;
-    const dias = diasAteValidade(p);
-    const pg = pagoPorMilheiro(p), ob = obtidoPorMilheiro(p);
-    const movs = [...(p.movs || [])].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-    const alerta = dias !== null && dias >= 0 && dias <= 90 && p.saldo > 0;
-    const venceu = dias !== null && dias < 0 && p.saldo > 0;
-    return `<div class="milha-card${aberta ? ' aberta' : ''}">
-      <div class="milha-topo" onclick="abrirMilha(${p.id})">
-        <div class="milha-ident">
-          <strong>🎫 ${esc(p.programa)}</strong>
-          ${p.numero ? `<small class="item-date">nº ${esc(p.numero)}</small>` : ''}
-        </div>
-        <div class="milha-saldo">
-          <strong>${(Number(p.saldo) || 0).toLocaleString('pt-BR')}</strong><small>milhas</small>
-        </div>
-        <div class="milha-lado">
-          ${valorDoSaldo(p) ? `<small>≈ ${formatCurrency(valorDoSaldo(p))}</small>` : ''}
-          ${p.validade ? `<small class="${alerta || venceu ? 'milha-vence' : ''}">${venceu ? '⌛ venceu ' + isoParaBR(p.validade) : 'vence ' + isoParaBR(p.validade) + (alerta ? ` (${dias} d)` : '')}</small>` : ''}
-          ${p.saldoEm ? `<small class="item-date">saldo de ${isoParaBR(p.saldoEm)}</small>` : ''}
-        </div>
-        <span class="milha-seta">${aberta ? '▾' : '▸'}</span>
-      </div>
-      ${(pg || ob) ? `<div class="milha-conta">
-        ${pg ? `<span>💳 pagou <strong>${formatCurrency(pg)}</strong> o milheiro</span>` : ''}
-        ${ob ? `<span>✈️ obteve <strong>${formatCurrency(ob)}</strong> o milheiro</span>` : ''}
-        ${pg && ob ? `<span class="milha-veredito ${ob >= pg ? 'bom' : 'ruim'}">${ob >= pg
-            ? `✅ valeu a pena: ${formatCurrency(ob - pg)} a mais por milheiro`
-            : `⚠️ ficou ${formatCurrency(pg - ob)} pior por milheiro do que custou`}</span>` : ''}
-      </div>` : ''}
-      ${aberta ? `<div class="milha-det">
-        ${p.notas ? `<small class="item-notes">${linkify(esc(p.notas))}</small>` : ''}
-        <div class="milha-acoes">
-          <button class="mini-btn" onclick="atualizarSaldoMilha(${p.id})">🔄 atualizar saldo</button>
-          <button class="mini-btn" onclick="editarMilha(${p.id})">✎ editar</button>
-          <button class="mini-btn" onclick="removerMilha(${p.id})">✕ apagar</button>
-        </div>
-        <h5>Movimentos</h5>
-        <div class="mv-novo">
-          <select id="mv-tipo-${p.id}">${Object.entries(TIPOS_MOV_MILHA).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('')}</select>
-          <input type="text" id="mv-qtd-${p.id}" placeholder="milhas" inputmode="numeric">
-          <input type="number" id="mv-valor-${p.id}" placeholder="R$" step="0.01" min="0" title="Na compra: quanto pagou. No resgate: quanto custaria a passagem em dinheiro.">
-          <input type="date" id="mv-data-${p.id}" value="${hojeISO()}">
-          <input type="text" id="mv-desc-${p.id}" placeholder="descrição">
-          <button class="mini-btn" onclick="addMovMilha(${p.id})">＋</button>
-        </div>
-        ${movs.length ? movs.map(m => {
-          const tm = TIPOS_MOV_MILHA[m.tipo] || TIPOS_MOV_MILHA.ajuste;
-          const rs = Number(m.valor) > 0 && m.qtd ? rsPorMilheiro([m]) : 0;
-          const vg = m.tripId ? trips.find(t => t.id === m.tripId) : null;
-          return `<div class="mv-linha">
-            <span class="mv-qtd ${sinalMov(m.tipo) > 0 ? 'mais' : 'menos'}">${sinalMov(m.tipo) > 0 ? '+' : '−'}${(Number(m.qtd) || 0).toLocaleString('pt-BR')}</span>
-            <span class="mv-txt">${tm[0]} ${esc(m.desc || tm[1])}<small class="item-date">${m.data ? isoParaBR(m.data) : ''}${Number(m.valor) ? ' · ' + formatCurrency(m.valor) : ''}${rs ? ' · ' + formatCurrency(rs) + '/milheiro' : ''}${vg ? ' · ✈️ ' + esc(vg.destino) : ''}</small></span>
-            ${m.tipo === 'resgate' ? `<select class="mv-viagem" onchange="ligarMovViagem(${p.id}, ${m.id}, this.value)" title="Ligar a uma viagem"><option value="">— viagem —</option>${trips.map(t => `<option value="${t.id}"${m.tripId === t.id ? ' selected' : ''}>${esc(t.destino)}</option>`).join('')}</select>` : ''}
-            <button class="mini-btn xs" title="Apagar" onclick="removerMovMilha(${p.id}, ${m.id})">✕</button></div>`;
-        }).join('') : '<div class="stat-line muted">Nenhum movimento. Anote uma compra e um resgate para o app calcular se valeu a pena.</div>'}
-      </div>` : ''}
-    </div>`;
-  }).join('');
-}
+function renderMilhas() { vgRenderMilhas(); }
 
 // --- seções da aba Viagens ---
 let viagensSecao = 'viagens';
@@ -4397,6 +4289,7 @@ function verSecaoViagens(s, el) {
   if (alvo) alvo.classList.add('active');
   const a = document.getElementById('sec-viagens'); if (a) a.hidden = s !== 'viagens';
   const b = document.getElementById('sec-milhas'); if (b) b.hidden = s !== 'milhas';
+  if (typeof vgAoTrocar === 'function') vgAoTrocar();
 }
 
 // ============================================================================

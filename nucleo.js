@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '09/10/2026 · v37';
+const GENESIS_VERSAO = '09/10/2026 · v38';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -587,7 +587,12 @@ function fechadosHoje() {
   const f = tenta(() => JSON.parse(localStorage.getItem('lifeos_anel_fechados'))) || {};
   return f.data === hojeISO() ? f.ids || [] : [];
 }
+let nuUltimoFechar = 0;
 function fecharDoAnel(id) {
+  // 09/10: "às vezes ao clicar em uma já fecha ela e mais alguma" — fechado um cartão, os outros
+  // se mexem; um segundo toque rápido caía no ✕ do vizinho. Toques em menos de 0,5 s são ignorados.
+  if (Date.now() - nuUltimoFechar < 500) return;
+  nuUltimoFechar = Date.now();
   try { localStorage.setItem('lifeos_anel_fechados', JSON.stringify({ data: hojeISO(), ids: [...fechadosHoje(), id] })); } catch (e) { }
   renderAnel();
 }
@@ -643,14 +648,161 @@ function renderAnel() {
   nuAnelAcoes = C.map(c => c.acao || null);
   const cartao = (c, i) => `
     <article data-id="${c.id}" class="nu-sat nu-sat-${c.id}${c.img ? ' com-img' : ''}" style="--i:${i}" ${c.acao ? `onclick="acaoDoAnel(${i})"` : ''}>
-      ${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+      <span class="nu-sat-alca" aria-hidden="true"></span>
+      ${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" onload="posicionarAnel()">` : ''}
       <div class="nu-sat-txt"><div class="cs-rotulo">${esc(c.rot)}</div>${c.tit ? `<b>${esc(c.tit)}</b>` : ''}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}${c.txt ? `<p>${esc(c.txt)}</p>` : ''}${c.html || ''}</div>
       <button class="nu-sat-x" title="Fechar por hoje" onclick="event.stopPropagation(); fecharDoAnel('${c.id}')">${ic('fechar')}</button>
     </article>`;
   const lado = l => C.map((c, i) => (ANEL_LADO[c.id] || 'dir') === l ? cartao(c, i) : '').join('');
   el.innerHTML = `<div class="nu-anel-col nu-anel-esq">${lado('esq')}</div><div class="nu-anel-col nu-anel-dir">${lado('dir')}</div>`;
-  el.querySelectorAll('.nu-sat[data-id]').forEach(s => aplicarPosSalva(s, 'sat-' + s.dataset.id));
+  if (innerWidth <= 900) el.querySelectorAll('.nu-sat[data-id]').forEach(s => aplicarPosSalva(s, 'sat-' + s.dataset.id));
+  posicionarAnel();
 }
+
+// ── A CONSTELAÇÃO (09/10) ────────────────────────────────────────────────────
+// Ditado dele: "as janelas flutuantes estão quebradas: não são móveis, não se apresentam
+// separadamente e de forma espalhada ao redor do núcleo, tem abas sobrepostas que não enxergo".
+// Eram duas colunas coladas nas bordas; o cartão que ele tinha arrastado ficava SOLTO na posição
+// guardada, por cima dos outros; e quem era só botões (O dia, Avisos) não se deixava arrastar.
+// Agora (tela > 900 px): os cartões se espalham em colunas ESCALONADAS dos dois lados do cérebro
+// (até 3 por lado no ultrawide) e cada um é posto num LUGAR LIVRE — nada sobrepõe nada, nem o
+// cabeçalho, o relógio ou as janelas flutuantes. Arrasta-se de qualquer ponto do cartão; ao soltar
+// ele encaixa no lugar livre mais perto e fica guardado (em fração da tela, para servir em outra
+// resolução). Dois cliques devolvem ao lugar automático. No celular continua a faixa de rolar.
+const NU_SAT_LARG = 300, NU_SAT_VAO = 14;
+/** Posições guardadas (fração da largura/altura). As antigas (px, empilhadas) saem uma vez. */
+function nuPos2() {
+  const c = cfgNucleo();
+  if (!c.posAnelV2) {
+    Object.keys(c.pos || {}).forEach(k => { if (k.startsWith('sat-')) delete c.pos[k]; });
+    c.posAnelV2 = true; c.pos2 = {};
+    try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { }
+  }
+  c.pos2 = c.pos2 || {};
+  return c.pos2;
+}
+const nuSobrepoe = (a, b, m) => a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
+/** O lugar livre mais perto de `r` (procura em anéis), dentro de `lim`, sem encostar em `obst`. */
+function nuLugarLivre(r, obst, lim, m) {
+  const cabe = q => q.x >= lim.x && q.y >= lim.y && q.x + q.w <= lim.x + lim.w && q.y + q.h <= lim.y + lim.h && !obst.some(o => nuSobrepoe(q, o, m));
+  const base = { x: Math.max(lim.x, Math.min(lim.x + lim.w - r.w, r.x)), y: Math.max(lim.y, Math.min(lim.y + lim.h - r.h, r.y)), w: r.w, h: r.h };
+  if (cabe(base)) return base;
+  for (let raio = 16; raio < 1800; raio += 16) {
+    for (let k = 0; k < 24; k++) {
+      const a = k / 24 * Math.PI * 2;
+      const q = { x: Math.round(base.x + Math.cos(a) * raio), y: Math.round(base.y + Math.sin(a) * raio), w: r.w, h: r.h };
+      if (cabe(q)) return q;
+    }
+  }
+  return null;
+}
+/** O que já ocupa a tela, nas coordenadas do anel: cabeçalho, relógio e micro-ícones, a janelinha
+ *  de área e as janelas flutuantes (quando ele as deixa à vista no Núcleo). */
+function nuObstaculos(camada) {
+  const c = camada.getBoundingClientRect(), out = [];
+  const add = el => { if (!el || el.hidden) return; const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return; out.push({ x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height }); };
+  document.querySelectorAll('.nu-hud-esq > *, .nu-hud-dir > *').forEach(add);
+  if (document.body.classList.contains('nu-janelas')) document.querySelectorAll('#paineis .pf, #paineis .pf-dock').forEach(add);
+  return out;
+}
+function posicionarAnel() {
+  const el = document.getElementById('nu-anel'); if (!el) return;
+  const cards = [...el.querySelectorAll('.nu-sat[data-id]')];
+  const espalha = innerWidth > 900 && cards.length > 0;
+  el.classList.toggle('espalhado', espalha);
+  if (!espalha) return;
+  const W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
+  const lim = { x: 0, y: 0, w: W, h: H };
+  const meio = Math.max(240, Math.min(W * 0.2, 480));            // meia largura reservada ao cérebro
+  const cerebro = { x: W / 2 - meio, y: 0, w: meio * 2, h: H };
+  const espaco = W / 2 - meio - 12;                               // largura de cada lado
+  const pos2 = nuPos2(), obst = nuObstaculos(el), ocupados = [];
+  let faltou = false;
+  const ladoDe = s => ((ANEL_LADO[s.dataset.id] || 'dir') === 'esq' ? 'esq' : 'dir');
+  // Cada lado escolhe quantas colunas usar (e a largura do cartão): no 16:9 uma coluna de 300 px
+  // não cabia na altura (754 px para 712) e um cartão ia parar em cima do outro. Testa 1, 2 e 3
+  // colunas, mede as alturas reais em cada largura e fica com: mais colunas largas (≥ 260 px,
+  // espalha no ultrawide) entre as que cabem; senão a mais larga que cabe; senão a mais baixa.
+  const plano = {};
+  ['esq', 'dir'].forEach(lado => {
+    const lista = cards.filter(s => ladoDe(s) === lado), soltos = lista.filter(s => pos2['sat-' + s.dataset.id]);
+    const auto = lista.filter(s => !pos2['sat-' + s.dataset.id]);
+    const opcoes = [];
+    for (let n = 1; n <= Math.max(1, Math.min(3, auto.length)); n++) {
+      const lg = Math.floor(Math.min(NU_SAT_LARG, (espaco - (n - 1) * NU_SAT_VAO) / n));
+      if (lg < 220 && n > 1) break;
+      lista.forEach(s => s.style.setProperty('--w', lg + 'px'));
+      const alt = new Map(lista.map(s => [s, s.offsetHeight]));
+      const cols = Array.from({ length: n }, () => ({ itens: [], h: 0 }));
+      auto.forEach(s => { const c = cols.reduce((a, b) => (b.h < a.h ? b : a)); c.itens.push(s); c.h += alt.get(s) + NU_SAT_VAO; });
+      const alto = Math.max(0, ...cols.map(c => c.h - NU_SAT_VAO));
+      opcoes.push({ n, lg, alt, cols, alto, cabe: alto <= H });
+    }
+    const cabem = opcoes.filter(o => o.cabe);
+    const largas = cabem.filter(o => o.lg >= 260);
+    const p = largas.length ? largas[largas.length - 1] : cabem.length ? cabem.sort((a, b) => b.lg - a.lg)[0] : opcoes.sort((a, b) => a.alto - b.alto)[0];
+    if (p) { lista.forEach(s => s.style.setProperty('--w', p.lg + 'px')); plano[lado] = Object.assign(p, { soltos }); }
+  });
+  // 1) os que ele arrastou ficam onde ele pôs (ou no lugar livre mais perto)
+  ['esq', 'dir'].forEach(lado => {
+    const p = plano[lado]; if (!p) return;
+    p.soltos.forEach(s => {
+      const pp = pos2['sat-' + s.dataset.id];
+      const q = nuLugarLivre({ x: pp.x * W, y: pp.y * H, w: p.lg, h: p.alt.get(s) }, [...obst, ...ocupados], lim, 10);
+      if (!q) { p.cols[0].itens.push(s); return; }
+      ocupados.push(q); s._lugar = q; s.classList.add('movido');
+    });
+  });
+  // 2) os outros: colunas escalonadas dos dois lados; a coluna colada no cérebro recebe primeiro
+  ['esq', 'dir'].forEach(lado => {
+    const p = plano[lado]; if (!p) return;
+    p.cols.forEach((c, k) => {
+      if (!c.itens.length) return;
+      const x = lado === 'esq' ? W / 2 - meio - 12 - (k + 1) * p.lg - k * NU_SAT_VAO : W / 2 + meio + 12 + k * (p.lg + NU_SAT_VAO);
+      const total = c.itens.reduce((a, s) => a + p.alt.get(s) + NU_SAT_VAO, -NU_SAT_VAO);
+      let y = Math.max(0, Math.min(H - total, (H - total) / 2 + (k % 2 ? 40 : -16)));   // cada coluna numa altura
+      c.itens.forEach(s => {
+        const h = p.alt.get(s);
+        const q = nuLugarLivre({ x, y, w: p.lg, h }, [...obst, ...ocupados, cerebro], lim, 10);
+        if (!q) { faltou = true; return; }
+        ocupados.push(q); s._lugar = q; s.classList.remove('movido');
+        y = q.y + q.h + NU_SAT_VAO;
+      });
+    });
+  });
+  // Não coube em volta do cérebro sem encostar (notebook baixo: 392 px de altura para 10 cartões)?
+  // Volta às duas colunas com rolagem própria — empilhadas, mas NUNCA uma em cima da outra.
+  if (faltou) {
+    el.classList.remove('espalhado');
+    cards.forEach(s => { ['--x', '--y', '--w'].forEach(v => s.style.removeProperty(v)); s.classList.remove('movido'); s._lugar = null; });
+    return;
+  }
+  cards.forEach(s => { const q = s._lugar; if (!q) return; s.style.setProperty('--x', Math.round(q.x) + 'px'); s.style.setProperty('--y', Math.round(q.y) + 'px'); });
+}
+/** Arrastar um cartão da constelação: de qualquer ponto (menos o ✕); ao soltar, encaixa e guarda. */
+function arrastarSat(e, s) {
+  const camada = document.getElementById('nu-anel'), c = camada.getBoundingClientRect(), r = s.getBoundingClientRect();
+  const a = { x0: e.clientX, y0: e.clientY, ex: r.left - c.left, ey: r.top - c.top, mexeu: false };
+  const mover = ev => {
+    const dx = ev.clientX - a.x0, dy = ev.clientY - a.y0;
+    if (!a.mexeu && Math.hypot(dx, dy) < 6) return;          // clique trêmulo não vira arrasto
+    if (!a.mexeu) { a.mexeu = true; s.classList.add('arrastando-sat'); document.body.classList.add('arrastando'); }
+    s.style.setProperty('--x', Math.round(a.ex + dx) + 'px'); s.style.setProperty('--y', Math.round(a.ey + dy) + 'px');
+  };
+  const soltar = () => {
+    removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); removeEventListener('pointercancel', soltar);
+    s.classList.remove('arrastando-sat'); document.body.classList.remove('arrastando');
+    if (!a.mexeu) return;
+    s._arrastou = true; setTimeout(() => { s._arrastou = false; }, 250);   // o soltar não vira clique
+    const W = camada.clientWidth || 1, H = camada.clientHeight || 1;
+    nuPos2()['sat-' + s.dataset.id] = { x: parseFloat(s.style.getPropertyValue('--x')) / W, y: parseFloat(s.style.getPropertyValue('--y')) / H };
+    salvarNucleo();
+    posicionarAnel();
+  };
+  addEventListener('pointermove', mover); addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar);
+}
+let nuTimerAnel = null;
+window.addEventListener('resize', () => { clearTimeout(nuTimerAnel); nuTimerAnel = setTimeout(() => { if (nuAfastado) posicionarAnel(); }, 160); });
 let nuAnelAcoes = [];
 function acaoDoAnel(i) { const f = nuAnelAcoes[i]; if (f) f(); }
 let nuAfastado = false;
@@ -675,7 +827,7 @@ function aplicarJanelasNucleo() {
   const b = document.getElementById('nu-btn-janelas'); if (b) b.classList.toggle('on', !!cfgNucleo().janelas);
 }
 function alternarJanelasNucleo() {
-  const c = cfgNucleo(); c.janelas = !c.janelas; salvarNucleo(); aplicarJanelasNucleo();
+  const c = cfgNucleo(); c.janelas = !c.janelas; salvarNucleo(); aplicarJanelasNucleo(); setTimeout(posicionarAnel, 60);
   toast(c.janelas ? 'Janelas flutuantes visíveis no Núcleo.' : 'Núcleo limpo: janelas escondidas aqui.');
 }
 
@@ -900,15 +1052,29 @@ window.addEventListener('pointerup', () => {
 });
 // alças: o topo da janelinha, o próprio cartão do anel e o título das folhas de formulário
 document.addEventListener('pointerdown', e => {
+  // a constelação: arrasta de QUALQUER ponto do cartão, inclusive das linhas-botão (menos o ✕);
+  // se não mexer, o clique segue normal; se mexer, o clique do soltar é engolido (ver abaixo)
+  const satE = e.target.closest('#nu-anel.espalhado .nu-sat');
+  if (satE && satE.dataset.id) {
+    if (!e.target.closest('.nu-sat-x, input, select, textarea') && (e.button === undefined || e.button === 0)) arrastarSat(e, satE);
+    return;
+  }
   if (e.target.closest('button, a, input, select, textarea, label, .gn-tag')) return;
   const topo = e.target.closest('#nu-janela .nu-j-topo');
   if (topo) { comecarArrasto(e, document.getElementById('nu-janela'), 'janela'); return; }
-  const sat = e.target.closest('#nu-anel .nu-sat');
-  if (sat && sat.dataset.id) { comecarArrasto(e, sat, 'sat-' + sat.dataset.id); return; }
+  // fora da constelação (tela baixa: colunas com rolagem) o cartão NÃO se solta — solto, ele
+  // ficava por cima dos outros para sempre (o "abas sobrepostas que não enxergo" de 09/10)
+  if (e.target.closest('#nu-anel .nu-sat')) return;
   const tit = e.target.closest('.cs-folha.aberta > h2, .cs-folha.aberta > h3');
   if (tit) comecarArrasto(e, tit.parentElement, null);
 });
 document.addEventListener('dblclick', e => {
+  const satE = e.target.closest('#nu-anel.espalhado .nu-sat');
+  if (satE && satE.dataset.id && !e.target.closest('.nu-sat-x')) {
+    if (!nuPos2()['sat-' + satE.dataset.id]) return;
+    delete nuPos2()['sat-' + satE.dataset.id]; salvarNucleo(); posicionarAnel();
+    toast('De volta ao lugar de sempre.'); return;
+  }
   const topo = e.target.closest('#nu-janela .nu-j-topo');
   const sat = e.target.closest('#nu-anel .nu-sat');
   const alvo = topo ? document.getElementById('nu-janela') : sat;

@@ -4833,6 +4833,26 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
 .ex-nu-ic { font-size: 15px; line-height: 1; }
 .modo-exemplo .ex-nu { border-color: color-mix(in srgb, var(--atencao) 60%, transparent); }
 
+/* ══ AJUSTES DITADOS 09/10 · A CONSTELAÇÃO DO NÚCLEO (nucleo.js: posicionarAnel) ══
+   Os cartões do anel (afastar o zoom) saem das duas colunas das bordas e se espalham em
+   volta do cérebro, cada um num lugar livre calculado (--x, --y, --w). Arrasta de qualquer
+   ponto; a alcinha no topo só aparece ao passar o mouse, para dizer que dá. */
+.nu-palco .nu-anel.espalhado { display: block; overflow: visible; }
+.nu-anel.espalhado .nu-anel-col { display: contents; }
+.nu-palco .nu-anel.espalhado .nu-sat {
+  position: absolute !important; inset: var(--y, 0) auto auto var(--x, 0) !important; width: var(--w, 300px);
+  cursor: grab; touch-action: none;
+  transition: top .45s cubic-bezier(.2,.8,.2,1), left .45s cubic-bezier(.2,.8,.2,1), transform .5s cubic-bezier(.2,.8,.2,1), border-color .2s;
+}
+.nu-palco .nu-anel.espalhado .nu-sat.arrastando-sat {
+  transition: none !important; z-index: 6; cursor: grabbing;
+  box-shadow: 0 26px 60px -18px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--acento) 50%, transparent) !important;
+}
+.nu-sat-alca { position: absolute; top: 4px; left: 50%; width: 34px; height: 4px; margin-left: -17px; border-radius: 4px;
+  background: var(--txt4); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.nu-anel.espalhado .nu-sat:hover .nu-sat-alca { opacity: .55; }
+.nu-anel.espalhado .nu-sat.movido { border-color: color-mix(in srgb, var(--acento) 28%, var(--fio-sutil)); }
+
 /* ══ AJUSTES DITADOS 09/10 · G1 — A BARRA DE ROLAGEM ══════════════════════════
    "Barra branca com ícone cinza na lateral, grotesca, não combina com nenhum layout;
    poderia ser apagada, aparecer só ao passar o mouse." Fina, sem setas, na cor do

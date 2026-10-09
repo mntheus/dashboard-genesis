@@ -1366,8 +1366,16 @@
     </div>
     <!-- Módulo 14: Produção / impressão 3D -->
     <div id="prod" class="tab-content">
-      <div class="focus-header-tabs agenda-tabs" id="producao-secoes" style="margin-top:20px">
-        <span class="active" onclick="verSecaoProducao('painel', this)">📊 Painel</span>
+      <div id="sec-pr-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="pr-rapida" aria-label="Ordem ou venda rápida" placeholder="O que imprimir?" autocomplete="off" enterkeyhint="done" oninput="prRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); prRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="prRapidaAdicionar()">↵</button>
+        </div>
+        <div id="pr-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="producao-secoes">
+        <span class="active" onclick="verSecaoProducao('painel', this)">🏭 Oficina</span>
         <span onclick="verSecaoProducao('fila', this)">📋 Fila</span>
         <span onclick="verSecaoProducao('catalogo', this)">🧩 Produtos</span>
         <span onclick="verSecaoProducao('estoque', this)">🧵 Estoque</span>
@@ -1376,15 +1384,18 @@
       </div>
 
       <div id="sec-pr-painel" class="agenda-sec">
-        <div class="card" style="margin-top: 20px;">
-          <h2>📊 A oficina este mês</h2>
-          <p class="hint">O número que interessa é o <strong>verde</strong>: o que sobrou depois da taxa da plataforma, do frete e do custo real da peça. Tudo sai sozinho das vendas e do catálogo.</p>
+        <div class="card" style="margin-top: 20px;" data-mod="pr-oficina">
+          <h2>🏭 A oficina</h2>
           <div id="producao-painel"></div>
-          <div id="producao-detalhe" style="margin-top:16px"></div>
+          <div id="producao-detalhe"></div>
         </div>
       </div>
 
       <div id="sec-pr-fila" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="pr-fila">
+          <h2>📋 Fila de produção</h2>
+          <div id="ord-lista"></div>
+        </div>
         <div class="card" style="margin-top: 20px;">
           <h2>📋 Nova ordem</h2>
           <p class="hint">Ao sair de "imprimindo", o app <strong>baixa o filamento do estoque</strong> e soma as horas na impressora — inclusive quando dá ruim, porque o material foi embora do mesmo jeito.</p>
@@ -1403,16 +1414,16 @@
             <button type="submit">Mandar para a fila</button>
           </form>
         </div>
-        <div class="card" style="margin-top: 20px;">
-          <h2>Fila de produção</h2>
-          <div id="ord-lista"></div>
-        </div>
       </div>
 
       <div id="sec-pr-catalogo" class="agenda-sec" hidden>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="pr-produtos">
           <h2>🧩 Produtos e custo real</h2>
-          <p class="hint">Aqui está a conta que quase ninguém faz direito: <strong>filamento gasto + horas de máquina (energia e desgaste) + tempo de acabamento + extras</strong>. Preencha e veja o custo se formar embaixo, com o preço sugerido pela margem que você quer.</p>
+          <p class="hint">A barra de cada peça é a <strong>receita do custo</strong>: 🧵 filamento · 🖨️ horas de máquina (energia e desgaste) · 🧽 seu acabamento · ➕ extras.</p>
+          <div id="prd-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🧩 Novo produto</h2>
           <form id="prd-form">
             <input type="hidden" id="prd-id">
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
@@ -1432,15 +1443,18 @@
             <div id="prd-previa" class="previa-linha"></div>
             <button type="submit" id="prd-submit">Adicionar produto</button>
           </form>
-          <ul id="prd-lista" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
       </div>
 
       <div id="sec-pr-estoque" class="agenda-sec" hidden>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="pr-estoque">
           <h2>🧵 Estoque de filamento</h2>
-          <p class="hint">O preço do rolo dividido pelos gramas dele é o que alimenta o custo de cada peça. O ↻ repõe o rolo e pode lançar a compra em Finanças.</p>
-          <div id="fil-resumo" class="summary-row"></div>
+          <div id="fil-resumo" class="lz-resumo vg-resumo3"></div>
+          <div id="fil-lista"></div>
+          <p class="hint" style="margin-top:12px">O preço do rolo dividido pelos gramas dele é o que alimenta o custo de cada peça. O ↻ repõe o rolo e pode lançar a compra em Finanças.</p>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🧵 Novo rolo</h2>
           <form id="fil-form">
             <input type="hidden" id="fil-id">
             <div style="display: grid; grid-template-columns: 1fr 1.2fr 1.2fr 1fr 1fr 1fr; gap: 10px;">
@@ -1453,11 +1467,15 @@
             </div>
             <button type="submit" id="fil-submit">Adicionar rolo</button>
           </form>
-          <ul id="fil-lista" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
       </div>
 
       <div id="sec-pr-vendas" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="pr-vendas">
+          <h2>💰 Vendas</h2>
+          <div id="vnd-resumo"></div>
+          <div id="vnd-lista"></div>
+        </div>
         <div class="card" style="margin-top: 20px;">
           <h2>💰 Registrar venda</h2>
           <p class="hint">A taxa vem preenchida pela plataforma escolhida (você pode mudar). Em Finanças entra o <strong>líquido</strong> — bruto menos taxa e frete —, que é o que realmente cai na sua conta.</p>
@@ -1478,17 +1496,16 @@
             <button type="submit">Registrar venda</button>
           </form>
         </div>
-        <div class="card" style="margin-top: 20px;">
-          <h2>Vendas</h2>
-          <div id="vnd-resumo" class="summary-row"></div>
-          <ul id="vnd-lista" class="transaction-list"></ul>
-        </div>
       </div>
 
       <div id="sec-pr-config" class="agenda-sec" hidden>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="pr-maquinas">
           <h2>🖨️ Impressoras</h2>
-          <p class="hint">O custo por hora sai da <strong>potência × preço do kWh</strong> mais o desgaste que você estimar (peças, bico, manutenção diluídos por hora). O app soma as horas rodadas e avisa quando chega a revisão.</p>
+          <p class="hint">O custo por hora sai da <strong>potência × preço do kWh</strong> mais o desgaste que você estimar. O app soma as horas rodadas e avisa quando chega a revisão.</p>
+          <div id="maq-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>🖨️ Nova impressora</h2>
           <form id="maq-form">
             <input type="hidden" id="maq-id">
             <div style="display: grid; grid-template-columns: 2fr 1fr 1.2fr 1.2fr; gap: 10px;">
@@ -1499,7 +1516,6 @@
             </div>
             <button type="submit" id="maq-submit">Adicionar impressora</button>
           </form>
-          <ul id="maq-lista" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
         <div class="card" style="margin-top: 20px;">
           <h2>⚙️ Bases de cálculo</h2>
@@ -1802,6 +1818,7 @@
   <script src="viagens.js"></script>
   <script src="rede.js"></script>
   <script src="clinica.js"></script>
+  <script src="producao.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

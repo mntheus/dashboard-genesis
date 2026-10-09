@@ -4706,3 +4706,98 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
 .cl-funil-faixa em { font-style: normal; }
 /* no celular a faixa mostra só a quantidade (o R$ fica no PC): sobra espaço e o funil volta a afinar */
 @container (max-width: 420px) { .cl-funil-fila { grid-template-columns: minmax(0, 1fr) 48px; } .cl-funil-faixa { padding: 4px 10px; min-width: min(100%, 140px); } .cl-funil-faixa em { display: none; } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PRODUÇÃO (08/10) — a oficina ao vivo, o quadro da fila, a receita do custo,
+   os carretéis, as vendas e as máquinas. Reusa o quadro e a cascata da Clínica.
+   ════════════════════════════════════════════════════════════════════════════ */
+#producao-painel, #ord-lista, #prd-lista, #fil-lista, #vnd-lista, #maq-lista, #vnd-resumo { container-type: inline-size; }
+#producao-secoes { justify-content: center; margin: 0; padding-bottom: 6px; flex-wrap: wrap; }
+#sec-pr-rapida[hidden] { display: none !important; }
+#producao-painel .tar-gr-tit, #vnd-resumo .tar-gr-tit { margin-top: var(--s3); }
+.pr-val { min-width: 44px; }
+.pr-neg { color: var(--perigo); }
+
+/* as máquinas (oficina e aba Máquinas) */
+.pr-maquinas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.pr-maq { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px; border-radius: 12px; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.pr-maq.rodando { background: linear-gradient(135deg, color-mix(in srgb, var(--info) 14%, var(--sup-1)), var(--sup-1)); border-color: color-mix(in srgb, var(--info) 45%, var(--fio-sutil)); }
+.pr-maq.alerta { border-color: color-mix(in srgb, var(--perigo) 55%, var(--fio-sutil)); }
+.pr-maq.off { opacity: .5; }
+.pr-maq-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pr-maq-ic { flex: 0 0 auto; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; font-size: 1.2rem; background: var(--sup-2); }
+.pr-maq-topo > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pr-maq-topo b { font-size: var(--t-corpo); color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-maq-topo small { font-size: .7rem; color: var(--txt3); }
+.pr-maq-estado { flex: 0 0 auto; font-size: .68rem; font-weight: 700; color: var(--txt4); white-space: nowrap; }
+.pr-maq.rodando .pr-maq-estado { color: var(--info); animation: tar-pulso 2s ease-in-out infinite; border-radius: 999px; padding: 1px 6px; }
+.pr-maq-agora { min-height: 20px; font-size: var(--t-apoio); color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-maq-agora b { color: var(--txt-forte); }
+.pr-maq-rev { display: flex; flex-direction: column; gap: 3px; }
+.pr-rev-barra { height: 7px; border-radius: 4px; background: var(--sup-2); overflow: hidden; }
+.pr-rev-barra i { display: block; height: 100%; border-radius: 4px; background: var(--ok); }
+.pr-rev-barra i.quase { background: var(--atencao); }
+.pr-rev-barra i.alerta { background: var(--perigo); }
+.pr-maq-rev small { font-size: .7rem; color: var(--txt3); }
+@media (prefers-reduced-motion: reduce) { .pr-maq.rodando .pr-maq-estado { animation: none; } }
+
+/* o quadro da fila: reusa .cl-quadro/.cl-coluna/.cl-pac da Clínica */
+.pr-quadro { grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); }
+.pr-fim { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* a receita do custo */
+.pr-receita { display: flex; flex-direction: column; gap: 6px; }
+.pr-receita-barra { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--sup-2); }
+.pr-receita-barra i { display: block; height: 100%; }
+.pr-receita-barra i.fil, .pr-receita-leg .fil::before { background: var(--roxo); }
+.pr-receita-barra i.maq, .pr-receita-leg .maq::before { background: var(--info); }
+.pr-receita-barra i.mao, .pr-receita-leg .mao::before { background: var(--atencao); }
+.pr-receita-barra i.ext, .pr-receita-leg .ext::before { background: var(--txt4); }
+.pr-receita-leg { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: .7rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.pr-receita-leg span::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+.pr-prod-contas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pr-prod-contas > div { display: flex; flex-direction: column; min-width: 0; padding: 6px 8px; border-radius: 8px; background: var(--sup-2); }
+.pr-prod-contas small { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--txt4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pr-prod-contas b { font-size: .82rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pr-prod-contas b.bom { color: var(--ok); }
+.pr-prod-contas b.ruim { color: var(--perigo); }
+.pr-prod-contas em { font-style: normal; font-size: .68rem; opacity: .8; }
+
+/* os carretéis */
+.pr-carreteis { display: grid; gap: 14px 10px; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+.pr-carretel { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 12px 8px; border-radius: 12px; text-align: center; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.pr-carretel.baixo { border-color: color-mix(in srgb, var(--perigo) 55%, var(--fio-sutil)); }
+.pr-carretel svg { width: 96px; height: 96px; }
+.pr-carretel .aba { fill: color-mix(in srgb, var(--txt4) 18%, var(--sup-2)); stroke: var(--fio-sutil); }
+.pr-carretel .miolo { fill: var(--card, var(--bg)); stroke: var(--fio-sutil); }
+.pr-carretel .pct { font-size: 13px; font-weight: 800; fill: var(--txt-forte); text-anchor: middle; }
+.pr-carretel.baixo .fio { animation: pr-pisca 1.6s ease-in-out infinite; }
+@keyframes pr-pisca { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .pr-carretel.baixo .fio { animation: none; } }
+.pr-carretel b { font-size: .8rem; color: var(--txt-forte); overflow-wrap: anywhere; }
+.pr-carretel small { font-size: .7rem; color: var(--txt3); }
+.pr-carretel .pr-pecas { color: var(--txt2); font-weight: 600; }
+.pr-carretel.baixo .pr-pecas { color: var(--perigo); }
+.pr-carretel .cl-pac-acoes { justify-content: center; }
+
+/* as vendas */
+.pr-vendas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); margin-top: var(--s3); }
+.pr-venda { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px 12px; border-radius: 10px; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.pr-venda-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pr-venda-topo > span { font-size: 1.2rem; flex: 0 0 auto; }
+.pr-venda-topo > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pr-venda-topo b { font-size: var(--t-apoio); color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-venda-topo small { font-size: .68rem; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-venda-topo strong { flex: 0 0 auto; font-size: var(--t-corpo); font-variant-numeric: tabular-nums; }
+.pr-venda-topo strong.bom { color: var(--ok); }
+.pr-venda-topo strong.ruim { color: var(--perigo); }
+.pr-venda-barra { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--sup-2); }
+.pr-venda-barra i { display: block; height: 100%; }
+.pr-venda-barra .sob { background: var(--ok); }
+.pr-venda-barra .cus { background: color-mix(in srgb, var(--txt4) 75%, transparent); }
+.pr-venda-barra .tax { background: var(--laranja); }
+.pr-venda-pe { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pr-venda-pe small { font-size: .66rem; color: var(--txt4); }
+/* o que deu lucro: o nome da peça precisa de mais espaço que o nome de uma origem */
+.pr-lucros .cl-orig { grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto; }
+@container (max-width: 420px) { .pr-lucros .cl-orig { grid-template-columns: minmax(0, 1fr) 70px auto; } }

@@ -6934,16 +6934,8 @@ function precisaManutencao(m) {
   if (!cada) return false;
   return (Number(m.horasRodadas) || 0) - (Number(m.horasNaUltimaManut) || 0) >= cada;
 }
-function renderMaquinas() {
-  const ul = document.getElementById('maq-lista'); if (!ul) return;
-  ul.innerHTML = maquinas.length ? maquinas.map(m => {
-    const ch = custoHoraMaquina(m); const alerta = precisaManutencao(m);
-    return `<li style="${m.ativo === false ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
-      <span>🖨️ ${esc(m.nome)}${alerta ? ' <span class="badge-topay">manutenção</span>' : ''}</span>
-      <small class="item-date">${m.potenciaW || 0} W · ${formatCurrency(ch)}/h${m.manutencaoCadaH ? ` · ${Math.round(m.horasRodadas || 0)}h rodadas (revisar a cada ${m.manutencaoCadaH}h)` : ` · ${Math.round(m.horasRodadas || 0)}h rodadas`}</small></div>
-      <div class="item-actions">${alerta ? `<button class="mini-btn" title="Marcar manutenção feita" onclick="manutencaoFeita(${m.id})">🔧</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarMaquina(${m.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerMaquina(${m.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhuma impressora. Cadastre uma para o custo por hora entrar no preço.</li>';
-}
+// O desenho da Produção (oficina, quadro, carretéis, receita do custo) mora no producao.js (08/10).
+function renderMaquinas() { prRenderMaquinas(); }
 function manutencaoFeita(id) {
   const m = maquinaPorId(id); if (!m) return;
   m.horasNaUltimaManut = Number(m.horasRodadas) || 0; m.ultimaManutencao = hojeISO();
@@ -6975,24 +6967,7 @@ function nomeFilamento(f) {
   return `${mat[1]} ${f.cor || ''}`.trim();
 }
 function filamentoBaixo(f) { return (Number(f.gramasRestantes) || 0) < (Number(f.gramasRolo) || 1000) * 0.15; }
-function renderFilamentos() {
-  const ul = document.getElementById('fil-lista'); if (!ul) return;
-  const total = filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0), 0);
-  const resumo = document.getElementById('fil-resumo');
-  if (resumo) resumo.innerHTML = filamentos.length
-    ? `<span>🧵 Em estoque: <strong>${(total / 1000).toFixed(2)} kg</strong> em ${plural(filamentos.length, 'rolo', 'rolos')}</span><span>💰 Valor: <strong>${formatCurrency(filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0) * custoPorGrama(f), 0))}</strong></span>`
-    : '<span>Nenhum rolo cadastrado.</span>';
-  ul.innerHTML = filamentos.length ? [...filamentos].sort((a, b) => (Number(a.gramasRestantes) || 0) - (Number(b.gramasRestantes) || 0)).map(f => {
-    const mat = MATERIAIS[f.material] || MATERIAIS.outro;
-    const pct = Math.max(0, Math.min(100, Math.round((Number(f.gramasRestantes) || 0) / (Number(f.gramasRolo) || 1000) * 100)));
-    const baixo = filamentoBaixo(f);
-    return `<li><div class="transaction-info" style="flex:1">
-      <span>${mat[0]} ${esc(nomeFilamento(f))}${f.marca ? ` <small class="item-date">${esc(f.marca)}</small>` : ''}${baixo ? ' <span class="badge-topay">acabando</span>' : ''}</span>
-      <small class="item-date">${Math.round(Number(f.gramasRestantes) || 0)} g de ${f.gramasRolo || 1000} g · ${formatCurrency(custoPorGrama(f) * 1000)}/kg</small>
-      <div class="cat-bar" style="margin-top:4px"><div style="width:${pct}%; background:${baixo ? 'var(--perigo)' : 'var(--ok)'}"></div></div></div>
-      <div class="item-actions"><button class="mini-btn" title="Repor o rolo (volta ao cheio)" onclick="reporFilamento(${f.id})">↻</button><button class="mini-btn" title="Editar" onclick="editarFilamento(${f.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerFilamento(${f.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre os rolos: é daqui que sai o custo por grama de cada peça.</li>';
-}
+function renderFilamentos() { prRenderFilamentos(); }
 function reporFilamento(id) {
   const f = filamentoPorId(id); if (!f) return;
   if (!confirm(`Repor "${nomeFilamento(f)}" para ${f.gramasRolo || 1000} g?\n\nLança a compra de ${formatCurrency(f.precoRolo)} em Finanças?`)) {
@@ -7077,18 +7052,7 @@ function previaCusto() {
   if (!c.total) { el.innerHTML = ''; return; }
   el.innerHTML = `🧵 ${formatCurrency(c.filamento)} + 🖨️ ${formatCurrency(c.maquina)} + 🧽 ${formatCurrency(c.mao)}${c.extra ? ' + ➕ ' + formatCurrency(c.extra) : ''} = <strong>${formatCurrency(c.total)}</strong> de custo · sugerido <strong style="color:var(--ok)">${formatCurrency(precoSugerido(p))}</strong>`;
 }
-function renderProdutos() {
-  const ul = document.getElementById('prd-lista'); if (!ul) return;
-  ul.innerHTML = produtos.length ? [...produtos].map(p => {
-    const c = custoProduto(p); const preco = Number(p.preco) || precoSugerido(p);
-    const lucro = preco - c.total; const pct = preco > 0 ? Math.round(lucro / preco * 100) : 0;
-    return `<li style="${p.ativo === false ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
-      <span>🧩 ${esc(p.nome)}</span>
-      <small class="item-date">${p.gramas || 0} g · ${p.horas || 0}h de máquina${p.minAcabamento ? ' · ' + p.minAcabamento + ' min de acabamento' : ''}</small>
-      <small class="item-notes">custo <strong>${formatCurrency(c.total)}</strong> · vende a <strong>${formatCurrency(preco)}</strong> · sobra <strong style="color:${lucro >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(lucro)}</strong> <span class="margem-pct">(${pct}%)</span></small></div>
-      <div class="item-actions"><button class="mini-btn" title="Mandar para a fila" onclick="ordemDoProduto(${p.id})">▶</button><button class="mini-btn" title="Editar" onclick="editarProduto(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerProduto(${p.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Cadastre uma peça com gramas e horas — o app calcula o custo e sugere o preço.</li>';
-}
+function renderProdutos() { prRenderProdutos(); }
 function editarProduto(id) {
   const p = produtoPorId(id); if (!p) return;
   changeTab('prod'); verSecaoProducao('catalogo'); preencherSelectsProducao();
@@ -7149,29 +7113,7 @@ function removerOrdem(id) {
   const o = ordemPorId(id); if (!o || !confirm('Apagar esta ordem da fila?')) return;
   ordens = ordens.filter(x => x.id !== id); salvar('ordens', ordens); renderProducao();
 }
-function renderFila() {
-  const el = document.getElementById('ord-lista'); if (!el) return;
-  const porStatus = {};
-  ordens.forEach(o => { (porStatus[o.status] = porStatus[o.status] || []).push(o); });
-  const ordem = ['imprimindo', 'acabamento', 'fila', 'pronto', 'entregue', 'falhou'];
-  let html = '';
-  ordem.forEach(k => {
-    const lista = porStatus[k] || []; if (!lista.length) return;
-    const st = STATUS_ORDEM[k];
-    html += `<div class="etapa-bloco"><div class="etapa-topo" style="border-left-color:${st[2]}"><strong>${st[0]} ${st[1]}</strong><small>${lista.length}</small></div>`;
-    html += lista.map(o => {
-      const p = produtoPorId(o.produtoId); const m = maquinaPorId(o.maquinaId);
-      const pode = FLUXO_ORDEM.indexOf(o.status) >= 0 && FLUXO_ORDEM.indexOf(o.status) < FLUXO_ORDEM.length - 1;
-      return `<div class="pac-linha"><div class="transaction-info" style="flex:1">
-        <span>${esc(p ? p.nome : 'produto apagado')}${o.qtd > 1 ? ` <small class="item-date">×${o.qtd}</small>` : ''}</span>
-        <small class="item-date">${m ? '🖨️ ' + esc(m.nome) : 'sem impressora'}${o.cliente ? ' · 👤 ' + esc(o.cliente) : ''}${o.gramasUsados ? ' · ' + Math.round(o.gramasUsados) + ' g' : ''}${o.prazo ? ' · 📅 ' + isoParaBR(o.prazo) : ''}</small>
-        ${o.notas ? `<small class="item-notes">${esc(o.notas)}</small>` : ''}</div>
-        <div class="item-actions">${pode ? `<button class="mini-btn" title="Avançar para ${STATUS_ORDEM[FLUXO_ORDEM[FLUXO_ORDEM.indexOf(o.status) + 1]][1]}" onclick="avancarOrdem(${o.id})">▶</button>` : ''}${o.status !== 'falhou' && o.status !== 'entregue' ? `<button class="mini-btn" title="Deu ruim (perdeu o material)" onclick="mudarStatusOrdem(${o.id}, 'falhou')">💥</button>` : ''}${o.status === 'pronto' ? `<button class="mini-btn" title="Registrar a venda" onclick="venderOrdem(${o.id})">💰</button>` : ''}<button class="mini-btn" title="Apagar" onclick="removerOrdem(${o.id})">✕</button></div></div>`;
-    }).join('');
-    html += '</div>';
-  });
-  el.innerHTML = html || '<div class="pf-vazio">Fila vazia. Mande um produto do catálogo pra cá com o ▶.</div>';
-}
+function renderFila() { prRenderFila(); }
 
 // --- vendas (marketplace) ---------------------------------------------------
 function venderOrdem(id) {
@@ -7214,62 +7156,10 @@ function removerVenda(id) {
   salvar('vendas', vendas); salvar('finances', transactions);
   renderProducao(); updateFinanceValues(); renderFinances();
 }
-function renderVendas() {
-  const ul = document.getElementById('vnd-lista'); if (!ul) return;
-  const ym = hojeISO().slice(0, 7);
-  const doMes = vendas.filter(v => (v.data || '').startsWith(ym));
-  const somaL = doMes.reduce((a, v) => a + liquidoVenda(v).liquido, 0);
-  const somaB = doMes.reduce((a, v) => a + liquidoVenda(v).bruto, 0);
-  const r = document.getElementById('vnd-resumo');
-  if (r) r.innerHTML = doMes.length
-    ? `<span>🧾 Vendido no mês: <strong>${formatCurrency(somaB)}</strong> (${doMes.length})</span><span>💚 Sobrou de verdade: <strong style="color:${somaL >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(somaL)}</strong></span>`
-    : '<span>Nenhuma venda neste mês.</span>';
-  ul.innerHTML = vendas.length ? [...vendas].sort((a, b) => (b.data || '').localeCompare(a.data || '')).slice(0, 30).map(v => {
-    const p = produtoPorId(v.produtoId); const pl = PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto;
-    const c = liquidoVenda(v);
-    return `<li><div class="transaction-info" style="flex:1">
-      <span>${pl[0]} ${esc(p ? p.nome : 'produto apagado')}${v.qtd > 1 ? ` ×${v.qtd}` : ''}</span>
-      <small class="item-date">${esc(pl[1])} · ${isoParaBR(v.data)} · bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)} − custo ${formatCurrency(c.custo)}</small></div>
-      <div class="item-actions"><strong style="margin-right:6px; color:${c.liquido >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(c.liquido)}</strong><button class="mini-btn" title="Apagar" onclick="removerVenda(${v.id})">✕</button></div></li>`;
-  }).join('') : '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">As vendas entram aqui com taxa e frete descontados.</li>';
-}
+function renderVendas() { prRenderVendas(); }
 
 // --- painel -----------------------------------------------------------------
-function renderPainelProducao() {
-  const el = document.getElementById('producao-painel'); if (!el) return;
-  const ym = hojeISO().slice(0, 7);
-  const doMes = vendas.filter(v => (v.data || '').startsWith(ym)).map(liquidoVenda);
-  const bruto = doMes.reduce((a, r) => a + r.bruto, 0);
-  const liquido = doMes.reduce((a, r) => a + r.liquido, 0);
-  const taxas = doMes.reduce((a, r) => a + r.taxa + r.frete, 0);
-  const naFila = ordens.filter(o => ['fila', 'imprimindo', 'acabamento'].includes(o.status));
-  const horasFila = naFila.reduce((a, o) => { const p = produtoPorId(o.produtoId); return a + (p ? (Number(p.horas) || 0) * (Number(o.qtd) || 1) : 0); }, 0);
-  const falhas = ordens.filter(o => o.status === 'falhou').length;
-  const taxaFalha = ordens.length ? Math.round(falhas / ordens.length * 100) : 0;
-  const estoque = filamentos.reduce((a, f) => a + (Number(f.gramasRestantes) || 0), 0);
-  const acabando = filamentos.filter(filamentoBaixo).length;
-  const tile = (ic, v, r, cor) => `<div class="stat-tile" style="--tom:${cor || 'var(--txt-forte)'}"><span class="stat-icon">${ic}</span><strong>${v}</strong><small>${r}</small></div>`;
-  el.innerHTML = `<div class="stat-grid">
-    ${tile('🧾', formatCurrency(bruto), `vendido em ${nomeMes(ym).toLowerCase()}`)}
-    ${tile('💚', formatCurrency(liquido), 'sobrou depois de tudo', liquido >= 0 ? 'var(--ok)' : 'var(--perigo)')}
-    ${tile('✂️', formatCurrency(taxas), 'foi em taxa e frete', taxas ? '#f59e0b' : undefined)}
-    ${tile('📋', naFila.length, `na fila · ${horasFila.toFixed(1)}h de máquina`, '#38bdf8')}
-    ${tile('🧵', (estoque / 1000).toFixed(2) + ' kg', acabando ? `${plural(acabando, 'rolo acabando', 'rolos acabando')}` : 'de filamento', acabando ? '#ef4444' : undefined)}
-    ${tile('💥', taxaFalha + '%', `de falha · ${plural(falhas, 'perda', 'perdas')}`, taxaFalha > 15 ? '#ef4444' : undefined)}
-  </div>`;
-  // lucro por produto no mês
-  const porProduto = {};
-  vendas.filter(v => (v.data || '').startsWith(ym)).forEach(v => {
-    const p = produtoPorId(v.produtoId); const n = p ? p.nome : 'Sem produto';
-    porProduto[n] = (porProduto[n] || 0) + liquidoVenda(v).liquido;
-  });
-  const det = document.getElementById('producao-detalhe');
-  const itens = Object.entries(porProduto).sort((a, b) => b[1] - a[1]);
-  const total = itens.reduce((a, [, x]) => a + Math.abs(x), 0);
-  if (det) det.innerHTML = `<div class="stat-lists"><div><h5>🧩 O que deu lucro este mês</h5>${
-    itens.length ? itens.map(([k, x]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${total ? Math.round(Math.abs(x) / total * 100) : 0}%; background:${x >= 0 ? 'var(--ok)' : 'var(--perigo)'}"></div></div><span class="cat-val">${formatCurrency(x)}</span></div>`).join('')
-      : '<div class="stat-line muted">nenhuma venda ainda</div>'}</div></div>`;
-}
+function renderPainelProducao() { prRenderPainel(); }
 
 // --- a aba ------------------------------------------------------------------
 let producaoSecao = 'painel';
@@ -7279,6 +7169,7 @@ function verSecaoProducao(s, el) {
   if (el) el.classList.add('active');
   else { const i = ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].indexOf(s); const sp = document.querySelectorAll('#producao-secoes > span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'fila', 'catalogo', 'estoque', 'vendas', 'config'].forEach(k => { const d = document.getElementById('sec-pr-' + k); if (d) d.hidden = k !== s; });
+  if (typeof prAoTrocar === 'function') prAoTrocar();
 }
 function renderProducao() {
   preencherSelectsProducao();
@@ -7369,6 +7260,23 @@ document.getElementById('ord-form').addEventListener('submit', (e) => {
   document.getElementById('ord-form').reset();
   renderProducao(); toast('📋 Na fila.');
 });
+/** Grava a venda e lança o LÍQUIDO em Finanças — uma função só para o formulário e a barra rápida (08/10). */
+function lancarVenda(v, semRedesenhar) {
+  const p = produtoPorId(v.produtoId);
+  const c = liquidoVenda(v);
+  // Em Finanças entra o LÍQUIDO da plataforma: é o que de fato cai na conta dele.
+  const t = { id: novoId(), date: v.data,
+    desc: `Venda: ${p ? p.nome : 'produto'}${v.qtd > 1 ? ' ×' + v.qtd : ''} (${(PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto)[1]})`,
+    amount: Math.round((c.bruto - c.taxa - c.frete) * 100) / 100, type: 'income', category: CAT_PRODUCAO,
+    notes: `bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)}`,
+    pending: false, paidAt: v.data, vendaId: v.id };
+  transactions.push(t); v.financeId = t.id;
+  vendas.push(v);
+  if (v.ordemId) { const o = ordemPorId(v.ordemId); if (o && o.status !== 'entregue') mudarStatusOrdem(o.id, 'entregue'); }
+  salvar('vendas', vendas); salvar('finances', transactions);
+  if (!semRedesenhar) { renderProducao(); updateFinanceValues(); renderFinances(); toast(`💰 Venda registrada. Sobrou ${formatCurrency(c.liquido)} depois de taxa, frete e custo.`, 7000); }
+  return c;
+}
 document.getElementById('vnd-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const pid = document.getElementById('vnd-produto').value;
@@ -7383,17 +7291,7 @@ document.getElementById('vnd-form').addEventListener('submit', (e) => {
     frete: parseFloat(document.getElementById('vnd-frete').value) || 0,
     custoUnit: p ? custoProduto(p).total : 0,
     data: document.getElementById('vnd-data').value || hojeISO(), financeId: null, criadoEm: Date.now() };
-  const c = liquidoVenda(v);
-  // Em Finanças entra o LÍQUIDO da plataforma: é o que de fato cai na conta dele.
-  const t = { id: novoId(), date: v.data,
-    desc: `Venda: ${p ? p.nome : 'produto'}${v.qtd > 1 ? ' ×' + v.qtd : ''} (${(PLATAFORMAS[v.plataforma] || PLATAFORMAS.direto)[1]})`,
-    amount: Math.round((c.bruto - c.taxa - c.frete) * 100) / 100, type: 'income', category: CAT_PRODUCAO,
-    notes: `bruto ${formatCurrency(c.bruto)} − taxa ${formatCurrency(c.taxa)} − frete ${formatCurrency(c.frete)}`,
-    pending: false, paidAt: v.data, vendaId: v.id };
-  transactions.push(t); v.financeId = t.id;
-  vendas.push(v);
-  if (v.ordemId) { const o = ordemPorId(v.ordemId); if (o && o.status !== 'entregue') mudarStatusOrdem(o.id, 'entregue'); }
-  salvar('vendas', vendas); salvar('finances', transactions);
+  const c = lancarVenda(v, true);
   document.getElementById('vnd-form').reset(); document.getElementById('vnd-ordem').value = '';
   const tx = document.getElementById('vnd-taxa'); if (tx) delete tx.dataset.tocado;
   aplicarTaxaPlataforma();

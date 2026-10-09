@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '09/10/2026 · v38';
+const GENESIS_VERSAO = '09/10/2026 · v39';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -703,22 +703,120 @@ function nuObstaculos(camada) {
   const add = el => { if (!el || el.hidden) return; const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return; out.push({ x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height }); };
   document.querySelectorAll('.nu-hud-esq > *, .nu-hud-dir > *').forEach(add);
   if (document.body.classList.contains('nu-janelas')) document.querySelectorAll('#paineis .pf, #paineis .pf-dock').forEach(add);
+  add(camada.querySelector('.nu-anel-ctl'));
   return out;
+}
+// ── O ARRANJO (09/10, depois que ele arrumou os cartões à mão): "gostaria que automaticamente
+//    adotasse uma posição parecida com a que ordenei — algo ao redor do sistema, de acordo com cada
+//    dispositivo; gostei do movimento natural de reorganizar, mas quero mais intuitivo e
+//    configurável". ÓRBITA = os cartões numa elipse em volta do cérebro, metade de cada lado, de
+//    cima para baixo, deixando livres o alto e o pé do cérebro (como ele arrumou). A elipse se mede
+//    em cada tela. COLUNAS = o arranjo de antes. Se nenhum couber sem encostar, colunas com rolagem.
+const NU_ARRANJOS = { orbita: 'Órbita — em volta do cérebro', colunas: 'Colunas — dos lados' };
+const NU_DISTANCIAS = { perto: ['Perto', 0.74], medio: ['Médio', 0.87], longe: ['Longe', 1] };
+const NU_ABERTURAS = { estreita: ['Estreita', 35], media: ['Média', 52], ampla: ['Ampla', 68] };
+function cfgAnel() {
+  const c = cfgNucleo();
+  if (!NU_ARRANJOS[c.anelArranjo]) c.anelArranjo = 'orbita';
+  if (!NU_DISTANCIAS[c.anelDist]) c.anelDist = 'medio';
+  if (!NU_ABERTURAS[c.anelAbre]) c.anelAbre = 'media';
+  return c;
+}
+function mudarAnel(campo, v) { cfgAnel()[campo] = v; salvarNucleo(); posicionarAnel(); }
+function reorganizarAnel() { cfgNucleo().pos2 = {}; salvarNucleo(); posicionarAnel(); toast('Cartões de volta ao arranjo automático.'); }
+/** A barrinha de arrumação (embaixo, no meio, só com o zoom afastado). */
+function htmlCtlAnel() {
+  const c = cfgAnel();
+  const seg = (campo, mapa) => `<span class="nu-ctl-seg">${Object.entries(mapa).map(([k, v]) => `<button type="button" class="${c[campo] === k ? 'on' : ''}" onclick="mudarAnel('${campo}', '${k}')">${Array.isArray(v) ? v[0] : v.split(' —')[0]}</button>`).join('')}</span>`;
+  return `<div class="nu-anel-ctl" title="Como os cartões se arrumam (também em Config → Núcleo). Arraste um cartão para mudá-lo de lugar; solte em cima de outro para trocar os dois.">${seg('anelArranjo', NU_ARRANJOS)}${c.anelArranjo === 'orbita' ? seg('anelDist', NU_DISTANCIAS) : ''}<button type="button" class="nu-ctl-x" title="Devolver todos ao arranjo automático" onclick="reorganizarAnel()">↺</button></div>`;
+}
+const nuLadoDe = s => ((ANEL_LADO[s.dataset.id] || 'dir') === 'esq' ? 'esq' : 'dir');
+/** Onde está o cérebro, nas coordenadas do anel (3D ou a versão leve 2D, que fica deslocada). */
+function nuCentroCerebro(el) {
+  const ra = el.getBoundingClientRect();
+  const alvo = ['nu-3d', 'nu-2d'].map(id => document.getElementById(id)).find(e => e && !e.hidden && e.offsetWidth) || document.getElementById('nu-palco');
+  const r = alvo.getBoundingClientRect(), d = alvo.id === 'nu-3d' ? (nuDeslocBase()[1] || 0) : 0;
+  return { x: (r.left + r.right) / 2 - ra.left, y: (r.top + r.bottom) / 2 + d - ra.top };
+}
+/** Põe primeiro os que ele arrastou (onde ele pôs, ou no lugar livre mais perto). */
+function nuPorSoltos(soltos, largDe, ctx) {
+  const sobra = [];
+  soltos.forEach(s => {
+    const pp = ctx.pos2['sat-' + s.dataset.id], w = largDe(s);
+    s.style.setProperty('--w', w + 'px');
+    const q = nuLugarLivre({ x: pp.x * ctx.W, y: pp.y * ctx.H, w, h: s.offsetHeight }, [...ctx.obst, ...ctx.ocupados], ctx.lim, 10);
+    if (!q) { sobra.push(s); return; }
+    ctx.ocupados.push(q); ctx.lugares.set(s, q);
+  });
+  return sobra;
+}
+function nuArranjoOrbita(ctx, soltos, auto) {
+  const c = cfgAnel(), dist = NU_DISTANCIAS[c.anelDist][1], abre = NU_ABERTURAS[c.anelAbre][1] * Math.PI / 180;
+  const { W, H } = ctx, cc = nuCentroCerebro(ctx.el);
+  const larg = Math.round(Math.max(220, Math.min(NU_SAT_LARG, W * 0.16)));
+  const rx = Math.max(0, Math.min(cc.x, W - cc.x) - larg / 2 - 16) * dist;
+  const ry = Math.max(0, Math.min(cc.y, H - cc.y) - 30) * dist;
+  if (rx < larg || ry < 90) return false;
+  const R = Math.max(120, Math.min(rx - larg / 2 - 24, ry * 0.85, 440));   // o miolo do cérebro fica livre
+  const nucleo = { x: cc.x - R, y: cc.y - R * 0.8, w: R * 2, h: R * 1.6 };
+  const resto = nuPorSoltos(soltos, () => larg, ctx);
+  const todos = [...auto, ...resto];
+  for (const lado of ['esq', 'dir']) {
+    const lista = todos.filter(s => nuLadoDe(s) === lado), n = lista.length;
+    for (let i = 0; i < n; i++) {
+      const s = lista[i];
+      s.style.setProperty('--w', larg + 'px');
+      const h = s.offsetHeight;
+      const t = n === 1 ? 0 : -abre + (2 * abre * i) / (n - 1);          // de cima para baixo
+      const th = lado === 'esq' ? Math.PI - t : t;
+      const px = cc.x + rx * Math.cos(th), py = cc.y + ry * Math.sin(th);
+      const q = nuLugarLivre({ x: px - larg / 2, y: py - h / 2, w: larg, h }, [...ctx.obst, ...ctx.ocupados, nucleo], ctx.lim, 12);
+      if (!q) return false;
+      ctx.ocupados.push(q); ctx.lugares.set(s, q);
+    }
+  }
+  return true;
 }
 function posicionarAnel() {
   const el = document.getElementById('nu-anel'); if (!el) return;
   const cards = [...el.querySelectorAll('.nu-sat[data-id]')];
   const espalha = innerWidth > 900 && cards.length > 0;
   el.classList.toggle('espalhado', espalha);
+  let ctl = el.querySelector('.nu-anel-ctl');
+  if (ctl) ctl.outerHTML = htmlCtlAnel(); else el.insertAdjacentHTML('beforeend', htmlCtlAnel());
   if (!espalha) return;
   const W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
-  const lim = { x: 0, y: 0, w: W, h: H };
+  const pos2 = nuPos2(), base = { el, W, H, lim: { x: 0, y: 0, w: W, h: H }, pos2, obst: nuObstaculos(el) };
+  const soltos = cards.filter(s => pos2['sat-' + s.dataset.id]), auto = cards.filter(s => !pos2['sat-' + s.dataset.id]);
+  const novo = () => Object.assign({}, base, { ocupados: [], lugares: new Map() });
+  let ctx = null;
+  if (cfgAnel().anelArranjo === 'orbita') { const t = novo(); if (nuArranjoOrbita(t, soltos, auto)) ctx = t; }
+  if (!ctx) { const t = novo(); if (nuArranjoColunas(t, soltos, auto)) ctx = t; }
+  // Não coube em volta do cérebro sem encostar (notebook baixo: 392 px de altura para 10 cartões)?
+  // Volta às duas colunas com rolagem própria — empilhadas, mas NUNCA uma em cima da outra.
+  if (!ctx) {
+    el.classList.remove('espalhado');
+    cards.forEach(s => { ['--x', '--y', '--w'].forEach(v => s.style.removeProperty(v)); s.classList.remove('movido'); });
+    return;
+  }
+  const chegando = [];
+  cards.forEach(s => {
+    const q = ctx.lugares.get(s); if (!q) return;
+    if (!s.style.getPropertyValue('--x')) { s.classList.add('chegando'); chegando.push(s); }   // 1ª vez: nasce no lugar, sem voar do canto
+    s.style.setProperty('--x', Math.round(q.x) + 'px'); s.style.setProperty('--y', Math.round(q.y) + 'px');
+    s.classList.toggle('movido', !!pos2['sat-' + s.dataset.id]);
+  });
+  if (chegando.length) requestAnimationFrame(() => requestAnimationFrame(() => chegando.forEach(s => s.classList.remove('chegando'))));
+}
+/** O arranjo de COLUNAS escalonadas dos dois lados (o de antes). Devolve false se não couber. */
+function nuArranjoColunas(ctx, soltos, auto) {
+  const { W, H, lim, pos2, obst } = ctx;
   const meio = Math.max(240, Math.min(W * 0.2, 480));            // meia largura reservada ao cérebro
   const cerebro = { x: W / 2 - meio, y: 0, w: meio * 2, h: H };
   const espaco = W / 2 - meio - 12;                               // largura de cada lado
-  const pos2 = nuPos2(), obst = nuObstaculos(el), ocupados = [];
+  const ocupados = ctx.ocupados, cards = [...soltos, ...auto];
   let faltou = false;
-  const ladoDe = s => ((ANEL_LADO[s.dataset.id] || 'dir') === 'esq' ? 'esq' : 'dir');
+  const ladoDe = nuLadoDe;
   // Cada lado escolhe quantas colunas usar (e a largura do cartão): no 16:9 uma coluna de 300 px
   // não cabia na altura (754 px para 712) e um cartão ia parar em cima do outro. Testa 1, 2 e 3
   // colunas, mede as alturas reais em cada largura e fica com: mais colunas largas (≥ 260 px,
@@ -750,7 +848,7 @@ function posicionarAnel() {
       const pp = pos2['sat-' + s.dataset.id];
       const q = nuLugarLivre({ x: pp.x * W, y: pp.y * H, w: p.lg, h: p.alt.get(s) }, [...obst, ...ocupados], lim, 10);
       if (!q) { p.cols[0].itens.push(s); return; }
-      ocupados.push(q); s._lugar = q; s.classList.add('movido');
+      ocupados.push(q); ctx.lugares.set(s, q);
     });
   });
   // 2) os outros: colunas escalonadas dos dois lados; a coluna colada no cérebro recebe primeiro
@@ -765,37 +863,62 @@ function posicionarAnel() {
         const h = p.alt.get(s);
         const q = nuLugarLivre({ x, y, w: p.lg, h }, [...obst, ...ocupados, cerebro], lim, 10);
         if (!q) { faltou = true; return; }
-        ocupados.push(q); s._lugar = q; s.classList.remove('movido');
+        ocupados.push(q); ctx.lugares.set(s, q);
         y = q.y + q.h + NU_SAT_VAO;
       });
     });
   });
-  // Não coube em volta do cérebro sem encostar (notebook baixo: 392 px de altura para 10 cartões)?
-  // Volta às duas colunas com rolagem própria — empilhadas, mas NUNCA uma em cima da outra.
-  if (faltou) {
-    el.classList.remove('espalhado');
-    cards.forEach(s => { ['--x', '--y', '--w'].forEach(v => s.style.removeProperty(v)); s.classList.remove('movido'); s._lugar = null; });
-    return;
-  }
-  cards.forEach(s => { const q = s._lugar; if (!q) return; s.style.setProperty('--x', Math.round(q.x) + 'px'); s.style.setProperty('--y', Math.round(q.y) + 'px'); });
+  return !faltou;
 }
-/** Arrastar um cartão da constelação: de qualquer ponto (menos o ✕); ao soltar, encaixa e guarda. */
+/** O retângulo de DESTINO de um cartão (as variáveis, não a tela: a animação pode estar no meio). */
+const nuRetDe = s => ({ x: parseFloat(s.style.getPropertyValue('--x')) || 0, y: parseFloat(s.style.getPropertyValue('--y')) || 0, w: parseFloat(s.style.getPropertyValue('--w')) || s.offsetWidth, h: s.offsetHeight });
+/** Arrastar um cartão: de qualquer ponto (menos o ✕). Enquanto arrasta, um contorno tracejado
+ *  mostra onde ele vai cair (o lugar livre mais perto). Soltar EM CIMA de outro cartão troca os
+ *  dois de lugar — como os ícones do celular. A posição fica guardada neste aparelho. */
 function arrastarSat(e, s) {
   const camada = document.getElementById('nu-anel'), c = camada.getBoundingClientRect(), r = s.getBoundingClientRect();
-  const a = { x0: e.clientX, y0: e.clientY, ex: r.left - c.left, ey: r.top - c.top, mexeu: false };
+  const a = { x0: e.clientX, y0: e.clientY, ex: r.left - c.left, ey: r.top - c.top, mexeu: false, alvo: null, sobre: null, t: 0 };
+  let fantasma = null;
   const mover = ev => {
     const dx = ev.clientX - a.x0, dy = ev.clientY - a.y0;
     if (!a.mexeu && Math.hypot(dx, dy) < 6) return;          // clique trêmulo não vira arrasto
-    if (!a.mexeu) { a.mexeu = true; s.classList.add('arrastando-sat'); document.body.classList.add('arrastando'); }
+    if (!a.mexeu) {
+      a.mexeu = true; s.classList.add('arrastando-sat'); document.body.classList.add('arrastando');
+      fantasma = document.createElement('div'); fantasma.className = 'nu-sat-alvo'; camada.appendChild(fantasma);
+    }
     s.style.setProperty('--x', Math.round(a.ex + dx) + 'px'); s.style.setProperty('--y', Math.round(a.ey + dy) + 'px');
+    if (Date.now() - a.t < 70) return; a.t = Date.now();
+    // em cima de outro cartão? (o arrastado não pega o ponteiro: ver .arrastando-sat no CSS)
+    const sob = document.elementFromPoint(ev.clientX, ev.clientY);
+    const outro = sob && sob.closest('#nu-anel .nu-sat');
+    if (a.sobre && a.sobre !== outro) a.sobre.classList.remove('troca');
+    a.sobre = outro && outro !== s ? outro : null;
+    const eu = nuRetDe(s);
+    if (a.sobre) { a.sobre.classList.add('troca'); a.alvo = nuRetDe(a.sobre); }
+    else {
+      const outros = [...camada.querySelectorAll('.nu-sat[data-id]')].filter(x => x !== s).map(nuRetDe);
+      a.alvo = nuLugarLivre(eu, [...nuObstaculos(camada), ...outros], { x: 0, y: 0, w: camada.clientWidth, h: camada.clientHeight }, 10) || eu;
+    }
+    Object.assign(fantasma.style, { left: a.alvo.x + 'px', top: a.alvo.y + 'px', width: eu.w + 'px', height: eu.h + 'px' });
+    fantasma.classList.toggle('troca', !!a.sobre);
   };
   const soltar = () => {
     removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); removeEventListener('pointercancel', soltar);
     s.classList.remove('arrastando-sat'); document.body.classList.remove('arrastando');
+    if (fantasma) fantasma.remove();
+    if (a.sobre) a.sobre.classList.remove('troca');
     if (!a.mexeu) return;
     s._arrastou = true; setTimeout(() => { s._arrastou = false; }, 250);   // o soltar não vira clique
-    const W = camada.clientWidth || 1, H = camada.clientHeight || 1;
-    nuPos2()['sat-' + s.dataset.id] = { x: parseFloat(s.style.getPropertyValue('--x')) / W, y: parseFloat(s.style.getPropertyValue('--y')) / H };
+    const W = camada.clientWidth || 1, H = camada.clientHeight || 1, pos2 = nuPos2();
+    if (a.sobre && a.sobre.dataset.id) {
+      // troca: cada um vai para o lugar do outro
+      const b = nuRetDe(a.sobre);
+      pos2['sat-' + s.dataset.id] = { x: b.x / W, y: b.y / H };
+      pos2['sat-' + a.sobre.dataset.id] = { x: a.ex / W, y: a.ey / H };
+    } else {
+      const q = a.alvo || nuRetDe(s);
+      pos2['sat-' + s.dataset.id] = { x: q.x / W, y: q.y / H };
+    }
     salvarNucleo();
     posicionarAnel();
   };
@@ -841,6 +964,14 @@ function renderNucleoConfig() {
     <label class="check-line"><input type="checkbox" ${c.janelas ? 'checked' : ''} onchange="cfgNucleo().janelas = this.checked; salvarNucleo(); aplicarJanelasNucleo()"> Mostrar as janelas flutuantes no Núcleo</label>
     <label style="display:block; margin-top:10px">Cartões que aparecem ao afastar o zoom:</label>
     <div class="nu-cfg-cartoes">${Object.entries(ANEL_NOMES).map(([k, nome]) => `<label class="check-line"><input type="checkbox" ${cartaoLigado(k) ? 'checked' : ''} onchange="cfgNucleo().cartoes['${k}'] = this.checked; salvarNucleo(); renderAnel()"> ${nome} <small class="item-date">(${ANEL_LADO[k] === 'esq' ? 'esquerda' : 'direita'})</small></label>`).join('')}</div>
+    <label style="display:block; margin-top:10px">Como esses cartões se arrumam em volta do cérebro:</label>
+    <div class="nu-cfg-arranjo">
+      <select onchange="mudarAnel('anelArranjo', this.value)" title="Arranjo">${Object.entries(NU_ARRANJOS).map(([k, n]) => `<option value="${k}" ${cfgAnel().anelArranjo === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <select onchange="mudarAnel('anelDist', this.value)" title="Distância do cérebro (órbita)">${Object.entries(NU_DISTANCIAS).map(([k, v]) => `<option value="${k}" ${cfgAnel().anelDist === k ? 'selected' : ''}>Distância: ${v[0]}</option>`).join('')}</select>
+      <select onchange="mudarAnel('anelAbre', this.value)" title="Quanto do arco a órbita usa">${Object.entries(NU_ABERTURAS).map(([k, v]) => `<option value="${k}" ${cfgAnel().anelAbre === k ? 'selected' : ''}>Abertura: ${v[0]}</option>`).join('')}</select>
+      <button type="button" class="mini-btn" onclick="reorganizarAnel()">↺ Devolver todos ao arranjo automático</button>
+    </div>
+    <p class="hint" style="margin-top:4px">Arraste um cartão para mudar de lugar (o tracejado mostra onde cai); solte em cima de outro para trocar os dois; dois cliques devolvem um só. Vale só neste aparelho.</p>
     <label style="display:block; margin-top:10px">Abertura (feixe de luz ao entrar):</label>
     <select onchange="escolherAbertura(this.value)">${typeof ABERTURA_MODOS !== 'undefined' ? Object.entries(ABERTURA_MODOS).map(([k, n]) => `<option value="${k}" ${(prefs.abertura || 'som') === k ? 'selected' : ''}>${n}</option>`).join('') : ''}</select>
     <button type="button" class="mini-btn" style="margin-top:6px" onclick="previaAbertura()">▶ Ver a abertura agora</button>

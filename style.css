@@ -4852,6 +4852,31 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
   background: var(--txt4); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .nu-anel.espalhado .nu-sat:hover .nu-sat-alca { opacity: .55; }
 .nu-anel.espalhado .nu-sat.movido { border-color: color-mix(in srgb, var(--acento) 28%, var(--fio-sutil)); }
+.nu-palco .nu-anel.espalhado .nu-sat.chegando { transition: none !important; }
+/* o arrastado não pega o ponteiro: assim dá para saber em cima de QUAL cartão ele está */
+.nu-palco .nu-anel.espalhado .nu-sat.arrastando-sat { pointer-events: none !important; opacity: .92; }
+/* onde o cartão vai cair (tracejado) e o cartão que vai trocar de lugar */
+.nu-sat-alvo { position: absolute; z-index: 2; pointer-events: none; border-radius: var(--r3);
+  border: 2px dashed color-mix(in srgb, var(--acento) 70%, transparent); background: color-mix(in srgb, var(--acento) 8%, transparent);
+  transition: left .12s ease, top .12s ease; }
+.nu-sat-alvo.troca { border-style: solid; }
+.nu-palco .nu-anel.espalhado .nu-sat.troca { outline: 2px dashed var(--acento); outline-offset: 4px; }
+/* a barrinha de arrumação: embaixo, no meio, discreta até o mouse chegar */
+.nu-anel-ctl { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 4; display: none;
+  align-items: center; gap: 6px; padding: 4px; border-radius: 999px; opacity: .6; transition: opacity .2s;
+  background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px solid var(--fio-sutil);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.nu-anel.espalhado .nu-anel-ctl { display: inline-flex; }
+.nu-palco.afastado .nu-anel-ctl { pointer-events: auto; }
+.nu-anel-ctl:hover { opacity: 1; }
+.nu-ctl-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--sup-2); }
+.nu-ctl-seg button, .nu-ctl-x { min-height: 0; min-width: 0; height: 26px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; box-shadow: none;
+  color: var(--txt3); font-size: .74rem; font-weight: 600; cursor: pointer; }
+.nu-ctl-seg button.on { background: color-mix(in srgb, var(--acento) 24%, transparent); color: var(--txt-forte); }
+.nu-ctl-x { width: 28px; padding: 0; font-size: .9rem; }
+.nu-ctl-seg button:hover, .nu-ctl-x:hover { color: var(--txt-forte); }
+.nu-cfg-arranjo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.nu-cfg-arranjo select { width: auto; flex: 1 1 180px; }
 
 /* ══ AJUSTES DITADOS 09/10 · G1 — A BARRA DE ROLAGEM ══════════════════════════
    "Barra branca com ícone cinza na lateral, grotesca, não combina com nenhum layout;

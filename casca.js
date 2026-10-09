@@ -417,11 +417,13 @@ function aplicarCasca() {
   const nova = cascaNova();
   document.body.dataset.casca = nova ? 'nova' : 'classica';
   document.body.dataset.trilho = cfgAparencia().trilho || 'auto';
+  document.body.dataset.resumo = cfgAparencia().resumo || 'pilulas';
   vestirNavegacao();
   if (nova) {
     limparEmojiEstrutura();
     montarCabecalhos();
     prepararFolhas();
+    juntarBarras();
   } else {
     if (folhaAberta) fecharFolha(folhaAberta);
     const bDia = document.getElementById('btn-iniciar-dia');
@@ -441,6 +443,90 @@ function renderCascaConfig() {
   const c = cfgAparencia();
   document.querySelectorAll('#casca-modo span').forEach(s => s.classList.toggle('active', s.dataset.casca === (c.casca || 'nova')));
   document.querySelectorAll('#trilho-modo span').forEach(s => s.classList.toggle('active', s.dataset.trilho === (c.trilho || 'auto')));
+  document.querySelectorAll('#resumo-modo span').forEach(s => s.classList.toggle('active', s.dataset.resumo === (c.resumo || 'pilulas')));
+}
+
+// ══ CARA ÚNICA (09/10, bloco ③ da 1ª rodada de ajustes ditados) ═════════════
+// Ditado dele: "a barra de pesquisa e de início da tarefa ocupa muito espaço junto com aquelas
+// bolinhas do lado… está bonito, mas não é coeso"; e nas Notas: "a barra Todas · Fixadas ·
+// Arquivo · Mural fica quebrada… busca na mesma barra, e embaixo os marcadores, tudo misturado…
+// o exemplo 'ideia do app #genesis' está estranho". Medido nas Notas em 1280×800: 580 px de topo
+// antes da 1ª nota. Agora: cabeçalho numa faixa (as bolinhas viraram PÍLULAS — a mini-órbita fica
+// como opção em Config → Aparência), abas + barra rápida numa linha só, a prévia DENTRO da barra
+// (o exemplo vira o texto de fundo do campo) e os filtros numa linha com rolagem lateral + setinha,
+// com os marcadores num seletor. Piloto: Notas (as outras abas entram depois do OK dele).
+function escolherResumoAba(m) { cfgAparencia().resumo = m; salvarAparencia(); }
+/** Ajustes de texto por aba (o resto é igual em todas as que têm barra rápida + abas de seção). */
+const BARRAS_TEXTOS = {
+  notes: { exemplo: 'Anotar…   ex.: ideia do app #genesis  ·  lista compras: leite, pão  ·  ! fixa no topo', busca: ['note-search', 'Buscar nas notas'] }
+};
+function juntarBarras() {
+  // toda aba que tem a barra rápida (.tar-topo) seguida das abas de seção (.tar-secoes):
+  // Tarefas, Notas, Lazer, Viagens, Rede, Clínica e Produção
+  document.querySelectorAll('.tab-content > .tar-topo').forEach(rapida => {
+    const secoes = rapida.nextElementSibling, aba = rapida.parentElement.id;
+    if (!secoes || !secoes.classList.contains('tar-secoes')) return;
+    // abas e barra numa caixa só (a caixa, e não a barra, recebe as abas: quando uma seção
+    // esconde a barra — as Entregas, por exemplo — as abas continuam à vista)
+    const caixa = document.createElement('div'); caixa.className = 'cs-barra-aba';
+    rapida.parentNode.insertBefore(caixa, rapida);
+    caixa.appendChild(secoes); caixa.appendChild(rapida);
+    const previa = rapida.querySelector('.tar-rapida-previa'), barra = rapida.querySelector('.tar-rapida');
+    const campo = barra && barra.querySelector('input');
+    // o exemplo que ficava numa linha embaixo vira o texto de fundo do campo
+    const dica = previa && previa.querySelector('.tar-dica');
+    const t = BARRAS_TEXTOS[aba] || {};
+    if (campo && t.exemplo) campo.placeholder = t.exemplo;
+    else if (campo && dica) campo.placeholder = `${(campo.placeholder || '').trim()}   ${dica.textContent.replace(/^\s*Ex\.?:\s*/i, 'ex.: ').split(' — ')[0].trim()}`;
+    if (previa && barra) { barra.insertBefore(previa, barra.querySelector('.tar-rapida-ok')); previa.classList.add('dentro'); }
+    const busca = t.busca && document.getElementById(t.busca[0]); if (busca) busca.placeholder = t.busca[1];   // o texto longo saía cortado
+  });
+  montarMarcadoresNotas();
+}
+/** Os marcadores das Notas saem da linha de baixo e viram um seletor (# marcadores ▾). */
+function montarMarcadoresNotas() {
+  const linha = document.querySelector('#sec-nt-filtros .nt-filtros-linha'), pop = document.getElementById('note-labels');
+  if (!linha || !pop || document.getElementById('nt-marc-bt')) return;
+  const bt = document.createElement('button'); bt.type = 'button'; bt.id = 'nt-marc-bt'; bt.className = 'nt-marc-bt';
+  bt.title = 'Filtrar por marcador';
+  bt.onclick = e => { e.stopPropagation(); document.getElementById('sec-nt-filtros').classList.toggle('marc-aberto'); };
+  linha.appendChild(bt);
+  pop.classList.add('nt-marc-pop');
+  atualizarBotaoMarcadores();
+  ligarRolagemLateral(linha);
+}
+function atualizarBotaoMarcadores() {
+  const bt = document.getElementById('nt-marc-bt'); if (!bt) return;
+  const n = typeof todosMarcadores === 'function' ? todosMarcadores().length : 0;
+  const atual = typeof noteLabel !== 'undefined' ? noteLabel : '';
+  bt.hidden = !n;
+  bt.classList.toggle('on', !!atual);
+  bt.innerHTML = `<b>#</b><span>${atual ? esc(atual) : 'marcadores'}</span><small>${n}</small>${ic('seta', 'nt-marc-seta')}`;
+}
+document.addEventListener('click', e => {
+  const f = document.getElementById('sec-nt-filtros');
+  if (f && f.classList.contains('marc-aberto') && !e.target.closest('#note-labels, #nt-marc-bt')) f.classList.remove('marc-aberto');
+});
+if (typeof renderFiltrosNota === 'function') {
+  const _rfn = renderFiltrosNota;
+  renderFiltrosNota = function () { _rfn(); atualizarBotaoMarcadores(); };
+}
+if (typeof filtrarMarcador === 'function') {
+  const _fm = filtrarMarcador;
+  filtrarMarcador = function (l) { _fm(l); const f = document.getElementById('sec-nt-filtros'); if (f) f.classList.remove('marc-aberto'); atualizarBotaoMarcadores(); };
+}
+/** Linha que não cabe: rola para o lado, esmaece na ponta e ganha uma setinha (pedido dele). */
+function ligarRolagemLateral(linha) {
+  if (!linha || linha._rolagem) return; linha._rolagem = true;
+  const host = linha.parentElement; host.classList.add('cs-rola-host');
+  const seta = document.createElement('button'); seta.type = 'button'; seta.className = 'cs-rola-seta'; seta.title = 'Ver o resto';
+  seta.innerHTML = ic('seta');
+  seta.onclick = () => linha.scrollBy({ left: Math.max(120, linha.clientWidth * 0.7), behavior: 'smooth' });
+  host.appendChild(seta);
+  const medir = () => host.classList.toggle('transborda', linha.scrollWidth - linha.clientWidth - linha.scrollLeft > 4);
+  linha.addEventListener('scroll', medir, { passive: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(medir).observe(linha);
+  medir();
 }
 
 // ganchos: depois das funções do app.js, a casca acompanha

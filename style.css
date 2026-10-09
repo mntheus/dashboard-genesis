@@ -5459,3 +5459,92 @@ body[data-casca="classica"] .aba-dev-btn { position: static; float: right; margi
   .pn-cat-grade { grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
   .pn-cat-previa { height: 96px; }
 }
+
+/* ══ AJUSTES DITADOS 09/10 · ③ CARA ÚNICA — o topo de cada aba (casca.js) ══════
+   Medido nas Notas em 1280×800: 580 px de topo antes da 1ª nota (cabeçalho de 274 px por
+   causa da mini-órbita; barra, abas e filtros em faixas separadas, cada uma arredondada
+   para linhas de 58 px pela grade da aba). Agora o cabeçalho é UMA faixa (título · resumo ·
+   pílulas · botões), como o do Painel que ele aprovou. A mini-órbita continua como opção. */
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero {
+  min-height: 0; padding: var(--s3) 96px var(--s3) var(--s1);
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s4); row-gap: 6px;
+}
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-rotulo { flex-basis: 100%; order: 0; }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-titulo { order: 1; margin: 0; font-size: clamp(1.6rem, 1.15rem + 1.5vw, 2.35rem); }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-estado { order: 2; margin: 0; font-size: .92rem; }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-orbe-lugar { order: 3; display: flex !important; position: static !important; width: auto !important; height: auto !important; }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .ex-faixa { order: 4; margin: 0; }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-acoes { order: 5; margin: 0 0 0 auto; }
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-acao,
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .ex-mini { min-height: 34px; }
+@media (max-width: 700px) {
+  /* ⚙ (34 px) + 🛠 (26 px) no canto: 84 px de folga (com 52 o 🛠 encostava no resumo — Viagens, iPhone SE) */
+  body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 84px; }
+  body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-acoes { margin-left: 0; flex-basis: 100%; }
+}
+/* as pílulas (o resumo dos setores; o clique abre o setor) */
+.cs-setores { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-setor {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 0; min-width: 0; height: 28px; padding: 0 11px 0 9px;
+  border-radius: 999px; border: 1px solid var(--fio-sutil); background: var(--sup-2); box-shadow: none;
+  color: var(--txt2); font-size: .76rem; font-weight: 600; cursor: pointer; transition: border-color var(--mov), background var(--mov);
+}
+.cs-setor i { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--c); box-shadow: 0 0 6px color-mix(in srgb, var(--c) 55%, transparent); }
+.cs-setor b { color: var(--txt-forte); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cs-setor span { color: var(--txt3); font-weight: 500; white-space: nowrap; }
+.cs-setor:hover { border-color: color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.cs-setor.vazio { opacity: .55; }
+
+/* abas da aba + barra rápida numa linha só (piloto: Notas) */
+body[data-casca="nova"] .tab-content.active > .cs-barra-aba { grid-column: 1 / -1; }
+.cs-barra-aba { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cs-barra-aba > .focus-header-tabs { flex: none; display: flex; gap: 4px; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+.cs-barra-aba > .tar-topo { flex: 1; min-width: 0; margin: 0; }
+.cs-barra-aba .tar-rapida { max-width: none; margin: 0; padding: 3px 4px 3px 12px; border-radius: 12px; box-shadow: none; }
+.cs-barra-aba .tar-rapida-mais { font-size: 1.1rem; }
+.cs-barra-aba .tar-rapida input { flex: 1; min-width: 0; height: 32px; min-height: 0; margin: 0; padding: 0 4px; border: none; background: transparent; box-shadow: none; outline: none; font-size: .92rem; color: var(--txt-forte); }
+.cs-barra-aba .tar-rapida-ok { width: 34px; height: 30px; min-height: 0; border-radius: 9px; font-size: .95rem; }
+.cs-barra-aba .tar-rapida input#tar-rapida { height: 32px; padding: 0 4px; font-size: .92rem; }   /* a regra do #tar-rapida (Tarefas) pesava mais */
+/* a prévia mora DENTRO da barra: só as etiquetas do que ele entendeu (nota/lista, #marcador, fixada) */
+.tar-rapida-previa.dentro { flex: 0 1 auto; max-width: 46%; min-height: 0; margin: 0; padding: 0; flex-wrap: nowrap; gap: 4px; overflow: hidden; }
+.tar-rapida-previa.dentro .tar-entendi, .tar-rapida-previa.dentro > b, .tar-rapida-previa.dentro .tar-dica { display: none; }
+.tar-rapida-previa.dentro > * { flex: none; white-space: nowrap; }
+@media (max-width: 700px) {
+  .cs-barra-aba { flex-wrap: wrap; gap: 8px; }
+  .cs-barra-aba > .focus-header-tabs { flex-basis: 100%; overflow-x: auto; scrollbar-width: none; }
+}
+
+/* filtros numa linha: rola para o lado, esmaece na ponta e ganha setinha; marcadores num seletor */
+#sec-nt-filtros { position: relative; }
+#sec-nt-filtros .nt-filtros-linha { flex-wrap: nowrap; justify-content: flex-start; max-width: none; overflow-x: auto; scrollbar-width: none; gap: 8px; padding: 2px 0; }
+#sec-nt-filtros .nt-filtros-linha::-webkit-scrollbar { display: none; }
+#sec-nt-filtros .nt-filtros-linha > * { flex: none; }
+#sec-nt-filtros .nt-filtros-linha input#note-search { flex: 0 1 240px; width: 240px; height: 32px; min-height: 0; margin: 0; padding: 0 12px; border-radius: 999px; font-size: .84rem; }
+#sec-nt-filtros .nt-filtros-linha .filter-row { flex-wrap: nowrap; margin: 0; padding: 0; gap: 4px; }
+/* cada grupo é um controle segmentado (antes "Todas" e "Mural" acesos pareciam um grupo só) */
+#sec-nt-filtros .nt-filtros-linha .filter-row { padding: 2px; border-radius: 999px; border: 1px solid var(--fio-sutil); background: var(--sup-2); gap: 2px; }
+#sec-nt-filtros .nt-filtros-linha .filter-row > span { border-color: transparent; background: transparent; padding: 3px 11px; }
+#sec-nt-filtros .nt-filtros-linha .filter-row > span.active { background: color-mix(in srgb, var(--acento) 20%, transparent); border-color: transparent; }
+.nt-marc-bt {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 0; height: 30px; padding: 0 10px 0 11px; border-radius: 999px;
+  border: 1px solid var(--fio-sutil); background: var(--sup-2); box-shadow: none; color: var(--txt2); font-size: var(--t-apoio); font-weight: 600; cursor: pointer;
+}
+.nt-marc-bt b { color: var(--acento); }
+.nt-marc-bt small { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--sup-1); color: var(--txt3); font-size: .66rem; line-height: 18px; text-align: center; }
+.nt-marc-bt.on { border-color: color-mix(in srgb, var(--acento) 50%, transparent); background: color-mix(in srgb, var(--acento) 14%, transparent); color: var(--txt-forte); }
+.nt-marc-bt[hidden] { display: none; }
+.nt-marc-seta { width: 12px; height: 12px; transform: rotate(90deg); color: var(--txt3); }
+#note-labels.nt-marc-pop { display: none !important; }
+#sec-nt-filtros.marc-aberto #note-labels.nt-marc-pop {
+  display: flex !important; flex-wrap: wrap; justify-content: flex-start; gap: 6px;
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: min(520px, 100%); max-height: 50vh; overflow-y: auto;
+  margin: 0; padding: 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--borda); box-shadow: 0 22px 48px -18px var(--sombra);
+}
+/* a setinha tem LUGAR PRÓPRIO ao lado da linha (flutuando por cima, cobria o último filtro no celular) */
+.cs-rola-host { position: relative; display: flex; align-items: center; gap: 6px; }
+.cs-rola-host > .nt-filtros-linha { flex: 1; min-width: 0; }
+.cs-rola-seta { display: none; flex: none; width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 50%;
+  align-items: center; justify-content: center; border: 1px solid var(--fio-sutil); background: var(--card); box-shadow: 0 4px 12px -4px var(--sombra); color: var(--txt2); cursor: pointer; }
+.cs-rola-seta .ic { width: 15px; height: 15px; }
+.cs-rola-host.transborda > .cs-rola-seta { display: inline-flex; }
+.cs-rola-host.transborda > .nt-filtros-linha { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 70px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 70px), transparent); }

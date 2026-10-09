@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '09/10/2026 · v39';
+const GENESIS_VERSAO = '09/10/2026 · v40';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -1250,11 +1250,19 @@ function miniNucleo(area) {
   </div>`;
 }
 function abrirSetorOrbe(area, i) { const s = (tenta(() => setoresDaArea(area)) || [])[i]; if (s && s.abrir) s.abrir(); }
+/** 09/10 (cara única): o mesmo resumo da mini-órbita, em PÍLULAS ao lado do título — ele achou
+ *  que as bolinhas ocupavam espaço demais. Mesma cor de urgência, mesmo clique. */
+function pilulasDaAba(area) {
+  const S = (tenta(() => setoresDaArea(area)) || []).filter(s => s.nome !== 'Abrir a área');
+  if (!S.length) return '';
+  const cor = s => { const u = s.itens.reduce((m, x) => Math.max(m, x.urg), -1); return u === 2 ? 'var(--perigo)' : u === 1 ? 'var(--atencao)' : s.itens.length ? 'var(--acento)' : 'var(--borda3)'; };
+  return `<div class="cs-setores" role="group" aria-label="Resumo de ${esc(nomeAba(area))}">${S.map((s, i) => `<button type="button" class="cs-setor${s.itens.length ? '' : ' vazio'}" style="--c:${cor(s)}" onclick="abrirSetorOrbe('${area}', ${i})" title="${esc(s.nome)}${s.itens[0] ? ' — ' + esc(s.itens[0].nome) : ''}"><i></i><b>${s.itens.length || '–'}</b><span>${esc(s.nome)}</span></button>`).join('')}</div>`;
+}
 function renderOrbeDaAba(id) {
   const h = document.querySelector(`#${id} > .cs-hero`); if (!h) return;
   let box = h.querySelector('.cs-orbe-lugar');
   if (!box) { box = document.createElement('div'); box.className = 'cs-orbe-lugar'; h.appendChild(box); }
-  box.innerHTML = cascaNova() ? miniNucleo(id) : '';
+  box.innerHTML = !cascaNova() ? '' : (cfgAparencia().resumo || 'pilulas') === 'orbita' ? miniNucleo(id) : pilulasDaAba(id);
 }
 // acompanha a aba aberta (e os dados mudando)
 if (typeof atualizarCabecalhoAtivo === 'function') {

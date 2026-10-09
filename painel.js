@@ -965,7 +965,8 @@ function pnMontar() {
   [...sec.children].forEach(el => { if (!el.classList.contains('cs-hero') && !el.classList.contains('aba-cfg-btn') && !el.classList.contains('aba-dev-btn')) legado.appendChild(el); });
   const pn = document.createElement('div'); pn.id = 'pn'; pn.className = 'pn';
   sec.appendChild(pn); sec.appendChild(legado);
-  sec.classList.add('pn-novo');
+  // 🪤 09/10: aqui havia `sec.classList.add('pn-novo')` — o MESMO nome do botão "Adicionar widget"
+  // (display: flex). A aba Painel nunca mais sumia: ficava por cima de todas as outras abas.
   if (typeof ResizeObserver === 'function') {
     let ultimo = 0;
     new ResizeObserver(() => { const w = pn.clientWidth; if (!w || Math.abs(w - ultimo) < 2) return; ultimo = w; if (pnColunas(w) !== pnCols) pnRender(); }).observe(pn);

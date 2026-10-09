@@ -1535,6 +1535,11 @@
         <div id="nucleo-config"></div>
       </div>
       <div class="card">
+        <h2>🖼️ Modo exemplo</h2>
+        <p class="hint">Abre o app inteiro preenchido com uma pessoa inventada, para ver como cada aba fica cheia. É mexível, mas nada é gravado: os seus dados não são lidos nem tocados, e não há sincronização. Também há uma miniatura &ldquo;Ver exemplo&rdquo; no cabeçalho de cada aba e entre os atalhos do Núcleo.</p>
+        <button type="button" id="ex-cfg-botao" onclick="exemploEntrar('settings')">🖼️ Abrir o app preenchido (modo exemplo)</button>
+      </div>
+      <div class="card">
         <h2>🎨 Aparência</h2>
         <p class="hint">Tema de cores, onde ficam as abas e quais aparecem. Vale <strong>só neste aparelho</strong> — o PC pode ficar com as abas na lateral e o celular no topo.</p>
         <label>Tema:</label>
@@ -1787,6 +1792,7 @@
     </div>
   </div>
 
+  <script src="exemplo.js"></script>
   <script>
     /* PRIMEIRO USO — decidido AQUI, antes do app.js, porque a propria partida do app ja
        grava chaves (lifeos_prefs, ritual, rotinas, sync_meta) e um aparelho virgem passaria

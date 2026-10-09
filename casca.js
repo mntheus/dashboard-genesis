@@ -199,6 +199,8 @@ function montarCabecalhos() {
     if (!bDia._casaOriginal) bDia._casaOriginal = bDia.parentElement;
     acoesFocus.prepend(bDia);
   }
+  // a miniatura do modo exemplo (exemplo.js) em cada cabecalho
+  if (typeof exemploMontarBotoes === 'function') exemploMontarBotoes();
 }
 function atualizarCabecalhoAtivo() {
   const sec = document.querySelector('.tab-content.active'); if (!sec) return;

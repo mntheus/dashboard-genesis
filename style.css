@@ -4801,3 +4801,34 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
 /* o que deu lucro: o nome da peça precisa de mais espaço que o nome de uma origem */
 .pr-lucros .cl-orig { grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto; }
 @container (max-width: 420px) { .pr-lucros .cl-orig { grid-template-columns: minmax(0, 1fr) 70px auto; } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODO EXEMPLO (08/10) — a miniatura "Ver exemplo" em cada cabeçalho, o atalho
+   no Núcleo e a faixa que avisa que os dados são de mentira (exemplo.js).
+   ════════════════════════════════════════════════════════════════════════════ */
+.ex-mini {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 38px; padding: 0 var(--s4) 0 6px;
+  border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--acento) 55%, var(--fio-sutil));
+  background: color-mix(in srgb, var(--acento) 8%, var(--sup-2)); color: var(--txt); font-size: var(--t-apoio); font-weight: 600;
+}
+.ex-mini:hover { border-style: solid; }
+.ex-mini-tela {
+  flex: 0 0 auto; width: 34px; height: 24px; padding: 3px; box-sizing: border-box;
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px;
+  border-radius: 5px; background: var(--sup-1); border: 1px solid var(--fio-sutil);
+  font-size: .8rem; line-height: 1; color: var(--txt3);
+}
+.ex-mini-tela i { border-radius: 2px; background: color-mix(in srgb, var(--acento) 55%, transparent); }
+.ex-mini-tela i:first-child { grid-row: span 2; background: color-mix(in srgb, var(--acento) 80%, transparent); }
+.modo-exemplo .ex-mini-tela { display: grid; place-items: center; grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.modo-exemplo .ex-mini { border-style: solid; border-color: color-mix(in srgb, var(--atencao) 60%, var(--fio-sutil)); background: color-mix(in srgb, var(--atencao) 14%, var(--sup-2)); }
+.ex-faixa {
+  display: inline-block; margin: 10px 0 0; padding: 4px 12px; border-radius: 999px;
+  font-size: .74rem; letter-spacing: .02em; color: var(--txt2);
+  background: color-mix(in srgb, var(--atencao) 16%, transparent); border: 1px solid color-mix(in srgb, var(--atencao) 45%, transparent);
+}
+.ex-faixa b { color: var(--atencao); letter-spacing: .08em; }
+#nucleo .ex-faixa { color: #e2e8f0; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+.ex-nu-ic { font-size: 15px; line-height: 1; }
+.modo-exemplo .ex-nu { border-color: color-mix(in srgb, var(--atencao) 60%, transparent); }

@@ -4600,3 +4600,109 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
 .rd-rot { position: absolute; top: 3px; font-style: normal; font-size: .7rem; font-weight: 600; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
 .rd-rot.fora-esq { text-align: right; }
 .rd-linha-anos span:last-child { transform: translateX(-100%); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CLÍNICA (08/10) — o funil desenhado, o quadro de etapas, a cascata do
+   dinheiro, a rosca por serviço e o cardápio com o anel da margem.
+   ════════════════════════════════════════════════════════════════════════════ */
+#funil-lista, #clinica-painel, #serv-lista { container-type: inline-size; }
+#clinica-secoes { justify-content: center; margin: 0; padding-bottom: 6px; }
+#sec-cl-rapida[hidden] { display: none !important; }
+#clinica-painel .tar-gr-tit, #funil-lista .tar-gr-tit { margin-top: var(--s3); }
+.cl-tiles { margin-top: 2px; }
+
+/* o funil desenhado */
+.cl-funil { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin-bottom: var(--s3); }
+.cl-funil-fila { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 8px; }
+.cl-funil-faixa {
+  --cor: var(--info);
+  justify-self: center; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 34px; padding: 4px 14px;
+  border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--cor) 40%, var(--sup-1)), color-mix(in srgb, var(--cor) 22%, var(--sup-1))); border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+  clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
+}
+.cl-funil-faixa b { font-size: .8rem; color: var(--txt-forte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-funil-faixa span { font-size: .76rem; font-weight: 700; color: var(--txt-forte); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cl-conv { font-size: .7rem; font-weight: 700; color: var(--txt3); text-align: left; white-space: nowrap; }
+
+/* o quadro de etapas */
+.cl-quadro { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); align-items: start; }
+.cl-coluna { --cor: var(--info); display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 80px; padding: 8px; border-radius: var(--r2); background: color-mix(in srgb, var(--cor) 7%, var(--sup-1)); border: 1px solid var(--fio-sutil); border-top: 3px solid var(--cor); transition: box-shadow var(--mov), border-color var(--mov); }
+.cl-coluna.alvo { border-color: var(--cor); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cor) 45%, transparent); }
+.cl-coluna header { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 2px 4px 4px; }
+.cl-coluna header b { font-size: .8rem; color: var(--txt-forte); white-space: nowrap; }
+.cl-coluna header small { font-size: .7rem; color: var(--txt3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cl-coluna-lista { display: flex; flex-direction: column; gap: 6px; }
+.cl-vazio { padding: 10px 6px; text-align: center; font-size: .72rem; color: var(--txt4); border: 1px dashed var(--borda2); border-radius: 8px; }
+.cl-pac { --cor: var(--info); display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 8px 10px; border-radius: 8px; background: var(--card, var(--sup-1)); border: 1px solid var(--fio-sutil); border-left: 3px solid var(--cor); cursor: grab; box-shadow: var(--elev1); }
+.cl-pac.arrastando { opacity: .35; }
+.cl-pac-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.cl-pac-topo b { font-size: var(--t-apoio); color: var(--txt-forte); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-pac-topo strong { font-size: .76rem; color: var(--txt-forte); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cl-pac small { font-size: .68rem; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-pac-data.atras { color: var(--perigo); font-weight: 700; }
+.cl-pac-acoes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cl-pac-acoes .mini-btn { min-height: 28px; font-size: .72rem; padding: 2px 8px; }
+.cl-perdidos { display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-perdido { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; font-size: .74rem; color: var(--txt3); background: var(--sup-2); }
+
+/* a cascata do dinheiro */
+.cl-cascata { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.cl-casc-fila { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.cl-casc-rot { font-size: .76rem; font-weight: 600; color: var(--txt2); white-space: nowrap; }
+.cl-casc-trilho { position: relative; height: 18px; border-radius: 4px; background: color-mix(in srgb, var(--sup-2) 60%, transparent); }
+.cl-casc-trilho i { position: absolute; top: 0; height: 100%; border-radius: 4px; }
+.cl-casc-trilho i.fat, .cl-casc-fila b.fat { background: var(--ok); color: var(--ok); }
+.cl-casc-trilho i.cus, .cl-casc-fila b.cus { background: color-mix(in srgb, var(--txt4) 80%, transparent); color: var(--txt3); }
+.cl-casc-trilho i.com, .cl-casc-fila b.com { background: var(--laranja); color: var(--laranja); }
+.cl-casc-trilho i.luc, .cl-casc-fila b.luc { background: var(--info); color: var(--info); }
+.cl-casc-trilho i.neg, .cl-casc-fila b.neg { background: var(--perigo); color: var(--perigo); }
+.cl-casc-fila b { background: none !important; font-size: var(--t-apoio); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+@container (max-width: 420px) { .cl-casc-fila { grid-template-columns: 78px minmax(0, 1fr); } .cl-casc-fila b { grid-column: 2; text-align: left; } }
+
+/* a rosca por serviço e as origens */
+.cl-duas { display: grid; gap: var(--s3); grid-template-columns: 1fr; }
+@container (min-width: 640px) { .cl-duas { grid-template-columns: 1fr 1fr; } }
+.cl-rosca { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cl-rosca svg { width: 130px; height: 130px; flex: 0 0 auto; }
+.cl-rosca .t1 { font-size: 14px; font-weight: 800; fill: var(--txt-forte); text-anchor: middle; }
+.cl-rosca .t2 { font-size: 8px; fill: var(--txt3); text-anchor: middle; text-transform: uppercase; letter-spacing: .08em; }
+.cl-rosca ul { flex: 1 1 140px; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.cl-rosca li { display: flex; align-items: center; gap: 6px; font-size: .76rem; color: var(--txt2); min-width: 0; }
+.cl-rosca li i { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+.cl-rosca li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-rosca li b { color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.cl-origens { display: flex; flex-direction: column; gap: 6px; }
+.cl-orig { display: grid; grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 28px; align-items: center; gap: 8px; font-size: .76rem; color: var(--txt2); }
+.cl-orig span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-orig div { height: 10px; border-radius: 5px; background: var(--sup-2); overflow: hidden; }
+.cl-orig i { display: block; height: 100%; border-radius: 5px; background: var(--info); }
+.cl-orig b { color: var(--txt-forte); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* o cardápio de serviços */
+.cl-cardapio { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); align-items: start; }
+.cl-prato { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px; border-radius: 12px; background: linear-gradient(160deg, color-mix(in srgb, var(--ok) 8%, var(--sup-1)), var(--sup-1)); border: 1px solid var(--fio-sutil); box-shadow: var(--elev1); }
+.cl-prato.off { opacity: .5; }
+.cl-prato-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cl-prato-ic { flex: 0 0 auto; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; font-size: 1.2rem; background: var(--sup-2); }
+.cl-prato-topo > div { display: flex; flex-direction: column; min-width: 0; }
+.cl-prato-topo b { font-size: var(--t-corpo); color: var(--txt-forte); overflow-wrap: anywhere; }
+.cl-prato-topo small { font-size: .7rem; color: var(--txt3); }
+.cl-prato-meio { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cl-prato-meio > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cl-prato-meio strong { font-size: 1.35rem; font-weight: 800; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.cl-prato-meio small { font-size: .7rem; color: var(--txt3); }
+.cl-anel { flex: 0 0 auto; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; }
+.cl-anel > span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: .8rem; font-weight: 800; color: var(--ok); background: var(--card, var(--bg)); }
+.cl-anel.neg > span { color: var(--perigo); }
+.cl-prato-pe { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .7rem; }
+.cl-leg { display: inline-flex; align-items: center; gap: 4px; color: var(--txt3); }
+.cl-leg::before { content: ''; width: 8px; height: 8px; border-radius: 2px; }
+.cl-leg.luc::before { background: var(--ok); }
+.cl-leg.cus::before { background: color-mix(in srgb, var(--txt4) 70%, transparent); }
+.cl-leg.com::before { background: var(--laranja); }
+.cl-prato-nota { font-size: .72rem; color: var(--txt3); overflow-wrap: anywhere; }
+/* funil no celular: a faixa estreita cortava o nome e o número — largura mínima que cabe os dois */
+.cl-funil-faixa { min-width: min(100%, 205px); }
+.cl-funil-faixa em { font-style: normal; }
+/* no celular a faixa mostra só a quantidade (o R$ fica no PC): sobra espaço e o funil volta a afinar */
+@container (max-width: 420px) { .cl-funil-fila { grid-template-columns: minmax(0, 1fr) 48px; } .cl-funil-faixa { padding: 4px 10px; min-width: min(100%, 140px); } .cl-funil-faixa em { display: none; } }

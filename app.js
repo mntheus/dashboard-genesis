@@ -6650,20 +6650,8 @@ function removerServico(id) {
   if (!confirm(`Apagar o serviço "${s.nome}"?${usos ? `\n\n${plural(usos, 'pessoa usa', 'pessoas usam')} ele no funil — elas continuam, só ficam sem serviço ligado.` : ''}`)) return;
   servicos = servicos.filter(x => x.id !== s.id); salvar('servicos', servicos); renderClinica();
 }
-function renderServicos() {
-  const ul = document.getElementById('serv-lista'); if (!ul) return;
-  if (!servicos.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Nenhum serviço ainda. Cadastre o que a clínica vende, com preço <em>e</em> custo — a margem sai sozinha.</li>'; return; }
-  ul.innerHTML = [...servicos].sort((a, b) => (b.preco || 0) - (a.preco || 0)).map(s => {
-    const m = margemServico(s); const t = TIPOS_SERVICO[s.tipo] || TIPOS_SERVICO.procedimento;
-    const off = s.ativo === false;
-    return `<li style="${off ? 'opacity:0.45' : ''}"><div class="transaction-info" style="flex:1">
-      <span>${t[0]} ${esc(s.nome)}${off ? ' <small class="item-date">(fora do catálogo)</small>' : ''}</span>
-      <small class="item-date">${esc(t[1])}${s.tipo === 'pacote' ? ` · ${s.sessoes || 1} sessões · ${formatCurrency(precoPorSessao(s))}/sessão` : ''}${s.comissaoPct ? ` · comissão ${s.comissaoPct}%` : ''}</small>
-      <small class="item-notes">💰 ${formatCurrency(s.preco)} − custo ${formatCurrency(s.custo || 0)}${m.comissao ? ' − comissão ' + formatCurrency(m.comissao) : ''} = <strong style="color:${m.lucro >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(m.lucro)}</strong> <span class="margem-pct">(${m.pct}%)</span></small>
-      ${s.notas ? `<small class="item-notes">${esc(s.notas)}</small>` : ''}</div>
-      <div class="item-actions"><button class="mini-btn ${off ? '' : 'on'}" title="${off ? 'Voltar ao catálogo' : 'Tirar do catálogo'}" onclick="alternarServicoAtivo(${s.id})">${off ? '▶' : '⏸'}</button><button class="mini-btn" title="Editar" onclick="editarServico(${s.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerServico(${s.id})">✕</button></div></li>`;
-  }).join('');
-}
+// O desenho da Clínica (funil, quadro, cascata, cardápio) mora no clinica.js (08/10).
+function renderServicos() { clRenderServicos(); }
 
 // --- funil de pacientes -----------------------------------------------------
 function pacientePorId(id) { return pacientes.find(p => p.id === Number(id)) || null; }
@@ -6766,30 +6754,7 @@ function editarPaciente(id) {
 }
 let funilFiltro = 'ativos';
 function filtrarFunil(f, el) { funilFiltro = f; document.querySelectorAll('#funil-filtros span').forEach(s => s.classList.remove('active')); if (el) el.classList.add('active'); renderFunil(); }
-function renderFunil() {
-  const el = document.getElementById('funil-lista'); if (!el) return;
-  const etapasMostrar = funilFiltro === 'todos' ? Object.keys(ETAPAS)
-    : funilFiltro === 'ativos' ? ['lead', 'avaliacao', 'agendado']
-    : [funilFiltro];
-  let html = '';
-  etapasMostrar.forEach(k => {
-    const lista = pacientes.filter(p => p.etapa === k).sort((a, b) => (a.proximaData || '9').localeCompare(b.proximaData || '9'));
-    const soma = lista.reduce((a, p) => a + valorPaciente(p), 0);
-    const e = ETAPAS[k];
-    html += `<div class="etapa-bloco"><div class="etapa-topo" style="border-left-color:${e[2]}"><strong>${e[0]} ${e[1]}</strong><small>${lista.length ? `${lista.length} · ${formatCurrency(soma)}` : '—'}</small></div>`;
-    html += lista.length ? lista.map(p => {
-      const s = servicoPorId(p.servicoId);
-      const pode = ORDEM_ETAPAS.indexOf(p.etapa) >= 0 && ORDEM_ETAPAS.indexOf(p.etapa) < ORDEM_ETAPAS.length - 1;
-      return `<div class="pac-linha"><div class="transaction-info" style="flex:1">
-        <span>${esc(p.nome)}${p.etapa === 'feito' ? (p.recebido ? ' <span class="badge-paid">recebido</span>' : ' <span class="badge-unpaid">a receber</span>') : ''}</span>
-        <small class="item-date">${s ? esc(s.nome) + ' · ' : ''}${formatCurrency(valorPaciente(p))}${p.origem ? ' · ' + esc(p.origem) : ''}${p.proximaData ? ' · 📅 ' + isoParaBR(p.proximaData) + (p.proximaHora ? ' ' + esc(p.proximaHora) : '') : ''}</small>
-        ${p.responsavel ? `<small class="item-notes">👤 ${esc(p.responsavel)}</small>` : ''}${p.notas ? `<small class="item-notes">${esc(p.notas)}</small>` : ''}</div>
-        <div class="item-actions">${p.etapa === 'feito' ? `<button class="mini-btn ${p.recebido ? 'on' : ''}" title="${p.recebido ? 'Voltar para a receber' : 'Marcar como recebido'}" onclick="alternarRecebido(${p.id})">💵</button>` : ''}${pode ? `<button class="mini-btn" title="Avançar para ${ETAPAS[ORDEM_ETAPAS[ORDEM_ETAPAS.indexOf(p.etapa) + 1]][1]}" onclick="avancarEtapa(${p.id})">▶</button>` : ''}${p.etapa !== 'perdido' && p.etapa !== 'feito' ? `<button class="mini-btn" title="Não fechou" onclick="moverEtapa(${p.id}, 'perdido')">✖️</button>` : ''}<button class="mini-btn" title="Editar" onclick="editarPaciente(${p.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerPaciente(${p.id})">✕</button></div></div>`;
-    }).join('') : '<div class="pf-vazio" style="padding:4px 10px">ninguém aqui</div>';
-    html += '</div>';
-  });
-  el.innerHTML = html;
-}
+function renderFunil() { clRenderFunil(); }
 
 // --- repasses ---------------------------------------------------------------
 function pagarRepasse(id) {
@@ -6833,35 +6798,7 @@ function indicadoresClinica(ym) {
   return { doMes, faturamento, custo, comissao, lucro: faturamento - custo - comissao,
     ticket: doMes.length ? faturamento / doMes.length : 0, entraram: entraram.length, conversao, aReceber, pipeline };
 }
-function renderPainelClinica() {
-  const el = document.getElementById('clinica-painel'); if (!el) return;
-  const ym = hojeISO().slice(0, 7); const i = indicadoresClinica(ym);
-  const tile = (ic, v, r, cor) => `<div class="stat-tile" style="--tom:${cor || 'var(--txt-forte)'}"><span class="stat-icon">${ic}</span><strong>${v}</strong><small>${r}</small></div>`;
-  el.innerHTML = `<div class="stat-grid">
-      ${tile('💰', formatCurrency(i.faturamento), `faturado em ${nomeMes(ym).toLowerCase()}`, '#22c55e')}
-      ${tile('🎯', formatCurrency(i.lucro), 'depois de custo e comissão', i.lucro >= 0 ? 'var(--ok)' : 'var(--perigo)')}
-      ${tile('🧾', formatCurrency(i.ticket), `ticket médio · ${plural(i.doMes.length, 'atendimento', 'atendimentos')}`)}
-      ${tile('📈', i.conversao + '%', 'do funil vira atendimento')}
-      ${tile('🔮', formatCurrency(i.pipeline), 'em negociação agora', '#38bdf8')}
-      ${tile('⏳', formatCurrency(i.aReceber), 'feito e ainda não recebido', i.aReceber ? '#f59e0b' : undefined)}
-    </div>`;
-  // por serviço e por origem
-  const porServico = {}; const porOrigem = {};
-  i.doMes.forEach(p => {
-    const n = nomeServico(p.servicoId) || 'Sem serviço';
-    porServico[n] = (porServico[n] || 0) + valorPaciente(p);
-  });
-  pacientes.forEach(p => { const o = p.origem || 'Sem origem'; porOrigem[o] = (porOrigem[o] || 0) + 1; });
-  const barras = (mapa, cor, moeda) => {
-    const itens = Object.entries(mapa).sort((a, b) => b[1] - a[1]); if (!itens.length) return '<div class="stat-line muted">nada ainda</div>';
-    const total = itens.reduce((a, [, v]) => a + v, 0);
-    return itens.map(([k, v]) => `<div class="cat-row"><span class="cat-name">${esc(k)}</span><div class="cat-bar"><div style="width:${Math.round(v / total * 100)}%; background:${cor}"></div></div><span class="cat-val">${moeda ? formatCurrency(v) : v} <small>${Math.round(v / total * 100)}%</small></span></div>`).join('');
-  };
-  const det = document.getElementById('clinica-detalhe');
-  if (det) det.innerHTML = `<div class="stat-lists">
-    <div><h5>✨ Faturamento por serviço (mês)</h5>${barras(porServico, '#22c55e', true)}</div>
-    <div><h5>🌱 De onde vêm as pessoas</h5>${barras(porOrigem, '#38bdf8', false)}</div></div>`;
-}
+function renderPainelClinica() { clRenderPainel(); }
 
 // --- a aba ------------------------------------------------------------------
 let clinicaSecao = 'painel';
@@ -6871,6 +6808,7 @@ function verSecaoClinica(s, el) {
   if (el) el.classList.add('active');
   else { const i = ['painel', 'funil', 'servicos'].indexOf(s); const sp = document.querySelectorAll('#clinica-secoes > span')[i]; if (sp) sp.classList.add('active'); }
   ['painel', 'funil', 'servicos'].forEach(k => { const d = document.getElementById('sec-cl-' + k); if (d) d.hidden = k !== s; });
+  if (typeof clAoTrocar === 'function') clAoTrocar();
 }
 function renderClinica() {
   preencherSelectsClinica(); renderPainelClinica(); renderFunil(); renderServicos(); renderRepasses();

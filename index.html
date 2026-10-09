@@ -1280,20 +1280,27 @@
     </div>
     <!-- Módulo 13: Clínica -->
     <div id="clinic" class="tab-content">
-      <div class="focus-header-tabs agenda-tabs" id="clinica-secoes" style="margin-top:20px">
+      <div id="sec-cl-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="cl-rapida" aria-label="Pessoa nova no funil" placeholder="Quem chegou?" autocomplete="off" enterkeyhint="done" oninput="clRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); clRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="clRapidaAdicionar()">↵</button>
+        </div>
+        <div id="cl-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="clinica-secoes">
         <span class="active" onclick="verSecaoClinica('painel', this)">📊 Painel</span>
         <span onclick="verSecaoClinica('funil', this)">🌱 Funil</span>
         <span onclick="verSecaoClinica('servicos', this)">✨ Serviços</span>
       </div>
 
       <div id="sec-cl-painel" class="agenda-sec">
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="cl-painel">
           <h2>📊 A clínica este mês</h2>
-          <p class="hint">Tudo aqui sai sozinho do funil e do catálogo: o que foi marcado como <strong>feito</strong> vira faturamento, o custo e a comissão do serviço são descontados, e o que ainda está em negociação aparece separado.</p>
           <div id="clinica-painel"></div>
-          <div id="clinica-detalhe" style="margin-top:16px"></div>
+          <div id="clinica-detalhe"></div>
         </div>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="cl-repasses">
           <h2>💸 Repasses e comissões</h2>
           <p class="hint">Quando um serviço com <strong>% de comissão</strong> é marcado como feito e tem responsável, a comissão entra aqui sozinha. O 💵 paga e lança a despesa em Finanças.</p>
           <div id="repasse-resumo" class="summary-row"></div>
@@ -1302,9 +1309,12 @@
       </div>
 
       <div id="sec-cl-funil" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="cl-funil">
+          <h2>🌱 Funil</h2>
+          <div id="funil-lista"></div>
+        </div>
         <div class="card" style="margin-top: 20px;">
-          <h2>🌱 Quem está chegando</h2>
-          <p class="hint">Do primeiro contato até o procedimento feito. Ao marcar <strong>feito</strong>, o valor vira receita em Finanças e a comissão vira repasse. Se você puser uma próxima data, ela aparece no seu calendário.</p>
+          <h2>🌱 Nova pessoa no funil</h2>
           <form id="pac-form">
             <input type="hidden" id="pac-id">
             <div style="display: grid; grid-template-columns: 2fr 1.2fr 1.2fr; gap: 10px;">
@@ -1326,23 +1336,16 @@
             <div style="display:flex; gap:10px;"><button type="submit" id="pac-submit" style="flex:1">Adicionar ao funil</button><button type="button" id="pac-cancel" class="btn" hidden onclick="cancelarEdicaoPaciente()">Cancelar</button></div>
           </form>
         </div>
-        <div class="card" style="margin-top: 20px;">
-          <h2>Funil</h2>
-          <div class="focus-header-tabs filter-row" id="funil-filtros">
-            <span class="active" onclick="filtrarFunil('ativos', this)">🔥 Em aberto</span>
-            <span onclick="filtrarFunil('feito', this)">✅ Feitos</span>
-            <span onclick="filtrarFunil('retorno', this)">🔄 Retornos</span>
-            <span onclick="filtrarFunil('perdido', this)">✖️ Perdidos</span>
-            <span onclick="filtrarFunil('todos', this)">📋 Todos</span>
-          </div>
-          <div id="funil-lista"></div>
-        </div>
       </div>
 
       <div id="sec-cl-servicos" class="agenda-sec" hidden>
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top: 20px;" data-mod="cl-servicos">
           <h2>✨ O que a clínica vende</h2>
-          <p class="hint">Cadastre <strong>preço e custo</strong> de cada serviço — a margem sai sozinha e alimenta o painel. Se alguém ganha comissão, ponha o % aqui: o repasse passa a ser gerado sozinho a cada atendimento feito.</p>
+          <p class="hint">O anel mostra quanto de cada venda é <strong>lucro</strong> (verde), <strong>comissão</strong> (laranja) e <strong>custo</strong> (cinza). Com % de comissão, o repasse é gerado sozinho a cada atendimento feito.</p>
+          <div id="serv-lista"></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <h2>✨ Novo serviço</h2>
           <form id="serv-form">
             <input type="hidden" id="serv-id">
             <div style="display: grid; grid-template-columns: 2fr 1.4fr; gap: 10px;">
@@ -1358,11 +1361,9 @@
             <div><label for="serv-notas">Observações:</label><input type="text" id="serv-notas" placeholder="o que está incluso, tempo de sala"></div>
             <div style="display:flex; gap:10px;"><button type="submit" id="serv-submit" style="flex:1">Adicionar serviço</button><button type="button" id="serv-cancel" class="btn" hidden onclick="cancelarEdicaoServico()">Cancelar</button></div>
           </form>
-          <ul id="serv-lista" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
       </div>
     </div>
-
     <!-- Módulo 14: Produção / impressão 3D -->
     <div id="prod" class="tab-content">
       <div class="focus-header-tabs agenda-tabs" id="producao-secoes" style="margin-top:20px">
@@ -1800,6 +1801,7 @@
   <script src="lazer.js"></script>
   <script src="viagens.js"></script>
   <script src="rede.js"></script>
+  <script src="clinica.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

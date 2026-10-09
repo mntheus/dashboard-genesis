@@ -5350,30 +5350,70 @@ function totalDev(abertas) {
 }
 
 // --- o modal do ⚙ -----------------------------------------------------------
-let abaConfigAtual = null;
-function abrirConfigAba(id) {
-  abaConfigAtual = id || ABA_ATUAL();
+// G2 (ditado de 09/10): "um iconezinho de configuração em todas as páginas que abre a
+// configuração daquele local — tudo que for configuração daquela aba —, sem ir na
+// Config geral. Hoje só aparece um bloco de notas de ajustes, que não é a intenção."
+// Agora são DOIS botões: ⚙ = configurações da aba (os ajustes dela + os cartões da
+// Config geral que dizem respeito a ela, EMPRESTADOS enquanto o pop-up está aberto)
+// e 🛠 = o caderno do desenvolvedor, à parte e discreto.
+let abaConfigAtual = null, abaConfigModo = 'ajustes';
+/** Cartões da Config geral que também aparecem no ⚙ da aba (achados pelo TÍTULO — armadilha nº 12). */
+const CFG_ABA_CARTOES = {
+  'btn-focus': ['Avisos e lembretes'],
+  'btn-home': ['Perfil', 'Avisos e lembretes']
+};
+/** Pedaços próprios do ⚙ de cada aba (o Painel registra o dele em painel.js). */
+const CFG_ABA_EXTRA = {};
+function abrirConfigAba(id, modo) {
+  abaConfigAtual = id || ABA_ATUAL(); abaConfigModo = modo || 'ajustes';
   renderConfigAba();
   document.getElementById('aba-config-modal').style.display = 'flex';
-  setTimeout(() => { const i = document.getElementById('dev-input'); if (i) i.focus(); }, 60);
+  if (abaConfigModo === 'caderno') setTimeout(() => { const i = document.getElementById('dev-input'); if (i) i.focus(); }, 60);
 }
-function fecharConfigAba() { document.getElementById('aba-config-modal').style.display = 'none'; abaConfigAtual = null; }
+function fecharConfigAba() { devolverCartoesConfig(); document.getElementById('aba-config-modal').style.display = 'none'; abaConfigAtual = null; }
+/** Devolve à Config geral, no mesmo lugar, os cartões emprestados ao ⚙ da aba. */
+function devolverCartoesConfig() {
+  document.querySelectorAll('#aba-config-corpo .cfg-emprestado').forEach(card => {
+    if (card._volta && card._volta.parentNode) { card._volta.parentNode.insertBefore(card, card._volta); card._volta.remove(); }
+    card._volta = null; card.classList.remove('cfg-emprestado');
+  });
+}
+function emprestarCartoesConfig(id, alvo) {
+  (CFG_ABA_CARTOES[id] || []).forEach(nome => {
+    const card = [...document.querySelectorAll('#settings .card')].find(c => { const h = c.querySelector('h2'); return h && h.textContent.includes(nome); });
+    if (!card || card.classList.contains('cfg-emprestado')) return;
+    card._volta = document.createComment('lugar do cartão emprestado ao ⚙ da aba');
+    card.parentNode.insertBefore(card._volta, card);
+    card.classList.add('cfg-emprestado'); alvo.appendChild(card);
+  });
+}
 function renderConfigAba() {
   const id = abaConfigAtual; if (!id) return;
   const el = document.getElementById('aba-config-corpo'); if (!el) return;
-  document.getElementById('aba-config-titulo').innerText = ABA_NOME(id);
-  const ajustes = AJUSTES_ABA[id] || [];
+  devolverCartoesConfig();
+  const caderno = abaConfigModo === 'caderno';
+  document.getElementById('aba-config-titulo').innerText = (caderno ? 'Caderno · ' : 'Configurações · ') + ABA_NOME(id).replace(/^\S+\s/, '');
+  // o Painel novo (painel.js) tem os ajustes dele; os antigos só valem na apresentação clássica
+  const ajustes = id === 'btn-focus' && typeof cascaNova === 'function' && cascaNova() ? [] : (AJUSTES_ABA[id] || []);
   const c = cfgAba(id);
   const lista = notasDev(id);
   const abertas = lista.filter(x => !x.done); const feitas = lista.filter(x => x.done);
+  if (!caderno) {
+    const extra = typeof CFG_ABA_EXTRA[id] === 'function' ? CFG_ABA_EXTRA[id]() : '';
+    el.innerHTML = `${extra}
+      ${ajustes.length ? `<h4 class="dev-titulo">Desta aba</h4>
+        ${ajustes.map(a => `<label class="check-line"><input type="checkbox" ${c[a.k] ? 'checked' : ''} onchange="alternarAjusteAba('${id}', '${a.k}')"> ${esc(a.nome)}</label>`).join('')}` : ''}
+      ${!extra && !ajustes.length && !(CFG_ABA_CARTOES[id] || []).length ? '<p class="hint">Esta aba ainda não tem configurações próprias. O que fizer falta, anote no caderno 🛠.</p>' : ''}
+      <div id="aba-cfg-emprestados" class="aba-cfg-emprestados"></div>
+      <div class="pf-botoes" style="margin-top:10px"><button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings');">⚙️ Abrir a Config geral</button><button class="mini-btn" onclick="abrirConfigAba('${id}', 'caderno')">🛠️ Caderno desta aba${abertas.length ? ' (' + abertas.length + ')' : ''}</button></div>`;
+    emprestarCartoesConfig(id, document.getElementById('aba-cfg-emprestados'));
+    return;
+  }
   const linha = n => `<li class="dev-item ${n.done ? 'feito' : ''}"><input type="checkbox" ${n.done ? 'checked' : ''} onclick="marcarNotaDev('${id}', ${n.id})">
       <span>${esc(n.text)}</span>
       <select class="dev-mover" title="Mover para outra aba" onchange="moverNotaDev('${id}', ${n.id}, this.value)">${opcoesAbas(id)}</select>
       <button class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`;
   el.innerHTML = `
-    ${ajustes.length ? `<h4 class="dev-titulo">Ajustes desta aba</h4>
-      ${ajustes.map(a => `<label class="check-line"><input type="checkbox" ${c[a.k] ? 'checked' : ''} onchange="alternarAjusteAba('${id}', '${a.k}')"> ${esc(a.nome)}</label>`).join('')}`
-      : `<p class="hint">Esta aba ainda não tem ajustes próprios — use o caderno abaixo para pedir os que fizerem falta.</p>`}
     <h4 class="dev-titulo">🛠️ Caderno desta aba <small>${abertas.length ? plural(abertas.length, 'em aberto', 'em aberto') : 'vazio'}</small></h4>
     <p class="hint" style="margin:0 0 6px 0">Anote aqui, enquanto usa, o que precisa mudar <strong>nesta tela</strong>. Tudo que for anotado em todas as abas aparece junto na janela flutuante 🛠️ Ajustes.</p>
     <form onsubmit="addNotaDev(event, '${id}')" style="display:flex; gap:8px; margin:0">
@@ -5381,7 +5421,7 @@ function renderConfigAba() {
       <button type="submit">＋</button>
     </form>
     <ul class="dev-lista">${abertas.map(linha).join('') || '<li class="dev-vazio">Nada anotado ainda.</li>'}${feitas.length ? `<li class="dev-sep">resolvidos (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
-    <div class="pf-botoes" style="margin-top:8px"><button class="mini-btn" onclick="limparFeitosDev()">🧹 limpar resolvidos (todas as abas)</button><button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings');">⚙️ Config geral</button></div>`;
+    <div class="pf-botoes" style="margin-top:8px"><button class="mini-btn" onclick="limparFeitosDev()">🧹 limpar resolvidos (todas as abas)</button><button class="mini-btn" onclick="abrirConfigAba('${id}')">⚙️ Configurações desta aba</button></div>`;
 }
 // ============================================================================
 // EDITOR DE LISTA (pedido 10 do caderno)
@@ -5548,7 +5588,7 @@ setInterval(sincronizarListas, 700);
 // ============================================================================
 const MODAIS_MOVEIS = {
   'anexo-modal': '📎 Anexos',
-  'aba-config-modal': '⚙ Ajustes da aba',
+  'aba-config-modal': '⚙ Esta aba',
   'compra-modal': '🛒 Comprei',
   'lupa-modal': '🖼️ Imagem',
   'novo-modal': '➕ Novo compromisso'
@@ -5705,14 +5745,21 @@ function alternarPainelAtalho(k) {
  *  motivo das anotações caírem na aba errada. */
 function atualizarBotaoConfigAba() {
   const b = document.getElementById('aba-cfg-btn'); if (!b) return;
-  const id = ABA_ATUAL();
+  const id = ABA_ATUAL(), nome = ABA_NOME(id).replace(/^\S+\s/, '');
   const n = notasDev(id).filter(x => !x.done).length;
-  b.hidden = id === 'btn-settings';
-  b.title = `Ajustes e caderno de ${ABA_NOME(id)}`;
-  b.innerHTML = `⚙ <span class="cfg-aba-nome">${esc(ABA_NOME(id))}</span>${n ? `<span class="cfg-bolha">${n}</span>` : ''}`;
-  // leva o botão para dentro do conteúdo da aba que está aberta
+  // G2: ⚙ pequeno = configurações da aba; 🛠 à parte, discreto = caderno do desenvolvedor
+  let d = document.getElementById('aba-dev-btn');
+  if (!d) { d = document.createElement('button'); d.type = 'button'; d.id = 'aba-dev-btn'; d.className = 'aba-dev-btn'; d.onclick = () => abrirConfigAba(null, 'caderno'); }
+  const icone = (k, alt) => (typeof ICONES !== 'undefined' && ICONES[k] && typeof ic === 'function') ? ic(k) : alt;
+  b.hidden = d.hidden = id === 'btn-settings';
+  b.title = `Configurações de ${nome}`; b.setAttribute('aria-label', b.title);
+  b.innerHTML = icone('engrenagem', '⚙');
+  d.title = `Caderno de ajustes de ${nome} (anotações para o desenvolvimento)`; d.setAttribute('aria-label', d.title);
+  d.innerHTML = icone('ferramenta', '🛠') + (n ? `<span class="cfg-bolha">${n}</span>` : '');
+  // leva os botões para dentro do conteúdo da aba que está aberta
   const alvo = document.querySelector('.tab-content.active');
   if (alvo && b.parentElement !== alvo) alvo.insertBefore(b, alvo.firstChild);
+  if (alvo && d.parentElement !== alvo) alvo.insertBefore(d, b.nextSibling);
 }
 /** Manda uma anotação para outra aba (conserta o que foi anotado no lugar errado). */
 function moverNotaDev(de, itemId, para) {

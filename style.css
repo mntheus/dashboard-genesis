@@ -4490,3 +4490,113 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .vg-emb-extra .vg-emb-rot2 { color: var(--cor); font-weight: 600; }
 /* no celular o cartão de milhas fica mais achatado (no formato de cartão de verdade, 3 programas ocupavam a tela toda) */
 @container (max-width: 460px) { .vg-cartao { aspect-ratio: 2.3; padding: 12px 14px; } .vg-cartao-saldo { font-size: 1.45rem; } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   REDE E CURRÍCULO (08/10) — o termômetro, os cartões de visita, o detalhe, o
+   medidor, a linha da carreira e a folha ao vivo ao lado do editor.
+   ════════════════════════════════════════════════════════════════════════════ */
+#rede-lista, #rd-topo, #cv-resumo, #rd-detalhe-corpo { container-type: inline-size; }
+#rede-secoes { justify-content: center; margin: 0; padding-bottom: 6px; }
+#sec-rd-rapida[hidden] { display: none !important; }
+.rd-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 10px 0 4px; }
+@media (max-width: 600px) { .rd-chips { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; } .rd-chips::-webkit-scrollbar { display: none; } .rd-chips > span { flex: 0 0 auto; } }
+
+/* o alto: aniversários e quem falar */
+.rd-topo { display: grid; gap: 10px; grid-template-columns: 1fr; margin-bottom: 6px; }
+@container (min-width: 700px) { .rd-topo { grid-template-columns: 1fr 1fr; } }
+.rd-faixa-topo { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px 12px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.rd-faixa-topo > b { font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase; color: var(--txt3); }
+.rd-faixa-topo > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rd-faixa-topo small { font-size: .7rem; color: var(--txt4); }
+.rd-chip-top { display: inline-flex; align-items: center; gap: 2px; min-height: 32px; padding: 2px 10px; border-radius: 999px; font-size: .76rem; font-weight: 600; color: var(--txt-forte); background: var(--sup-2); border: 1px solid var(--fio-sutil); cursor: pointer; }
+button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 32px; padding: 2px 10px; border-radius: 999px; font-size: .76rem; font-weight: 600; color: var(--txt-forte); background: var(--sup-2); border: 1px solid var(--fio-sutil); cursor: pointer; }
+.rd-chip-top.hoje { background: color-mix(in srgb, var(--rosa) 22%, var(--sup-2)); border-color: color-mix(in srgb, var(--rosa) 55%, transparent); }
+.rd-chip-top > button { all: unset; cursor: pointer; padding: 4px 2px; }
+.rd-chip-top > button.rd-chip-ok { padding: 4px 6px; border-left: 1px solid var(--fio-sutil); margin-left: 4px; }
+.rd-chip-top button:focus-visible, button.rd-chip-top:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 6px; }
+
+/* o termômetro e os cartões de visita */
+.rd-faixa { margin-top: var(--s3); }
+.rd-faixa .tar-gr-tit span { color: var(--tom); }
+.rd-grade { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.rd-cartao {
+  display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px; cursor: pointer; border-radius: 10px; outline: none;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tom, var(--info)) 9%, var(--sup-1)), var(--sup-1)); border: 1px solid var(--fio-sutil);
+  border-left: 4px solid var(--tom, var(--info)); box-shadow: var(--elev1); transition: transform var(--mov), box-shadow var(--mov);
+}
+.rd-cartao:hover { transform: translateY(-2px); box-shadow: var(--elev2); }
+.rd-cartao:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.rd-cartao.f-frio { opacity: .85; }
+.rd-av { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: .95rem; font-weight: 800; letter-spacing: .02em; color: #fff; background: linear-gradient(135deg, var(--cor), color-mix(in srgb, var(--cor) 55%, #000)); box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); }
+.rd-av.grande { width: 64px; height: 64px; font-size: 1.35rem; }
+.rd-cartao-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rd-cartao-info b { font-size: var(--t-corpo); color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-fav { color: var(--atencao); }
+.rd-papel { font-size: .74rem; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-ha { font-size: .68rem; color: var(--txt4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-falei { flex: 0 0 auto; min-height: 36px; min-width: 36px; }
+
+/* o detalhe do contato */
+#rd-detalhe { padding: 80px 16px 86px; }
+#rd-detalhe .modal-content.rd-detalhe-caixa { width: min(520px, 100%); max-width: 520px; max-height: calc(100dvh - 166px); overflow-y: auto; }
+.rd-det-cab { display: flex; align-items: center; gap: 14px; }
+.rd-det-cab > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.rd-det-cab b { font-size: 1.15rem; color: var(--txt-forte); overflow-wrap: anywhere; }
+.rd-det-cab small { font-size: .78rem; color: var(--txt3); }
+.rd-det-contato { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 6px; }
+.rd-det-contato .mini-btn { min-height: 34px; display: inline-flex; align-items: center; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-det-dados { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; margin: 10px 0 0; font-size: var(--t-apoio); }
+.rd-det-dados dt { color: var(--txt4); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+.rd-det-dados dd { margin: 0; color: var(--txt); overflow-wrap: anywhere; }
+.rd-det-dados a { color: var(--info); }
+.rd-atras { color: var(--perigo); }
+@container (max-width: 360px) { .rd-det-dados { grid-template-columns: 1fr; } .rd-det-dados dd { margin-bottom: 4px; } }
+
+/* o currículo: medidor e linha da carreira */
+.rd-medidor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 12px; }
+.rd-medidor-barra { flex: 1 1 200px; max-width: 420px; height: 10px; border-radius: 5px; background: var(--sup-2); overflow: hidden; }
+.rd-medidor-barra i { display: block; height: 100%; border-radius: 5px; background: var(--atencao); transition: width .4s ease; }
+.rd-medidor-barra i.ok { background: var(--ok); }
+.rd-medidor-barra i.baixo { background: var(--perigo); }
+.rd-medidor b { font-size: var(--t-corpo); color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.rd-medidor small { flex: 1 1 100%; font-size: .72rem; color: var(--txt3); }
+.rd-medidor small.ok { color: var(--ok); }
+.rd-linha { position: relative; padding: 22px 0 4px; border-radius: var(--r2); }
+.rd-linha-anos { position: absolute; left: 0; right: 0; top: 0; height: 18px; border-bottom: 1px solid var(--fio-sutil); }
+.rd-linha-anos span { position: absolute; top: 0; transform: translateX(-50%); font-size: .64rem; color: var(--txt4); font-variant-numeric: tabular-nums; }
+.rd-linha-anos span:first-child { transform: none; }
+.rd-linha-fila { position: relative; height: 26px; margin-top: 4px; }
+.rd-barra { position: absolute; top: 0; height: 22px; display: flex; align-items: center; min-width: 0; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--info) 30%, var(--sup-2)); border: 1px solid color-mix(in srgb, var(--info) 60%, transparent); }
+.rd-barra.formacao { background: color-mix(in srgb, var(--roxo) 30%, var(--sup-2)); border-color: color-mix(in srgb, var(--roxo) 60%, transparent); }
+.rd-barra.atual { border-right-width: 3px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.rd-barra i { font-style: normal; font-size: .7rem; font-weight: 600; color: var(--txt-forte); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-linha-legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: .68rem; color: var(--txt3); }
+.rd-linha-legenda .experiencia::before, .rd-linha-legenda .formacao::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--info); }
+.rd-linha-legenda .formacao::before { background: var(--roxo); }
+.rd-linha-vazia { font-size: var(--t-apoio); }
+
+/* o currículo: editor e folha lado a lado no PC; "Editar | Ver folha" no celular */
+.rd-cv-modo { justify-content: center; border-bottom: none; margin-top: 10px; padding-bottom: 0; }
+.rd-cv.ver-folha .rd-cv-editor { display: none; }
+.rd-cv:not(.ver-folha) > #cv-folha { display: none; }
+@media (min-width: 1180px) {
+  #sec-curriculo:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  #sec-curriculo > .rd-cv-topo { grid-column: 1 / -1; }
+  .rd-cv-modo { display: none; }
+  .rd-cv .rd-cv-editor, .rd-cv:not(.ver-folha) > #cv-folha, .rd-cv.ver-folha .rd-cv-editor { display: block; }
+  #sec-curriculo > #cv-folha { position: sticky; top: 84px; max-height: calc(100vh - 110px); overflow-y: auto; }
+}
+.cv-secao.fechada > :not(h4) { display: none; }
+.cv-secao > h4 { cursor: pointer; user-select: none; }
+.cv-secao > h4::before { content: '▾'; display: inline-block; width: 1em; color: var(--txt4); transition: transform var(--mov); }
+.cv-secao.fechada > h4::before { transform: rotate(-90deg); }
+.cv-secao > h4:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 6px; }
+@media print { body.imprimindo-cv #sec-curriculo > #cv-folha { position: absolute; max-height: none; overflow: visible; display: block !important; } }
+/* no celular o título da faixa fica só com o nome e a contagem (a explicação ia para uma coluna espremida) */
+.rd-faixa .tar-gr-tit span { white-space: nowrap; }
+@container (max-width: 520px) { .rd-dica { display: none; } }
+/* linha da carreira: o nome de uma barra estreita fica do lado de fora */
+.rd-linha { overflow: hidden; }
+.rd-rot { position: absolute; top: 3px; font-style: normal; font-size: .7rem; font-weight: 600; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+.rd-rot.fora-esq { text-align: right; }
+.rd-linha-anos span:last-child { transform: translateX(-100%); }

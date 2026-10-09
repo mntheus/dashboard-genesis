@@ -1199,15 +1199,61 @@
     </div>
     <!-- Módulo 12: Rede -->
     <div id="net" class="tab-content">
-      <div class="focus-header-tabs agenda-tabs" id="rede-secoes" style="margin-top:20px">
+      <div id="sec-rd-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="rd-rapida" aria-label="Contato rápido" placeholder="Quem? (ou: falei com…)" autocomplete="off" enterkeyhint="done" oninput="rdRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); rdRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Salvar" onclick="rdRapidaAdicionar()">↵</button>
+        </div>
+        <div id="rd-rapida-previa" class="tar-rapida-previa"></div>
+      </div>
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="rede-secoes">
         <span class="active" onclick="verSecaoRede('contatos', this)">🤝 Contatos</span>
         <span onclick="verSecaoRede('curriculo', this)">📄 Currículo</span>
       </div>
-      <div id="sec-curriculo" class="agenda-sec" hidden>
+      <div id="sec-contatos" class="agenda-sec">
+        <div class="card" style="margin-top: 20px;" data-mod="rd-contatos">
+          <h2>🤝 Rede</h2>
+          <div id="rd-topo"></div>
+          <div id="rede-chips" class="chips rd-chips"></div>
+          <div id="rede-lista"></div>
+          <p class="hint" style="margin-top:12px">O 💬 marca que você falou hoje. Com "lembrar a cada N dias", a pessoa esfria sozinha quando passa do combinado e aparece em "falar esta semana". O aniversário entra na sua agenda todo ano.</p>
+        </div>
         <div class="card" style="margin-top: 20px;">
+          <h2>🤝 Novo contato</h2>
+          <form id="rede-form">
+            <input type="hidden" id="rede-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 10px;">
+              <div><label for="rede-nome">Nome:</label><input type="text" id="rede-nome" placeholder="Dr. João" required></div>
+              <div><label for="rede-papel">O que faz:</label><input type="text" id="rede-papel" placeholder="contador, sócio, plantonista"></div>
+              <div><label for="rede-onde">Onde conheci:</label><input type="text" id="rede-onde" placeholder="trabalho, congresso, faculdade"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 10px;">
+              <div><label for="rede-tel">Telefone:</label><input type="text" id="rede-tel"></div>
+              <div><label for="rede-email">E-mail:</label><input type="text" id="rede-email"></div>
+              <div><label for="rede-links">Links (LinkedIn, Instagram):</label><input type="text" id="rede-links"></div>
+              <div><label for="rede-lembrar">Lembrar a cada (dias):</label><input type="number" id="rede-lembrar" min="0" placeholder="90"></div>
+              <div><label for="rede-nascimento">Aniversário:</label><input type="date" id="rede-nascimento" title="Aparece sozinho na sua agenda todo ano"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 10px;">
+              <div><label for="rede-tags">Marcadores:</label><input type="text" id="rede-tags" placeholder="plantão, negócios, família"></div>
+              <div><label for="rede-notas">Notas:</label><input type="text" id="rede-notas" placeholder="do que conversaram, como ajudar"></div>
+            </div>
+            <div style="display:flex; gap:10px;"><button type="submit" id="rede-submit" style="flex:1">Salvar contato</button><button type="button" id="rede-cancel" class="btn" hidden onclick="cancelarEdicaoContato()">Cancelar</button></div>
+          </form>
+        </div>
+      </div>
+      <div id="sec-curriculo" class="agenda-sec rd-cv" hidden>
+        <div class="card rd-cv-topo" style="margin-top: 20px;" data-mod="rd-cv-topo">
           <h2>📄 Currículo</h2>
-          <p class="hint">No formato do LinkedIn: um título, um "sobre" e as seções. Preencha uma vez e use sempre — o botão 🖨️ imprime só a folha do currículo, e no diálogo de impressão você escolhe <strong>Salvar como PDF</strong>.</p>
-          <div id="cv-resumo" class="fin-summary-line"></div>
+          <div id="cv-resumo"></div>
+          <div class="focus-header-tabs filter-row rd-cv-modo" id="rd-cv-modo">
+            <span class="active" data-m="editar" onclick="rdCVModo('editar')">✎ Editar</span>
+            <span data-m="folha" onclick="rdCVModo('folha')">📄 Ver folha</span>
+          </div>
+        </div>
+        <div class="card rd-cv-editor" style="margin-top: 20px;">
+          <p class="hint">No formato do LinkedIn: um título, um "sobre" e as seções (toque no nome da seção para abrir). Tudo salva sozinho; a folha muda enquanto você escreve.</p>
           <div class="cv-topo-campos">
             <div><label for="cv-nome">Nome:</label><input type="text" id="cv-nome" oninput="campoCV('nome', this.value)"></div>
             <div><label for="cv-titulo">Título (headline):</label><input type="text" id="cv-titulo" placeholder="Médico generalista · Urgência pediátrica" oninput="campoCV('titulo', this.value)"></div>
@@ -1227,41 +1273,11 @@
             <button type="button" onclick="imprimirCurriculo()">🖨️ Imprimir / salvar em PDF</button>
             <button type="button" class="btn" onclick="copiarCurriculo()">📋 Copiar como texto</button>
             <button type="button" class="btn" onclick="importarCursosDosEstudos()">🎓 Trazer cursos dos Estudos</button>
-            <label class="check-line" style="margin:0"><input type="checkbox" id="cv-ver-previa" checked onchange="renderCurriculo()"> Mostrar a prévia</label>
           </div>
         </div>
         <div class="card cv-folha" id="cv-folha" style="margin-top: 20px;"></div>
       </div>
-      <div id="sec-contatos" class="agenda-sec">
-      <div class="card" style="margin-top: 20px;">
-        <h2>🤝 Rede</h2>
-        <p class="hint">As pessoas que você conhece do trabalho, dos negócios e da vida. O 💬 marca que você falou hoje; se passar do intervalo que você definir, ela aparece em "falar".</p>
-        <form id="rede-form">
-          <input type="hidden" id="rede-id">
-          <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 10px;">
-            <div><label for="rede-nome">Nome:</label><input type="text" id="rede-nome" placeholder="Dr. João" required></div>
-            <div><label for="rede-papel">O que faz:</label><input type="text" id="rede-papel" placeholder="contador, sócio, plantonista"></div>
-            <div><label for="rede-onde">Onde conheci:</label><input type="text" id="rede-onde" placeholder="trabalho, congresso, faculdade"></div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 10px;">
-            <div><label for="rede-tel">Telefone:</label><input type="text" id="rede-tel"></div>
-            <div><label for="rede-email">E-mail:</label><input type="text" id="rede-email"></div>
-            <div><label for="rede-links">Links (LinkedIn, Instagram):</label><input type="text" id="rede-links"></div>
-            <div><label for="rede-lembrar">Lembrar a cada (dias):</label><input type="number" id="rede-lembrar" min="0" placeholder="90"></div>
-            <div><label for="rede-nascimento">Aniversário:</label><input type="date" id="rede-nascimento" title="Aparece sozinho na sua agenda todo ano"></div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 10px;">
-            <div><label for="rede-tags">Marcadores:</label><input type="text" id="rede-tags" placeholder="plantão, negócios, família"></div>
-            <div><label for="rede-notas">Notas:</label><input type="text" id="rede-notas" placeholder="do que conversaram, como ajudar"></div>
-          </div>
-          <div style="display:flex; gap:10px;"><button type="submit" id="rede-submit" style="flex:1">Salvar contato</button><button type="button" id="rede-cancel" class="btn" hidden onclick="cancelarEdicaoContato()">Cancelar</button></div>
-        </form>
-        <div id="rede-chips" class="chips" style="margin-top: 14px;"></div>
-        <ul id="rede-lista" class="transaction-list"></ul>
-      </div>
-      </div>
     </div>
-
     <!-- Módulo 13: Clínica -->
     <div id="clinic" class="tab-content">
       <div class="focus-header-tabs agenda-tabs" id="clinica-secoes" style="margin-top:20px">
@@ -1678,6 +1694,12 @@
       <div class="modal-body" id="vg-detalhe-corpo"></div>
     </div>
   </div>
+  <div id="rd-detalhe" class="modal-overlay" onclick="if (event.target === this) rdFechar()" onkeydown="if (event.key === 'Escape') rdFechar()">
+    <div class="modal-content rd-detalhe-caixa">
+      <div class="modal-header"><h3 id="rd-detalhe-tit">🤝</h3><button type="button" class="close-modal" title="Fechar" onclick="rdFechar()">✕</button></div>
+      <div class="modal-body" id="rd-detalhe-corpo"></div>
+    </div>
+  </div>
   <div id="compra-modal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header"><h3>🛒 Comprei</h3><button class="close-modal" onclick="fecharCompra()">✕</button></div>
@@ -1777,6 +1799,7 @@
   <script src="notas.js"></script>
   <script src="lazer.js"></script>
   <script src="viagens.js"></script>
+  <script src="rede.js"></script>
   <script src="exercicios.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>

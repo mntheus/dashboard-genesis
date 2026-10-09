@@ -4341,7 +4341,7 @@ function addItemCV(secao) {
   const s = SECOES_CV[secao]; if (!s) return;
   const item = { id: novoId() };
   s.campos.forEach(([c]) => item[c] = '');
-  cv()[secao].push(item); salvarCV(); renderCurriculo();
+  cv()[secao].push(item); salvarCV(); if (typeof rdAbrirSecaoCV === 'function') rdAbrirSecaoCV(secao); renderCurriculo();
   setTimeout(() => { const el = document.querySelector(`#cv-${secao} .cv-item:last-child input`); if (el) el.focus(); }, 60);
 }
 function campoItemCV(secao, id, campo, valor) {
@@ -4428,6 +4428,7 @@ function renderCurriculo() {
     </div>`;
   }).join('');
   renderFolhaCV();
+  if (typeof rdDepoisCV === 'function') rdDepoisCV();
 }
 /** A prévia é também o que vai para a impressora. */
 function renderFolhaCV() {
@@ -4467,8 +4468,11 @@ function renderFolhaCV() {
     </div>
     ${c.sobre ? `<section><h3>Sobre</h3><p>${esc(c.sobre).replace(/\n/g, '<br>')}</p></section>` : ''}
     ${Object.keys(SECOES_CV).map(bloco).join('')}`;
+  if (typeof rdResumoCV === 'function') rdResumoCV();
 }
 function imprimirCurriculo() {
+  // no celular a folha pode estar escondida atrás do "Editar": imprime sempre a folha
+  if (typeof rdCVModo === 'function') rdCVModo('folha');
   const ver = document.getElementById('cv-ver-previa');
   if (ver && !ver.checked) { ver.checked = true; renderFolhaCV(); }
   document.body.classList.add('imprimindo-cv');
@@ -4527,6 +4531,7 @@ function verSecaoRede(s, el) {
   const a = document.getElementById('sec-contatos'); if (a) a.hidden = s !== 'contatos';
   const b = document.getElementById('sec-curriculo'); if (b) b.hidden = s !== 'curriculo';
   if (s === 'curriculo') renderCurriculo();
+  if (typeof rdAoTrocar === 'function') rdAoTrocar();
 }
 
 // --- REDE (networking) ---
@@ -4562,26 +4567,8 @@ function faleiCom(id) { const c = contacts.find(x => x.id === id); if (!c) retur
 function removerContato(id) { const c = contacts.find(x => x.id === id); if (!c || !confirm(`Apagar ${c.nome}?`)) return; contacts = contacts.filter(x => x.id !== id); salvar('contacts', contacts); renderRede(); }
 function filtrarRede(t) { redeFiltro = redeFiltro === t ? '' : t; renderRede(); }
 function redesenharRede() { renderRede(); renderCurriculo(); }
-function renderRede() {
-  const ul = document.getElementById('rede-lista'); if (!ul) return; ul.innerHTML = '';
-  const chips = document.getElementById('rede-chips');
-  const lembrar = contacts.filter(precisaFalar).length;
-  if (chips) chips.innerHTML = `<span class="chip ${redeFiltro === '' ? 'sel' : ''}" onclick="filtrarRede('')">todos (${contacts.length})</span><span class="chip ${redeFiltro === '__fav' ? 'sel' : ''}" onclick="filtrarRede('__fav')">⭐ favoritos</span>${lembrar ? `<span class="chip ${redeFiltro === '__lembrar' ? 'sel' : ''}" onclick="filtrarRede('__lembrar')">⏰ falar (${lembrar})</span>` : ''}` + tagsDaRede().map(t => `<span class="chip ${redeFiltro === t ? 'sel' : ''}" onclick="filtrarRede('${esc(t).replace(/'/g, '&#39;')}')">🏷️ ${esc(t)}</span>`).join('');
-  const lista = contatosFiltrados();
-  if (!lista.length) { ul.innerHTML = '<li style="justify-content:center; color:var(--txt4); background:transparent; border:none;">Guarde aqui quem você conhece do trabalho, dos negócios e da vida — com onde conheceu e quando falou pela última vez.</li>'; return; }
-  lista.forEach(c => {
-    const falar = precisaFalar(c);
-    const dias = c.ultimo ? Math.round((new Date(hojeISO()) - new Date(c.ultimo)) / 86400000) : null;
-    ul.innerHTML += `<li class="rede-item ${falar ? 'lembrar' : ''}"><div class="transaction-info" style="flex:1">
-        <span>${c.favorito ? '⭐ ' : '👤 '}${esc(c.nome)}${c.papel ? ` <small class="category-badge">${esc(c.papel)}</small>` : ''}${falar ? ' <span class="badge-unpaid">falar</span>' : ''}</span>
-        <small class="item-date">${c.onde ? 'conheci: ' + esc(c.onde) : ''}${dias !== null ? ` · último contato há ${dias} dia${dias === 1 ? '' : 's'}` : ' · sem contato registrado'}${c.lembrar ? ` · lembrar a cada ${c.lembrar}d` : ''}</small>
-        ${(c.tags || []).length ? `<div class="note-foot">${c.tags.map(t => `<span class="chip small">🏷️ ${esc(t)}</span>`).join('')}</div>` : ''}
-        ${c.tel || c.email ? `<small class="item-date">${c.tel ? '📞 ' + esc(c.tel) : ''}${c.email ? ' · ✉️ ' + esc(c.email) : ''}</small>` : ''}
-        ${c.links ? `<small class="item-notes">${linkify(esc(c.links))}</small>` : ''}
-        ${c.notas ? `<small class="item-notes">${esc(c.notas)}</small>` : ''}</div>
-      <div class="item-actions"><button class="mini-btn" title="Falei hoje" onclick="faleiCom(${c.id})">💬</button><button class="mini-btn ${c.favorito ? 'on' : ''}" title="Favorito" onclick="favoritarContato(${c.id})">⭐</button><button class="mini-btn" title="Editar" onclick="editarContato(${c.id})">✎</button><button class="mini-btn" title="Apagar" onclick="removerContato(${c.id})">✕</button></div></li>`;
-  });
-}
+// O desenho da Rede (termômetro, cartões de visita) e do Currículo (medidor, linha) mora no rede.js (08/10).
+function renderRede() { rdRenderRede(); }
 // Config/Backup
 function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, saidas, milhas, curriculo, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, inventario, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
 function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.saidas) salvar('saidas', data.saidas); if (data.milhas) salvar('milhas', data.milhas); if (data.curriculo) salvar('curriculo', data.curriculo); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'inventario', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }

@@ -108,6 +108,13 @@ function pnAnel(pct, chave, cor, tam, grosso) {
     <circle cx="${meio}" cy="${meio}" r="${r}" class="pn-anel-valor" stroke-width="${grosso}" stroke-dasharray="${C.toFixed(1)}"
       style="stroke-dashoffset:${(C * (1 - de)).toFixed(1)}" data-para="${(C * (1 - pct)).toFixed(1)}" data-c="${C.toFixed(1)}" transform="rotate(-90 ${meio} ${meio})"/></svg>`;
 }
+/** O tamanho do anel conforme o widget (tela larga = widget maior = anel maior). `folga` = o
+ *  que o resto do widget ocupa em altura (rótulo, botões). No catálogo não há medida: usa o padrão. */
+function pnAnelTam(x, folga, min, max, frac) {
+  const h = x.h || ({ p: 104, m: 104, q: 220, a: 336, l: 220, g: 336 })[x.tam] || 104;
+  const w = x.w || ({ p: 150, m: 312, q: 312, a: 312, l: 636, g: 636 })[x.tam] || 150;
+  return Math.round(Math.max(min, Math.min(max, h - folga, w * (frac || 1) - 24)));
+}
 /** Barrinha horizontal fina (0–1). */
 const pnBarra = (pct, cor) => `<span class="pn-barra"><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;${cor ? `background:${cor}` : ''}"></i></span>`;
 
@@ -128,10 +135,11 @@ pnDef('relogio', {
   render(x) {
     const d = new Date(), hora = pnHora(d);
     const data = pnCap(d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }));
-    const prox = pnProximosHoje(x.tam === 'q' ? 4 : 1);
+    const alto = (x.h || 0) >= 170;   // widescreen: o M fica alto e cabe mais
+    const prox = pnProximosHoje(x.tam === 'q' ? 4 : alto ? 3 : 1);
     const linha = p => `<button type="button" class="pn-prox" onclick="pnAbrirItemDia('${p.kind}', ${Number(p.id) || 0})"><b>${esc(p.hora)}</b><span>${esc(p.txt)}</span></button>`;
-    if (x.tam === 'p') return { corpo: `<div class="pn-num pn-hora">${hora}</div><div class="pn-sub">${esc(data.split(',')[0])}</div>` };
-    if (x.tam === 'm') return { corpo: `<div class="pn-lado"><div class="pn-num pn-num-xl pn-hora">${hora}</div><div class="pn-col"><span class="pn-sub pn-forte">${esc(data)}</span>${prox.length ? linha(prox[0]) : '<span class="pn-sub">nada mais marcado hoje</span>'}</div></div>` };
+    if (x.tam === 'p') return { corpo: `<div class="pn-num pn-hora">${hora}</div><div class="pn-sub">${esc(data.split(',')[0])}</div>${alto && prox.length ? linha(prox[0]) : ''}` };
+    if (x.tam === 'm') return { corpo: `<div class="pn-lado"><div class="pn-num pn-num-xl pn-hora">${hora}</div><div class="pn-col"><span class="pn-sub pn-forte">${esc(data)}</span>${prox.length ? prox.map(linha).join('') : '<span class="pn-sub">nada mais marcado hoje</span>'}</div></div>` };
     const analog = cfgAparencia().relogio === 'analogico' && typeof relogioAnalogico === 'function';
     return { corpo: `<div class="pn-rel-q">${analog ? `<div class="pn-analog">${relogioAnalogico(d)}</div>` : `<div class="pn-num pn-num-xxl pn-hora">${hora}</div>`}
       <span class="pn-sub pn-forte">${esc(data)}</span>
@@ -201,7 +209,7 @@ pnDef('agua', {
     if (typeof hydration === 'undefined') return { corpo: pnVazio('gota', 'Sem dados de água.') };
     const meta = hydration.goal || 2500, ml = hydration.date === hojeBR() ? (hydration.ml || 0) : 0, pct = ml / meta;
     const copos = Math.round(ml / 250), bateu = ml >= meta;
-    const tamAnel = x.tam === 'p' ? 58 : x.tam === 'm' ? 70 : 104;
+    const tamAnel = x.tam === 'p' ? pnAnelTam(x, 44, 56, 150) : x.tam === 'm' ? pnAnelTam(x, 36, 56, 112, 0.4) : pnAnelTam(x, 70, 96, 180, 0.42);
     const anel = `<button type="button" class="pn-agua-anel ${bateu ? 'bateu' : ''} ${Date.now() - pnUltimoGole < 900 ? 'gole' : ''}" ${x.previa ? '' : 'onclick="pnBeber(250)"'} title="Bebi um copo (+250 ml)">
       ${pnAnel(pct, 'agua' + (x.previa ? 'p' : x.inst.u), '#38bdf8', tamAnel, x.tam === 'q' ? 8 : 6)}
       <span class="pn-anel-meio"><b>${pnL(ml)}</b><small>${x.tam === 'p' ? 'L' : 'de ' + pnL(meta) + ' L'}</small></span><i class="pn-onda"></i></button>`;
@@ -280,7 +288,8 @@ pnDef('habitos', {
         <span class="pn-hab-ic">${h.done ? ic('ok') : esc(h.icon || '•')}</span><span class="pn-hab-txt">${esc(h.text)}</span>${st > 1 ? `<small class="pn-chama">🔥${st}</small>` : ''}</button>`;
     };
     pnHabitoTocadoLimpar();
-    return { extra, corpo: `<div class="pn-habs ${x.tam !== 'm' ? 'grandes' : ''}">${hs.map(chip).join('')}</div>${x.tam !== 'm' ? pnBarra(feitos / hs.length, 'var(--acento)') : ''}` };
+    const grande = x.tam !== 'm' || (x.h || 0) >= 150;   // M alto (widescreen) também ganha os chips grandes
+    return { extra, corpo: `<div class="pn-habs ${grande ? 'grandes' : ''}">${hs.map(chip).join('')}</div>${grande ? pnBarra(feitos / hs.length, 'var(--acento)') : ''}` };
   }
 });
 function pnHabitoTocadoLimpar() { setTimeout(() => { pnHabitoTocado = -1; }, 0); }
@@ -314,7 +323,8 @@ pnDef('foco', {
     const zerar = `<button type="button" class="pn-ico-bt" title="Zerar" ${x.previa ? '' : `onclick="pnFoco('zerar')"`}>${ic('zerar')}</button>`;
     const titulo = f.modo === 'meditacao' ? 'Meditação' : 'Foco';
     if (x.tam === 'p') return { titulo, corpo: `<div class="pn-foco-p"><span class="pn-num pn-foco-tempo">${esc(f.txt)}</span>${bt}</div>` };
-    const anel = `<div class="pn-foco-anel">${pnAnel(f.pct, 'foco' + (x.previa ? 'p' : ''), cor, x.tam === 'q' ? 112 : 56, x.tam === 'q' ? 7 : 5)}<span class="pn-anel-meio pn-foco-tempo">${esc(f.txt)}</span></div>`;
+    const tamF = x.tam === 'q' ? pnAnelTam(x, 118, 100, 200, 0.7) : pnAnelTam(x, 40, 52, 104, 0.32);
+    const anel = `<div class="pn-foco-anel">${pnAnel(f.pct, 'foco' + (x.previa ? 'p' : ''), cor, tamF, x.tam === 'q' ? 7 : 5)}<span class="pn-anel-meio pn-foco-tempo">${esc(f.txt)}</span></div>`;
     // M: tudo numa linha só (anel · estado · ▶) — empilhado, o ▶ saía cortado embaixo
     if (x.tam === 'm') return { titulo, extra: zerar, corpo: `<div class="pn-lado pn-meio">${anel}<span class="pn-sub pn-cresce">${f.rodando ? 'rodando…' : 'pronto para começar'}</span>${bt}</div>` };
     const estudo = typeof studyData !== 'undefined' && studyData.date === hojeBR() ? studyData.minutes || 0 : 0;
@@ -391,7 +401,7 @@ pnDef('plantao', {
     const receber = totRec ? `<span class="pn-sub">a receber <b>${pnReais(totRec)}</b> · ${rec.length}</span>` : '<span class="pn-sub">tudo recebido ✓</span>';
     if (!p) return { titulo, corpo: `${pnVazio('home', 'Nenhum ' + V.um + ' marcado.')}${x.tam !== 'p' ? receber : ''}` };
     // P: data numa linha, hora e local na outra (numa linha só, "07:00" saía cortado em "07:0")
-    if (x.tam === 'p') return { titulo, corpo: `<div class="pn-num pn-num-s">${esc(pnTenta(() => rotuloData(p.date), p.date))}</div><div class="pn-sub pn-forte pn-quebra">${p.time ? `<b>${esc(p.time)}</b> · ` : ''}${esc(p.desc || '')}</div>` };
+    if (x.tam === 'p') return { titulo, corpo: `<div class="pn-num pn-num-s">${esc(pnTenta(() => rotuloData(p.date), p.date))}</div><div class="pn-sub pn-forte pn-quebra">${p.time ? `<b>${esc(p.time)}</b> · ` : ''}${esc(p.desc || '')}</div>${(x.h || 0) >= 170 ? receber : ''}` };
     if (x.tam === 'm') return { titulo, corpo: `<div class="pn-lado"><div class="pn-col"><span class="pn-num pn-num-s">${esc(quando)}</span><span class="pn-sub">${esc(p.desc || '')}${Number(p.amount) ? ' · ' + formatCurrency(Number(p.amount)) : ''}</span></div><div class="pn-col pn-dir">${receber}</div></div>` };
     return { titulo, corpo: `<ul class="pn-lista">${prox.slice(0, 4).map(s => `<li class="pn-li-turno" onclick="pnAbrirItemDia('shift', ${Number(s.id) || 0})"><b>${esc(pnTenta(() => rotuloData(s.date), s.date))}${s.time ? ' · ' + esc(s.time) : ''}</b><span>${esc(s.desc || '')}</span><small>${Number(s.amount) ? formatCurrency(Number(s.amount)) : ''}</small></li>`).join('')}</ul>${receber}` };
   }
@@ -409,9 +419,9 @@ pnDef('viagem', {
     const mala = v.mala || [], prontos = mala.filter(m => m.done).length;
     const cont = dias === 0 ? '<div class="pn-num pn-num-s">é hoje!</div>' : `<div class="pn-num">${dias}<small>${dias === 1 ? 'dia' : 'dias'}</small></div>`;
     const abrir = x.previa ? '' : `onclick="pnAbrirViagem(${Number(v.id) || 0})"`;
-    if (x.tam === 'p') return { corpo: `<div class="pn-clicavel" ${abrir}>${cont}<div class="pn-sub pn-quebra">${esc(v.destino || 'Viagem')}</div></div>` };
     const datas = `${isoParaBR(v.inicio).slice(0, 5)}${v.fim ? ' – ' + isoParaBR(v.fim).slice(0, 5) : ''}`;
     const malaHtml = mala.length ? `<span class="pn-sub">mala ${prontos}/${mala.length}</span>${pnBarra(prontos / mala.length, PN_COR.trips)}` : '<span class="pn-sub">mala ainda vazia</span>';
+    if (x.tam === 'p') return { corpo: `<div class="pn-clicavel" ${abrir}>${cont}<div class="pn-sub pn-quebra">${esc(v.destino || 'Viagem')}${(x.h || 0) >= 170 ? ' · ' + datas : ''}</div></div>${(x.h || 0) >= 170 ? malaHtml : ''}` };
     if (x.tam === 'm') return { corpo: `<div class="pn-lado pn-clicavel" ${abrir}>${cont}<div class="pn-col pn-cresce"><b class="pn-quebra">${esc(v.destino || 'Viagem')}</b><span class="pn-sub">${datas}</span>${malaHtml}</div></div>` };
     const faltam = mala.filter(m => !m.done).slice(0, 5);
     return { corpo: `<div class="pn-lado pn-clicavel" ${abrir}>${cont}<div class="pn-col pn-cresce"><b class="pn-quebra">${esc(v.destino || 'Viagem')}</b><span class="pn-sub">${datas}</span></div></div>${malaHtml}
@@ -504,7 +514,7 @@ pnDef('progresso', {
     const tHoje = (tasks || []).filter(t => t.due === hoje || (t.done && t.doneAt && String(t.doneAt).slice(0, 10) === hoje));
     const tot = hs.length + tHoje.length, feitos = hs.filter(h => h.done).length + tHoje.filter(t => t.done).length;
     const pct = tot ? feitos / tot : 0;
-    const anel = `<div class="pn-foco-anel">${pnAnel(pct, 'prog' + (x.previa ? 'p' : ''), 'var(--ok)', x.tam === 'p' ? 58 : 66, 6)}<span class="pn-anel-meio"><b>${Math.round(pct * 100)}%</b></span></div>`;
+    const anel = `<div class="pn-foco-anel">${pnAnel(pct, 'prog' + (x.previa ? 'p' : ''), 'var(--ok)', x.tam === 'p' ? pnAnelTam(x, 44, 56, 150) : pnAnelTam(x, 36, 56, 112, 0.4), 6)}<span class="pn-anel-meio"><b>${Math.round(pct * 100)}%</b></span></div>`;
     if (x.tam === 'p') return { corpo: `<div class="pn-agua-p">${anel}</div>` };
     return { corpo: `<div class="pn-lado">${anel}<div class="pn-col"><span class="pn-sub pn-forte">${feitos} de ${tot} feitos</span><span class="pn-sub">${hs.filter(h => !h.done).length} hábitos · ${tHoje.filter(t => !t.done).length} tarefas faltando</span></div></div>` };
   }
@@ -662,10 +672,63 @@ pnDef('setor', {
 });
 
 // ───────────────────────────── a grade ─────────────────────────────────────
-let pnEditando = false, pnCols = 6, pnSujo = false;
-function pnColunas(largura) {
-  const n = Math.floor((largura + PN_VAO) / (PN_MIN_COL + PN_VAO));
-  return Math.max(2, Math.min(12, n - (n % 2)));
+let pnEditando = false, pnCols = 6, pnU = 104, pnColW = 160, pnSujo = false, pnGeoCache = null;
+/** OS FORMATOS (⚙ do Painel) — pedido dele em 09/10: "adaptado para widescreen também, que é
+ *  muito usado; tem modelos mais horizontais e modelos com uma proposta vertical um pouco mais
+ *  equilibrada". O AUTOMÁTICO escolhe as colunas e a altura da linha para o painel PREENCHER a
+ *  tela visível (sem rolar, quando cabe): num 21:9/32:9 sobra largura e os widgets ficam largos;
+ *  num 16:9/16:10 ficam mais equilibrados. `alvo` = altura ÷ largura da célula que se busca. */
+const PN_FORMATOS = {
+  auto: { nome: 'Automático — enche a sua tela sem rolar', alvo: 0.72 },
+  horizontal: { nome: 'Horizontal — faixas largas e baixas, o máximo de colunas', celula: 0.55, minCol: 132 },
+  equilibrado: { nome: 'Equilibrado — widgets quase quadrados e maiores (pode rolar)', celula: 0.9, largCol: 300 },
+  compacto: { nome: 'Compacto — tudo baixinho, cabe mais (rola se precisar)', fixo: 88 }
+};
+const PN_U_MIN = 98, PN_U_MAX = 240;
+/** Widgets de NÚMERO (e em que tamanhos) que ficam centralizados na altura. */
+const PN_CENTRO = { relogio: 'pm', saldo: 'pm', plantao: 'pm', viagem: 'pm', estudo: 'pm', patrimonio: 'pm', carteira: 'pm', progresso: 'pm', agua: 'pm', foco: 'pm', frase: 'mql' };
+/** Quantas colunas a largura deixa (cada uma com pelo menos `min` px), sempre par. */
+function pnColunasMax(W, min) { const n = Math.floor((W + PN_VAO) / ((min || PN_MIN_COL) + PN_VAO)); return Math.max(2, Math.min(12, n - (n % 2))); }
+/** A altura que a grade tem até a barra de baixo, sem rolar. */
+function pnAlturaLivre(pn) {
+  const rol = document.querySelector('body[data-casca="nova"] > .container'); if (!rol) return 0;
+  const topo = pn.getBoundingClientRect().top - rol.getBoundingClientRect().top + rol.scrollTop;
+  return Math.round(rol.clientHeight - topo - 28);
+}
+/** Escolhe colunas e altura de linha. Testa cada número par de colunas: quantas linhas os
+ *  widgets pedem, que altura de linha preencheria a tela, e fica com a combinação cuja célula
+ *  tem a proporção mais perto do alvo — com castigo para o que obrigaria a rolar.
+ *  `linhasReais` (2ª passada) = quantas linhas a grade de fato usou. */
+function pnGeometria(W, H, itens, formato, linhasReais, soCols) {
+  if (W < 600) return { cols: 2, u: 98, linhas: 0 };
+  const f = PN_FORMATOS[formato] || PN_FORMATOS.auto, max = pnColunasMax(W);
+  if (f.fixo) return { cols: max, u: f.fixo, linhas: 0 };
+  // horizontal e equilibrado: a FORMA da célula manda (não enchem a tela à força)
+  if (f.celula) {
+    let n = f.minCol ? pnColunasMax(W, f.minCol) : Math.round(W / f.largCol);
+    n = Math.max(2, Math.min(f.minCol ? n : max, n + (n % 2)));   // sempre par
+    const colW = (W - (n - 1) * PN_VAO) / n;
+    return { cols: n, u: Math.round(Math.max(90, Math.min(260, colW * f.celula))), linhas: 0 };
+  }
+  if (!H || H < 200) return { cols: max, u: 104, linhas: 0 };
+  const opcoes = [];
+  for (let n = 2; n <= max; n += 2) {
+    if (soCols && n !== soCols) continue;
+    const colW = (W - (n - 1) * PN_VAO) / n;
+    const area = itens.reduce((s, i) => { const T = PN_TAM[pnTamValido(i)] || PN_TAM.m; return s + Math.min(T.c, n) * T.l; }, 0);
+    const linhas = linhasReais || Math.max(1, Math.ceil(area / n));
+    const cabe = (H - (linhas - 1) * PN_VAO) / linhas;
+    const u = Math.round(Math.max(PN_U_MIN, Math.min(cabe, PN_U_MAX, colW * 1.1)));
+    const rola = Math.max(0, linhas * (u + PN_VAO) - PN_VAO - H) / H;
+    opcoes.push({ cols: n, u, linhas, nota: Math.abs(Math.log((u / colW) / f.alvo)) + rola * 1.5 });
+  }
+  return opcoes.sort((a, b) => a.nota - b.nota)[0] || { cols: max, u: 104, linhas: 0 };
+}
+/** Quantas linhas da grade os widgets ocupam de fato (o "denso" às vezes deixa buraco). */
+function pnLinhasUsadas(pn) {
+  const t = pn.getBoundingClientRect().top; let fundo = 0;
+  pn.querySelectorAll(':scope > .pn-w').forEach(w => { fundo = Math.max(fundo, w.getBoundingClientRect().bottom); });
+  return fundo ? Math.round((fundo - t + PN_VAO) / (pnU + PN_VAO)) : 0;
 }
 function pnTamValido(inst) {
   const d = PN_W[inst.t]; if (!d) return 'm';
@@ -676,8 +739,10 @@ function pnHtmlWidget(inst) {
   const s = pnTamValido(inst), T = PN_TAM[s];
   const c = Math.min(T.c, pnCols), l = T.l;
   const area = d.generico ? ((inst.c || {}).a || 'focus') : d.area;
+  // o tamanho em pixels: anéis e números crescem junto com o widget (tela larga = widget maior)
+  const w = Math.round(c * pnColW + (c - 1) * PN_VAO), h = Math.round(l * pnU + (l - 1) * PN_VAO);
   let r;
-  try { r = d.render({ inst, tam: s, c, l }) || {}; }
+  try { r = d.render({ inst, tam: s, c, l, w, h }) || {}; }
   catch (e) { console.warn('Painel · widget ' + inst.t + ':', e); r = { corpo: pnVazio('aviso', 'Não deu para mostrar este widget agora.') }; }
   if (typeof r === 'string') r = { corpo: r };
   const titulo = r.titulo || d.nome;
@@ -693,9 +758,11 @@ function pnHtmlWidget(inst) {
       ${d.opcoes ? d.opcoes(inst) : ''}
       <span class="pn-ed-setas"><button type="button" title="Mover para a frente" onclick="pnMover('${inst.u}', 1)">${ic('dir')}</button></span>
     </div><span class="pn-canto" title="Puxe para mudar o tamanho">${ic('canto')}</span>` : '';
+  // widget de "número" fica no meio da altura (no widescreen a linha é alta e ele ficava colado no topo)
+  const centro = (PN_CENTRO[inst.t] || '').includes(s) ? ' centro' : '';
   return `<section class="pn-w pn-s-${s} ${d.semTopo ? 'sem-topo' : ''}" data-u="${inst.u}" data-t="${inst.t}" style="--c:${c};--l:${l};--cor:${PN_COR[area] || 'var(--acento)'}">
     ${d.semTopo ? '' : `<header class="pn-w-topo"><span class="pn-w-rot" ${navegar}><i class="pn-ponto"></i><span>${esc(titulo)}</span></span><span class="pn-w-extra">${r.extra || ''}</span></header>`}
-    <div class="pn-w-corpo">${r.corpo || ''}</div>${ed}</section>`;
+    <div class="pn-w-corpo${centro}">${r.corpo || ''}</div>${ed}</section>`;
 }
 function pnRender() {
   const pn = document.getElementById('pn'); if (!pn) return;
@@ -706,17 +773,36 @@ function pnRender() {
   if (ae && pn.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.value) { pnSujo = true; return; }
   if (!pn.offsetParent && !document.querySelector('#focus.active')) { pnSujo = true; return; }
   pnSujo = false;
+  pnBotoesCabecalho();   // antes de medir: os botões mudam a altura do cabeçalho
   const larg = pn.clientWidth || (document.querySelector('.container') || document.body).clientWidth;
-  pnCols = pnColunas(larg);
-  pn.style.setProperty('--pn-cols', pnCols);
   pn.classList.toggle('editando', pnEditando);
   const c = cfgPainel();
-  pn.classList.toggle('compacto', !!c.compacto);
-  pn.innerHTML = c.itens.map(pnHtmlWidget).join('') +
-    (pnEditando ? `<button type="button" class="pn-novo" onclick="pnAbrirCatalogo()">${ic('mais')}<span>Adicionar widget</span></button>` : '') +
-    (!c.itens.length && !pnEditando ? `<div class="pn-vazio-todo">${ic('focus')}<b>Seu painel está vazio.</b><span>Escolha o que quer ver aqui o dia todo.</span><button type="button" class="pn-mini-bt" onclick="pnAbrirCatalogo()">＋ Adicionar widgets</button></div>` : '');
+  if (c.compacto && !c.formato) { c.formato = 'compacto'; delete c.compacto; }   // a caixinha antiga virou formato
+  const formato = PN_FORMATOS[c.formato] ? c.formato : 'auto';
+  const H = pnAlturaLivre(pn);
+  const chave = [larg, H, formato, c.itens.map(i => i.t + pnTamValido(i)).join(',')].join('|');
+  const doCache = pnGeoCache && pnGeoCache.chave === chave;
+  let g = doCache ? pnGeoCache.g : pnGeometria(larg, H, c.itens, formato);
+  const aneisAntes = Object.assign({}, pnAnelAntes);
+  const desenhar = geo => {
+    pnCols = geo.cols; pnU = geo.u; pnColW = (larg - (pnCols - 1) * PN_VAO) / pnCols;
+    pn.style.setProperty('--pn-cols', pnCols); pn.style.setProperty('--pn-u', pnU + 'px');
+    pn.innerHTML = c.itens.map(pnHtmlWidget).join('') +
+      (pnEditando ? `<button type="button" class="pn-novo" onclick="pnAbrirCatalogo()">${ic('mais')}<span>Adicionar widget</span></button>` : '') +
+      (!c.itens.length && !pnEditando ? `<div class="pn-vazio-todo">${ic('focus')}<b>Seu painel está vazio.</b><span>Escolha o que quer ver aqui o dia todo.</span><button type="button" class="pn-mini-bt" onclick="pnAbrirCatalogo()">＋ Adicionar widgets</button></div>` : '');
+  };
+  desenhar(g);
+  // 2ª passada: a grade densa às vezes usa uma linha a mais (ou a menos) que a conta — refaz a
+  // altura com o número real. Guardada por chave: só se repete se a tela ou os widgets mudarem.
+  if (!doCache && !pnEditando) {
+    const reais = g.linhas ? pnLinhasUsadas(pn) : 0;
+    if (reais && reais !== g.linhas) {
+      const g2 = pnGeometria(larg, H, c.itens, formato, reais, g.cols);
+      if (Math.abs(g2.u - g.u) > 3) { Object.assign(pnAnelAntes, aneisAntes); g = g2; desenhar(g); }
+    }
+    pnGeoCache = { chave, g };
+  }
   pnDepois(pn);
-  pnBotoesCabecalho();
 }
 /** Depois de desenhar: anéis animam do valor velho ao novo; arraste no modo editar. */
 function pnDepois(raiz) {
@@ -923,7 +1009,7 @@ function pnRenderCatalogo() {
     const s = i.d.padrao, T = PN_TAM[s];
     const inst = { u: 'prev' + k, t: i.t, s, c: i.c };
     let previa = '';
-    try { const r = i.d.render({ inst, tam: s, c: Math.min(T.c, 4), l: T.l, previa: true }) || {}; previa = (typeof r === 'string' ? r : r.corpo) || ''; } catch (e) { previa = ''; }
+    try { const r = i.d.render({ inst, tam: s, c: Math.min(T.c, 4), l: T.l, w: 220, h: 98, previa: true }) || {}; previa = (typeof r === 'string' ? r : r.corpo) || ''; } catch (e) { previa = ''; }
     const ja = noPainel.some(n => n.t === i.t && (i.t !== 'setor' || ((n.c || {}).a === i.c.a && (n.c || {}).s === i.c.s)));
     return `<article class="pn-cat-item" style="--cor:${PN_COR[i.area] || 'var(--acento)'}">
       <div class="pn-cat-previa pn-s-${s}" style="--c:${T.c};--l:${T.l}" onclick="pnAdicionar(${k})"><div class="pn-w-corpo">${previa}</div></div>
@@ -969,8 +1055,14 @@ function pnMontar() {
   // (display: flex). A aba Painel nunca mais sumia: ficava por cima de todas as outras abas.
   if (typeof ResizeObserver === 'function') {
     let ultimo = 0;
-    new ResizeObserver(() => { const w = pn.clientWidth; if (!w || Math.abs(w - ultimo) < 2) return; ultimo = w; if (pnColunas(w) !== pnCols) pnRender(); }).observe(pn);
+    new ResizeObserver(() => { const w = pn.clientWidth; if (!w || Math.abs(w - ultimo) < 2) return; ultimo = w; pnRender(); }).observe(pn);
   }
+  // a ALTURA da janela também muda a conta (o automático preenche a tela visível)
+  let altura = innerHeight, t = null;
+  window.addEventListener('resize', () => {
+    if (Math.abs(innerHeight - altura) < 4) return; altura = innerHeight;
+    clearTimeout(t); t = setTimeout(() => { if (document.querySelector('#focus.active')) pnRender(); }, 160);
+  });
 }
 
 // ───────────────────────────── ganchos ─────────────────────────────────────
@@ -1016,7 +1108,9 @@ if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-focus'] = () => {
   const c = cfgPainel(), arte = typeof cfgArte === 'function' ? cfgArte() : null;
   return `<h4 class="dev-titulo">O Painel</h4>
     <div class="pf-botoes"><button class="mini-btn" onclick="fecharConfigAba(); changeTab('focus'); pnEditar(true)">✎ Editar o painel</button><button class="mini-btn" onclick="fecharConfigAba(); pnAbrirCatalogo()">＋ Adicionar widget</button><button class="mini-btn" onclick="pnRestaurar()">↺ Painel de fábrica</button></div>
-    <label class="check-line" style="margin-top:8px"><input type="checkbox" ${c.compacto ? 'checked' : ''} onchange="cfgPainel().compacto = this.checked; pnGravar(); pnRender()"> Widgets mais baixos (cabe mais na tela sem rolar)</label>
+    <label style="display:block; margin-top:10px">Formato do painel:</label>
+    <select onchange="cfgPainel().formato = this.value; delete cfgPainel().compacto; pnGravar(); pnGeoCache = null; pnRender()">${Object.entries(PN_FORMATOS).map(([k, f]) => `<option value="${k}" ${(c.formato || 'auto') === k ? 'selected' : ''}>${f.nome}</option>`).join('')}</select>
+    <p class="hint" style="margin:4px 0 8px">O automático escolhe as colunas e a altura para o painel encher a tela sem rolar: largo no ultrawide, mais equilibrado no 16:9. Agora: <b>${pnCols} colunas</b>, linhas de <b>${pnU}px</b>.</p>
     ${arte ? `<label class="check-line"><input type="checkbox" ${arte.ligado ? 'checked' : ''} onchange="cfgArte().ligado = this.checked; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); pnObra = null; pnRender()"> Obra do dia (busca a imagem na internet)</label>` : ''}
     <p class="hint" style="margin-top:4px">${c.itens.length} widgets. A arrumação do Painel vale só neste aparelho — o PC e o celular podem ter painéis diferentes.</p>`;
 };

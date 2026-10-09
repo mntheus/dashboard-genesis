@@ -5035,10 +5035,22 @@ body[data-casca="classica"] .aba-dev-btn { position: static; float: right; margi
   font-size: 1.85rem; font-weight: 250; letter-spacing: -0.035em; line-height: 1.05;
   color: var(--txt-forte); font-variant-numeric: tabular-nums; white-space: nowrap;   /* número não quebra: encolhe (container abaixo) */
 }
-/* o número se ajusta à LARGURA do widget, não da tela (um P no ultrawide é estreito) */
-.pn-w, .pn-cat-previa { container-type: inline-size; }
-@container (max-width: 190px) { .pn-num { font-size: 1.5rem; } .pn-num-s { font-size: 1.05rem; } }
-@container (max-width: 300px) { .pn-num-xl { font-size: 1.9rem; } .pn-num-xxl { font-size: 2.6rem; } }
+/* o número se ajusta ao TAMANHO do widget, não da tela: encolhe no estreito e cresce no
+   widget grande (widescreen, 09/10). `size` vale porque a altura vem da grade, não do conteúdo. */
+.pn-w, .pn-cat-previa { container-type: size; }
+/* 🪤 o prefixo .pn-w-corpo é de propósito: as regras normais de .pn-num-xl, .pn-frase…
+   vêm DEPOIS no arquivo e, com o mesmo peso, venceriam estas (o relógio não crescia) */
+@container (max-width: 190px) { .pn-w-corpo .pn-num { font-size: 1.5rem; } .pn-w-corpo .pn-num-s { font-size: 1.05rem; } }
+@container (max-width: 300px) { .pn-w-corpo .pn-num-xl { font-size: 1.9rem; } .pn-w-corpo .pn-num-xxl { font-size: 2.6rem; } }
+@container (min-width: 230px) and (min-height: 150px) {
+  .pn-w-corpo .pn-num { font-size: 2.3rem; } .pn-w-corpo .pn-num-s { font-size: 1.55rem; } .pn-w-corpo .pn-num-xl { font-size: 3rem; }
+  .pn-w-corpo { font-size: .9rem; } .pn-w-corpo .pn-sub { font-size: .84rem; }
+}
+@container (min-width: 280px) and (min-height: 160px) {
+  .pn-w-corpo .pn-num { font-size: 2.9rem; } .pn-w-corpo .pn-num-s { font-size: 1.8rem; } .pn-w-corpo .pn-num-xl { font-size: 3.8rem; } .pn-w-corpo .pn-num-xxl { font-size: 4.6rem; }
+  .pn-w-corpo .pn-frase { font-size: 1.3rem; }
+  .pn-w-corpo .pn-prox { font-size: .92rem; }
+}
 .pn-num small { font-size: .5em; font-weight: 500; letter-spacing: 0; color: var(--txt3); margin: 0 .18em 0 0; }
 .pn-num.neg { color: var(--perigo); } .pn-num.pos { color: var(--txt-forte); }
 .pn-num-s { font-size: 1.3rem; letter-spacing: -0.02em; }
@@ -5303,6 +5315,10 @@ body[data-casca="classica"] .aba-dev-btn { position: static; float: right; margi
 .pn-obra-sobre { margin: 4px 0 0; font-size: .76rem; line-height: 1.45; color: var(--txt2); }
 .pn-frase { margin: auto 0; padding: 0 0 0 12px; border-left: 2px solid var(--cor); font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 400; font-size: .98rem; line-height: 1.45; color: var(--txt); overflow-wrap: anywhere; }
 .pn-w-corpo.rolando { overflow-y: auto; }
+/* margens automáticas centralizam quando sobra altura e somem quando falta
+   (justify-content: center cortaria o topo de quem não cabe) */
+.pn-w-corpo.centro > :first-child { margin-top: auto; }
+.pn-w-corpo.centro > :last-child { margin-bottom: auto; }
 .pn-s-q .pn-frase, .pn-s-l .pn-frase { font-size: 1.15rem; }
 .pn-capa { flex: 1; position: relative; background-size: cover; background-position: center; border-radius: 11px; display: flex; align-items: flex-end; padding: 12px 14px; }
 .pn-capa::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(to top, rgba(0,0,0,.45), transparent 55%); }

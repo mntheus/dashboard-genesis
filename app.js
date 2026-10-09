@@ -6439,6 +6439,18 @@ function recolocarPaineis() {
   });
 }
 
+// 🪤 09/10: a coluna do meio muda de largura SEM a janela mudar (a casca nova entra depois
+// da 1ª arrumação, regras por tamanho de tela…). As janelas ficavam com a posição velha,
+// por cima do conteúdo — medido no ultrawide: 222 px do Bloco rápido sobre o Painel.
+// Agora elas acompanham qualquer mudança de largura da coluna do meio.
+if (typeof ResizeObserver === 'function' && document.querySelector('.container')) {
+  let pfTimerLarg = null, pfLargura = 0;
+  new ResizeObserver(entradas => {
+    const w = Math.round(entradas[0].contentRect.width); if (w === pfLargura) return; pfLargura = w;
+    clearTimeout(pfTimerLarg); pfTimerLarg = setTimeout(recolocarPaineis, 120);
+  }).observe(document.querySelector('.container'));
+}
+
 // --- arrastar ---------------------------------------------------------------
 let pfArrasto = null;
 function pegarPainel(ev, k) {

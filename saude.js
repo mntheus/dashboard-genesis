@@ -109,10 +109,16 @@ function proximoDiaDeTreino() {
 
 /** O desenho: frente e costas, cada músculo um <g> que acende e responde ao toque.
  *  Formas geométricas de propósito — combinam com o traço fino do resto do app. */
-function spMapaMuscular(rec, prox) {
-  const nivel = g => { const x = rec[g]; return !x ? 0 : x.dias <= 1 ? 3 : x.dias <= 3 ? 2 : x.dias <= 7 ? 1 : 0; };
+// S2 (09/10): o MESMO desenho também mostra um exercício — `papel` = { prim: [...], sec: [...], lado? }:
+// o músculo que mais trabalha aceso forte, o que ajuda aceso fraco ("os desenhos de palitinho estão fora
+// da realidade; o painel do corpo está bonito"). `lado` ('frente'|'costas') recorta uma silhueta só.
+function spMapaMuscular(rec, prox, papel) {
+  const nivel = g => papel ? (papel.prim.includes(g) ? 3 : papel.sec.includes(g) ? 1 : 0)
+    : (x => !x ? 0 : x.dias <= 1 ? 3 : x.dias <= 3 ? 2 : x.dias <= 7 ? 1 : 0)(rec[g]);
   const reg = (g, formas) => {
-    const x = rec[g]; const nome = (GRUPOS_MUSC[g] || ['', g])[1];
+    const nome = (GRUPOS_MUSC[g] || ['', g])[1];
+    if (papel) return `<g class="mm q${nivel(g)}"><title>${nome}${papel.prim.includes(g) ? ' · trabalha mais' : papel.sec.includes(g) ? ' · ajuda' : ''}</title>${formas}</g>`;
+    const x = rec[g];
     const quando = x ? spHaQuanto(x.dias) : 'sem treino em 14 dias';
     return `<g class="mm q${nivel(g)}${prox.has(g) ? ' prox' : ''}${spEstado.grupo === g ? ' sel' : ''}" onclick="spEscolherGrupo('${g}')"><title>${nome} · ${quando}</title>${formas}</g>`;
   };
@@ -147,6 +153,12 @@ function spMapaMuscular(rec, prox) {
     reg('perna', '<ellipse cx="144" cy="113" rx="6" ry="14"/><ellipse cx="156" cy="113" rx="6" ry="14"/>' +
       '<ellipse cx="144" cy="146" rx="5" ry="12"/><ellipse cx="156" cy="146" rx="5" ry="12"/>')
   ].join('');
+  if (papel) {
+    const caixa = papel.lado === 'frente' ? '14 0 72 168' : papel.lado === 'costas' ? '114 0 72 168' : '14 0 172 177';
+    return `<svg class="sp-mapa ex-mapa" viewBox="${caixa}" role="img" aria-label="Músculos que o exercício trabalha">
+      ${papel.lado === 'costas' ? '' : frente}${papel.lado === 'frente' ? '' : costas}
+      ${papel.lado ? '' : '<text class="mm-rot" x="50" y="174">FRENTE</text><text class="mm-rot" x="150" y="174">COSTAS</text>'}</svg>`;
+  }
   return `<svg class="sp-mapa" viewBox="14 0 172 177" role="img" aria-label="Mapa dos músculos treinados">
     ${frente}${costas}
     <text class="mm-rot" x="50" y="174">FRENTE</text><text class="mm-rot" x="150" y="174">COSTAS</text></svg>`;
@@ -191,13 +203,18 @@ function spQuadroTreino() {
   }
 
   let hojeHtml;
-  if (treinoHoje.length) {
+  const vivo = typeof treinoEmAndamento === 'function' ? treinoEmAndamento() : null;
+  if (vivo) {
+    // S1: um treino ao vivo aberto neste aparelho manda no quadro — "continuar" é o que ele quer ver
+    hojeHtml = `<div class="sp-hoje vivo"><span><strong>▶ ${esc(vivo.titulo)}</strong><small>em andamento · ${tvFeitas(vivo)} de ${tvTotalSeries(vivo)} séries</small></span>
+      <button type="button" class="btn-treinar" onclick="treinoAoVivo()">Continuar</button></div>`;
+  } else if (treinoHoje.length) {
     const t = treinoHoje[0]; const ic = TIPOS_TREINO[t.type] || TIPOS_TREINO.outro;
     hojeHtml = `<div class="sp-hoje feito"><span>✓ <strong>Treino de hoje feito</strong><small>${ic[0]} ${esc(t.note || ic[1])}${t.minutes ? ' · ' + t.minutes + ' min' : ''}</small></span></div>`;
   } else if (sug) {
     const ha = sug.quando === '0000-00-00' ? 'nunca treinado' : 'último ' + rotuloData(sug.quando).toLowerCase();
     hojeHtml = `<div class="sp-hoje"><span><strong>Hoje: ${esc(sug.dia.nome)}</strong><small>${esc(sug.ficha.nome)} · ${ha} · tracejado no mapa</small></span>
-      <button type="button" class="btn-treinar" onclick="treinarComFicha(${sug.ficha.id}, ${sug.i})">Treinar</button></div>`;
+      <button type="button" class="btn-treinar" onclick="treinoAoVivo(${sug.ficha.id}, ${sug.i})">▶ Treinar</button></div>`;
   } else {
     hojeHtml = `<div class="sp-hoje"><span><strong>Sem ficha montada</strong><small>Com uma ficha, o painel sugere o treino do dia.</small></span>
       <button type="button" class="btn-treinar" onclick="verSecaoSaude('treinos')">Montar</button></div>`;
@@ -353,10 +370,170 @@ function spVitais() {
   return `<div class="sp-vitais">${out.map(([cor, t, tt]) => `<span class="sp-vital" style="--c:${cor}" title="${esc(tt)}"><i></i>${t}</span>`).join('')}</div>`;
 }
 
+// ── S3 (09/10): O CORPO ALÉM DO IMC ──────────────────────────────────────────
+// Ditado dele: "só tem IMC, que não é justo para todo corpo". O IMC não separa músculo de gordura.
+// Entram: cintura/altura, % de gordura (medida, ou estimada pela fórmula da Marinha dos EUA com
+// pescoço e cintura), massa magra, FFMI (o "IMC de quem treina"), metabolismo de repouso, gasto do
+// dia e as metas de proteína e água. Referências de consenso (OMS, ACE, Mifflin-St Jeor,
+// Katch-McArdle) — referência, não diagnóstico. Tudo calculado do que já existe: nada novo sincroniza.
+function spIdade(nasc) {
+  if (!nasc) return 0;
+  const n = new Date(nasc + 'T12:00:00'), h = new Date();
+  let a = h.getFullYear() - n.getFullYear(); if (h < new Date(h.getFullYear(), n.getMonth(), n.getDate())) a--;
+  return a > 0 && a < 120 ? a : 0;
+}
+/** % de gordura pela fita métrica (Marinha dos EUA, em cm). Mulher precisa do quadril. */
+function spGorduraMarinha(sexo, alturaCm, cintura, pescoco, quadril) {
+  const L = Math.log10;
+  if (!alturaCm || !cintura || !pescoco) return null;
+  let v;
+  if (sexo === 'f') { if (!quadril || cintura + quadril - pescoco <= 0) return null; v = 495 / (1.29579 - 0.35004 * L(cintura + quadril - pescoco) + 0.22100 * L(alturaCm)) - 450; }
+  else if (sexo === 'm') { if (cintura - pescoco <= 0) return null; v = 495 / (1.0324 - 0.19077 * L(cintura - pescoco) + 0.15456 * L(alturaCm)) - 450; }
+  else return null;
+  return v > 2 && v < 60 ? v : null;
+}
+/** Treinos por semana nas últimas 4 semanas (dá o fator de atividade e a meta de proteína). */
+function spTreinosPorSemana() { const corte = spSomaDias(hojeISO(), -28); return workouts.filter(w => w.date && w.date > corte && w.date <= hojeISO()).length / 4; }
+/** As faixas de cada indicador. Função (e não constante): o IMC_FAIXAS mora no app.js, que carrega depois. */
+function spZonas(k, sexo) {
+  const f = sexo === 'f';
+  return {
+    imc: { min: 15, max: 40, casas: 1, faixas: IMC_FAIXAS.map(([a, b, r, c]) => [a, b, r, c]) },
+    rce: { min: 0.3, max: 0.7, casas: 2, faixas: [[0, 0.4, 'abaixo', '#38bdf8'], [0.4, 0.5, 'saudável', '#22c55e'], [0.5, 0.6, 'atenção', '#fbbf24'], [0.6, 9, 'alto', '#ef4444']] },
+    gordura: { min: 5, max: 45, casas: 1, faixas: f
+      ? [[0, 14, 'essencial', '#38bdf8'], [14, 21, 'atleta', '#22c55e'], [21, 25, 'boa forma', '#4ade80'], [25, 32, 'média', '#fbbf24'], [32, 99, 'alta', '#ef4444']]
+      : [[0, 6, 'essencial', '#38bdf8'], [6, 14, 'atleta', '#22c55e'], [14, 18, 'boa forma', '#4ade80'], [18, 25, 'média', '#fbbf24'], [25, 99, 'alta', '#ef4444']] },
+    ffmi: { min: 12, max: 28, casas: 1, faixas: f
+      ? [[0, 14, 'abaixo da média', '#38bdf8'], [14, 17, 'na média', '#4ade80'], [17, 19, 'acima da média', '#22c55e'], [19, 22, 'excelente', '#a78bfa'], [22, 99, 'muito alto', '#f472b6']]
+      : [[0, 18, 'abaixo da média', '#38bdf8'], [18, 20, 'na média', '#4ade80'], [20, 22, 'acima da média', '#22c55e'], [22, 25, 'excelente', '#a78bfa'], [25, 99, 'muito alto', '#f472b6']] }
+  }[k];
+}
+function spFaixaDe(v, z) { return z.faixas.find(([a, b]) => v >= a && v < b) || z.faixas[z.faixas.length - 1]; }
+/** Tudo o que dá para tirar das medidas e do perfil. Cada item diz o que FALTA quando não dá. */
+function spIndicadores() {
+  const c = perfilCorpo(), hcm = Number(c.altura) || 0, h = hcm / 100, sexo = c.sexo, idade = spIdade(c.nascimento);
+  const p = spUltimo('weight'), w = spUltimo('waist'), hp = spUltimo('hip'), nk = spUltimo('neck'), fm = spUltimo('fat');
+  const peso = p ? Number(p.weight) : 0, o = { sexo, idade };
+  o.imc = peso && h ? { v: peso / h / h } : null;
+  o.rce = w && hcm ? { v: Number(w.waist) / hcm, data: w.date } : null;
+  o.rcq = w && hp ? calcRCQ(Number(w.waist), Number(hp.hip), sexo) : null;
+  if (fm) o.gordura = { v: Number(fm.fat), fonte: 'medida', data: fm.date };
+  else { const v = spGorduraMarinha(sexo, hcm, w && Number(w.waist), nk && Number(nk.neck), hp && Number(hp.hip)); o.gordura = v ? { v, fonte: 'estimada pela fita (Marinha)' } : null; }
+  if (o.gordura && peso) {
+    o.magra = { v: peso * (1 - o.gordura.v / 100), gordura: peso * o.gordura.v / 100 };
+    if (h) o.ffmi = { v: o.magra.v / h / h + 6.1 * (1.8 - h) };
+  }
+  if (o.magra) o.tmb = { v: 370 + 21.6 * o.magra.v, formula: 'Katch-McArdle (pela massa magra)' };
+  else if (peso && hcm && idade && sexo) o.tmb = { v: 10 * peso + 6.25 * hcm - 5 * idade + (sexo === 'f' ? -161 : 5), formula: 'Mifflin-St Jeor' };
+  const tps = spTreinosPorSemana(), fator = tps >= 5 ? 1.725 : tps >= 3 ? 1.55 : tps >= 1 ? 1.375 : 1.2;
+  if (o.tmb) o.gasto = { v: o.tmb.v * fator, fator, tps };
+  if (peso) {
+    const [a, b] = tps >= 3 ? [1.6, 2.2] : tps >= 1 ? [1.2, 1.6] : [0.8, 1.2];
+    o.prot = { min: peso * a, max: peso * b, a, b }; o.agua = { v: peso * 35 };
+  }
+  // o que falta para cada um (a dica que aparece no lugar do número)
+  const faltam = l => l.filter(Boolean).join(', ');
+  o.falta = {
+    imc: faltam([!hcm && 'a altura', !peso && 'o peso']),
+    rce: faltam([!hcm && 'a altura', !w && 'a cintura']),
+    gordura: faltam([!sexo && 'a referência (masc./fem.)', !hcm && 'a altura', !w && 'a cintura', !nk && 'o pescoço', sexo === 'f' && !hp && 'o quadril']),
+    tmb: faltam([!peso && 'o peso', !o.gordura && !hcm && 'a altura', !o.gordura && !idade && 'a data de nascimento', !o.gordura && !sexo && 'a referência (masc./fem.)'])
+  };
+  return o;
+}
+/** O medidor em meia-lua, para qualquer indicador com faixas (o do IMC virou caso particular). */
+function spMedidor(valor, z) {
+  const cx = 60, cy = 56, R = 44;
+  const ang = v => Math.PI * (1 - (Math.min(z.max, Math.max(z.min, v)) - z.min) / (z.max - z.min));
+  const pt = (v, r) => [cx + r * Math.cos(ang(v)), cy - r * Math.sin(ang(v))];
+  const folga = (z.max - z.min) / 100;
+  const arcos = z.faixas.map(([lo, hi, rot, cor]) => {
+    const a = Math.max(z.min, lo) + folga, b = Math.min(z.max, hi) - folga; if (b <= a) return '';
+    const [x1, y1] = pt(a, R), [x2, y2] = pt(b, R);
+    return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${cor}" class="sp-imc-arco${valor !== null && valor >= lo && valor < hi ? ' ativo' : ''}"><title>${rot}</title></path>`;
+  }).join('');
+  let agulha = '';
+  if (valor !== null && valor !== undefined) { const [x, y] = pt(valor, R - 12); agulha = `<line class="sp-imc-agulha" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/><circle class="sp-imc-eixo" cx="${cx}" cy="${cy}" r="3.5"/>`; }
+  return `<svg class="sp-imc" viewBox="0 0 120 64" role="img">${arcos}${agulha}</svg>`;
+}
+/** Régua fina com as faixas e um marcador (nos cartões da seção Corpo). */
+function spRegua(valor, z) {
+  const pos = v => ((Math.min(z.max, Math.max(z.min, v)) - z.min) / (z.max - z.min) * 100);
+  const seg = z.faixas.map(([lo, hi, rot, cor]) => { const a = pos(Math.max(lo, z.min)), b = pos(Math.min(hi, z.max)); return b > a ? `<i style="left:${a.toFixed(1)}%; width:${(b - a).toFixed(1)}%; background:${cor}" title="${rot}"></i>` : ''; }).join('');
+  return `<span class="sp-regua">${seg}${valor !== null && valor !== undefined ? `<b style="left:${pos(valor).toFixed(1)}%"></b>` : ''}</span>`;
+}
+const SP_IND_NOMES = { rce: 'Cintura/altura', gordura: 'Gordura', ffmi: 'FFMI', imc: 'IMC' };
+function spEscolherIndicador(k) { spEstado.indicador = k; renderPainelSaude(); }
+/** O medidor do quadro Corpo: escolhe-se o indicador (começa pelo mais justo que houver). */
+function spCaixaIndicador() {
+  const o = spIndicadores();
+  const tem = Object.keys(SP_IND_NOMES).filter(k => o[k]);
+  if (!tem.length) return `<div class="sp-imc-box">${spMedidorIMC(null)}<button type="button" class="sp-meta" onclick="verSecaoSaude('medidas')">${perfilCorpo().altura ? 'falta o peso' : 'informe a altura'}</button></div>`;
+  const k = tem.includes(spEstado.indicador) ? spEstado.indicador : tem[0];
+  const z = spZonas(k, o.sexo), v = o[k].v, f = spFaixaDe(v, z);
+  const val = k === 'gordura' ? spNum(v) + '%' : spNum(v, z.casas);
+  // o nome do indicador é o botão de trocar (cabe nos 118 px do quadro, onde quatro abas não cabiam)
+  const prox = tem[(tem.indexOf(k) + 1) % tem.length];
+  return `<div class="sp-imc-box">
+    ${tem.length > 1 ? `<button type="button" class="sp-ind-troca" onclick="spEscolherIndicador('${prox}')" title="Trocar: ${tem.map(x => SP_IND_NOMES[x]).join(' · ')}">${SP_IND_NOMES[k]} ⇄</button>` : `<small class="sp-ind-troca">${SP_IND_NOMES[k]}</small>`}
+    ${spMedidor(v, z)}<span class="sp-imc-val" style="color:${f[3]}">${val}</span><small>${f[2]}${k === 'gordura' && o.gordura.fonte !== 'medida' ? ' · estimada' : ''}</small></div>`;
+}
+/** Os cartões da seção Corpo: cada indicador com número, faixa, régua e uma linha do porquê. */
+function spCartoesIndicadores() {
+  const o = spIndicadores(), sx = o.sexo;
+  const cartao = (tit, valor, faixa, regua, porque, extra) => `<div class="sp-ind${valor ? '' : ' vazio'}"${faixa ? ` style="--c:${faixa[3]}"` : ''}>
+      <small class="sp-ind-tit">${tit}</small>
+      <strong>${valor || '—'}</strong>${faixa ? `<span class="sp-ind-faixa">${faixa[2]}</span>` : ''}
+      ${regua || ''}<p>${porque}</p>${extra || ''}</div>`;
+  const falta = k => o.falta[k] ? `Falta ${o.falta[k]}.` : '';
+  const zR = spZonas('rce', sx), zG = spZonas('gordura', sx), zF = spZonas('ffmi', sx), zI = spZonas('imc', sx);
+  const L = [];
+  L.push(cartao('Cintura / altura', o.rce && spNum(o.rce.v, 2), o.rce && spFaixaDe(o.rce.v, zR), o.rce && spRegua(o.rce.v, zR),
+    o.rce ? 'A gordura da barriga, a mais ligada a risco. Meta: a cintura menor que a metade da altura (abaixo de 0,5).' : falta('rce')));
+  L.push(cartao(`Gordura corporal${o.gordura && o.gordura.fonte !== 'medida' ? ' · estimada' : ''}`, o.gordura && spNum(o.gordura.v) + '%', o.gordura && spFaixaDe(o.gordura.v, zG), o.gordura && spRegua(o.gordura.v, zG),
+    o.gordura ? (o.gordura.fonte === 'medida' ? `Medida em ${isoParaBR(o.gordura.data)}.` : 'Pela fita: pescoço, cintura' + (sx === 'f' ? ' e quadril' : '') + ' (fórmula da Marinha dos EUA). Bioimpedância ou dobras são mais precisas.') : falta('gordura')));
+  L.push(cartao('Massa magra', o.magra && spNum(o.magra.v) + ' kg', null, '',
+    o.magra ? `Músculo, osso e água. Gordura: ${spNum(o.magra.gordura)} kg.` : 'Sai do peso e da % de gordura.'));
+  L.push(cartao('FFMI', o.ffmi && spNum(o.ffmi.v), o.ffmi && spFaixaDe(o.ffmi.v, zF), o.ffmi && spRegua(o.ffmi.v, zF),
+    o.ffmi ? 'Massa magra para a altura — o "IMC de quem treina": sobe com músculo, não com gordura.' : 'Sai da massa magra e da altura.'));
+  L.push(cartao('IMC', o.imc && spNum(o.imc.v), o.imc && spFaixaDe(o.imc.v, zI), o.imc && spRegua(o.imc.v, zI),
+    o.imc ? 'Peso para a altura. Não separa músculo de gordura: olhe junto com a cintura e a gordura.' : falta('imc')));
+  if (o.rcq) L.push(cartao('Cintura / quadril', spNum(o.rcq.valor, 2), [0, 0, o.rcq.alto ? 'acima da referência' : 'dentro da faixa', o.rcq.alto ? '#ef4444' : '#22c55e'], '',
+    `Referência da OMS: até ${spNum(o.rcq.limite, 2)}.`));
+  L.push(cartao('Metabolismo de repouso', o.tmb && Math.round(o.tmb.v).toLocaleString('pt-BR') + ' kcal', null, '',
+    o.tmb ? `O que o corpo gasta parado, por dia (${o.tmb.formula}).` : falta('tmb')));
+  L.push(cartao('Gasto do dia', o.gasto && '~' + (Math.round(o.gasto.v / 10) * 10).toLocaleString('pt-BR') + ' kcal', null, '',
+    o.gasto ? `Repouso × ${String(o.gasto.fator).replace('.', ',')} — ${spNum(o.gasto.tps, 1)} treinos por semana nas últimas 4.` : 'Sai do metabolismo de repouso e dos treinos.'));
+  L.push(cartao('Proteína por dia', o.prot && `${Math.round(o.prot.min)}–${Math.round(o.prot.max)} g`, null, '',
+    o.prot ? `${spNum(o.prot.a)}–${spNum(o.prot.b)} g por kg, pelo ritmo de treino.` : falta('imc')));
+  L.push(cartao('Água por dia', o.agua && spNum(o.agua.v / 1000) + ' L', null, '',
+    o.agua ? '35 ml por kg; nos dias de treino, meio litro a mais.' : 'Sai do peso.',
+    o.agua && typeof hydration !== 'undefined' && Math.abs(hydration.goal - Math.round(o.agua.v / 100) * 100) >= 200 ? `<button type="button" class="mini-btn xs" onclick="spUsarMetaAgua(${Math.round(o.agua.v / 100) * 100})">usar como meta</button>` : ''));
+  return `<div class="sp-inds">${L.join('')}</div>`;
+}
+/** S4 (09/10): o alto da Comida — o dia contra o que o corpo pede (energia × gasto, proteína × faixa, água × meta).
+ *  Conta o que foi comido do plano em uso (refeições marcadas como feitas). */
+function renderMetasDoDia() {
+  const el = document.getElementById('sp-metas-dia'); if (!el) return;
+  const o = spIndicadores(), d = typeof spFatiasDoDia === 'function' ? spFatiasDoDia() : { fatias: [] };
+  let kF = 0, pF = 0; (d.fatias || []).forEach(f => { if (f.feita) f.itens.forEach(x => { kF += Number(x.kcal) || 0; pF += Number(x.prot) || 0; }); });
+  const barra = (rot, feito, alvo, faixaMax, un, cor, dica) => {
+    const pct = alvo ? Math.min(100, feito / (faixaMax || alvo) * 100) : 0, ini = faixaMax && alvo ? alvo / faixaMax * 100 : 0;
+    return `<div class="sp-meta-dia" style="--c:${cor}" title="${dica}"><small>${rot}</small>
+      <span class="sp-meta-barra"><i style="width:${pct.toFixed(1)}%"></i>${ini ? `<em style="left:${ini.toFixed(1)}%"></em>` : ''}</span>
+      <b>${un === 'L' ? spNum(feito / 1000) : Math.round(feito).toLocaleString('pt-BR')}<small> / ${alvo ? (un === 'L' ? spNum(alvo / 1000) : (faixaMax ? Math.round(alvo) + '–' + Math.round(faixaMax) : '~' + (Math.round(alvo / 10) * 10).toLocaleString('pt-BR'))) : '—'} ${un}</small></b></div>`;
+  };
+  if (!o.gasto && !o.prot) { el.innerHTML = '<p class="hint">Com peso, altura e idade em <a href="#" onclick="verSecaoSaude(\'medidas\'); return false;">Corpo</a>, aqui aparecem as metas do dia (energia, proteína e água).</p>'; return; }
+  el.innerHTML = `<div class="sp-metas-tit"><b>Hoje × o que o corpo pede</b><small>conta as refeições do plano marcadas como feitas</small></div>
+    ${barra('Energia', kF, o.gasto && o.gasto.v, 0, 'kcal', 'var(--laranja)', 'Gasto estimado do dia (repouso × atividade)')}
+    ${barra('Proteína', pF, o.prot && o.prot.min, o.prot && o.prot.max, 'g', 'var(--rosa)', 'Faixa pelo peso e pelo ritmo de treino; a marca é o mínimo')}
+    ${barra('Água', hydration.ml || 0, hydration.goal || (o.agua && o.agua.v), 0, 'L', 'var(--info)', 'Meta de água do dia')}`;
+}
+function spUsarMetaAgua(ml) { hydration.goal = ml; salvar('hydration', hydration); renderSaude(); toast(`💧 Meta de água: ${spNum(ml / 1000)} L por dia.`); }
+
 function spQuadroCorpo() {
   const c = perfilCorpo();
   const u = spUltimo('weight');
-  const imc = u ? calcIMC(u.weight, c.altura) : null;
   // variação de ~30 dias: compara com a pesagem mais recente de 30 dias atrás ou antes
   let delta = '';
   if (u) {
@@ -371,14 +548,12 @@ function spQuadroCorpo() {
   const meta = Number(c.meta) || 0;
   const metaTxt = meta && u ? `<button type="button" class="sp-meta" onclick="spDefinirMeta()" title="Mudar a meta">🎯 ${spNum(meta)} kg · ${Math.abs(u.weight - meta) < 0.05 ? 'na meta!' : 'faltam ' + spNum(Math.abs(u.weight - meta))}</button>`
     : `<button type="button" class="sp-meta" onclick="spDefinirMeta()">🎯 definir meta</button>`;
-  const imcTxt = imc ? `<span class="sp-imc-val" style="color:${imc.cor}">IMC ${spNum(imc.valor)}</span><small>${imc.rotulo}</small>`
-    : `<button type="button" class="sp-meta" onclick="verSecaoSaude('medidas')">${c.altura ? 'falta o peso' : 'informe a altura'}</button>`;
   return `<section class="sp-quadro sp-corpo">
     <button type="button" class="sp-cab" onclick="verSecaoSaude('medidas')"><span class="sp-ic">⚖️</span><span class="sp-tit">Corpo</span>
       <small>${u ? 'pesado ' + spHaQuanto(spDias(u.date)) : 'sem pesagem'}</small><span class="sp-ir">›</span></button>
     <div class="sp-corpo-topo">
       <div class="sp-peso"><strong>${u ? spNum(u.weight) : '—'}<small> kg</small></strong>${delta}${metaTxt}</div>
-      <div class="sp-imc-box">${spMedidorIMC(imc)}${imcTxt}</div>
+      ${spCaixaIndicador()}
     </div>
     ${spFaixasHtml()}
     ${spGraficoPeso('painel', 118)}
@@ -500,7 +675,10 @@ function spQuadroComida() {
   if (d.plano) {
     let kT = 0, pT = 0, kF = 0, pF = 0;
     d.fatias.forEach(f => f.itens.forEach(x => { kT += Number(x.kcal) || 0; pT += Number(x.prot) || 0; if (f.feita) { kF += Number(x.kcal) || 0; pF += Number(x.prot) || 0; } }));
-    if (kT || pT) macros = `<div class="sp-macros">${kT ? `<span><b>${Math.round(kF)}</b> de ${Math.round(kT)} kcal</span>` : ''}${pT ? `<span><b>${Math.round(pF)}</b> de ${Math.round(pT)} g de proteína</span>` : ''}</div>`;
+    // S4 (09/10): comparar com as METAS DO CORPO (S3), não com o próprio plano ("620 de 620" não dizia nada)
+    const o = spIndicadores();
+    const kMeta = o.gasto ? Math.round(o.gasto.v / 10) * 10 : 0;
+    if (kT || pT) macros = `<div class="sp-macros">${kT ? `<span title="${kMeta ? 'Contra o gasto estimado do dia' : 'Do total do plano'}"><b>${Math.round(kF)}</b> de ${kMeta ? '~' + kMeta.toLocaleString('pt-BR') : Math.round(kT)} kcal</span>` : ''}${pT ? `<span title="${o.prot ? 'Meta pelo peso e pelo ritmo de treino' : 'Do total do plano'}"><b>${Math.round(pF)}</b> de ${o.prot ? Math.round(o.prot.min) + '–' + Math.round(o.prot.max) : Math.round(pT)} g de proteína</span>` : ''}</div>`;
   }
   return `<section class="sp-quadro sp-comida">
     <button type="button" class="sp-cab" onclick="verSecaoSaude('comida')"><span class="sp-ic">🥗</span><span class="sp-tit">Comida</span>
@@ -1023,21 +1201,20 @@ function anelComposicao() {
 function painelDoCorpo() {
   const c = perfilCorpo(); const u = spUltimo('weight');
   if (!u && !measures.length) return '<div class="stat-line muted">Registre a primeira medida para ver IMC, faixa de peso e composição.</div>';
-  const imc = u ? calcIMC(u.weight, c.altura) : null;
+  // S3: o medidor só de IMC saiu daqui — os indicadores (cintura/altura, gordura, FFMI, IMC…) viraram os
+  // cartões logo abaixo; ao lado do mapa ficam a composição, o risco da cintura e os sinais vitais
   const ideal = pesoIdeal(c.altura);
-  const wq = spUltimo('waist'); const hp = spUltimo('hip');
-  const rcq = wq && hp ? calcRCQ(wq.waist, hp.hip, c.sexo) : null;
+  const wq = spUltimo('waist');
   const rc = wq ? riscoCintura(wq.waist, c.sexo) : null;
   return `<div class="corpo-vis">
     ${mapaDasMedidas()}
     <div class="corpo-lado">
-      <div class="corpo-imc">${spMedidorIMC(imc)}<div>${imc ? `<strong style="color:${imc.cor}">IMC ${spNum(imc.valor)}</strong><small>${imc.rotulo}</small>` : `<strong>IMC —</strong><small>${c.altura ? 'falta o peso' : 'informe a altura acima'}</small>`}
-        ${ideal ? `<small>Peso saudável para ${spNum(c.altura / 100, 2)} m: <b>${spNum(ideal.min)}–${spNum(ideal.max)} kg</b></small>` : ''}</div></div>
       ${anelComposicao()}
-      ${rcq || rc ? `<div class="corpo-risco">${rcq ? `<span style="--c:${rcq.alto ? 'var(--perigo)' : 'var(--ok)'}"><i></i>Cintura/quadril <b>${spNum(rcq.valor, 2)}</b> ${rcq.alto ? 'acima de ' + spNum(rcq.limite, 2) : 'dentro da faixa'}</span>` : ''}
-        ${rc ? `<span style="--c:${rc.cor}"><i></i>Cintura: risco ${rc.rotulo}</span>` : ''}</div>` : ''}
+      ${rc ? `<div class="corpo-risco"><span style="--c:${rc.cor}"><i></i>Cintura: risco ${rc.rotulo}</span></div>` : ''}
+      ${ideal ? `<small class="corpo-ideal">Peso saudável pelo IMC para ${spNum(c.altura / 100, 2)} m: <b>${spNum(ideal.min)}–${spNum(ideal.max)} kg</b></small>` : ''}
       ${spVitais()}
-    </div></div>`;
+    </div></div>
+    ${spCartoesIndicadores()}`;
 }
 
 // ═════════════ COMIDA (a seção): o banco de alimentos no plano ═════════════

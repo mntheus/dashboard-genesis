@@ -3143,6 +3143,20 @@ body.ex-banco-aberto { overflow: hidden; }
 /* ── SEÇÃO MÉDICO: rotina e prevenção ───────────────────────────────────── */
 @media (min-width: 1100px) {
   .sa-sec-duas:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 var(--s4); align-items: start; }
+  /* S5 (09/10, "três abas distantes uma da outra, layout quebrado"): a Prevenção é alta e empurrava as
+     Consultas para depois de um buraco enorme. Agora: Remédios e Consultas empilhados à esquerda (são o
+     dia a dia), a Prevenção ocupando a altura das duas à direita. */
+  /* 🪤 a regra dos módulos ("…agenda-sec .card { grid-row: auto }") pesa mais: daí o #sec-sa-medico */
+  .sa-sec-duas:not([hidden]) { grid-template-rows: auto 1fr; }
+  body #sec-sa-medico.sa-sec-duas > [data-mod="rotina-medica"].card { grid-column: 1; grid-row: 1; }
+  body #sec-sa-medico.sa-sec-duas > [data-mod="prevencao"].card { grid-column: 2; grid-row: 1 / span 2; }
+  body #sec-sa-medico.sa-sec-duas > .card:has(#medical-form) { grid-column: 1; grid-row: 2; }
+}
+/* numa coluna só: as Consultas logo depois dos Remédios, a Prevenção (a lista longa) por último */
+@media (max-width: 1099px) {
+  .sa-sec-duas:not([hidden]) { display: flex; flex-direction: column; }
+  .sa-sec-duas > .card:has(#medical-form) { order: 1; }
+  .sa-sec-duas > [data-mod="prevencao"] { order: 2; }
 }
 .rot-novo-tit { font-size: var(--t-corpo); color: var(--roxo); margin: 4px 0 8px; }
 #rotina-form { margin-bottom: 14px; }
@@ -3233,6 +3247,38 @@ body.ex-banco-aberto { overflow: hidden; }
 .corpo-comp > div { display: grid; grid-template-columns: auto auto; gap: 2px 8px; align-items: baseline; }
 .corpo-comp strong { color: var(--txt-forte); font-variant-numeric: tabular-nums; }
 .corpo-comp small { color: var(--txt3); font-size: var(--t-apoio); }
+/* S3 (09/10): os indicadores do corpo além do IMC — cartões com número, faixa, régua e o porquê */
+.corpo-ideal { font-size: var(--t-apoio); color: var(--txt3); }
+.corpo-ideal b { color: var(--txt-forte); }
+.sp-inds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 10px; margin-top: var(--s4); }
+.sp-ind { --c: var(--txt3); display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 14px; border-radius: var(--r2);
+  background: var(--sup-1); border: 1px solid var(--fio-sutil); border-top: 3px solid color-mix(in srgb, var(--c) 70%, var(--fio-sutil)); }
+.sp-ind.vazio { border-top-color: var(--fio-sutil); opacity: .78; }
+.sp-ind-tit { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--txt3); }
+.sp-ind strong { font-size: 1.35rem; font-weight: 700; color: var(--txt-forte); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.sp-ind.vazio strong { color: var(--txt4); }
+.sp-ind-faixa { align-self: flex-start; padding: 1px 8px; border-radius: 999px; font-size: .7rem; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.sp-ind p { margin: 2px 0 0; font-size: .74rem; line-height: 1.4; color: var(--txt3); }
+.sp-ind .mini-btn { align-self: flex-start; margin-top: 2px; }
+.sp-regua { position: relative; display: block; height: 6px; margin: 4px 0 2px; border-radius: 3px; background: var(--sup-2); }
+.sp-regua i { position: absolute; top: 0; bottom: 0; opacity: .55; }
+.sp-regua i:first-child { border-radius: 3px 0 0 3px; } .sp-regua i:last-of-type { border-radius: 0 3px 3px 0; }
+.sp-regua b { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--txt-forte); box-shadow: 0 0 0 2px var(--sup-1); }
+.sp-ind-troca { all: unset; box-sizing: border-box; cursor: pointer; max-width: 100%; padding: 1px 8px; border-radius: 999px; font-size: .66rem; font-weight: 700; color: var(--txt2); background: var(--sup-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.sp-ind-troca:hover { color: var(--txt-forte); background: var(--sup-2); }
+/* S4 (09/10): o alto da Comida — hoje × o que o corpo pede */
+.sp-metas-dia:empty { display: none; }
+.sp-metas-dia { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 8px 14px; margin: 4px 0 14px; padding: 12px 14px; border-radius: var(--r2); background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.sp-metas-tit { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.sp-metas-tit b { color: var(--txt-forte); font-size: var(--t-corpo); }
+.sp-metas-tit small { color: var(--txt3); font-size: .72rem; }
+.sp-meta-dia { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-meta-dia > small { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--txt3); }
+.sp-meta-barra { position: relative; display: block; height: 8px; border-radius: 4px; background: var(--sup-2); overflow: visible; }
+.sp-meta-barra i { display: block; height: 100%; border-radius: 4px; background: var(--c); }
+.sp-meta-barra em { position: absolute; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--txt2); border-radius: 1px; }
+.sp-meta-dia b { font-size: 1.05rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.sp-meta-dia b small { font-size: .72rem; font-weight: 500; color: var(--txt3); }
 .corpo-risco { display: flex; flex-direction: column; gap: 4px; font-size: var(--t-apoio); }
 .corpo-risco span { display: flex; align-items: center; gap: 6px; }
 .corpo-risco i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
@@ -5642,3 +5688,116 @@ body[data-casca="nova"] .tab-content.active > .cs-barra-aba { grid-column: 1 / -
 .cs-rola-seta .ic { width: 15px; height: 15px; }
 .cs-rola-host.transborda > .cs-rola-seta { display: inline-flex; }
 .cs-rola-host.transborda > .nt-filtros-linha { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 70px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 70px), transparent); }
+
+/* ═══ S2 (09/10): o mapa do corpo mostrando um EXERCÍCIO (principal forte, quem ajuda fraco) ═══ */
+.ex-mapa { --tom: var(--laranja); }
+.ex-mapa .mm { cursor: default; }
+.ex-mapa .mm:hover > :not(title) { stroke: var(--fio-sutil); stroke-width: .6; }
+.ex-mapa .mm.q1 > :not(title) { fill: color-mix(in srgb, var(--tom) 42%, transparent); }
+/* alguma regra geral prendia o cartão (um botão) em 44 px de altura: com o mapa de 64 px, um invadia o outro */
+.ex-banco .ex-cartao { height: auto; min-height: 84px; }
+.ex-cartao-fig { position: relative; width: 64px; height: 64px; }
+.ex-cartao-fig .ex-mapa { width: 64px; height: 64px; max-height: none; }
+.ex-cartao-mov { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--card); border: 1px solid var(--fio-sutil); color: var(--txt2); }
+.ex-ic.ex-fig-mapa { width: 30px; height: 40px; padding: 0; background: none; border: none; }
+.ex-fig-mapa .ex-mapa { width: 30px; height: 40px; max-height: none; }
+
+/* ═══ S1 (09/10): TREINO AO VIVO — tela própria, feita para o celular na mão ═══ */
+.tv[hidden] { display: none; }
+.tv {
+  position: fixed; inset: 0; z-index: 2100; display: flex; justify-content: center; overflow-y: auto; overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--bg) 94%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+body.tv-aberto { overflow: hidden; }
+.tv-caixa { --tom: var(--laranja); width: min(1040px, 100%); padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
+.tv-topo { display: flex; align-items: center; gap: 12px; }
+.tv-x { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--fio-sutil); background: var(--sup-1); color: var(--txt2); font-size: 1rem; }
+.tv-x:hover { color: var(--txt-forte); background: var(--sup-2); }
+.tv-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tv-tit small { font-size: .62rem; font-weight: 700; letter-spacing: .1em; color: var(--tom); }
+.tv-tit b { font-size: 1.05rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-relogio { flex: none; font-size: 1.35rem; font-weight: 300; font-variant-numeric: tabular-nums; color: var(--txt-forte); }
+.tv-prog { height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.tv-prog i { display: block; height: 100%; border-radius: 3px; background: var(--tom); transition: width .35s ease; }
+.tv-prog-t { margin-top: -6px; font-size: .74rem; color: var(--txt3); }
+.tv-palco { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px; align-items: center; padding: 16px; border-radius: 18px; background: var(--card); border: 1px solid var(--fio-sutil); }
+.tv-fig { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.tv-fig .ex-mapa { width: 100%; max-width: 340px; max-height: 300px; }
+.tv-mov { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 6px; border-radius: 999px; background: var(--sup-1); color: var(--txt2); font-size: .72rem; }
+.tv-ex { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tv-ex-n { font-size: .72rem; color: var(--txt3); }
+.tv-ex h2 { margin: -4px 0 0; font-size: clamp(1.4rem, 3.2vw, 2rem); line-height: 1.15; color: var(--txt-forte); }
+.tv-dica { margin: 0; font-size: .86rem; color: var(--txt2); }
+.tv-series { display: flex; flex-wrap: wrap; gap: 6px; }
+.tv-series i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-style: normal; font-size: .78rem; font-weight: 700; color: var(--txt3); border: 2px solid var(--fio-sutil); }
+.tv-series i.ok { background: var(--tom); border-color: var(--tom); color: var(--bg); }
+.tv-series i.agora { border-color: var(--tom); color: var(--tom); }
+.tv-ok { margin: 0; color: var(--ok); font-weight: 600; }
+.tv-ajustes { display: flex; flex-wrap: wrap; gap: 10px; }
+.tv-aj { display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 14px; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.tv-aj button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; font-size: 1.3rem; color: var(--txt2); }
+.tv-aj button:hover { background: var(--sup-2); color: var(--txt-forte); }
+.tv-aj span { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
+.tv-aj b { font-size: 1.45rem; font-variant-numeric: tabular-nums; color: var(--txt-forte); line-height: 1.1; }
+.tv-aj small { font-size: .66rem; color: var(--txt3); }
+.tv-fiz { width: 100%; min-height: 60px; border: none; border-radius: 16px; background: var(--tom); color: var(--bg); font-size: 1.15rem; font-weight: 800; letter-spacing: .01em; cursor: pointer; box-shadow: 0 10px 26px -12px var(--tom); }
+.tv-fiz:active { transform: scale(.98); }
+.tv-bora { margin: 0; padding: 8px 12px; border-radius: 10px; font-weight: 700; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); animation: tv-pulso 1s ease 2; }
+@keyframes tv-pulso { 50% { transform: scale(1.02); } }
+.tv-desfaz { all: unset; cursor: pointer; align-self: flex-start; font-size: .76rem; color: var(--txt3); }
+.tv-desfaz:hover { color: var(--txt-forte); }
+.tv-descanso { display: grid; grid-template-columns: 120px 1fr; grid-template-rows: auto auto; gap: 6px 16px; align-items: center; }
+.tv-anel { grid-row: 1 / 3; width: 120px; height: 120px; }
+.tv-anel-fundo { fill: none; stroke: var(--sup-2); stroke-width: 8; }
+.tv-anel-cheio { fill: none; stroke: var(--tom); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.tv-desc-txt { display: flex; flex-direction: column; }
+.tv-desc-txt small, .tv-seguir small, .tv-rot { font-size: .62rem; font-weight: 700; letter-spacing: .1em; color: var(--txt3); }
+.tv-desc-txt b { font-size: 2.6rem; font-weight: 300; font-variant-numeric: tabular-nums; color: var(--txt-forte); line-height: 1; }
+.tv-desc-acoes { display: flex; gap: 8px; }
+.tv-seguir { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--sup-1); color: var(--txt-forte); font-weight: 600; }
+.tv-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+.tv-item { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 12px; border-radius: 12px; background: var(--sup-1); border: 1px solid var(--fio-sutil); font-size: .84rem; color: var(--txt2); max-width: 100%; }
+.tv-item.on { border-color: var(--tom); color: var(--txt-forte); background: color-mix(in srgb, var(--tom) 12%, var(--sup-1)); }
+.tv-item.feito .tv-item-nome { text-decoration: line-through; color: var(--txt4); }
+.tv-item-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-pontos { display: inline-flex; gap: 3px; flex: none; }
+.tv-pontos i { width: 7px; height: 7px; border-radius: 50%; background: var(--sup-2); border: 1px solid var(--fio-sutil); }
+.tv-pontos i.ok { background: var(--tom); border-color: var(--tom); }
+.tv-sup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--fio-sutil); }
+.tv-sup .tv-rot { margin-right: 4px; }
+.tv-sup-ch, .tv-sup-novo { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px 4px 6px; border-radius: 999px; font-size: .84rem; color: var(--txt-forte); }
+.tv-sup-ch { border: 1px solid color-mix(in srgb, var(--c) 45%, var(--fio-sutil)); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.tv-sup-ch i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-style: normal; background: color-mix(in srgb, var(--c) 22%, transparent); }
+.tv-sup-ch.on { background: color-mix(in srgb, var(--c) 26%, transparent); }
+.tv-sup-ch.on i { background: var(--c); color: var(--bg); }
+.tv-sup-ch small { color: var(--txt3); }
+.tv-sup-novo { padding: 4px 12px; border: 1px dashed var(--fio-sutil); color: var(--txt2); }
+.tv-sup-novo:hover { color: var(--txt-forte); border-color: var(--txt3); }
+.tv-pe { display: flex; justify-content: center; gap: 8px; }
+.tv-fim { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--fio-sutil); }
+.tv-fim-cab { display: flex; align-items: center; gap: 14px; }
+.tv-fim-ic { font-size: 2.4rem; }
+.tv-fim h2 { margin: 0; color: var(--txt-forte); }
+.tv-fim p { margin: 2px 0 0; color: var(--txt2); }
+.tv-fim-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tv-fim-lista li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 8px 12px; border-radius: 10px; background: var(--sup-1); }
+.tv-fim-lista li span { color: var(--txt2); font-variant-numeric: tabular-nums; }
+.tv-fim-lista li.pulado { opacity: .55; }
+.tv-fim-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tv-fim-acoes .tv-fiz { flex: 1 1 240px; width: auto; }
+.sp-hoje.vivo { border-color: color-mix(in srgb, var(--tom) 60%, transparent); }
+/* celular: um embaixo do outro, mapa menor, o botão grande ao alcance do polegar */
+@media (max-width: 720px) {
+  .tv-palco { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .tv-fig { flex-direction: row; justify-content: center; }
+  .tv-fig .ex-mapa { max-width: 200px; max-height: 150px; }
+  .tv-mov { flex-direction: column; padding: 6px; border-radius: 12px; text-align: center; max-width: 92px; }
+  .tv-ajustes { flex-wrap: nowrap; gap: 8px; }
+  .tv-aj { flex: 1 1 0; min-width: 0; justify-content: space-between; }
+  .tv-aj button { width: 38px; }
+  .tv-aj span { min-width: 44px; }
+  .tv-descanso { grid-template-columns: 96px 1fr; }
+  .tv-anel { width: 96px; height: 96px; }
+  .tv-desc-txt b { font-size: 2.1rem; }
+}
+@media (prefers-reduced-motion: reduce) { .tv-bora { animation: none; } .tv-prog i, .tv-anel-cheio { transition: none; } }

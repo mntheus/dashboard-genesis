@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '09/10/2026 · v41';
+const GENESIS_VERSAO = '09/10/2026 · v42';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};

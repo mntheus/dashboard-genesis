@@ -294,6 +294,10 @@ function ajustarNaoModulos() {
       // sobreposição que ele viu no Painel. `scrollHeight` conta o conteúdo.
       const natural = Math.max(el.getBoundingClientRect().height, el.scrollHeight);
       el.style.alignSelf = alinhamento;
+      // 🪤 (09/10) seção escondida (micro-aba) mede 0 e saía daqui SEM vigia: ao trocar de seção ela
+      // aparecia presa numa linha de 42 px, com o conteúdo vazando (o Médico "quebrado" da Saúde).
+      // Vigiada, a troca 0 → visível dispara o ajuste.
+      vigiarAltura(el);
       if (!natural) return;
       const h = natural + margem;
       el.style.gridRow = 'span ' + Math.max(1, Math.ceil((h + gap) / (u + gap)));
@@ -313,6 +317,11 @@ function vigiarAltura(el) {
 }
 let modTimerAjuste = null;
 function agendarAjuste() { clearTimeout(modTimerAjuste); modTimerAjuste = setTimeout(ajustarNaoModulos, 120); }
+// Trocar de seção (micro-aba) = um bloco da aba aparece e outro some: refaz os spans na hora.
+// O ResizeObserver só roda quando a tela desenha; este gatilho não depende disso.
+if (typeof MutationObserver === 'function') new MutationObserver(ms => {
+  if (ms.some(m => m.target.parentElement && m.target.parentElement.classList.contains('tab-content'))) agendarAjuste();
+}).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
 let modTimerTela = null;
 window.addEventListener('resize', () => {
   clearTimeout(modTimerTela);

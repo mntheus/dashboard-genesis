@@ -2922,10 +2922,11 @@ function renderFichas() {
       h += `<div class="ficha-acoes">
         <button class="mini-btn" onclick="renomearDia(${f.id}, ${i})">✎ nome do dia</button>
         ${f.dias.length > 1 ? `<button class="mini-btn" onclick="removerDia(${f.id}, ${i})">✕ apagar dia</button>` : ''}
-        <button class="btn-treinar" onclick="treinarComFicha(${f.id}, ${i})">🏋️ Treinar por este dia</button></div>`;
+        <button class="btn-treinar" onclick="treinoAoVivo(${f.id}, ${i})" title="Modo ao vivo: marca as séries e conta o descanso">▶ Treinar agora</button>
+        <button class="mini-btn" onclick="treinarComFicha(${f.id}, ${i})" title="Só preencher o registro abaixo, sem o modo ao vivo">📝 só registrar</button></div>`;
       h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => `
         <div class="ex-linha">
-          <span class="ex-ic ex-fig-ficha">${figuraDoNome(e.nome, e.grupo, 30)}</span>
+          <span class="ex-ic ex-fig-ficha ex-fig-mapa">${mapaDoExercicio(e.nome, e.grupo, 'auto')}</span>
           <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${(GRUPOS_MUSC[e.grupo] || ['', 'Geral'])[1]} · descanso ${e.descanso}s</small></span>
           <span class="ex-series">${e.series} × ${esc(e.reps)}</span>
           <span class="ex-carga">
@@ -3035,6 +3036,7 @@ function seguiTudo(id) {
   if (!n) toast('O plano de hoje já estava todo marcado.');
 }
 function renderDietas() {
+  if (typeof renderMetasDoDia === 'function') renderMetasDoDia();
   const el = document.getElementById('dietas-lista'); if (!el) return;
   if (!dietas.length) {
     el.innerHTML = '<div class="pf-vazio">Nenhum plano ainda. Monte um com as refeições que você combinou comer — depois é um clique por dia em vez de digitar tudo.</div>';

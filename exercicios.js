@@ -242,6 +242,34 @@ function figuraDoNome(nome, grupo, tam) {
   return figuraExercicio(porGrupo[grupo] || 'alongar', tam);
 }
 
+// ── S2 (09/10): QUAIS MÚSCULOS cada exercício trabalha, para acender o mapa do corpo ──
+// O grupo do exercício é o principal; o padrão de movimento diz quem ajuda
+// (supino: peito, com tríceps e ombro ajudando; stiff: posterior, com glúteo e lombar).
+const EX_PAPEIS = {
+  'empurrar-h': ['peito', 'triceps', 'ombro'], 'empurrar-v': ['ombro', 'triceps'],
+  'puxar-h': ['costas', 'biceps', 'ombro'], 'puxar-v': ['costas', 'biceps'],
+  'agachar': ['perna', 'gluteo', 'abdomen'], 'quadril': ['perna', 'gluteo', 'costas'],
+  'avancar': ['perna', 'gluteo'], 'rosca': ['biceps'], 'triceps': ['triceps'], 'elevacao': ['ombro'],
+  'abdominal': ['abdomen'], 'prancha': ['abdomen', 'ombro'], 'gluteo': ['gluteo', 'perna'],
+  'panturrilha': ['perna'], 'cardio': ['perna', 'abdomen'], 'alongar': []
+};
+const EX_NO_MAPA = ['peito', 'costas', 'ombro', 'biceps', 'triceps', 'perna', 'gluteo', 'abdomen'];
+const EX_POR_GRUPO = { peito: 'empurrar-h', costas: 'puxar-h', ombro: 'empurrar-v', biceps: 'rosca', triceps: 'triceps',
+  perna: 'agachar', gluteo: 'gluteo', abdomen: 'abdominal', cardio: 'cardio', mobilidade: 'alongar' };
+function musculosDoExercicio(nome, grupo) {
+  const e = exercicioDoBanco(nome); const g = e ? e.grupo : grupo;
+  const padrao = e ? e.padrao : EX_POR_GRUPO[g] || 'alongar';
+  const lista = EX_PAPEIS[padrao] || [];
+  const prim = EX_NO_MAPA.includes(g) ? [g] : lista.slice(0, 1);
+  return { prim, sec: lista.filter(x => !prim.includes(x)), padrao };
+}
+/** O mapa do corpo com os músculos do exercício acesos. `lado`: 'frente' | 'costas' | '' (os dois) | 'auto'. */
+function mapaDoExercicio(nome, grupo, lado) {
+  const p = musculosDoExercicio(nome, grupo);
+  if (lado === 'auto') lado = p.prim.some(g => ['costas', 'triceps', 'gluteo'].includes(g)) ? 'costas' : 'frente';
+  return typeof spMapaMuscular === 'function' ? spMapaMuscular({}, new Set(), { prim: p.prim, sec: p.sec, lado: lado || '' }) : figuraExercicio(p.padrao, 44);
+}
+
 // ───────────────────────── A TELA DO BANCO DE EXERCÍCIOS ───────────────────
 // "Preciso que tenha imagens dos exercícios, que já tenha um banco grande para
 // eu não precisar ficar adicionando — que eu adicione só um ou outro que não
@@ -307,7 +335,7 @@ function renderBancoExercicios() {
   if (!achados.length) { lista.innerHTML = `<p class="hint">Nenhum exercício com esses filtros.</p>`; return; }
   lista.innerHTML = achados.map(({ e, i }) => `
     <button type="button" class="ex-cartao" onclick="porExercicioNoDestino(${i})" title="${esc(e.dica)}">
-      <span class="ex-cartao-fig">${figuraExercicio(e.padrao, 44)}</span>
+      <span class="ex-cartao-fig">${mapaDoExercicio(e.nome, e.grupo, '')}<i class="ex-cartao-mov" title="${esc((EX_FIGURAS[e.padrao] || {}).nome || '')}">${figuraExercicio(e.padrao, 22)}</i></span>
       <span class="ex-cartao-txt">
         <strong>${esc(e.nome)}</strong>
         <small>${(GRUPOS_MUSC[e.grupo] || ['', e.grupo])[0]} ${esc((GRUPOS_MUSC[e.grupo] || ['', e.grupo])[1])} · ${EX_EQUIP[e.equip][0]} ${esc(EX_EQUIP[e.equip][1])}</small>

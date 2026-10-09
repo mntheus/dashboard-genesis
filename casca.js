@@ -500,6 +500,13 @@ function montarCoresNotas() {
 }
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-notes'] = () => typeof ntHtmlCores === 'function'
   ? `<h4 class="dev-titulo">Cores das notas</h4><div class="nt-cores-cfg">${ntHtmlCores()}</div>` : '';
+/** ⚙ da Saúde: o treino ao vivo (som, vibração, tela acesa) — "tudo que liga/desliga vai para as Configurações". */
+if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-health'] = () => {
+  if (typeof cfgTreinoVivo !== 'function') return '';
+  const c = cfgTreinoVivo(), item = (k, nome) => `<label class="check-line"><input type="checkbox" ${c[k] ? 'checked' : ''} onchange="tvMudarCfg('${k}')"> ${nome}</label>`;
+  return `<h4 class="dev-titulo">Treino ao vivo</h4>
+    ${item('som', 'Bipe no fim do descanso')}${item('vibrar', 'Vibrar no fim do descanso (celular)')}${item('telaAcesa', 'Manter a tela acesa durante o treino')}`;
+};
 /** Os marcadores das Notas saem da linha de baixo e viram um seletor (# marcadores ▾). */
 function montarMarcadoresNotas() {
   const linha = document.querySelector('#sec-nt-filtros .nt-filtros-linha'), pop = document.getElementById('note-labels');

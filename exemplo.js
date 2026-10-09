@@ -212,11 +212,11 @@
     { id: nid(), date: d(-3), type: 'musculacao', minutes: 55, intensity: 3, exercises: ['Agachamento livre 4x8 40kg', 'Leg press 4x12 100kg'], note: 'Treino B — Pernas' },
     { id: nid(), date: d(-4), type: 'corrida', minutes: 30, intensity: 2, exercises: [], note: '5 km' },
     { id: nid(), date: d(-6), type: 'musculacao', minutes: 50, intensity: 2, exercises: ['Puxada frontal 4x10 35kg', 'Remada 3x10 25kg'], note: 'Treino C — Costas e bíceps' }]);
-  S('measures', [[-60, 68.4], [-45, 67.9], [-30, 67.2], [-20, 66.8], [-12, 66.1], [-2, 65.6]].map((p, i) => ({ id: nid(), date: d(p[0]), weight: p[1], waist: 74 - i * 0.4, hip: 98, fat: 26 - i * 0.3, sis: 116, dia: 74, bpm: 66 })));
+  S('measures', [[-60, 68.4], [-45, 67.9], [-30, 67.2], [-20, 66.8], [-12, 66.1], [-2, 65.6]].map((p, i) => ({ id: nid(), date: d(p[0]), weight: p[1], waist: 74 - i * 0.4, hip: 98, neck: 32, fat: 26 - i * 0.3, sis: 116, dia: 74, bpm: 66 })));
   S('fichas', [{ id: 301, nome: 'ABC', objetivo: '', criadoEm: 1, dias: [
     { nome: 'A — Peito e tríceps', ultimoUso: d(-1), exercicios: [{ id: 3011, nome: 'Supino reto', grupo: 'peito', series: 4, reps: '10', carga: 30, descanso: 90 }, { id: 3012, nome: 'Tríceps corda', grupo: 'triceps', series: 3, reps: '12', carga: 20, descanso: 60 }] },
     { nome: 'B — Pernas', ultimoUso: d(-3), exercicios: [{ id: 3021, nome: 'Agachamento livre', grupo: 'perna', series: 4, reps: '8', carga: 40, descanso: 120 }] },
-    { nome: 'C — Costas e bíceps', ultimoUso: d(-6), exercicios: [{ id: 3031, nome: 'Puxada frontal', grupo: 'costas', series: 4, reps: '10', carga: 35, descanso: 90 }] }] }]);
+    { nome: 'C — Costas e bíceps', ultimoUso: d(-6), exercicios: [{ id: 3031, nome: 'Puxada frontal', grupo: 'costas', series: 4, reps: '10', carga: 35, descanso: 90 }, { id: 3032, nome: 'Remada baixa', grupo: 'costas', series: 3, reps: '12', carga: 30, descanso: 75 }, { id: 3033, nome: 'Rosca direta', grupo: 'biceps', series: 3, reps: '10', carga: 12, descanso: 60 }] }] }]);
   S('dietas', [{ id: 401, nome: 'Dia de treino', ativo: true, criadoEm: 1, refeicoes: [
     { nome: 'Café da manhã', hora: '07:00', itens: [{ id: 4011, alimento: 'Ovos mexidos', qtd: '2 un', kcal: 140, prot: 12 }, { id: 4012, alimento: 'Pão integral', qtd: '2 fatias', kcal: 140, prot: 6 }] },
     { nome: 'Almoço', hora: '12:00', itens: [{ id: 4021, alimento: 'Arroz', qtd: '120 g', kcal: 150, prot: 3 }, { id: 4022, alimento: 'Frango grelhado', qtd: '120 g', kcal: 190, prot: 36 }] },
@@ -225,7 +225,13 @@
   S('medical', [
     { id: nid(), kind: 'consulta', title: 'Dermatologista', date: d(12), time: '15:00', place: 'Clínica X', notes: '', done: false, eventId: null },
     { id: nid(), kind: 'exame', title: 'Hemograma e perfil lipídico', date: d(-200), time: '', place: '', notes: 'tudo normal', done: true, doneAt: d(-200), eventId: null },
-    { id: nid(), kind: 'vacina', title: 'Gripe', date: d(-150), time: '', place: 'UBS', notes: '', done: true, doneAt: d(-150), eventId: null }]);
+    { id: nid(), kind: 'vacina', title: 'Gripe', date: d(-150), time: '', place: 'UBS', notes: '', done: true, doneAt: d(-150), eventId: null },
+    { id: nid(), kind: 'medicamento', title: 'Creatina', date: '', time: '', place: '', notes: '', done: false, eventId: null,
+      rotina: { tipo: 'suplemento', dose: '5 g', horarios: [], dias: 'todos', semana: [], ate: '', estoque: null, porDose: 1, habito: false, ativo: true, notas: '', inicio: d(-30), cor: '#34d399' },
+      tomadas: Object.fromEntries([...Array(14)].map((_, i) => [d(-(i + 1)), ['']]).filter((_, i) => i % 5 !== 3)) },
+    { id: nid(), kind: 'medicamento', title: 'Whey protein', date: '', time: '', place: '', notes: '', done: false, eventId: null,
+      rotina: { tipo: 'suplemento', dose: '30 g', horarios: [], dias: 'todos', semana: [], ate: '', estoque: null, porDose: 1, habito: false, ativo: true, notas: 'depois do treino', inicio: d(-30), cor: '#a78bfa' },
+      tomadas: Object.fromEntries([...Array(14)].map((_, i) => [d(-(i + 1)), ['']]).filter((_, i) => i % 2 === 0)) }]);
   S('hydration', { date: br(d(0)), ml: 1250, goal: 2500, dias: { [d(-1)]: 2400, [d(-2)]: 1900, [d(-3)]: 2600 } });
   S('habits', [{ text: 'Água', icon: '💧', done: false }, { text: 'Treino', icon: '🏋️', done: false }, { text: 'Ler', icon: '📖', done: false }]);
 

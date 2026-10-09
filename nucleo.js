@@ -23,16 +23,38 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '08/10/2026 · v21';
-const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto' };
+const GENESIS_VERSAO = '09/10/2026 · v34';
+const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
   // 🪤 04/10: um visual antigo SALVO (ex.: 'vidro' = anel de Saturno azul) mandava mais que o padrão e
   // ignorava a cor do tema — era o que ele via, enquanto os testes (sem nada salvo) mostravam outra coisa.
   if (!c.visualV2) { if (c.visual !== 'leve') c.visual = 'auto'; c.visualV2 = true; try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { } }
   if (!['auto', 'leve'].includes(c.visual)) c.visual = 'auto';
+  if (c.fundo !== undefined && !NU_FUNDOS[c.fundo]) c.fundo = 'tema';
+  if (c.claro !== undefined && !NU_ESTILOS_CLAROS[c.claro]) c.claro = 'aurora';
   Object.keys(NUCLEO_PADRAO).forEach(k => { if (c[k] === undefined) c[k] = NUCLEO_PADRAO[k]; });
   return c;
+}
+// ── O FUNDO DO NÚCLEO (09/10, ditado dele): "escolhi um tema claro, quero o Núcleo claro como
+//    um todo, não só a cor do meio". Padrão = segue o tema: tema claro → Núcleo claro (3 estilos
+//    para ele comparar e escolher); tema escuro → o escuro ganha a cor do tema. 'escuro' = o de antes.
+const NU_FUNDOS = { tema: 'Segue o tema (claro nos temas claros)', escuro: 'Sempre o escuro clássico' };
+const NU_ESTILOS_CLAROS = { aurora: 'Aurora — brilho da cor do tema no centro', papel: 'Papel — liso, traço de tinta', nevoa: 'Névoa — degradê suave, tons de grafite' };
+const corDoTema = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function nuClaro() { return cfgNucleo().fundo !== 'escuro' && TEMAS_CLAROS.includes(cfgAparencia().tema); }
+/** A cor REAL atrás do cérebro (o 3D usa na névoa de profundidade; o CSS, no fundo da tela inteira). */
+function nuCorFundo() {
+  if (cfgNucleo().fundo === 'escuro') return '#02040a';
+  const bg = corDoTema('--bg') || '#08090b';
+  if (nuClaro()) return cfgNucleo().claro === 'papel' ? (corDoTema('--bg2') || bg) : bg;
+  return misturarCor(bg, '#02040a', 0.45);
+}
+function aplicarFundoNucleo() {
+  const claro = nuClaro();
+  document.body.classList.toggle('nu-claro', claro);
+  document.body.dataset.nuEstilo = claro ? cfgNucleo().claro : '';
+  document.body.style.setProperty('--nu-fundo', nuCorFundo());
 }
 function salvarNucleo() { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); renderNucleoConfig(); }
 const VISUAIS_NUCLEO_JARVIS = {
@@ -395,13 +417,29 @@ function misturarCor(a, b, t) { const A = hexParaRgb(a), B = hexParaRgb(b); retu
 function registrarPaletaGenesis() {
   if (!window.JarvisBrain || !window.JarvisBrain.definirPaleta) return;
   const ac = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim() || '#f0a62f';
-  window.JarvisBrain.definirPaleta('genesis', 'escuro', {
-    fundo: '#02040a', nucleo: misturarCor(ac, '#ffffff', 0.72), area: misturarCor(ac, '#ffffff', 0.86),
+  const forma = { semAneis: true, semSubplano: true, itensVisiveis: true, iconeNaPerola: true, tamArea: 17, espalhar: 1.5 };   // sem 'anéis de Saturno'; itens com mini-ícone na visão geral
+  const fundo = nuCorFundo();
+  if (nuClaro()) {
+    // claro: tinta sobre papel (mistura normal, sem brilho somado — no branco o brilho some)
+    const est = cfgNucleo().claro, tinta = corDoTema('--txt-forte') || '#1d1d1f';
+    const base = est === 'nevoa' ? misturarCor(tinta, fundo, 0.3) : tinta;
+    const tom = est === 'aurora' ? 0.55 : est === 'nevoa' ? 0.2 : 0.3;   // quanto da cor do tema entra
+    window.JarvisBrain.definirPaleta('genesis', 'claro', Object.assign({
+      fundo, nucleo: misturarCor(base, ac, tom + 0.15), area: misturarCor(misturarCor(base, ac, tom), fundo, 0.2),
+      secao: misturarCor(base, fundo, 0.4), cat: misturarCor(base, fundo, 0.5), item: misturarCor(base, fundo, 0.6),
+      linha: misturarCor(misturarCor(base, ac, tom), fundo, 0.35), hud: misturarCor(base, fundo, 0.2),
+      poeira: misturarCor(misturarCor(base, ac, tom), fundo, est === 'aurora' ? 0.5 : 0.62), icone: fundo,
+      nevoa: est === 'papel' ? null : est === 'nevoa' ? misturarCor(base, fundo, 0.7) : misturarCor(ac, fundo, 0.55),   // papel = liso, sem nuvem
+      aura: est === 'nevoa' ? misturarCor(base, fundo, 0.5) : ac, auraOp: est === 'aurora' ? 0.2 : 0.1
+    }, forma));
+    return;
+  }
+  window.JarvisBrain.definirPaleta('genesis', 'escuro', Object.assign({
+    fundo, nucleo: misturarCor(ac, '#ffffff', 0.72), area: misturarCor(ac, '#ffffff', 0.86),
     secao: misturarCor(ac, '#ffffff', 0.6), cat: misturarCor(ac, '#ffffff', 0.5), item: misturarCor(ac, '#8e8e93', 0.45),
     linha: misturarCor(ac, '#ffffff', 0.4), hud: misturarCor(ac, '#ffffff', 0.55), poeira: misturarCor(ac, '#ffffff', 0.3),
-    nevoa: misturarCor(ac, '#02040a', 0.35), icone: misturarCor(ac, '#ffffff', 0.7),
-    semAneis: true, semSubplano: true, itensVisiveis: true, iconeNaPerola: true, tamArea: 17, espalhar: 1.5   // sem 'anéis de Saturno'; itens com mini-ícone na visão geral
-  });
+    nevoa: misturarCor(ac, fundo, 0.35), icone: misturarCor(ac, '#ffffff', 0.7)
+  }, forma));
 }function iniciar3D() {
   registrarPaletaGenesis();
   areasNucleo().forEach(a => { nuIcones[a] = { svg: svgDoIcone(a) }; });
@@ -474,7 +512,7 @@ function render2D(areas, status) {
   el.innerHTML = `<svg class="nu-2d-fios" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${pos.map((p, i) => `<line x1="50" y1="50" x2="${p.x.toFixed(2)}" y2="${p.y.toFixed(2)}" style="stroke:${status[areas[i]] || 'rgba(255,255,255,.25)'}"/>`).join('')}</svg>
     <div class="nu-2d-nucleo" onclick="document.getElementById('cs-barra-input').focus()"></div>` +
     areas.map((a, i) => `<button class="nu-2d-area" data-area="${a}" style="--x:${pos[i].x.toFixed(2)}%;--y:${pos[i].y.toFixed(2)}%;--st:${status[a] || 'transparent'};--d:${(i * 0.37).toFixed(2)}s" onclick="abrirJanelaArea('${a}')">
-        <span class="nu-perola" style="color:${status[a] || '#fff'}">${ic(a)}</span><span class="nu-2d-nome">${esc(nomeAba(a))}</span></button>`).join('');
+        <span class="nu-perola" style="color:${status[a] || 'var(--txt-forte)'}">${ic(a)}</span><span class="nu-2d-nome">${esc(nomeAba(a))}</span></button>`).join('');
 }
 
 
@@ -659,6 +697,10 @@ function renderNucleoConfig() {
     <p class="hint" style="margin-top:4px">Boas-vindas, nome, perfil de trabalho, tema, tour do Núcleo e como sincronizar. Aparece sozinha <strong>só em aparelho novo</strong> (sem nenhum dado salvo) — aqui ela nunca abre por conta própria.</p>
     <label style="display:block; margin-top:10px">Visual do cérebro:</label>
     <select onchange="escolherVisualNucleo(this.value)">${Object.entries(VISUAIS_NUCLEO).map(([k, n]) => `<option value="${k}" ${c.visual === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <label style="display:block; margin-top:10px">Fundo do Núcleo:</label>
+    <select onchange="escolherFundoNucleo('fundo', this.value)">${Object.entries(NU_FUNDOS).map(([k, n]) => `<option value="${k}" ${c.fundo === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <label style="display:block; margin-top:10px">Estilo do Núcleo claro${nuClaro() ? '' : ' <small class="item-date">(vale quando o tema for claro)</small>'}:</label>
+    <select onchange="escolherFundoNucleo('claro', this.value)">${Object.entries(NU_ESTILOS_CLAROS).map(([k, n]) => `<option value="${k}" ${c.claro === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
     <p class="nu-versao">Versão ${GENESIS_VERSAO} · este aparelho: <b>${nu3D ? 'cérebro 3D' : 'versão 2D'}</b> · visual: <b>${visualDoCerebro() === 'leve' ? 'Leve' : 'Genesis'}</b></p>
     <p class="hint" style="margin-top:6px">O cérebro 3D veio do J.A.R.V.I.S. (Trinca de Ases). "Leve" usa a versão 2D, igual em tudo, mais econômica.${nu3DTentou && !nu3D ? ' <b>Este aparelho não abriu o 3D — usando o 2D.</b>' : ''}</p>`;
 }
@@ -667,6 +709,10 @@ function escolherVisualNucleo(v) {
   if (v === 'leve') { nu3D = false; if (window.JarvisBrain) window.JarvisBrain.pausar(); renderCerebro(); return; }
   if (!nu3D) { if (!iniciar3D()) renderCerebro(); return; }
   registrarPaletaGenesis(); window.JarvisBrain.definirVisual(visualDoCerebro()); nuAssinatura = ''; renderCerebro();
+}
+function escolherFundoNucleo(campo, v) {
+  cfgNucleo()[campo] = v; salvarNucleo(); aplicarFundoNucleo();
+  if (nu3D) { registrarPaletaGenesis(); window.JarvisBrain.definirVisual(visualDoCerebro()); nuAssinatura = ''; renderCerebro(); }
 }
 
 // ───────────────────────────── MARCADORES (estilo Obsidian) ────────────────
@@ -935,6 +981,7 @@ aplicarCasca = function () {
   const nova = cascaNova();
   const b = document.getElementById('btn-nucleo'); if (b) b.hidden = !nova;
   if (!nova && document.getElementById('nucleo') && document.getElementById('nucleo').classList.contains('active')) changeTab('focus');
+  aplicarFundoNucleo();
   if (nu3D) { registrarPaletaGenesis(); window.JarvisBrain.definirVisual(visualDoCerebro()); nuAssinatura = ''; }
   renderNucleoConfig();
 };

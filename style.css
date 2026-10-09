@@ -4832,3 +4832,96 @@ button.rd-chip-top { all: unset; box-sizing: border-box; display: inline-flex; a
 #nucleo .ex-faixa { color: #e2e8f0; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
 .ex-nu-ic { font-size: 15px; line-height: 1; }
 .modo-exemplo .ex-nu { border-color: color-mix(in srgb, var(--atencao) 60%, transparent); }
+
+/* ══ AJUSTES DITADOS 09/10 · G1 — A BARRA DE ROLAGEM ══════════════════════════
+   "Barra branca com ícone cinza na lateral, grotesca, não combina com nenhum layout;
+   poderia ser apagada, aparecer só ao passar o mouse." Fina, sem setas, na cor do
+   texto do tema, invisível até o mouse entrar na área que rola (:hover vale para
+   todos os ancestrais do que está sob o mouse, então acende a barra de quem rola).
+   No toque o sistema já usa a barra flutuante dele. Quem tinha `scrollbar-width:
+   none` por classe continua sem barra (classe vence o `*`).
+   🪤 O Chrome IGNORA o ::-webkit-scrollbar de quem tem `scrollbar-width`/`scrollbar-color`
+   (e aí desenha a setinha de novo). Por isso o jeito padrão fica só para quem não tem o
+   ::-webkit-scrollbar (Firefox); Chrome, Edge e Safari usam o ::-webkit-scrollbar. */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: color-mix(in srgb, var(--txt) 26%, transparent) transparent; }
+}
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 8px; border: 2px solid transparent; background: transparent; background-clip: padding-box; }
+*:hover::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--txt) 26%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--acento) 60%, transparent); }
+
+/* ══ AJUSTES DITADOS 09/10 · N1 — O 3D TERMINA ANTES DAS BARRAS ══════════════
+   "Divisão nítida entre a imagem 3D e onde começa a barra 'Como vamos atuar hoje';
+   quero a divisão, mas a mesma cor seguindo; e que os dois terminem um pouco antes
+   das barras (trilho em cima, barra embaixo), sem essa forma visual grotesca."
+   O corte vinha do PALCO: o fundo e o brilho dele paravam numa linha reta no topo
+   do rodapé. Agora o FUNDO é a tela inteira (o body) e passa liso por baixo da
+   barra; quem termina antes é só a cena 3D, e termina ESMAECENDO (máscara) — em
+   cima, abaixo do trilho; embaixo, antes da barra. Fundo = --nu-fundo (nucleo.js,
+   aplicarFundoNucleo), a cor REAL atrás do cérebro (armadilha nº 41). */
+:root { --nu-esmaece: 56px; --nu-corte-topo: 0px; }
+@media (min-width: 901px) {
+  body[data-casca="nova"][data-abas="topo"] { --nu-corte-topo: calc(var(--zona-topo) + 14px); }
+}
+body[data-casca="nova"].nu-ativo {
+  background:
+    radial-gradient(ellipse 52% 48% at 50% 50%, color-mix(in srgb, var(--acento) 15%, transparent), transparent 72%),
+    radial-gradient(ellipse 80% 40% at 50% 104%, color-mix(in srgb, var(--acento) 7%, transparent), transparent 60%),
+    var(--nu-fundo, #02040a);
+}
+body[data-casca="nova"].nu-ativo .nu-palco { background: transparent; }
+body[data-casca="nova"].nu-ativo .nu-3d {
+  top: var(--nu-corte-topo);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--nu-esmaece), #000 calc(100% - var(--nu-esmaece)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--nu-esmaece), #000 calc(100% - var(--nu-esmaece)), transparent);
+}
+
+/* ══ AJUSTES DITADOS 09/10 · N2 — O NÚCLEO CLARO ═════════════════════════════
+   "No tema claro o Núcleo continua escuro; quero a página inteira clara, não só a
+   cor do meio — e mais de uma versão para eu ver e escolher." body.nu-claro =
+   tema claro com o fundo "segue o tema" (Config → Núcleo). Os tokens que o Núcleo
+   forçava para o escuro voltam a ser os do tema (`inherit`), e o vidro escuro
+   (trilho, barra, micro-ícones, janelas) vira vidro claro. Três estilos:
+   aurora (brilho do acento), papel (liso) e névoa (degradê, tons de grafite). */
+body.nu-claro #nucleo, body.nu-claro.nu-ativo .cs-barra, body.nu-claro.nu-ativo .tabs {
+  --txt: inherit; --txt2: inherit; --txt3: inherit; --txt4: inherit; --txt-forte: inherit;
+  --card: inherit; --bg2: inherit; --borda: inherit; --borda2: inherit; --borda3: inherit;
+  --fio-sutil: inherit; --sup-1: inherit; --sup-2: inherit; --brilho-topo: inherit;
+}
+body.nu-claro[data-nu-estilo="aurora"].nu-ativo {
+  background:
+    radial-gradient(ellipse 50% 46% at 50% 50%, color-mix(in srgb, var(--acento) 22%, transparent), transparent 72%),
+    radial-gradient(ellipse 90% 45% at 50% 106%, color-mix(in srgb, var(--acento) 12%, transparent), transparent 62%),
+    var(--nu-fundo);
+}
+body.nu-claro[data-nu-estilo="papel"].nu-ativo {
+  background: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 55%, color-mix(in srgb, var(--txt) 6%, transparent)), var(--nu-fundo);
+}
+body.nu-claro[data-nu-estilo="nevoa"].nu-ativo {
+  background:
+    radial-gradient(ellipse 46% 42% at 50% 50%, color-mix(in srgb, var(--txt) 8%, transparent), transparent 70%),
+    linear-gradient(to bottom, var(--bg2), var(--nu-fundo) 75%);
+}
+body.nu-claro.nu-ativo .tabs { background: color-mix(in srgb, var(--bg2) 66%, transparent); border-color: var(--borda); }
+body.nu-claro.nu-ativo .tab-btn { color: var(--txt3); }
+body.nu-claro.nu-ativo .tab-btn:hover, body.nu-claro.nu-ativo .tab-btn.active { color: var(--txt-forte); }
+body.nu-claro.nu-ativo .cs-barra-campo, body.nu-claro.nu-ativo .cs-grade-btn { background: color-mix(in srgb, var(--bg2) 72%, transparent); border-color: var(--borda); }
+body.nu-claro .nu-hud .nu-saud, body.nu-claro .nu-relogio b, body.nu-claro .nu-pilula b, body.nu-claro .nu-dia-linha:hover,
+body.nu-claro .nu-mi:hover, body.nu-claro .nu-mi.on, body.nu-claro .nu-modo button.on { color: var(--txt-forte); }
+body.nu-claro .nu-pilula, body.nu-claro .nu-hud .nu-chip, body.nu-claro .nu-modo, body.nu-claro .nu-mi { background: color-mix(in srgb, var(--bg2) 62%, transparent); border-color: var(--borda); }
+body.nu-claro .nu-dia { background: color-mix(in srgb, var(--bg2) 70%, transparent); border-color: var(--borda); }
+body.nu-claro .nu-dia-linha { border-top-color: var(--borda); }
+body.nu-claro .nu-hud .nu-janela { background: color-mix(in srgb, var(--bg2) 88%, transparent); border-color: var(--borda); }
+body.nu-claro .nu-palco .nu-sat { background: color-mix(in srgb, var(--bg2) 80%, transparent); border-color: var(--borda); }
+body.nu-claro .nu-mi-ponto { border-color: var(--nu-fundo); }
+body.nu-claro .nu-barra { background: color-mix(in srgb, var(--txt) 10%, transparent); }
+body.nu-claro .jv-rotulo.jv-area { box-shadow: inset 0 0 0 1px var(--borda), 0 4px 14px var(--sombra); }
+body.nu-claro .jv-rotulo.jv-mini { background: color-mix(in srgb, var(--bg2) 82%, transparent); box-shadow: inset 0 0 0 1px var(--borda); }
+body.nu-claro #nucleo .ex-faixa { color: var(--txt2); }
+/* o miolo da pérola era um disco escuro fixo (rgba(2,4,10,.55)): no claro vira papel, e o ícone sem status vira tinta */
+body.nu-claro .jv-perola-ic { color: var(--status, var(--txt-forte)); background: radial-gradient(circle, color-mix(in srgb, var(--bg2) 88%, transparent) 0 46%, transparent 72%); }
+body.nu-claro .jv-perola-ic .ic { filter: none; }

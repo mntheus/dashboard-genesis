@@ -11,6 +11,8 @@
 //      bolinha do subplano) e itensVisiveis (na visão geral cada item aparece como MINI-ÍCONE, sem texto).
 //      iconeNaPerola: o ícone da área vira um elemento HTML centrado na pérola (.jv-perola-ic).
 //      Também: iconeEscala (tamanho do ícone na pérola) e tamArea (tamanho da pérola).
+//      aura / auraOp: cor e opacidade do halo das áreas (padrão: a cor da área a 0,12) — no
+//      Núcleo claro o halo da cor da tinta virava borrão escuro; lá ele vem da cor do tema.
 //      E cada nó pode trazer `icone` (HTML de um <svg>) — vai para dentro do rótulo.
 // ============================================================================
 // ============================================================================
@@ -316,7 +318,7 @@ function construir(grafo) {
   // auras: halo suave nas áreas (no pérola, um brilho quente bem leve)
   const tex = J.tex || (J.tex = texturaAura()); J.auras = [];
   nos.filter(n => n.tipo === 'area').forEach(n => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: corDe(orbe ? (pal.escuro ? pal.luz : '#ffffff') : pal.area), transparent: true, opacity: adit ? 0.28 : orbe ? (pal.escuro ? 0.16 : 0.55) : 0.12, depthWrite: false, blending: pal.escuro && orbe ? THREE.AdditiveBlending : mistura() }));
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: corDe(orbe ? (pal.escuro ? pal.luz : '#ffffff') : (pal.aura || pal.area)), transparent: true, opacity: adit ? 0.28 : orbe ? (pal.escuro ? 0.16 : 0.55) : (pal.auraOp || 0.12), depthWrite: false, blending: pal.escuro && orbe ? THREE.AdditiveBlending : mistura() }));
     s.position.copy(n.p); s.scale.setScalar(orbe ? 22 : 34); s.renderOrder = 2; s.userData.no = n; s.userData.op0 = s.material.opacity; J.mundo.add(s); J.auras.push(s);
   });
   // pérolas das áreas (malhas com o material do tema: brilho, verniz e iridescência). No holograma: vidro escuro + borda de luz.

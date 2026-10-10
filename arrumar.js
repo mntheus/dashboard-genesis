@@ -404,7 +404,11 @@ const AB_VIVOS = {
     const l = measures.filter(m => m.date && Number(m.weight)).sort((a, b) => b.date.localeCompare(a.date));
     return l.length ? `${String(l[0].weight).replace('.', ',')} kg em ${abQuando(l[0].date)}` : '';
   },
-  'health/comida': () => { const n = meals.filter(m => m.date === hojeISO()).length; return n ? plural(n, 'refeição hoje', 'refeições hoje') : 'Nada registrado hoje'; },
+  'health/comida': () => {
+    const n = meals.filter(m => m.date === hojeISO()).length; if (!n) return 'Nada registrado hoje';
+    const k = typeof spComidoHoje === 'function' ? spComidoHoje(spFatiasDoDia()).k : 0;
+    return abJunta(plural(n, 'refeição hoje', 'refeições hoje'), k ? Math.round(k).toLocaleString('pt-BR') + ' kcal' : '');
+  },
   'health/medico': () => {
     const h = hojeISO(), p = medical.filter(m => !m.done && m.date && m.date >= h).sort((a, b) => a.date.localeCompare(b.date))[0];
     return p ? `Próxima: ${p.title} ${abQuando(p.date)}${p.time ? ' ' + p.time : ''}` : '';

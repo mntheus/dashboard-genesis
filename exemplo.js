@@ -229,6 +229,11 @@
     { nome: 'Café da manhã', hora: '07:00', itens: [{ id: 4011, alimento: 'Ovos mexidos', qtd: '2 un', kcal: 140, prot: 12 }, { id: 4012, alimento: 'Pão integral', qtd: '2 fatias', kcal: 140, prot: 6 }] },
     { nome: 'Almoço', hora: '12:00', itens: [{ id: 4021, alimento: 'Arroz', qtd: '120 g', kcal: 150, prot: 3 }, { id: 4022, alimento: 'Frango grelhado', qtd: '120 g', kcal: 190, prot: 36 }] },
     { nome: 'Jantar', hora: '20:00', itens: [] }] }]);
+  S('pratos', [
+    { id: 4501, nome: 'Marmita do plantão', tipo: 'almoco', kcal: 650, prot: 35, usos: 9, criadoEm: 1 },
+    { id: 4502, nome: 'Iogurte com granola', tipo: 'lanche', kcal: 280, prot: 14, usos: 6, criadoEm: 1 },
+    { id: 4503, nome: 'Omelete com salada', tipo: 'jantar', kcal: 380, prot: 28, usos: 4, criadoEm: 1 },
+    { id: 4504, nome: 'Whey com banana', tipo: 'lanche', kcal: 230, prot: 26, usos: 3, criadoEm: 1 }]);
   S('meals', [{ id: nid(), date: d(0), time: '07:10', type: 'cafe', desc: 'Café da manhã: ovos e pão', quality: 'boa', planoRef: '401:0' }, { id: nid(), date: d(0), time: '12:30', type: 'almoco', desc: 'Marmita do plantão', quality: 'ok' }]);
   S('medical', [
     { id: nid(), kind: 'consulta', title: 'Dermatologista', date: d(12), time: '15:00', place: 'Clínica X', notes: '', done: false, eventId: null },

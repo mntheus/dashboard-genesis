@@ -516,7 +516,7 @@ function spCartoesIndicadores() {
 function renderMetasDoDia() {
   const el = document.getElementById('sp-metas-dia'); if (!el) return;
   const o = spIndicadores(), d = typeof spFatiasDoDia === 'function' ? spFatiasDoDia() : { fatias: [] };
-  let kF = 0, pF = 0; (d.fatias || []).forEach(f => { if (f.feita) f.itens.forEach(x => { kF += Number(x.kcal) || 0; pF += Number(x.prot) || 0; }); });
+  const comido = spComidoHoje(d), kF = comido.k, pF = comido.p;
   const barra = (rot, feito, alvo, faixaMax, un, cor, dica) => {
     const pct = alvo ? Math.min(100, feito / (faixaMax || alvo) * 100) : 0, ini = faixaMax && alvo ? alvo / faixaMax * 100 : 0;
     return `<div class="sp-meta-dia" style="--c:${cor}" title="${dica}"><small>${rot}</small>
@@ -524,7 +524,7 @@ function renderMetasDoDia() {
       <b>${un === 'L' ? spNum(feito / 1000) : Math.round(feito).toLocaleString('pt-BR')}<small> / ${alvo ? (un === 'L' ? spNum(alvo / 1000) : (faixaMax ? Math.round(alvo) + '–' + Math.round(faixaMax) : '~' + (Math.round(alvo / 10) * 10).toLocaleString('pt-BR'))) : '—'} ${un}</small></b></div>`;
   };
   if (!o.gasto && !o.prot) { el.innerHTML = '<p class="hint">Com peso, altura e idade em <a href="#" onclick="verSecaoSaude(\'medidas\'); return false;">Corpo</a>, aqui aparecem as metas do dia (energia, proteína e água).</p>'; return; }
-  el.innerHTML = `<div class="sp-metas-tit"><b>Hoje × o que o corpo pede</b><small>conta as refeições do plano marcadas como feitas</small></div>
+  el.innerHTML = `<div class="sp-metas-tit"><b>Hoje × o que o corpo pede</b><small>conta as refeições do plano marcadas como feitas e os pratos prontos</small></div>
     ${barra('Energia', kF, o.gasto && o.gasto.v, 0, 'kcal', 'var(--laranja)', 'Gasto estimado do dia (repouso × atividade)')}
     ${barra('Proteína', pF, o.prot && o.prot.min, o.prot && o.prot.max, 'g', 'var(--rosa)', 'Faixa pelo peso e pelo ritmo de treino; a marca é o mínimo')}
     ${barra('Água', hydration.ml || 0, hydration.goal || (o.agua && o.agua.v), 0, 'L', 'var(--info)', 'Meta de água do dia')}`;
@@ -587,6 +587,118 @@ function spFatiasDoDia() {
   const proxima = pend.find(f => f.hora && f.hora >= agora) || pend[pend.length - 1] || null;
   return { plano, fatias: base, extras, proxima };
 }
+/** O que já foi comido hoje, em kcal e proteína: a refeição com número próprio (prato pronto) conta o dela;
+ *  a marcada pelo plano conta os itens do plano; as fora do plano (extras) contam se tiverem número. */
+function spComidoHoje(d) {
+  let k = 0, p = 0;
+  const proprio = m => (Number(m.kcal) || Number(m.prot)) ? (k += Number(m.kcal) || 0, p += Number(m.prot) || 0, true) : false;
+  (d.fatias || []).forEach(f => { if (f.feita && !proprio(f.feita)) f.itens.forEach(x => { k += Number(x.kcal) || 0; p += Number(x.prot) || 0; }); });
+  (d.extras || []).forEach(proprio);
+  return { k, p };
+}
+
+// ── Pratos prontos (10/10, S4 — a escolha dele entre as três propostas) ──
+// A refeição que se repete vira um botão: um toque anota no diário de hoje, na hora. Calorias e proteína são
+// OPCIONAIS (o diário continua "sem culpa"); quando o prato tem, elas entram no "Hoje × o que o corpo pede".
+// A refeição guarda uma CÓPIA dos números: mudar o prato depois não reescreve o que já foi comido.
+let prEditando = false, prFormId = null;   // prFormId: null = formulário fechado · 'novo' · id do prato
+function prTipoAgora() { const h = new Date().getHours(); return h < 10 ? 'cafe' : h < 15 ? 'almoco' : h < 18 ? 'lanche' : h < 22 ? 'jantar' : 'ceia'; }
+/** Os do tipo pedido primeiro, depois os mais usados. */
+function prOrdenados(tipo) {
+  return [...pratos].sort((a, b) => ((b.tipo === tipo) - (a.tipo === tipo)) || ((b.usos || 0) - (a.usos || 0)) || a.nome.localeCompare(b.nome));
+}
+function prNumeros(p) { return [Number(p.kcal) ? Math.round(p.kcal) + ' kcal' : '', Number(p.prot) ? Math.round(p.prot) + ' g de proteína' : ''].filter(Boolean).join(' · '); }
+/** Anota o prato como refeição de hoje. `tipo` vem da fatia do prato (painel); sem ela, o do prato ou o da hora. */
+function prRegistrar(id, tipo) {
+  const p = pratos.find(x => x.id === id); if (!p) return;
+  const m = { id: novoId(), date: hojeISO(), time: new Date().toTimeString().slice(0, 5), type: tipo || p.tipo || prTipoAgora(), desc: p.nome, quality: 'boa', pratoId: p.id };
+  if (Number(p.kcal)) m.kcal = Number(p.kcal);
+  if (Number(p.prot)) m.prot = Number(p.prot);
+  meals.push(m); p.usos = (p.usos || 0) + 1;
+  salvar('pratos', pratos); salvar('meals', meals); prFecharEscolha(); renderSaude();
+  toast(`🍽️ ${p.nome} anotado (${(TIPOS_REFEICAO[m.type] || ['', 'refeição'])[1].toLowerCase()}, ${m.time}).`);
+}
+/** A fileira "⚡ Pratos prontos" no alto das Refeições. */
+function prRenderRapidos() {
+  const el = document.getElementById('pratos-rapidos'); if (!el) return;
+  const lista = prOrdenados(prTipoAgora());
+  const chip = p => `<button type="button" class="pr-chip${prEditando ? ' editando' : ''}" onclick="${prEditando ? `prAbrirForm(${p.id})` : `prRegistrar(${p.id})`}" title="${prEditando ? 'Mudar este prato' : 'Anotar agora'}${prNumeros(p) ? ' · ' + esc(prNumeros(p)) : ''}">
+      <span aria-hidden="true">${(TIPOS_REFEICAO[p.tipo] || ['⚡'])[0]}</span>${esc(p.nome)}${Number(p.kcal) ? `<small>${Math.round(p.kcal)} kcal</small>` : ''}${prEditando ? '<i aria-hidden="true">✎</i>' : ''}</button>`;
+  const f = prFormId !== null ? (pratos.find(x => x.id === prFormId) || {}) : null;
+  el.innerHTML = `<div class="pr-linha"><span class="pr-rot">⚡ Pratos prontos</span>
+      ${lista.map(chip).join('') || '<small class="pr-vazio">Guarde a refeição que se repete: ＋ prato, ou a ☆ de uma refeição do diário.</small>'}
+      <button type="button" class="pr-chip pr-mais" onclick="prAbrirForm('novo')">＋ prato</button>
+      ${pratos.length ? `<button type="button" class="pr-chip pr-edit${prEditando ? ' on' : ''}" onclick="prAlternarEdicao()" title="${prEditando ? 'Terminar' : 'Mudar ou apagar pratos'}">${prEditando ? '✓' : '✎'}</button>` : ''}</div>
+    ${f ? `<form class="pr-form" onsubmit="event.preventDefault(); prGuardar()">
+      <input type="text" id="pr-nome" placeholder="nome do prato (ex.: tapioca)" value="${esc(f.nome || '')}" required>
+      <input type="number" id="pr-kcal" min="0" step="1" inputmode="numeric" placeholder="kcal" aria-label="Calorias (opcional)" value="${f.kcal || ''}">
+      <input type="number" id="pr-prot" min="0" step="1" inputmode="numeric" placeholder="proteína (g)" aria-label="Proteína em gramas (opcional)" value="${f.prot || ''}">
+      <select id="pr-tipo" aria-label="Refeição"><option value="">🕒 pela hora</option>${Object.entries(TIPOS_REFEICAO).map(([k, v]) => `<option value="${k}"${f.tipo === k ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
+      <small class="pr-form-dica">Calorias e proteína só se quiser: com elas, o prato conta no "Hoje × o que o corpo pede".</small>
+      <span class="pr-form-bt"><button type="submit">${prFormId === 'novo' ? 'Guardar' : 'Salvar'}</button>
+        ${prFormId !== 'novo' ? `<button type="button" class="mini-btn" onclick="prApagar(${prFormId})">Apagar</button>` : ''}
+        <button type="button" class="mini-btn" onclick="prAbrirForm(null)">Cancelar</button></span></form>` : ''}`;
+  if (f) setTimeout(() => { const i = document.getElementById('pr-nome'); if (i && !i.value) i.focus(); }, 30);
+}
+function prAlternarEdicao() { prEditando = !prEditando; prFormId = null; prRenderRapidos(); }
+function prAbrirForm(id) { prFormId = id; prRenderRapidos(); }
+function prGuardar() {
+  const nome = (document.getElementById('pr-nome').value || '').trim(); if (!nome) return;
+  const dados = { nome, kcal: Number(document.getElementById('pr-kcal').value) || 0, prot: Number(document.getElementById('pr-prot').value) || 0, tipo: document.getElementById('pr-tipo').value || '' };
+  if (prFormId === 'novo') pratos.push({ id: novoId(), usos: 0, criadoEm: Date.now(), ...dados });
+  else { const p = pratos.find(x => x.id === prFormId); if (!p) return; Object.assign(p, dados); }
+  const novo = prFormId === 'novo';
+  salvar('pratos', pratos); prFormId = null; prRenderRapidos();
+  toast(novo ? `⚡ ${nome} guardado: agora é um toque.` : `⚡ ${nome} atualizado.`);
+}
+function prApagar(id) {
+  const p = pratos.find(x => x.id === id); if (!p) return;
+  if (!confirm(`Apagar o prato pronto "${p.nome}"? As refeições já anotadas continuam no diário.`)) return;
+  pratos = pratos.filter(x => x.id !== id); salvar('pratos', pratos); prFormId = null;
+  if (!pratos.length) prEditando = false;
+  prRenderRapidos(); renderRefeicoes();
+}
+/** A ☆ de uma refeição do diário: vira prato pronto com o que ela tinha (do plano, os números dos itens). */
+function prDeRefeicao(mealId) {
+  const m = meals.find(x => x.id === mealId); if (!m) return;
+  if (pratos.some(p => p.nome.toLowerCase() === (m.desc || '').trim().toLowerCase())) { toast('Esse prato já está guardado.'); return; }
+  let kcal = Number(m.kcal) || 0, prot = Number(m.prot) || 0;
+  if (!kcal && !prot && m.planoRef) {
+    const [did, i] = m.planoRef.split(':'), d = dietas.find(x => String(x.id) === did), r = d && d.refeicoes[Number(i)];
+    (r ? r.itens || [] : []).forEach(x => { kcal += Number(x.kcal) || 0; prot += Number(x.prot) || 0; });
+  }
+  pratos.push({ id: novoId(), nome: (m.desc || '').trim(), tipo: m.type || '', kcal: Math.round(kcal), prot: Math.round(prot), usos: 1, criadoEm: Date.now() });
+  salvar('pratos', pratos); prRenderRapidos(); renderRefeicoes();
+  toast(`⚡ "${m.desc}" virou prato pronto: está no alto das Refeições.`);
+}
+/** No quadro Comida do painel, o "✓ comi" de uma refeição fora do plano: escolher entre os pratos prontos. */
+function prEscolher(i, f) {
+  let modal = document.getElementById('prato-modal');
+  if (!modal) {
+    modal = document.createElement('div'); modal.id = 'prato-modal'; modal.className = 'modal';
+    modal.addEventListener('click', e => { if (e.target === modal) prFecharEscolha(); });
+    document.body.appendChild(modal);
+  }
+  const lista = prOrdenados(f.tipo);
+  modal.innerHTML = `<div class="modal-content pr-escolha"><div class="modal-body">
+      <h3>O que você comeu no ${esc(f.nome.toLowerCase())}?</h3>
+      <div class="pr-escolha-lista">${lista.map(p => `<button type="button" class="pr-escolha-bt" onclick="spEstado.fatia = ${i}; prRegistrar(${p.id}, '${f.tipo}')">
+        <span aria-hidden="true">${(TIPOS_REFEICAO[p.tipo] || ['⚡'])[0]}</span><b>${esc(p.nome)}</b><small>${esc(prNumeros(p))}</small></button>`).join('')}</div>
+      <form class="pr-escolha-outra" onsubmit="event.preventDefault(); prAnotarOutra(${i}, '${f.tipo}')">
+        <input type="text" id="pr-outra" placeholder="outra coisa…" autocomplete="off"><button type="submit">Anotar</button></form>
+      <div class="modal-actions"><button type="button" class="btn" style="width:100%; margin:0" onclick="prFecharEscolha()">Cancelar</button></div>
+    </div></div>`;
+  modal.style.display = 'flex';
+}
+function prAnotarOutra(i, tipo) {
+  const o = (document.getElementById('pr-outra').value || '').trim(); if (!o) return;
+  meals.push({ id: novoId(), date: hojeISO(), time: new Date().toTimeString().slice(0, 5), type: tipo, desc: o, quality: 'boa' });
+  salvar('meals', meals); spEstado.fatia = i; prFecharEscolha(); renderSaude();
+  toast('🍽️ Anotado. Como foi? Escolha a cor logo abaixo do prato.');
+}
+function prFecharEscolha() { const m = document.getElementById('prato-modal'); if (m) m.style.display = 'none'; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') prFecharEscolha(); });
+
 let spUltimasFatias = null;
 function spPrato(d) {
   const n = d.fatias.length; const cx = 60, cy = 60, R = 44, folga = n > 1 ? 5 : 0;
@@ -611,7 +723,10 @@ function spPrato(d) {
 function spTocarFatia(i) {
   const d = spUltimasFatias || spFatiasDoDia(); const f = d.fatias[i]; if (!f) return;
   if (f.feita) { spEstado.fatia = spEstado.fatia === i ? -1 : i; renderPainelSaude(); return; }
-  if (f.plano) { spEstado.fatia = i; segui(f.plano, f.i); return; }
+  // refeição do plano COM itens: um toque, como sempre. Sem itens (ou sem plano) e com pratos prontos
+  // guardados, escolher entre eles; sem pratos, o de sempre
+  if (f.plano && (f.itens.length || !pratos.length)) { spEstado.fatia = i; segui(f.plano, f.i); return; }
+  if (pratos.length) { prEscolher(i, f); return; }
   const o = prompt(`O que você comeu no ${f.nome.toLowerCase()}?`, '');
   if (!o || !o.trim()) return;
   const m = { id: novoId(), date: hojeISO(), time: new Date().toTimeString().slice(0, 5), type: f.tipo, desc: o.trim(), quality: 'boa' };
@@ -672,13 +787,16 @@ function spQuadroComida() {
   }
   // o plano em números: o que já foi comido do combinado
   let macros = '';
-  if (d.plano) {
-    let kT = 0, pT = 0, kF = 0, pF = 0;
-    d.fatias.forEach(f => f.itens.forEach(x => { kT += Number(x.kcal) || 0; pT += Number(x.prot) || 0; if (f.feita) { kF += Number(x.kcal) || 0; pF += Number(x.prot) || 0; } }));
+  {
+    let kT = 0, pT = 0;
+    if (d.plano) d.fatias.forEach(f => f.itens.forEach(x => { kT += Number(x.kcal) || 0; pT += Number(x.prot) || 0; }));
+    // o comido conta também os pratos prontos (10/10) — com eles há número até sem plano em uso
+    const { k: kF, p: pF } = spComidoHoje(d);
     // S4 (09/10): comparar com as METAS DO CORPO (S3), não com o próprio plano ("620 de 620" não dizia nada)
     const o = spIndicadores();
     const kMeta = o.gasto ? Math.round(o.gasto.v / 10) * 10 : 0;
-    if (kT || pT) macros = `<div class="sp-macros">${kT ? `<span title="${kMeta ? 'Contra o gasto estimado do dia' : 'Do total do plano'}"><b>${Math.round(kF)}</b> de ${kMeta ? '~' + kMeta.toLocaleString('pt-BR') : Math.round(kT)} kcal</span>` : ''}${pT ? `<span title="${o.prot ? 'Meta pelo peso e pelo ritmo de treino' : 'Do total do plano'}"><b>${Math.round(pF)}</b> de ${o.prot ? Math.round(o.prot.min) + '–' + Math.round(o.prot.max) : Math.round(pT)} g de proteína</span>` : ''}</div>`;
+    const kDe = kMeta ? '~' + kMeta.toLocaleString('pt-BR') : kT ? Math.round(kT) : '', pDe = o.prot ? Math.round(o.prot.min) + '–' + Math.round(o.prot.max) : pT ? Math.round(pT) : '';
+    if (kT || pT || kF || pF) macros = `<div class="sp-macros">${kT || kF ? `<span title="${kMeta ? 'Contra o gasto estimado do dia' : 'Do total do plano'}"><b>${Math.round(kF).toLocaleString('pt-BR')}</b>${kDe ? ' de ' + kDe : ''} kcal</span>` : ''}${pT || pF ? `<span title="${o.prot ? 'Meta pelo peso e pelo ritmo de treino' : 'Do total do plano'}"><b>${Math.round(pF)}</b>${pDe ? ' de ' + pDe : ''} g de proteína</span>` : ''}</div>`;
   }
   return `<section class="sp-quadro sp-comida">
     <button type="button" class="sp-cab" onclick="verSecaoSaude('comida')"><span class="sp-ic">🥗</span><span class="sp-tit">Comida</span>

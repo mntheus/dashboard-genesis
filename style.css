@@ -6065,3 +6065,11 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
 .ab-barra:not(.aberta):hover { background: color-mix(in srgb, var(--acento) 5%, var(--card)); }
 .ab-barra:focus-visible { outline: 2px solid color-mix(in srgb, var(--acento) 60%, transparent); outline-offset: 2px; }
 .ab-vista-cfg { margin-bottom: 12px; }
+/* celular: o número da faixa não cabe ao lado do nome — vai para a 2ª linha, embaixo dele (até 2 linhas) */
+@media (max-width: 600px) {
+  .tab-content.ab-barras > .ab-barra { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; padding: 10px 16px; }
+  .ab-barra .ab-ic { grid-row: 1 / span 2; align-self: center; }
+  .ab-barra .ab-nome { grid-column: 2; }
+  .ab-barra .ab-seta { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+  .ab-barra .ab-resumo { grid-column: 2; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.3; }
+}

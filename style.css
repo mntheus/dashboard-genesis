@@ -243,6 +243,13 @@ button[type="submit"]:hover { background-color: var(--borda3); }
 .shift-item { border-left: 4px solid var(--atencao) !important; }
 .shift-item.paid { border-left-color: var(--acento) !important; }
 .item-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+/* (10/10, Bloco 1.3) linha de lista estreita (celular, tela dividida): o bloco de ações (valor + 💵 ✎ ✕) não encolhe
+   e passava da borda do cartão (plantões em 360 px: 27 px para fora). Quando não cabe, desce para a linha de baixo,
+   à direita; quando cabe, nada muda. */
+@media (max-width: 520px) {
+  .transaction-list li { flex-wrap: wrap; row-gap: 6px; }
+  .transaction-list li > .item-actions { margin-left: auto; }
+}
 .item-notes { display: block; color: var(--txt3); font-size: 0.75rem; margin-top: 3px; white-space: pre-wrap; }
 .item-date { color: var(--txt4); font-size: 0.72rem; margin-left: 4px; }
 .badge-paid { font-size: 0.68rem; color: var(--acento); background: rgba(34,197,94,0.12); padding: 1px 6px; border-radius: 8px; margin-left: 4px; vertical-align: middle; }
@@ -461,6 +468,8 @@ input.calculado { background: var(--bg2); color: var(--txt3); border-style: dash
 .orc-real { text-align: right; white-space: nowrap; }
 .orc-real small { color: var(--txt4); }
 @media (max-width: 700px) { .orc-linha { grid-template-columns: 1fr 80px 90px auto; } .orc-linha .cat-bar { display: none; } }
+/* (10/10) em 320 px a coluna do nome caía a 0 e o ✕ saía do cartão: duas linhas — nome | valor e real | ações */
+@media (max-width: 420px) { .orc-linha { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; margin-bottom: 10px; } }
 
 /* --- Fase Q: aparência --- */
 .temas-lista { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
@@ -1119,7 +1128,7 @@ body:has(#paineis[data-modo="celular"]:not([hidden])) .toast { bottom: 100px; }
 .ficha-cab { display: flex; align-items: center; gap: 10px; padding: 10px 13px; cursor: pointer; flex-wrap: wrap; }
 .ficha-cab:hover { background: var(--card); }
 .ficha-cab strong { font-size: 0.92rem; color: var(--txt-forte); }
-.ficha-cab small { font-size: 0.74rem; color: var(--txt4); flex: 1; }
+.ficha-cab small { font-size: 0.74rem; color: var(--txt4); flex: 1 1 160px; min-width: 0; }   /* (10/10) base de 160 px: no celular desce inteiro para a linha de baixo, em vez de virar uma coluna de 60 px */
 .ficha-dias { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 13px 8px; }
 .dia-chip-f { font-size: 0.76rem; color: var(--txt2); background: var(--card); border: 1px solid var(--borda2);
   border-radius: 12px; padding: 3px 11px; cursor: pointer; }
@@ -2904,7 +2913,7 @@ body.ex-banco-aberto { overflow: hidden; }
   display: flex; align-items: baseline; gap: 8px; min-height: 30px; width: 100%;
 }
 .sp-cab .sp-ic { font-size: 1.05rem; align-self: center; }
-.sp-cab .sp-tit { font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase; font-weight: 700; color: var(--tom); }
+.sp-cab .sp-tit { font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase; font-weight: 700; color: var(--tom); flex-shrink: 0; }   /* (10/10) em 320 px "O rio do mês" ia a 47 px; quem encolhe é o subtítulo (…) */
 .sp-cab small { color: var(--txt3); font-size: var(--t-apoio); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-cab .sp-ir { margin-left: auto; color: var(--txt4); font-size: 1.1rem; transition: transform var(--mov), color var(--mov); }
 .sp-cab:hover .sp-ir, .sp-cab:focus-visible .sp-ir { color: var(--tom); transform: translateX(3px); }
@@ -3194,14 +3203,14 @@ body.ex-banco-aberto { overflow: hidden; }
 .rot-info > small { color: var(--txt3); font-size: var(--t-apoio); }
 .rot-hoje { grid-area: hoje; display: flex; gap: 5px; flex-wrap: wrap; }
 .rot-hoje:empty { display: none; }
-.rot-adesao { grid-area: adesao; display: flex; align-items: center; gap: 6px; }
+.rot-adesao { grid-area: adesao; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }   /* (10/10) "79% em 14 dias" desce inteiro em vez de quebrar em 3 linhas */
 .rot-bolas { display: flex; gap: 3px; }
 .rot-bolas i { width: 9px; height: 9px; border-radius: 50%; background: var(--sup-2); border: 1px solid var(--fio-sutil); }
 .rot-bolas i.ok { background: var(--ok); border-color: transparent; }
 .rot-bolas i.meio { background: var(--atencao); border-color: transparent; }
 .rot-bolas i.falta { background: color-mix(in srgb, var(--perigo) 70%, transparent); border-color: transparent; }
 .rot-bolas i.nada { opacity: .5; background: transparent; border-style: dashed; }
-.rot-adesao small { font-size: .72rem; color: var(--txt3); font-weight: 600; }
+.rot-adesao small { font-size: .72rem; color: var(--txt3); font-weight: 600; white-space: nowrap; }
 .rot-estoque { grid-area: estoque; display: flex; align-items: center; gap: 6px; font-size: .74rem; justify-self: end; }
 .rot-estoque strong.baixo { color: var(--atencao); }
 .rot-estoque small { color: var(--txt3); }
@@ -3800,6 +3809,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .fin-mos strong { font-size: .78rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fin-mos b { font-size: 1rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
 .fin-mos small { font-size: .66rem; color: var(--txt3); }
+/* (10/10) no celular, bloco de 90 px espremia "▲ 5% vs mês anterior" em 3 linhas de 54 px: base mínima de 128 (2 por linha) */
+@media (max-width: 520px) { .fin-mos { flex-basis: 128px !important; } }
 .fin-an-duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 20px; }
 .fin-top { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .fin-top li { font-size: .78rem; }
@@ -4338,6 +4349,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .lz-ing-canhoto.atras span { color: var(--perigo); }
 .lz-fui { margin-top: 4px; }
 @container (max-width: 380px) { .lz-foto.ing { width: 64px; } .lz-ing-canhoto { flex-basis: 88px; } }
+/* (10/10) em 320 px (246 de cartão) o nome do programa ficava com 56 px: sem a foto e com canhoto menor */
+@container (max-width: 300px) { .lz-foto.ing { display: none; } .lz-ing-canhoto { flex-basis: 76px; } .lz-ing-corpo { padding: 10px; } }
 
 /* o mural do "quero ir" */
 .lz-mural { display: grid; gap: 12px 10px; grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr)); }
@@ -4387,6 +4400,8 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 #trip-lista .tar-gr-tit, #milha-lista .tar-gr-tit, #vg-detalhe-corpo .tar-gr-tit { margin-top: var(--s3); }
 .vg-resumo3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 420px) { .vg-resumo3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* (10/10) em 320 px "milhas em 3 programas" quebrava em 3 linhas de 55 px: um número por linha, rótulo ao lado */
+@media (max-width: 360px) { .vg-resumo3 { grid-template-columns: 1fr; } .vg-resumo3 .tar-num { flex-direction: row; align-items: baseline; gap: 8px; } }
 
 /* o cartão de embarque */
 .vg-embarques { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); }
@@ -5397,6 +5412,16 @@ body[data-casca="classica"] .aba-dev-btn { position: static; float: right; margi
 .pn-dia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 0; overflow: hidden; }
 .pn-dia li { font-size: .68rem; line-height: 1.2; color: var(--txt2); border-left: 2px solid var(--cor); padding-left: 5px; overflow-wrap: anywhere; }
 .pn-dia li.pn-mais { border: 0; padding: 0; color: var(--txt4); }
+/* (10/10) a semana num quadro estreito (celular): 7 colunas de ~40 px não cabem texto — "06:30 Academia" virava
+   uma sílaba por linha e o "10" saía cortado. Fica o dia (nome em cima, número embaixo) e os pontos de cor. */
+@container (max-width: 480px) {
+  .pn-semana { gap: 3px; }
+  .pn-dia { padding: 5px 2px; align-items: center; }
+  .pn-dia-cab { flex-direction: column; align-items: center; gap: 0; }
+  .pn-dia-cab small { font-size: .56rem; letter-spacing: .02em; }
+  .pn-dia ul { display: none; }
+  .pn-pontos { justify-content: center; }
+}
 .pn-mes { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 3px; min-height: 0; }
 .pn-mes > span { font-size: .6rem; text-align: center; color: var(--txt4); font-weight: 600; align-self: center; }
 .pn-mes-d { min-height: 0; min-width: 0; padding: 2px; border-radius: 6px; border: 1px solid transparent; background: var(--sup-2); box-shadow: none; cursor: pointer;

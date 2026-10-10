@@ -2046,6 +2046,12 @@ body.nu-ativo .cs-barra-campo, body.nu-ativo .cs-grade-btn { background: rgba(10
 .nu-relogio { text-align: right; }
 .nu-relogio b { display: block; font-size: clamp(2.6rem, 2rem + 2vw, 4.2rem); font-weight: 200; letter-spacing: -0.05em; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
 .nu-relogio span { font-size: var(--t-micro); letter-spacing: var(--trilha-micro); text-transform: uppercase; color: var(--txt3); }
+/* (10/10) os estilos de relógio da Config também no Núcleo */
+.nu-relogio b.rel-minimalista { font-weight: 100; opacity: .9; }
+.nu-relogio b.rel-texto { font-size: clamp(1.1rem, .9rem + .6vw, 1.5rem); font-weight: 400; letter-spacing: 0; line-height: 1.25; max-width: 260px; margin-left: auto; white-space: normal; }
+.nu-relogio b.rel-analogico { display: flex; justify-content: flex-end; }
+.nu-relogio b.rel-analogico .relogio-svg { width: clamp(64px, 3rem + 2vw, 92px); height: auto; }
+.nu-relogio b .rel-seg { display: inline; font-size: .4em; letter-spacing: 0; text-transform: none; color: var(--acento); vertical-align: super; margin-left: 4px; }
 .nu-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .nu-hud .nu-chip { background: rgba(10,14,22,.5); border-color: rgba(255,255,255,.09); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 .nu-modo { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(10,14,22,.5); border: 1px solid rgba(255,255,255,.09); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }

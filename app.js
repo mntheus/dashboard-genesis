@@ -436,8 +436,9 @@ async function renderArte(forcar) {
 
 // --- RELÓGIO: modelos (Config → Aparência) ---
 const RELOGIOS = { digital: ['🔢', 'Digital'], minimalista: ['◻️', 'Minimalista'], analogico: ['🕐', 'Analógico'], texto: ['🔤', 'Por extenso'] };
-function escolherRelogio(r) { cfgAparencia().relogio = r; salvarAparencia(); updateMainClock(); }
-function alternarSegundos() { const c = cfgAparencia(); c.segundos = !c.segundos; salvarAparencia(); updateMainClock(); }
+// (10/10, auditoria da Config) o relógio do Núcleo também obedece — antes só o relógio da apresentação clássica mudava
+function escolherRelogio(r) { cfgAparencia().relogio = r; salvarAparencia(); updateMainClock(); if (typeof relogioNucleo === 'function') relogioNucleo(); }
+function alternarSegundos() { const c = cfgAparencia(); c.segundos = !c.segundos; salvarAparencia(); updateMainClock(); if (typeof relogioNucleo === 'function') relogioNucleo(); }
 const NUM_EXT = ['meia-noite', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'meio-dia'];
 function horaPorExtenso(h, m) {
   const hh = h % 12 === 0 ? (h === 0 ? 0 : 12) : h % 12;

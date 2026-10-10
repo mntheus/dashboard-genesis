@@ -112,6 +112,8 @@ function estadoDaAba(id) {
     const brl = v => formatCurrency(v || 0);
     switch (id) {
       case 'focus': {
+        // (10/10) com "Mostrar avisos" desligado na Config, o cabeçalho também não conta avisos
+        if (typeof cfgAvisos === 'function' && cfgAvisos().ligado === false) return 'Por onde começamos?';
         const av = typeof calcularAvisos === 'function' ? calcularAvisos() : [];
         const urg = av.filter(a => a.prio === 1).length;
         return av.length ? `${plural(av.length, 'coisa pede', 'coisas pedem')} atenção${urg ? ` · ${urg} urgente${urg > 1 ? 's' : ''}` : ''}. Por onde começamos?` : 'Todos os sistemas em ordem. Por onde começamos?';

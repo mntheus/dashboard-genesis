@@ -23,7 +23,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '10/10/2026 · v51';
+const GENESIS_VERSAO = '10/10/2026 · v52';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -310,14 +310,26 @@ function montarNucleo() {
   vestirNavegacao();
 }
 
+// (10/10, auditoria da Config) o estilo do relógio da Config (digital, minimalista, analógico, por extenso) e os
+// segundos valem aqui também: antes só o relógio da apresentação clássica, que nem aparece na cara nova, mudava.
 function relogioNucleo() {
   const h = document.getElementById('nu-hora'); if (!h) return;
-  const d = new Date();
-  h.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const d = new Date(), c = typeof cfgAparencia === 'function' ? cfgAparencia() : {}, est = c.relogio || 'digital';
+  const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0'), ss = String(d.getSeconds()).padStart(2, '0');
+  h.className = 'rel-' + est;
+  if (est === 'analogico' && typeof relogioAnalogico === 'function') h.innerHTML = relogioAnalogico(d);
+  else if (est === 'texto' && typeof horaPorExtenso === 'function') { const t = horaPorExtenso(d.getHours(), d.getMinutes()); h.textContent = t.charAt(0).toUpperCase() + t.slice(1); }
+  else h.innerHTML = `${hh}:${mm}${c.segundos ? `<span class="rel-seg">${ss}</span>` : ''}`;
   const s = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   document.getElementById('nu-data').textContent = s.charAt(0).toUpperCase() + s.slice(1);
 }
-setInterval(() => { if (document.body.classList.contains('nu-ativo')) relogioNucleo(); }, 20000);
+// com segundos (ou o ponteiro deles), a cada segundo; sem, a cada 20 s como antes
+let nuTique = 0;
+setInterval(() => {
+  if (!document.body.classList.contains('nu-ativo')) return;
+  const c = typeof cfgAparencia === 'function' ? cfgAparencia() : {};
+  if (c.segundos || ++nuTique % 20 === 0) relogioNucleo();
+}, 1000);
 
 /** "O dia": o principal de hoje, em linhas curtas que abrem a área certa. */
 function linhasDoDia() {
@@ -349,7 +361,7 @@ function renderNucleo() {
   const dica = document.getElementById('nu-dica');
   if (dica) dica.textContent = matchMedia('(pointer: coarse)').matches ? 'afaste com dois dedos · descobertas ao redor' : 'role para afastar · descobertas ao redor';
   // o micro-ícone de avisos ganha um ponto colorido (vermelho = urgente) — nada grita na tela
-  const av = tenta(() => calcularAvisos()) || [];
+  const av = nuAvisosLigados() ? (tenta(() => calcularAvisos()) || []) : [];
   const urg = av.some(a => a.prio === 1);
   const b = document.getElementById('nu-mi-avisos');
   b.classList.toggle('alerta', urg); b.classList.toggle('aviso', !urg && av.length > 0);
@@ -382,10 +394,11 @@ const topoJanela = (icone, rot, titulo) => `
 
 function abrirJanelaAvisos() {
   const j = prepararJanela('__avisos'); if (!j) return;
-  const av = (tenta(() => calcularAvisos()) || []).slice().sort((a, b) => a.prio - b.prio);
+  const lig = nuAvisosLigados();
+  const av = lig ? (tenta(() => calcularAvisos()) || []).slice().sort((a, b) => a.prio - b.prio) : [];
   const cor = p => p === 1 ? 'var(--perigo)' : p === 2 ? 'var(--atencao)' : 'var(--info)';
   j.innerHTML = topoJanela('aviso', 'AVISOS', 'O Genesis te avisa') + `
-    <p class="nu-j-estado">${av.length ? `${plural(av.length, 'coisa pede', 'coisas pedem')} atenção agora.` : 'Nada pendente. Todos os sistemas em ordem.'}</p>
+    <p class="nu-j-estado">${!lig ? 'Os avisos estão desligados (Config → Avisos e lembretes).' : av.length ? `${plural(av.length, 'coisa pede', 'coisas pedem')} atenção agora.` : 'Nada pendente. Todos os sistemas em ordem.'}</p>
     <div class="nu-j-setores">${av.map(a => {
       const area = areaDoAviso(a);
       return `<button class="nu-aviso" onclick="fecharJanelaArea(); ${a.acao || ''}">
@@ -599,7 +612,7 @@ function fecharDoAnel(id) {
 function cartoesDoAnel() {
   const C = [], hoje = hojeISO();
   C.push({ id: 'dia', rot: 'O DIA', txt: fraseAgora(), html: `<div class="nu-dia-lista">${htmlLinhasDia()}</div>` });
-  const avA = (tenta(() => calcularAvisos()) || []).slice().sort((a, b) => a.prio - b.prio);
+  const avA = (nuAvisosLigados() ? (tenta(() => calcularAvisos()) || []) : []).slice().sort((a, b) => a.prio - b.prio);
   const feitosH = (habits || []).filter(h => h.done).length, totH = (habits || []).length;
   if (totH) C.push({ id: 'habitos', rot: 'HÁBITOS DE HOJE', tit: `${feitosH} de ${totH}`, html: `<div class="nu-barra"><i style="width:${Math.round(feitosH / totH * 100)}%"></i></div>`, acao: () => changeTab('focus') });
   const minE = typeof studyData !== 'undefined' && studyData.date === hojeBR() ? (studyData.minutes || 0) : 0;
@@ -639,6 +652,14 @@ function cartoesDoAnel() {
 // lado de cada cartão: à esquerda o SEU DIA, à direita o MUNDO LÁ FORA
 const ANEL_LADO = { dia: 'esq', avisos: 'esq', habitos: 'esq', estudo: 'esq', viagem: 'esq', arte: 'dir', midia: 'dir', saida: 'dir', aniv: 'dir', dolar: 'dir' };
 const ANEL_NOMES = { dia: 'O dia', avisos: 'O Genesis te avisa', habitos: 'Hábitos de hoje', estudo: 'Estudo de hoje', viagem: 'Próxima viagem', arte: 'Obra do dia', midia: 'Na sua lista', saida: 'Saídas', aniv: 'Aniversários', dolar: 'Mercado' };
+/** A última arrumação do anel não coube em órbita (ou ainda não foi feita nesta tela grande o bastante)? */
+function nuSemOrbita() {
+  if (innerWidth <= 900) return true;
+  const el = document.getElementById('nu-anel'), a = el && el.dataset.arranjoReal;
+  return a ? a !== 'orbita' : null;   // null = ainda não arrumou nesta tela (o zoom não foi afastado)
+}
+/** (10/10, auditoria da Config) "Mostrar avisos" desligado vale também no Núcleo (ponto do micro-ícone, cartão e janela). */
+function nuAvisosLigados() { return typeof cfgAvisos !== 'function' || cfgAvisos().ligado !== false; }
 function cartaoLigado(id) { const c = cfgNucleo(); c.cartoes = c.cartoes || {}; return c.cartoes[id] !== false; }
 function renderAnel() {
   const el = document.getElementById('nu-anel'); if (!el) return;
@@ -790,10 +811,13 @@ function posicionarAnel() {
   const soltos = cards.filter(s => pos2['sat-' + s.dataset.id]), auto = cards.filter(s => !pos2['sat-' + s.dataset.id]);
   const novo = () => Object.assign({}, base, { ocupados: [], lugares: new Map() });
   let ctx = null;
-  if (cfgAnel().anelArranjo === 'orbita') { const t = novo(); if (nuArranjoOrbita(t, soltos, auto)) ctx = t; }
+  let viaOrbita = false;
+  if (cfgAnel().anelArranjo === 'orbita') { const t = novo(); if (nuArranjoOrbita(t, soltos, auto)) { ctx = t; viaOrbita = true; } }
   if (!ctx) { const t = novo(); if (nuArranjoColunas(t, soltos, auto)) ctx = t; }
   // Não coube em volta do cérebro sem encostar (notebook baixo: 392 px de altura para 10 cartões)?
   // Volta às duas colunas com rolagem própria — empilhadas, mas NUNCA uma em cima da outra.
+  // (10/10) para a Config dizer a verdade: em órbita ou caiu para as colunas
+  el.dataset.arranjoReal = viaOrbita ? 'orbita' : 'colunas';
   if (!ctx) {
     el.classList.remove('espalhado');
     cards.forEach(s => { ['--x', '--y', '--w'].forEach(v => s.style.removeProperty(v)); s.classList.remove('movido'); });
@@ -972,6 +996,7 @@ function renderNucleoConfig() {
       <button type="button" class="mini-btn" onclick="reorganizarAnel()">↺ Devolver todos ao arranjo automático</button>
     </div>
     <p class="hint" style="margin-top:4px">Arraste um cartão para mudar de lugar (o tracejado mostra onde cai); solte em cima de outro para trocar os dois; dois cliques devolvem um só. Vale só neste aparelho.</p>
+    <p class="hint" style="margin-top:4px">Órbita, distância e abertura só valem quando os cartões cabem em volta do cérebro sem encostar um no outro (tela grande, ou poucos cartões ligados). Senão eles ficam em duas colunas, com rolagem${nuSemOrbita() === null ? '' : ` — nesta tela, agora: <b>${nuSemOrbita() ? 'em colunas' : 'em órbita'}</b>`}.</p>
     <label style="display:block; margin-top:10px">Abertura (feixe de luz ao entrar):</label>
     <select onchange="escolherAbertura(this.value)">${typeof ABERTURA_MODOS !== 'undefined' ? Object.entries(ABERTURA_MODOS).map(([k, n]) => `<option value="${k}" ${(prefs.abertura || 'som') === k ? 'selected' : ''}>${n}</option>`).join('') : ''}</select>
     <button type="button" class="mini-btn" style="margin-top:6px" onclick="previaAbertura()">▶ Ver a abertura agora</button>

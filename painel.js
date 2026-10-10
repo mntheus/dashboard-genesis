@@ -1048,7 +1048,9 @@ function pnMontar() {
   const sec = document.getElementById('focus'); if (!sec || document.getElementById('pn')) return;
   // as peças antigas vão, na mesma ordem, para um compartimento escondido (ver o topo do arquivo)
   const legado = document.createElement('div'); legado.id = 'pn-legado';
-  [...sec.children].forEach(el => { if (!el.classList.contains('cs-hero') && !el.classList.contains('aba-cfg-btn') && !el.classList.contains('aba-dev-btn')) legado.appendChild(el); });
+  // (10/10, auditoria da Config) a capa (.life-os-banner) fica: na cara nova ela é o brilho suave atrás da saudação
+  // (style.css, "#focus .life-os-banner"); dentro do compartimento escondido, a "Foto de capa" da Config não fazia nada
+  [...sec.children].forEach(el => { if (!el.classList.contains('cs-hero') && !el.classList.contains('aba-cfg-btn') && !el.classList.contains('aba-dev-btn') && !el.classList.contains('life-os-banner')) legado.appendChild(el); });
   const pn = document.createElement('div'); pn.id = 'pn'; pn.className = 'pn';
   sec.appendChild(pn); sec.appendChild(legado);
   // 🪤 09/10: aqui havia `sec.classList.add('pn-novo')` — o MESMO nome do botão "Adicionar widget"

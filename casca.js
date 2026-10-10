@@ -458,6 +458,7 @@ function renderCascaConfig() {
 function escolherResumoAba(m) { cfgAparencia().resumo = m; salvarAparencia(); }
 /** Ajustes de texto por aba (o resto é igual em todas as que têm barra rápida + abas de seção). */
 const BARRAS_TEXTOS = {
+  studies: { exemplo: 'Estudar…   ex.: O Mito da Startup livro #gestão  ·  45 min inglês  ·  ! já estou lendo' },
   notes: { exemplo: 'Anotar…   ex.: ideia do app #genesis  ·  lista compras: leite, pão  ·  ! fixa no topo', busca: ['note-search', 'Buscar nas notas'] }
 };
 function juntarBarras() {

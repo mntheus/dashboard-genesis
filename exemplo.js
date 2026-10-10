@@ -169,12 +169,20 @@
     { id: 3104, name: 'Investimentos', area: 'investimentos', weeklyGoalMin: 60, color: '#22c55e', archived: false, createdAt: 4 }
   ]);
   S('materials', [
-    { id: 3201, topicId: 3101, title: 'O Mito da Startup', kind: 'livro', status: 'andamento', progress: 45, link: '', notes: '', createdAt: 1, updatedAt: Date.now() },
+    { id: 3201, topicId: 3101, title: 'O Mito da Startup', kind: 'livro', status: 'andamento', progress: 45, link: '', notes: '07/10 — separar o caixa da clínica do caixa pessoal.', createdAt: 1, updatedAt: Date.now() },
     { id: 3202, topicId: 3102, title: 'PALS — Suporte Avançado de Vida em Pediatria', kind: 'curso', status: 'concluido', progress: 100, link: '', notes: '', createdAt: 2, updatedAt: Date.now() },
     { id: 3203, topicId: 3102, title: 'Diretriz de bronquiolite', kind: 'artigo', status: 'afazer', progress: 0, link: '', notes: '', createdAt: 3, updatedAt: Date.now() },
     { id: 3204, topicId: 3103, title: 'Podcast de inglês para médicos', kind: 'podcast', status: 'andamento', progress: 30, link: '', notes: '', createdAt: 4, updatedAt: Date.now() },
-    { id: 3205, topicId: 3104, title: 'A Psicologia Financeira', kind: 'livro', status: 'afazer', progress: 0, link: '', notes: '', createdAt: 5, updatedAt: Date.now() }
+    { id: 3205, topicId: 3104, title: 'A Psicologia Financeira', kind: 'livro', status: 'afazer', progress: 0, link: '', notes: '', createdAt: 5, updatedAt: Date.now() },
+    { id: 3206, topicId: 3101, title: 'Fluxo de caixa para clínicas', kind: 'curso', status: 'afazer', progress: 0, link: '', notes: '', createdAt: 6, updatedAt: Date.now() - 2e6 },
+    { id: 3207, topicId: 3102, title: 'Sepse pediátrica — atualização', kind: 'video', status: 'afazer', progress: 0, link: '', notes: '', createdAt: 7, updatedAt: Date.now() - 3e6 },
+    { id: 3208, topicId: 3101, title: 'Hábitos Atômicos', kind: 'livro', status: 'afazer', progress: 0, link: 'Kindle', notes: '', createdAt: 8, updatedAt: Date.now() - 4e6 },
+    { id: 3209, topicId: 3104, title: 'Pai Rico, Pai Pobre', kind: 'livro', status: 'concluido', progress: 100, link: '', notes: '', createdAt: 9, updatedAt: Date.now() - 9e6 },
+    { id: 3210, topicId: 3102, title: 'Nelson — Tratado de Pediatria', kind: 'livro', status: 'concluido', progress: 100, link: '', notes: '', createdAt: 10, updatedAt: Date.now() - 8e6 },
+    { id: 3211, topicId: 3103, title: 'Gramática essencial', kind: 'livro', status: 'concluido', progress: 100, link: '', notes: '', createdAt: 11, updatedAt: Date.now() - 7e6 },
+    { id: 3212, topicId: 3101, title: 'Como precificar consultas', kind: 'artigo', status: 'concluido', progress: 100, link: '', notes: '', createdAt: 12, updatedAt: Date.now() - 6e6 }
   ]);
+  S('ritual', { day: '0', time: '19:00', roadmap: ['Ler 1 capítulo do livro da vez', 'Revisar a carteira e os aportes', 'Anotar 1 insight', 'Definir o próximo passo da clínica'], weekStart: '', done: [] });
   const ses = []; [[0, 3102, 50], [-1, 3101, 40], [-1, 3103, 25], [-2, 3102, 60], [-3, 3101, 45], [-4, 3104, 30], [-5, 3102, 50], [-6, 3103, 25], [-8, 3101, 60], [-10, 3102, 40]].forEach(([n, tp, mn]) => ses.push({ id: nid(), topicId: tp, date: d(n), minutes: mn, note: '', createdAt: id }));
   S('sessions', ses);
   const dias = {}; ses.forEach(s => { dias[s.date] = (dias[s.date] || 0) + s.minutes; });

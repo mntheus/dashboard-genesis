@@ -581,12 +581,50 @@
     </div>
     <!-- Módulo 7: Estudos -->
     <div id="studies" class="tab-content">
-      <div class="card" style="margin-top: 20px;">
-        <h2>📚 Estudos</h2>
-        <div id="study-dash"></div>
+      <!-- E1 (09/10): a estante e o livro aberto (estudos.js). Os formulários de sempre continuam aqui
+           (viram folhas pelos botões do cabeçalho) e todos os ids que o app.js usa foram mantidos. -->
+      <div id="sec-es-rapida" class="agenda-sec tar-topo">
+        <div class="tar-rapida">
+          <span class="tar-rapida-mais" aria-hidden="true">＋</span>
+          <input type="text" id="es-rapida" aria-label="Novo material ou sessão de estudo" placeholder="Estudar…" autocomplete="off" enterkeyhint="done" oninput="esRapidaPrevia()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); esRapidaAdicionar(); }">
+          <button type="button" class="tar-rapida-ok" title="Adicionar" onclick="esRapidaAdicionar()">↵</button>
+        </div>
+        <div id="es-rapida-previa" class="tar-rapida-previa"></div>
       </div>
-      <div class="fin-two-col">
-        <div class="card">
+      <div class="focus-header-tabs agenda-tabs tar-secoes" id="estudos-secoes">
+        <span class="active" onclick="verSecaoEstudos('mesa', this)">📖 Mesa</span>
+        <span onclick="verSecaoEstudos('estante', this)">📚 Estante</span>
+        <span onclick="verSecaoEstudos('sessoes', this)">⏱️ Sessões</span>
+        <span onclick="verSecaoEstudos('ritual', this)">📓 Ritual</span>
+      </div>
+      <div id="sec-es-mesa" class="agenda-sec">
+        <div class="card es-cartao"><div id="es-mesa"></div><div id="study-dash" hidden></div></div>
+      </div>
+      <div id="sec-es-estante" class="agenda-sec" hidden>
+        <div class="card es-cartao">
+          <h2>📚 A estante</h2>
+          <div id="es-estante"></div>
+        </div>
+        <div class="card es-cartao" style="margin-top: 16px;">
+          <h2>Materiais</h2>
+          <p class="hint">Livros, cursos, artigos, vídeos, podcasts. Pela barra rápida é mais rápido; aqui dá para preencher tudo (link, onde está, observações).</p>
+          <form id="material-form">
+            <input type="hidden" id="material-id">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+              <div><label for="material-title">Título:</label><input type="text" id="material-title" placeholder="O Investidor Inteligente" required></div>
+              <div><label for="material-topic">Tema:</label><select id="material-topic"></select></div>
+              <div><label for="material-kind">Tipo:</label><select id="material-kind"></select></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;">
+              <div><label for="material-status">Status:</label><select id="material-status"></select></div>
+              <div><label for="material-progress">Progresso %:</label><input type="number" id="material-progress" min="0" max="100" placeholder="0"></div>
+              <div><label for="material-link">Link / onde está:</label><input type="text" id="material-link" placeholder="https://... ou 'Kindle'"></div>
+            </div>
+            <label for="material-notes">Observações:</label><input type="text" id="material-notes" placeholder="opcional">
+            <div style="display:flex; gap:10px;"><button type="submit" id="material-submit" style="flex:1">Adicionar material</button><button type="button" id="material-cancel" class="btn" hidden onclick="cancelarEdicaoMaterial()">Cancelar</button></div>
+          </form>
+        </div>
+        <div class="card es-cartao" style="margin-top: 16px;">
           <h2>Temas</h2>
           <p class="hint">O que você está estudando, com meta de horas por semana. O Pomodoro do Painel pergunta o tema.</p>
           <form id="topic-form">
@@ -600,7 +638,13 @@
           </form>
           <ul id="topic-list" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
-        <div class="card">
+      </div>
+      <div id="sec-es-sessoes" class="agenda-sec" hidden>
+        <div class="card es-cartao">
+          <h2>⏱️ O caminho do estudo</h2>
+          <div id="es-sessoes-cal" class="es-quadro"></div>
+        </div>
+        <div class="card es-cartao" style="margin-top: 16px;">
           <h2>Sessões de estudo</h2>
           <p class="hint">O Pomodoro registra sozinho. Aqui você lança o que estudou fora dele (leitura no plantão, aula, podcast no carro).</p>
           <form id="session-form">
@@ -615,34 +659,9 @@
           <ul id="session-list" class="transaction-list" style="margin-top: 15px;"></ul>
         </div>
       </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>Materiais</h2>
-        <p class="hint">Livros, cursos, artigos, vídeos, podcasts. ▶ avança o status, o controle deslizante marca o progresso, 🔁 agenda revisões em 1, 7 e 30 dias (viram tarefas na lista "Estudos").</p>
-        <form id="material-form">
-          <input type="hidden" id="material-id">
-          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
-            <div><label for="material-title">Título:</label><input type="text" id="material-title" placeholder="O Investidor Inteligente" required></div>
-            <div><label for="material-topic">Tema:</label><select id="material-topic"></select></div>
-            <div><label for="material-kind">Tipo:</label><select id="material-kind"></select></div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;">
-            <div><label for="material-status">Status:</label><select id="material-status"></select></div>
-            <div><label for="material-progress">Progresso %:</label><input type="number" id="material-progress" min="0" max="100" placeholder="0"></div>
-            <div><label for="material-link">Link / onde está:</label><input type="text" id="material-link" placeholder="https://... ou 'Kindle'"></div>
-          </div>
-          <label for="material-notes">Observações:</label><input type="text" id="material-notes" placeholder="opcional">
-          <div style="display:flex; gap:10px;"><button type="submit" id="material-submit" style="flex:1">Adicionar material</button><button type="button" id="material-cancel" class="btn" hidden onclick="cancelarEdicaoMaterial()">Cancelar</button></div>
-        </form>
-        <div class="focus-header-tabs filter-row" id="material-filters" style="margin-top: 14px;">
-          <span class="active" onclick="filtrarMateriais('andamento', this)">▶ Em andamento</span>
-          <span onclick="filtrarMateriais('afazer', this)">📋 A fazer</span>
-          <span onclick="filtrarMateriais('concluido', this)">✅ Concluídos</span>
-          <span onclick="filtrarMateriais('todos', this)">🗂️ Todos</span>
-        </div>
-        <ul id="material-list" class="transaction-list"></ul>
-      </div>
-      <div class="card" style="margin-top: 20px;">
-        <h2>📅 Estudo semanal de negócios</h2>
+      <div id="sec-es-ritual" class="agenda-sec" hidden>
+      <div class="card es-cartao es-caderno">
+        <h2>📓 Estudo semanal de negócios</h2>
         <p class="hint">Seu ritual fixo: escolha o dia e a hora (vira compromisso na agenda toda semana) e o roteiro — a lista zera toda semana. O insight da semana vai pra Notas.</p>
         <div class="fin-two-col" style="margin-top: 0;">
           <div>
@@ -662,6 +681,7 @@
             <button type="button" class="btn" style="width:100%" onclick="salvarInsight()">Salvar insight em Notas</button>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -1833,6 +1853,7 @@
   <script src="producao.js"></script>
   <script src="exercicios.js"></script>
   <script src="treino.js"></script>
+  <script src="estudos.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>
   <script src="nucleo.js"></script>

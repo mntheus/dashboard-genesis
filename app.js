@@ -2369,7 +2369,11 @@ function renderPainelEstudos() {
   if (porTema.length) html += '<div class="cat-block" style="margin-top:12px"><h5>Semana por tema</h5>' + porTema.map(({ t, min }) => { const meta = t.weeklyGoalMin || 0; const pct = meta ? Math.min(100, Math.round(min / meta * 100)) : (semana ? Math.round(min / semana * 100) : 0); return `<div class="cat-row"><span class="cat-name">${esc(t.name)}</span><div class="cat-bar"><div style="width:${pct}%; background:${t.color}"></div></div><span class="cat-val">${fmtMin(min)}${meta ? ` <small>/ ${fmtMin(meta)}</small>` : ''}</span></div>`; }).join('') + '</div>';
   el.innerHTML = html;
 }
-function redesenharEstudos() { preencherTemasSelects(); renderPainelEstudos(); renderTemas(); renderMateriais(); renderSessoes(); renderRitual(); }
+function redesenharEstudos() {
+  preencherTemasSelects(); renderPainelEstudos(); renderTemas(); renderMateriais(); renderSessoes(); renderRitual();
+  // E1 (09/10): a estante, o livro aberto e o mapa das semanas (estudos.js)
+  if (typeof renderMesaEstudos === 'function') { renderMesaEstudos(); renderEstanteEstudos(); renderSessoesEstudos(); }
+}
 
 // ============================================================================
 // NEGÓCIOS & INVESTIMENTOS (módulo G)
@@ -7628,6 +7632,7 @@ if (desfazerIlustracoesErradas(saidas, 'nome')) salvar('saidas', saidas);
 if (desfazerIlustracoesErradas(media, 'title')) salvar('media', media);
 redesenharViagens(); verSecaoViagens('viagens'); redesenharRede(); verSecaoRede('contatos');
 redesenharLazer(); verSecaoLazer('midia');
+if (typeof verSecaoEstudos === 'function') verSecaoEstudos('mesa');
 ['play', 'pause', 'timeupdate', 'ended', 'loadedmetadata'].forEach(ev => document.getElementById('audio-player').addEventListener(ev, atualizarPlayerMusica));
 renderEntregas();
 preencherFreqs(); camposPorFrequencia(); gerarRotinas(true); renderRotinas();

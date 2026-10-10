@@ -5956,18 +5956,86 @@ body.mod-ligado #settings.cfg-barras.tab-content.active > .card { padding-top: 0
 .cfg-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0; font-size: var(--t-apoio); color: var(--txt2); }
 .cfg-linha select { width: auto; min-width: 0; margin: 0; min-height: 0; height: 34px; padding: 0 10px; font-size: var(--t-apoio); }
 
+/* ═══ G5 (10/10): ARRUMAR — os módulos de todas as abas no jeito do Painel (arrumar.js) ═══ */
+/* o canto da aba: 🛠 · ✎ · ⚙ (na edição o ↺ ocupa o lugar do 🛠) */
+.aba-arrumar-btn, .aba-arrumar-volta {
+  position: absolute; top: 16px; right: 46px; z-index: 5; width: 34px; height: 34px; min-width: 0; min-height: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;
+  color: var(--txt3); background: var(--sup-2); border: 1px solid var(--fio-sutil); box-shadow: none; cursor: pointer;
+}
+.aba-arrumar-btn[hidden], .aba-arrumar-volta[hidden] { display: none; }
+.aba-arrumar-btn .ic, .aba-arrumar-volta .ic { width: 17px; height: 17px; }
+.aba-arrumar-btn:hover, .aba-arrumar-volta:hover { color: var(--txt-forte); border-color: color-mix(in srgb, var(--acento) 50%, transparent); }
+.aba-arrumar-btn.on { color: var(--bg); background: var(--acento); border-color: var(--acento); }
+.aba-arrumar-volta { right: 86px; width: 30px; height: 30px; top: 18px; }
+body[data-casca="nova"] .aba-dev-btn { right: 86px; }
+/* a margem de 14 px do ⚙ vinha do layout clássico e o deixava abaixo dos vizinhos: os três na mesma linha */
+body[data-casca="nova"] .tab-content > .aba-cfg-btn { margin: 0; }
+body.ar-editando .tab-content.active > .aba-dev-btn { display: none; }
+#nucleo > .aba-arrumar-btn, #nucleo > .aba-arrumar-volta, #settings > .aba-arrumar-btn { display: none !important; }
+body[data-casca="classica"] .aba-arrumar-btn, body[data-casca="classica"] .aba-arrumar-volta { display: none; }
+/* o cabeçalho reserva o canto para os três (antes 96/84 px, para dois) */
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 128px; }
+@media (max-width: 700px) { body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 122px; } }
+
+/* os QUADROS dos painéis na edição: contorno, conteúdo esmaecido e quieto (o gesto é o arrumar) */
+/* (com a grade no seletor: a regra dos botões logo abaixo dava display e vencia um ".ar-ui" sozinho) */
+.ar-grade > .sp-quadro > .ar-ui { display: none; }
+.ar-grade > .sp-quadro { position: relative; }
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro { outline: 1px dashed color-mix(in srgb, var(--acento) 60%, transparent); outline-offset: 2px; cursor: grab; }
+/* faixa própria para os controles (em cima: ⠿ e −; embaixo: ↑↓ ou o canto) — por cima do título cobriam 360 px² */
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro { padding-top: 40px; padding-bottom: 36px; }
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro > :not(.ar-ui) { pointer-events: none; opacity: .55; filter: saturate(.6); }
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro > .ar-ui { display: inline-flex; }
+.ar-alca, .ar-recolher, .ar-setas button {
+  min-width: 0; min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 8px; box-shadow: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: .95rem; font-weight: 700; line-height: 1;
+  color: var(--txt2); background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--fio-sutil);
+}
+.ar-alca { position: absolute; left: 6px; top: 6px; z-index: 3; cursor: grab; touch-action: none; }
+.ar-alca .ic { width: 14px; height: 14px; stroke-width: 3; }
+.ar-recolher { position: absolute; right: 6px; top: 6px; z-index: 3; }
+.ar-setas { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 3; gap: 4px; }
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro > .ar-setas { display: none; }
+@media (pointer: coarse) { body.ar-editando .tab-content.active .ar-grade > .sp-quadro > .ar-setas { display: inline-flex; } }
+.ar-canto { position: absolute; right: 2px; bottom: 2px; z-index: 3; width: 22px; height: 22px; align-items: center; justify-content: center; cursor: nwse-resize; color: var(--txt3); border-radius: 6px; }
+.ar-canto .ic { width: 14px; height: 14px; }
+body.ar-editando .tab-content.active .ar-grade > .sp-quadro > .ar-canto { display: none; }
+@media (hover: hover) and (pointer: fine) { body.ar-editando .tab-content.active .ar-grade > .sp-quadro > .ar-canto { display: inline-flex; } }
+.sp-quadro.ar-vaga { opacity: .25; outline-style: solid !important; }
+.sp-quadro.ar-esticando { outline: 2px solid var(--acento) !important; }
+.ar-fantasma { position: fixed !important; z-index: 2600; pointer-events: none; margin: 0; opacity: .95;
+  box-shadow: 0 24px 50px -16px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--acento) 50%, transparent); }
+.ar-fantasma > .ar-ui { display: none !important; }
+/* recolhido: sobra o cabeçalho do quadro; o "+" mora no lugar da setinha "›" (nada por cima de nada) */
+.sp-quadro.ar-recolhido > :not(.sp-cab):not(.ar-ui) { display: none !important; }
+.sp-quadro.ar-recolhido { min-height: 0 !important; align-self: start; }
+.sp-quadro.ar-recolhido > .sp-cab .sp-ir { display: none; }
+.sp-quadro.ar-recolhido > .sp-cab { width: calc(100% - 34px); }
+body:not(.ar-editando) .sp-quadro.ar-recolhido > .ar-recolher { display: inline-flex; top: 50%; transform: translateY(-50%); }
+
+/* os CARTÕES grandes (modulos.js): a alça só existe na edição — fora dela, nem alça nem a faixa dela */
+body.mod-ligado:not(.ar-editando) .card:not(.mod-recolhido) > .mod-alca { display: none; }
+body.mod-ligado:not(.ar-editando) .card:not(.mod-recolhido) { padding-top: var(--s5); }
+/* recolhido fora da edição: fica só o ▾ de reabrir */
+body.mod-ligado:not(.ar-editando) .card.mod-recolhido > .mod-alca { opacity: 1; pointer-events: auto; }
+body.mod-ligado:not(.ar-editando) .card.mod-recolhido > .mod-alca > :not(.mod-recolher) { display: none; }
+body.ar-editando .tab-content.active .card[data-mod-chave] { outline: 1px dashed color-mix(in srgb, var(--acento) 35%, transparent); outline-offset: 2px; }
+body.mod-ligado.ar-editando .card > .mod-alca { opacity: 1; pointer-events: auto; }
+
 /* ═══ ⑧ (10/10): PASSADA DE MINIMALISMO EM TODAS AS ABAS ═══
    1. A alça dos módulos (⠿ ⤢ ▾) ganhou lugar na linha do TÍTULO. Antes cada cartão reservava uma faixa de
       52 px no alto só para ela (armadilha 47: flutuando, cobria botões) — medido: 53 px da borda ao título.
       Agora, quando o cartão começa por um título, a alça fica ao lado dele e o título ganha o espaço da
       direita; a faixa própria só sobra para cartão que não começa por título. */
-body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) { padding-top: var(--s5); }
-body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
-body.mod-ligado .card:not(.mod-recolhido) > .mod-corpo > h2:first-child { padding-right: 124px; min-height: 36px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+/* G5 (10/10): fora da edição a alça nem aparece (bloco "ARRUMAR" acima); estas regras valem só ao arrumar */
+body.mod-ligado.ar-editando .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) { padding-top: var(--s5); }
+body.mod-ligado.ar-editando .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
+body.mod-ligado.ar-editando .card:not(.mod-recolhido) > .mod-corpo > h2:first-child { padding-right: 124px; min-height: 36px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
 /* o mesmo quando o título mora num cabeçalho próprio (ex.: o das Notas: título + contador) */
-body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) { padding-top: var(--s5); }
-body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
-body.mod-ligado .card:not(.mod-recolhido) > .mod-corpo > :first-child:not(h2):has(> h2:first-child) { padding-right: 124px; min-height: 36px; }
+body.mod-ligado.ar-editando .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) { padding-top: var(--s5); }
+body.mod-ligado.ar-editando .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
+body.mod-ligado.ar-editando .card:not(.mod-recolhido) > .mod-corpo > :first-child:not(h2):has(> h2:first-child) { padding-right: 124px; min-height: 36px; }
 /* 2. Vão entre as abas de seção e o 1º cartão (36–94 px medidos): a margem solta do 1º cartão de cada seção
       somava com o arredondamento da grade (armadilha 60). A seção já tem o vão da grade em cima. */
 body[data-casca="nova"] .tab-content.active > .agenda-sec > .card:first-child,

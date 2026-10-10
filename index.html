@@ -1640,7 +1640,7 @@
       </div>
       <div class="card" style="margin-top: 20px;">
         <h2>🧩 Módulos da página</h2>
-        <p class="hint">Cada bloco das páginas (Avisos, Pomodoro, Orçamento, Rotinas…) tem uma alcinha no canto: <strong>⠿ arrasta</strong> para mudar de lugar e <strong>▾ recolhe</strong> para deixar só o título. Serve para você montar cada aba do seu jeito e ver tudo de uma vez. Vale <strong>só neste aparelho</strong> — o PC e o celular podem ter arrumações diferentes.</p>
+        <p class="hint">Toque <strong>✎</strong> no canto de cada aba (ao lado da ⚙) para <strong>arrumar</strong>: os quadros e os blocos ganham contorno — arraste para mudar de lugar, puxe o canto para mudar o tamanho, <strong>−</strong> recolhe; <strong>✓</strong> termina e <strong>↺</strong> devolve a aba ao de fábrica. Fora da edição nada fica no caminho. Vale <strong>só neste aparelho</strong> — o PC e o celular podem ter arrumações diferentes.</p>
         <label class="check-line"><input type="checkbox" id="mod-ligado" onchange="alternarModulosLigado(this.checked)"> Deixar os blocos móveis e recolhíveis</label>
         <button class="btn" type="button" onclick="restaurarModulos()" style="width:100%; margin-top:12px">↺ Devolver todos os blocos à ordem de fábrica</button>
       </div>
@@ -1863,6 +1863,7 @@
   <script src="apresentacao.js"></script>
   <script src="modulos.js"></script>
   <script src="painel.js"></script>
+  <script src="arrumar.js"></script>
   <script type="module" src="jarvis3d.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));

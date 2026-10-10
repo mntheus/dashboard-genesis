@@ -5912,3 +5912,46 @@ body.tv-aberto { overflow: hidden; }
   .es-prat-livros { min-height: 140px; }
 }
 @media (prefers-reduced-motion: reduce) { .es-lomb { transition: none; } }
+
+/* ═══ C1 + C2 (09/10): A CONFIG — cartões do tamanho do conteúdo, ou barras ═══ */
+/* C1: cada cartão com a altura do que tem dentro (span calculado em modulos.js), alinhados pelo topo e sem
+   a margem solta que desencontrava o do Núcleo dos vizinhos */
+body[data-casca="nova"] #settings.tab-content.active > .card { margin-top: 0 !important; align-self: start; }
+/* grade fina na Config: linhas de 6 px sem vão (o espaço entre os cartões é a margem de baixo, que o modulos.js
+   conta) — com a unidade de 42 + 16 sobrava até 58 px embaixo de cada cartão */
+body[data-casca="nova"] #settings.tab-content.active:not(.cfg-barras) { --mod-u: 6px; row-gap: 0; }
+body[data-casca="nova"] #settings.tab-content.active:not(.cfg-barras) > * { margin-bottom: 16px; }
+/* a Config não é módulo: sem a faixa de 52 px da alça, sem a altura padrão de 9 linhas e sem cortar o conteúdo
+   (o span que vale é o que o modulos.js escreve na hora, pela altura natural) */
+body.mod-ligado #settings.tab-content.active > .card { grid-column: auto; grid-row: auto; display: block; overflow: visible; padding-top: var(--s5); }
+body[data-casca="nova"] .tab-content.active > .cfg-vista { grid-column: 1 / -1; }
+.cfg-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.cfg-vista:empty { display: none; }
+.cfg-vista small { font-size: .74rem; color: var(--txt3); }
+.cfg-vista-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; border: 1px solid var(--fio-sutil); background: var(--sup-2); }
+.cfg-vista-seg button { min-height: 0; height: 30px; padding: 0 14px; margin: 0; border: none; border-radius: 999px; background: transparent; box-shadow: none; font-size: var(--t-apoio); font-weight: 600; color: var(--txt2); }
+.cfg-vista-seg button.on { background: color-mix(in srgb, var(--acento) 22%, transparent); color: var(--txt-forte); }
+.cfg-resumo { display: none; }
+/* o ▾ de recolher flutuava à direita com 44 px de altura (regra geral dos botões) e invadia a 1ª opção do
+   cartão (o banco mediu 227 px² sobre "Abrir o app no Núcleo"): agora mora DENTRO da linha do título */
+.card[data-recolhivel] > h2 { display: flex; align-items: center; gap: 8px; }
+.card[data-recolhivel] > h2 .card-toggle { float: none; flex: none; margin-left: auto; min-height: 0; min-width: 0; width: 28px; height: 28px; padding: 0; line-height: 1; }
+/* C2: em barras, cada assunto uma faixa de largura cheia; o título e uma linha de resumo; abre no toque */
+body[data-casca="nova"] #settings.cfg-barras.tab-content.active { display: flex; flex-direction: column; gap: 8px; }
+/* largura igual para todas (o "alinhar pelo topo" do modo cartões encolhia cada barra ao tamanho do texto) */
+body[data-casca="nova"] #settings.cfg-barras.tab-content.active > .card { align-self: stretch; }
+/* a regra de Cartões (com o id) devolvia 24 px de respiro em cima de cada barra: o título caía para baixo */
+body.mod-ligado #settings.cfg-barras.tab-content.active > .card { padding-top: 0; }
+#settings.cfg-barras > .card { margin: 0 !important; padding: 0 18px; border-radius: 12px; }
+#settings.cfg-barras > .card > h2 { display: flex; align-items: center; gap: 12px; min-height: 54px; margin: 0; padding: 8px 0; font-size: 1.02rem; cursor: pointer; }
+#settings.cfg-barras > .card > h2 .cfg-resumo { display: block; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 400; color: var(--txt3); }
+#settings.cfg-barras > .card .card-toggle { float: none; margin-left: auto; flex: none; transform: rotate(-90deg); transition: transform .2s ease; }
+#settings.cfg-barras > .card.barra-aberta .card-toggle { transform: none; }
+#settings.cfg-barras > .card:not(.barra-aberta) > :not(h2) { display: none !important; }
+#settings.cfg-barras > .card.barra-aberta { padding-bottom: 16px; border-color: color-mix(in srgb, var(--acento) 40%, var(--borda)); }
+#settings.cfg-barras > .card.barra-aberta > h2 { border-bottom: 1px solid var(--fio-sutil); margin-bottom: 12px; }
+#settings.cfg-barras > .card:not(.barra-aberta):hover { background: color-mix(in srgb, var(--acento) 5%, var(--card)); }
+@media (max-width: 600px) { #settings.cfg-barras > .card > h2 .cfg-resumo { display: none; } }
+/* A1: linhas de ajuste no ⚙ da aba ("Abrir em [Semana]", "das [07:00] às [22:00]") */
+.cfg-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0; font-size: var(--t-apoio); color: var(--txt2); }
+.cfg-linha select { width: auto; min-width: 0; margin: 0; min-height: 0; height: 34px; padding: 0 10px; font-size: var(--t-apoio); }

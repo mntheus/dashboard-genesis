@@ -1551,7 +1551,9 @@
 
     <!-- Módulo 6: Config -->
     <div id="settings" class="tab-content">
-      <div class="card" style="margin-top: 20px;">
+      <!-- C2 (09/10): ver a Config em cartões ou em barras (cfgVista, por aparelho) -->
+      <div id="cfg-vista" class="cfg-vista"></div>
+      <div class="card" style="margin-top: 20px;" data-resumo="Abrir no Núcleo, cartões ao afastar, visual do cérebro, fundo e abertura">
         <h2>🌌 Núcleo — a tela de entrada</h2>
         <div id="nucleo-config"></div>
       </div>
@@ -1656,7 +1658,7 @@
         </div>
         <button class="btn" type="button" onclick="salvarPerfil()" style="width:100%; margin-top:12px">💾 Salvar perfil</button>
       </div>
-      <div class="card" style="margin-top: 20px;">
+      <div class="card" style="margin-top: 20px;" data-resumo="Exportar ou importar todos os seus dados num arquivo">
         <h2>Segurança e Backup</h2>
         <div style="display: flex; gap: 15px; margin-bottom: 15px;">
           <button onclick="exportData()" style="flex: 1; background-color: var(--ok);">⬇️ Exportar Backup</button>

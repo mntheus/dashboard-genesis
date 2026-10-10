@@ -4693,7 +4693,7 @@ function renderPerfilTrabalho() {
 // O que faltava era responder "como é o meu dia?" — e para isso é preciso ver
 // as horas, não os dias.
 // ============================================================================
-const AG_H_INI = 6, AG_H_FIM = 23;      // faixa mostrada na linha do tempo
+let AG_H_INI = 6, AG_H_FIM = 23;        // faixa mostrada na linha do tempo (A1: ajustável no ⚙ da Agenda)
 const AG_PX_HORA = 46;                  // altura de uma hora
 const REPETE_EVENTO = {
   nao:       'Não repete',
@@ -4830,6 +4830,32 @@ function agMudarVista(v, el) {
   renderAgendaVista();
 }
 function inicioDaSemana(iso) { return somaDias(iso, -diaDaSemanaISO(iso)); }
+
+// ── A1 (09/10): os ajustes da Agenda, por aparelho (no ⚙ da aba) ──
+// A grade ia sempre das 06 às 23 h (muita hora vazia) e no celular a Semana espremia 7 colunas.
+const AG_VISTAS = { auto: 'Automática (celular: Dia · tela larga: Semana)', dia: 'Dia', semana: 'Semana', mes: 'Mês', lista: 'Próximos 7 dias' };
+function cfgAgenda() {
+  prefs.agenda = prefs.agenda || {};
+  const c = prefs.agenda;
+  if (!(c.hIni >= 0 && c.hIni <= 12)) c.hIni = 6;
+  if (!(c.hFim >= 14 && c.hFim <= 24)) c.hFim = 23;
+  if (!AG_VISTAS[c.vista]) c.vista = 'auto';
+  return c;
+}
+function aplicarCfgAgenda() { const c = cfgAgenda(); AG_H_INI = c.hIni; AG_H_FIM = Math.max(c.hIni + 4, c.hFim); }
+function mudarCfgAgenda(campo, v) {
+  const c = cfgAgenda(); c[campo] = campo === 'vista' ? v : Number(v);
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarCfgAgenda();
+  if (campo === 'vista') agVistaInicial(); else renderAgendaVista();
+}
+/** A vista com que a Agenda abre: a escolhida, ou a automática pela largura da tela. */
+function agVistaInicial() {
+  const c = cfgAgenda();
+  const v = c.vista === 'auto' ? (window.matchMedia('(max-width: 700px)').matches ? 'dia' : 'semana') : c.vista;
+  const sp = [...document.querySelectorAll('#ag-vistas > span')].find(s => (s.getAttribute('onclick') || '').includes(`'${v}'`));
+  agMudarVista(v, sp);
+}
 
 /** Divide os blocos que se sobrepõem em colunas, para nenhum tapar o outro. */
 function colunasDeBlocos(blocos) {
@@ -5706,11 +5732,16 @@ function alternarCard(id) {
 }
 function aplicarRecolhidos() {
   const r = prefs.recolhidos || {};
+  const barras = typeof cfgVista === 'function' && cfgVista() === 'barras';
   document.querySelectorAll('.card[data-recolhivel]').forEach(c => {
+    // em Barras (C2) quem abre e fecha é a barra; o "recolhido" dos cartões fica guardado para quando voltar
+    if (barras && c.parentElement && c.parentElement.id === 'settings') { c.classList.remove('recolhido'); return; }
     const on = !!r[c.dataset.recolhivel];
     c.classList.toggle('recolhido', on);
     const b = c.querySelector('.card-toggle'); if (b) { b.innerText = on ? '▸' : '▾'; b.title = on ? 'Abrir' : 'Recolher'; }
   });
+  // recolher muda a altura natural do cartão: a grade refaz o lugar de cada um (C1)
+  if (typeof agendarAjuste === 'function') agendarAjuste();
 }
 /** Torna recolhível todo card que tenha <h2>, dentro dos containers pedidos. */
 function prepararCardsRecolhiveis() {
@@ -5734,6 +5765,52 @@ function abrirTodos(qual) {
   document.querySelectorAll(`${qual} .card[data-recolhivel]`).forEach(c => { delete prefs.recolhidos[c.dataset.recolhivel]; });
   localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); aplicarRecolhidos();
 }
+
+// ── C2 (09/10): a Config em CARTÕES ou em BARRAS ──
+// Ditado: "opção de ver em nichos OU em barras: largura igual, comprimento conforme a informação, o resto
+// abre no clique". Barras = cada assunto uma faixa de largura cheia (título + resumo de uma linha); um toque
+// abre, e só uma fica aberta. Vale por aparelho (prefs.cfgVista) — no celular as barras poupam muita rolagem.
+let cfgBarraAberta = null;
+function cfgVista() { return prefs.cfgVista === 'barras' ? 'barras' : 'cartoes'; }
+function mudarCfgVista(v) {
+  prefs.cfgVista = v === 'barras' ? 'barras' : 'cartoes';
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  aplicarCfgVista(); aplicarRecolhidos();
+}
+function aplicarCfgVista() {
+  const sec = document.getElementById('settings'); if (!sec) return;
+  const barras = cfgVista() === 'barras';
+  sec.classList.toggle('cfg-barras', barras);
+  sec.querySelectorAll(':scope > .card[data-recolhivel]').forEach(c => {
+    const h = c.querySelector('h2'); if (!h) return;
+    // o resumo de uma linha da barra: a 1ª frase da dica do cartão
+    if (!h.querySelector('.cfg-resumo')) {
+      const d = c.querySelector('.hint'), s = document.createElement('small');
+      s.className = 'cfg-resumo';
+      s.textContent = c.dataset.resumo || (d ? d.textContent.trim().split(/(?<=[.:])\s/)[0].replace(/[.:]$/, '').slice(0, 120) : '');
+      h.insertBefore(s, h.querySelector('.card-toggle'));
+    }
+    c.classList.toggle('barra-aberta', barras && c.dataset.recolhivel === cfgBarraAberta);
+  });
+  const el = document.getElementById('cfg-vista');
+  if (el) el.innerHTML = `<span class="cfg-vista-seg" role="group" aria-label="Como ver a Config">
+      <button type="button" class="${barras ? '' : 'on'}" onclick="mudarCfgVista('cartoes')">▦ Cartões</button>
+      <button type="button" class="${barras ? 'on' : ''}" onclick="mudarCfgVista('barras')">☰ Barras</button></span>
+    <small>${barras ? 'Toque numa barra para abrir — só uma fica aberta.' : 'Cada cartão tem o tamanho do que tem dentro; ▾ recolhe.'}</small>`;
+  if (typeof agendarAjuste === 'function') agendarAjuste();
+}
+// em Barras, tocar no título abre/fecha a barra; em Cartões continua recolhendo
+const _alternarCardOriginal = alternarCard;
+alternarCard = function (id) {
+  const c = document.querySelector(`#settings > .card[data-recolhivel="${id}"]`);
+  if (c && cfgVista() === 'barras') {
+    cfgBarraAberta = cfgBarraAberta === id ? null : id;
+    aplicarCfgVista();
+    if (cfgBarraAberta) setTimeout(() => { const r = c.getBoundingClientRect(); if (r.top < 60 || r.top > window.innerHeight * 0.5) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+    return;
+  }
+  _alternarCardOriginal(id);
+};
 
 /** Barra no Painel: liga/desliga cada janela sem ir à Config. */
 function renderAtalhoJanelas() {
@@ -7621,8 +7698,8 @@ aplicarAjustesAba(); atualizarBotaoConfigAba();
 definirPerfilTrabalho(); aplicarVocabulario(); renderPerfilTrabalho();
 renderClinica(); verSecaoClinica('painel'); ajustarAbaClinica();
 renderProducao(); verSecaoProducao('painel'); ajustarAbaProducao();
-prepararCardsRecolhiveis(); renderAtalhoJanelas(); tornarModaisMoveis(); prepararListas();
-preencherRepeteEvento(); renderAgendaVista(); renderAgora(); setInterval(renderAgora, 60000);
+prepararCardsRecolhiveis(); aplicarCfgVista(); aplicarRecolhidos(); renderAtalhoJanelas(); tornarModaisMoveis(); prepararListas();
+preencherRepeteEvento(); aplicarCfgAgenda(); agVistaInicial(); renderAgora(); setInterval(renderAgora, 60000);
 if (normalizarMedidas()) salvar('measures', measures); renderSaude(); verSecaoSaude('painel');
 updatePomodoroTime(); updateStudyStats(); renderFocusTab(); renderCalendar(); updateFinanceValues(); renderFinances(); renderShifts(); renderTasks(); renderNotes(); renderEvents(); renderRecorrentes();
 ['shift-hours', 'shift-amount'].forEach(i => document.getElementById(i).addEventListener('input', mostrarValorHora));

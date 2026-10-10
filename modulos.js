@@ -48,7 +48,10 @@ const modSlug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 /** Um cartão é módulo? (a folha da casca nova não é) */
 function ehModulo(el) {
-  return el.classList.contains('card') && !el.classList.contains('cs-folha');
+  // C1 (09/10, "nichos grandes demais para pouca informação, quebrados um com o outro"): os cartões da
+  // Config não são módulos de altura igual — cada um tem a altura do que tem dentro (span calculado como
+  // os outros blocos), sem rolagem por dentro.
+  return el.classList.contains('card') && !el.classList.contains('cs-folha') && !el.closest('#settings');
 }
 
 /** A identidade do módulo. A ordem das tentativas importa:
@@ -237,7 +240,9 @@ function aplicarModulos() {
   // sem este `if (cx)` ela some em silêncio se o id mudar de nome algum dia.
   const cx = document.getElementById('mod-ligado');
   if (cx) cx.checked = !!c.ligado;
-  if (!c.ligado) return;
+  // 🪤 (10/10) com os módulos DESLIGADOS ninguém calculava a altura de nada: a grade continua com linhas
+  // fixas e todo bloco ficava preso em 42 px, um por cima do outro. Desligado = tudo na altura natural.
+  if (!c.ligado) { ajustarNaoModulos(); return; }
   document.querySelectorAll('.tab-content .card').forEach(card => {
     if (!ehModulo(card)) return;
     vestirModulo(card);
@@ -264,18 +269,22 @@ function aplicarModulos() {
  *  são módulos e precisam da altura natural deles: aqui cada um ganha o número
  *  de linhas que a sua altura pede. */
 function ajustarNaoModulos() {
-  const u = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mod-u')) || 42;
+  // módulos desligados: os cartões também precisam da altura natural (ver aplicarModulos)
+  const fixo = el => ehModulo(el) && document.body.classList.contains('mod-ligado');
   document.querySelectorAll('.tab-content.active').forEach(sec => {
     const est = getComputedStyle(sec);
-    const gap = parseFloat(est.rowGap) || 16;
+    // a unidade pode ser da própria aba: a Config usa linhas de 6 px sem vão (C1) — com 42 + 16 cada
+    // cartão sobrava até 58 px embaixo e os vãos ficavam desiguais
+    const u = parseFloat(est.getPropertyValue('--mod-u')) || 42;
+    let gap = parseFloat(est.rowGap); if (isNaN(gap)) gap = 16;   // "normal" (não é grade): o de sempre
     // Numa coluna só a linha é livre (ver o @media de 739px): calcular span aqui
     // só atrapalharia. Limpa o que ficou de uma largura maior e sai.
     if (est.gridTemplateColumns.split(/\s+/).filter(Boolean).length <= 1) {
-      [...sec.children].forEach(el => { if (!ehModulo(el)) el.style.gridRow = ''; });
+      [...sec.children].forEach(el => { if (!fixo(el)) el.style.gridRow = ''; });
       return;
     }
     [...sec.children].forEach(el => {
-      if (ehModulo(el)) return;
+      if (fixo(el)) return;
       const pos = getComputedStyle(el).position;
       if (pos === 'absolute' || pos === 'fixed') return;   // não entra no fluxo da grade
       el.style.gridRow = '';                               // mede sem o span de antes
@@ -319,6 +328,8 @@ let modTimerAjuste = null;
 function agendarAjuste() { clearTimeout(modTimerAjuste); modTimerAjuste = setTimeout(ajustarNaoModulos, 120); }
 // Trocar de seção (micro-aba) = um bloco da aba aparece e outro some: refaz os spans na hora.
 // O ResizeObserver só roda quando a tela desenha; este gatilho não depende disso.
+// as fontes chegam depois do 1º desenho: com a letra de reserva o texto ocupa outra altura
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => agendarAjuste());
 if (typeof MutationObserver === 'function') new MutationObserver(ms => {
   if (ms.some(m => m.target.parentElement && m.target.parentElement.classList.contains('tab-content'))) agendarAjuste();
 }).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });

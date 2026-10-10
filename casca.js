@@ -501,6 +501,17 @@ function montarCoresNotas() {
 }
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-notes'] = () => typeof ntHtmlCores === 'function'
   ? `<h4 class="dev-titulo">Cores das notas</h4><div class="nt-cores-cfg">${ntHtmlCores()}</div>` : '';
+/** ⚙ da Agenda (A1): a vista com que ela abre e o horário da grade — por aparelho. */
+if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-home'] = () => {
+  if (typeof cfgAgenda !== 'function') return '';
+  const c = cfgAgenda(), horas = (de, ate, sel) => Array.from({ length: ate - de + 1 }, (_, i) => de + i)
+    .map(h => `<option value="${h}"${h === sel ? ' selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
+  return `<h4 class="dev-titulo">Agenda neste aparelho</h4>
+    <label class="cfg-linha">Abrir em <select onchange="mudarCfgAgenda('vista', this.value)">${Object.entries(AG_VISTAS).map(([k, n]) => `<option value="${k}"${c.vista === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label class="cfg-linha">A grade do dia vai das <select onchange="mudarCfgAgenda('hIni', this.value)">${horas(0, 12, c.hIni)}</select>
+      às <select onchange="mudarCfgAgenda('hFim', this.value)">${horas(14, 24, c.hFim)}</select></label>
+    <p class="hint" style="margin:4px 0 12px">Compromisso fora da faixa continua aparecendo na lista e no mês; a grade só mostra menos horas vazias.</p>`;
+};
 /** ⚙ da Saúde: o treino ao vivo (som, vibração, tela acesa) — "tudo que liga/desliga vai para as Configurações". */
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-health'] = () => {
   if (typeof cfgTreinoVivo !== 'function') return '';

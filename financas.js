@@ -244,18 +244,28 @@ function finPrevisao(ym) {
   if (ym >= hojeISO().slice(0, 7)) recurring.filter(r => r.active !== false && (!r.since || r.since <= ym) && !lancRecorrente(r, ym)).forEach(r => { falta += r.type === 'income' ? r.amount : -r.amount; });
   return inc - exp + falta;
 }
-function finQuadroTendencia(ym) {
+/** A linha de 12 meses do painel, desenhada na largura que ela tem de verdade (armadilha 68: com 320 fixos e o
+ *  quadro esticado na largura inteira, os valores do eixo saíam do tamanho de um título). */
+function finGrafTendencia(ym, larg) {
   const dados = finSerie12(ym);
-  const ef = finDoMes(ym, true); const inc = finSoma(ef, 'income'), exp = finSoma(ef, 'expense');
-  const taxa = inc ? (inc - exp) / inc * 100 : null;
-  const prev = finPrevisao(ym);
-  const larg = 320;
-  const graf = typeof ngGrafico === 'function' && dados.some(d => d.inc || d.exp)
+  return typeof ngGrafico === 'function' && dados.some(d => d.inc || d.exp)
     ? ngGrafico('fin-12', [
         { nome: 'Entrou', cor: 'var(--ok)', pontos: dados.map(d => ({ d: d.m + '-15', v: d.inc })), fmt: v => formatCurrency(v) },
         { nome: 'Saiu', cor: 'var(--perigo)', pontos: dados.map(d => ({ d: d.m + '-15', v: d.exp })), fmt: v => formatCurrency(v) }
-      ], { L: larg, A: 130, area: false, extremos: false, passo: 'no mês' })
+      ], { L: Math.max(320, larg || 320), A: 150, area: false, extremos: false, passo: 'no mês' })
     : '<div class="sp-vazio">A linha aparece com os primeiros meses lançados.</div>';
+}
+function finTendAjustar() {
+  const caixa = document.querySelector('#fin-painel .fin-tend-caixa'); if (!caixa) return;
+  const w = Math.round(caixa.clientWidth); if (!w) return;
+  if (Math.abs(w - (finEstado.tendLarg || 0)) < 6) return;
+  finEstado.tendLarg = w; caixa.innerHTML = finGrafTendencia(finMesAtual(), w);
+}
+function finQuadroTendencia(ym) {
+  const ef = finDoMes(ym, true); const inc = finSoma(ef, 'income'), exp = finSoma(ef, 'expense');
+  const taxa = inc ? (inc - exp) / inc * 100 : null;
+  const prev = finPrevisao(ym);
+  const graf = `<div class="fin-tend-caixa">${finGrafTendencia(ym, finEstado.tendLarg)}</div>`;
   return `<div class="fin-tend-topo">
       <div class="fin-poup">${finPonteiroPoupanca(taxa)}<strong style="color:${taxa === null ? 'var(--txt3)' : taxa < 0 ? 'var(--perigo)' : taxa < 10 ? 'var(--atencao)' : 'var(--ok)'}">${taxa === null ? '—' : spNum(taxa, 0) + '%'}</strong><small>taxa de poupança</small></div>
       <div class="fin-prev"><small>O MÊS DEVE FECHAR EM</small><strong class="${prev >= 0 ? 'sobe' : 'desce'}">${formatCurrency(prev)}</strong>
@@ -288,6 +298,11 @@ function renderFinPainel() {
   const caixa = el.querySelector('.fin-rio-caixa');
   if (finEstado.rioVigia) finEstado.rioVigia.disconnect();
   if (caixa && typeof ResizeObserver === 'function') { finEstado.rioVigia = new ResizeObserver(() => finRioAjustar()); finEstado.rioVigia.observe(caixa); }
+  // a linha de 12 meses, do mesmo jeito
+  finEstado.tendLarg = 0; finTendAjustar();
+  const tc = el.querySelector('.fin-tend-caixa');
+  if (finEstado.tendVigia) finEstado.tendVigia.disconnect();
+  if (tc && typeof ResizeObserver === 'function') { finEstado.tendVigia = new ResizeObserver(() => finTendAjustar()); finEstado.tendVigia.observe(tc); }
 }
 
 // ═════════════════════════════ A ANÁLISE ══════════════════════════════════

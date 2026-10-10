@@ -6045,6 +6045,14 @@ body.mod-ligado.ar-editando .card:not(.mod-recolhido) > .mod-corpo > :first-chil
 body[data-casca="nova"] .tab-content.active > .agenda-sec > .card:first-child,
 body[data-casca="nova"] .tab-content.active > .agenda-sec > :first-child > .card:first-child { margin-top: 0 !important; }
 
+/* ── F2 (10/10): os vãos entre cabeçalho, micro-abas e seção. Nas abas cujo conteúdo é todo de blocos de largura
+      cheia (nenhum cartão solto direto na aba), a linha de 42 + 16 px só arredondava: a fileira de micro-abas (48 px)
+      ocupava 100 e deixava 52 px vazios embaixo, em toda aba (armadilha 60). Linha fina sem vão, como a Config (C1);
+      o espaço entre os blocos é a margem de baixo. Aba com cartão solto (módulo de altura fixa) fica como era. */
+body[data-casca="nova"] .tab-content.active:not(#settings):not(#focus):not(#nucleo):not(.ab-barras):not(:has(> .card)) { --mod-u: 6px; row-gap: 0; }
+body[data-casca="nova"] .tab-content.active:not(#settings):not(#focus):not(#nucleo):not(.ab-barras):not(:has(> .card)) > * { margin-bottom: 16px; }
+body[data-casca="nova"] .tab-content.active > .focus-header-tabs[id$="-secoes"] { margin-top: 0 !important; }
+
 /* ── C2 nas abas (10/10): a vista em BARRAS (arrumar.js). Cada micro-aba vira uma faixa; a aba vira uma
       coluna e a posição vem do `order` (a seção aberta logo depois da faixa dela). Mesma cara das barras da Config. */
 body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap: 8px; }

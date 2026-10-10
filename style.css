@@ -6040,3 +6040,28 @@ body.mod-ligado.ar-editando .card:not(.mod-recolhido) > .mod-corpo > :first-chil
       somava com o arredondamento da grade (armadilha 60). A seção já tem o vão da grade em cima. */
 body[data-casca="nova"] .tab-content.active > .agenda-sec > .card:first-child,
 body[data-casca="nova"] .tab-content.active > .agenda-sec > :first-child > .card:first-child { margin-top: 0 !important; }
+
+/* ── C2 nas abas (10/10): a vista em BARRAS (arrumar.js). Cada micro-aba vira uma faixa; a aba vira uma
+      coluna e a posição vem do `order` (a seção aberta logo depois da faixa dela). Mesma cara das barras da Config. */
+body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap: 8px; }
+.tab-content.ab-barras .ab-fileira { display: none !important; }
+.tab-content.ab-barras.ab-fechada > .ab-depois { display: none !important; }
+.tab-content.ab-barras > .ab-depois { margin-top: 0; }
+.ab-barra { display: none; }
+.tab-content.ab-barras > .ab-barra {
+  display: flex; align-items: center; gap: 12px; flex: none; width: 100%; min-width: 0; min-height: 54px; height: auto;
+  margin: 0; padding: 8px 18px; border-radius: 12px; text-align: left; cursor: pointer;
+  background: linear-gradient(180deg, var(--sup-1), var(--card));
+  border: 1px solid var(--fio-sutil);
+  box-shadow: inset 0 1px 0 var(--brilho-topo), 0 10px 30px -22px rgba(0,0,0,.85);
+  font: inherit; font-size: 1.02rem; font-weight: 600; color: var(--txt-forte);
+}
+.ab-barra .ab-ic { flex: none; width: 1.4em; text-align: center; }
+.ab-barra .ab-nome { flex: none; white-space: nowrap; }
+.ab-barra .ab-resumo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 400; color: var(--txt3); }
+.ab-barra .ab-seta { flex: none; margin-left: auto; color: var(--txt3); transform: rotate(-90deg); transition: transform .2s ease; }
+.ab-barra.aberta { border-color: color-mix(in srgb, var(--acento) 40%, var(--borda)); }
+.ab-barra.aberta .ab-seta { transform: none; }
+.ab-barra:not(.aberta):hover { background: color-mix(in srgb, var(--acento) 5%, var(--card)); }
+.ab-barra:focus-visible { outline: 2px solid color-mix(in srgb, var(--acento) 60%, transparent); outline-offset: 2px; }
+.ab-vista-cfg { margin-bottom: 12px; }

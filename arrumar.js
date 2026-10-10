@@ -242,3 +242,155 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && arEditando
 // a grade muda de número de colunas com a largura: a largura guardada se ajusta (span ≤ colunas)
 window.addEventListener('resize', () => { clearTimeout(window._arRes); window._arRes = setTimeout(arAplicarTudo, 200); });
 arAplicarTudo(); arBotoes();
+
+// ════════════════════════════════════════════════════════════════════════════
+// VISTA EM BARRAS nas abas (10/10/2026, C2 levado às outras abas)
+// ────────────────────────────────────────────────────────────────────────────
+// A Config já tinha "▦ Cartões | ☰ Barras". Ele escolheu levar às outras abas como
+// opção na ⚙ de cada uma (o padrão continua Cartões; por aparelho, prefs.abaVista).
+// Em Barras, cada micro-aba vira uma FAIXA (ícone + nome + resumo de uma linha);
+// um toque abre a seção logo abaixo da faixa, e só uma fica aberta.
+// Nada muda de lugar no HTML: a aba vira uma coluna (flex) e a posição na tela vem
+// do `order` — as faixas são irmãs das seções, e a seção aberta ganha a ordem logo
+// depois da faixa dela. Quem troca a seção continua sendo o clique na micro-aba
+// (escondida), então tudo o que a troca já fazia (redesenhos, filtros) segue igual.
+// ════════════════════════════════════════════════════════════════════════════
+/** O resumo de uma linha de cada faixa (aba/seção). Seção sem resumo aqui usa os títulos dos cartões dela. */
+const AB_RESUMOS = {
+  'home/cal': 'Dia, semana e mês num lugar só', 'home/compromissos': 'Os próximos e o que marcar',
+  'home/reunioes': 'Pauta, ata e encaminhamentos', 'home/plantoes': 'Escala, turnos e o que falta receber',
+  'finances/painel': 'O mês num olhar: rio, calendário e potes', 'finances/lancamentos': 'Extrato do banco, nova transação e histórico',
+  'finances/orcamento': 'Quanto já foi de cada pote', 'finances/recorrentes': 'Contas e entradas que se repetem',
+  'finances/analise': 'Por categoria e os últimos meses',
+  'tasks/foco': 'O que importa hoje', 'tasks/listas': 'Todas as listas de tarefas', 'tasks/rotinas': 'O que se repete',
+  'notes/notas': 'Mural ou caderno, com marcadores', 'notes/listas': 'Listas de marcar', 'notes/entregas': 'Compras e o que está para chegar',
+  'studies/mesa': 'A semana por tema e o livro aberto', 'studies/estante': 'Livros, cursos e materiais',
+  'studies/sessoes': 'O caminho do estudo e as sessões', 'studies/ritual': 'O estudo semanal de negócios',
+  'business/painel': 'Mercado, carteira, metas e projetos de relance', 'business/mercado': 'Cotações e gráficos',
+  'business/noticias': 'O que saiu', 'business/carteira': 'Ativos, aportes e resgates', 'business/metas': 'As trilhas e as metas',
+  'business/projetos': 'Projetos de negócio',
+  'health/painel': 'Treino, corpo, comida e médico de relance', 'health/treinos': 'Fichas e treinos feitos',
+  'health/medidas': 'O corpo hoje, peso e medidas', 'health/comida': 'Planos alimentares e refeições',
+  'health/medico': 'Remédios, prevenção, consultas e exames',
+  'leisure/midia': 'Filmes, séries e documentários', 'leisure/saidas': 'Museus, shows e programas', 'leisure/musica': 'Playlists por momento',
+  'trips/viagens': 'As viagens, planejadas e feitas', 'trips/milhas': 'Programas e saldos de milhas',
+  'net/contatos': 'Pessoas, aniversários e quem retomar', 'net/curriculo': 'Experiência e formação',
+  'clinic/painel': 'O mês da clínica, repasses e comissões', 'clinic/funil': 'Quem chegou e em que etapa está',
+  'clinic/servicos': 'O que a clínica vende',
+  'prod/painel': 'A oficina de relance', 'prod/fila': 'As ordens na fila', 'prod/catalogo': 'Produtos e custo real',
+  'prod/estoque': 'O filamento em estoque', 'prod/vendas': 'As vendas registradas', 'prod/config': 'Impressoras e bases de cálculo'
+};
+// aba → false quando uma faixa está aberta. Começa tudo fechado (como na Config): a 1ª vista é o mapa da aba
+// inteira numa tela só — "ver tudo de uma vez, ampliar quando quiser". Vale até recarregar.
+const abFechada = {};
+
+function cfgAbaVista() { prefs.abaVista = prefs.abaVista || {}; return prefs.abaVista; }
+function abVista(aba) { return cfgAbaVista()[aba] === 'barras' ? 'barras' : 'cartoes'; }
+function abMudarVista(aba, v) {
+  const c = cfgAbaVista(); if (v === 'barras') c[aba] = 'barras'; else delete c[aba];
+  arGravar(); delete abFechada[aba]; abAplicar(aba);
+  if (typeof renderConfigAba === 'function') renderConfigAba();
+}
+/** A fileira das micro-abas da aba (direto na aba ou dentro da barra do alto), ou null. */
+function abFileira(sec) { return sec ? sec.querySelector(':scope > .focus-header-tabs[id$="-secoes"], :scope > .cs-barra-aba > .focus-header-tabs[id$="-secoes"]') : null; }
+/** As micro-abas que aparecem (uma desligada na ⚙ — ex.: Entregas — não vira faixa). */
+function abChips(fileira) { return [...fileira.querySelectorAll(':scope > span')].filter(s => !s.hidden && s.style.display !== 'none'); }
+function abNomeSecao(ch) { const m = (ch.getAttribute('onclick') || '').match(/\(\s*'([^']+)'/); return m ? m[1] : ''; }
+/** Resumo de reserva: os títulos dos cartões da seção, sem emoji e sem repetir. */
+function abResumoDosTitulos(sec, nome) {
+  const s = nome && (sec.querySelector(`.agenda-sec[id$="-${CSS.escape(nome)}"]`) || document.getElementById('sec-' + nome));
+  if (!s) return '';
+  const vistos = new Set();
+  return [...s.querySelectorAll('.card > h2, .card > .mod-corpo > h2')].map(h => {
+    const k = h.cloneNode(true); k.querySelectorAll('small, button, select, input, .badge').forEach(e => e.remove());
+    return k.textContent.replace(/[\p{Extended_Pictographic}️]/gu, '').trim().replace(/\s+/g, ' ');
+  }).filter(t => t && !vistos.has(t) && vistos.add(t)).slice(0, 3).join(' · ');
+}
+function abAplicar(aba) {
+  const sec = document.getElementById(aba), fileira = abFileira(sec); if (!fileira) return;
+  const barras = abVista(aba) === 'barras';
+  const linha = fileira.parentElement === sec ? fileira : fileira.parentElement;
+  fileira.classList.add('ab-fileira');
+  sec.classList.toggle('ab-barras', barras);
+  sec.querySelectorAll(':scope > .ab-barra').forEach(b => b.remove());
+  [...sec.children].forEach(el => { el.style.order = ''; el.classList.remove('ab-depois'); });
+  if (!barras) { sec.classList.remove('ab-fechada'); if (typeof agendarAjuste === 'function') agendarAjuste(); return; }
+  const chips = abChips(fileira), ativa = chips.findIndex(s => s.classList.contains('active'));
+  const fechada = abFechada[aba] !== false || ativa < 0;
+  sec.classList.toggle('ab-fechada', fechada);
+  // tudo o que vem depois da fileira (e não flutua por cima, como a ⚙ e o ✎) é conteúdo de seção
+  let depois = false;
+  [...sec.children].forEach(el => {
+    if (el === linha) { depois = true; return; }
+    const pos = getComputedStyle(el).position;
+    if (depois && pos !== 'absolute' && pos !== 'fixed') el.classList.add('ab-depois');
+  });
+  chips.forEach((ch, i) => {
+    const nome = abNomeSecao(ch), txt = ch.textContent.trim().replace(/\s+/g, ' ');
+    const m = txt.match(/^([\p{Extended_Pictographic}️‍]+)\s*(.*)$/u);
+    const aberta = i === ativa && !fechada;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'ab-barra' + (aberta ? ' aberta' : '');
+    b.style.order = 10 + 2 * i;
+    b.setAttribute('aria-expanded', aberta ? 'true' : 'false');
+    b.innerHTML = `<span class="ab-ic" aria-hidden="true">${esc(m ? m[1] : '')}</span><span class="ab-nome">${esc(m ? m[2] : txt)}</span>` +
+      `<small class="ab-resumo">${esc(AB_RESUMOS[aba + '/' + nome] || abResumoDosTitulos(sec, nome))}</small><span class="ab-seta" aria-hidden="true">▾</span>`;
+    b.onclick = () => abTocar(aba, i);
+    sec.appendChild(b);
+  });
+  if (!fechada) sec.querySelectorAll(':scope > .ab-depois').forEach(el => { el.style.order = 10 + 2 * ativa + 1; });
+  if (typeof agendarAjuste === 'function') agendarAjuste();
+}
+/** Toque numa faixa: fechada abre (trocando a seção pela micro-aba dela); a aberta fecha. */
+function abTocar(aba, i) {
+  const sec = document.getElementById(aba), fileira = abFileira(sec); if (!fileira) return;
+  const ch = abChips(fileira)[i]; if (!ch) return;
+  if (ch.classList.contains('active') && abFechada[aba] === false) { abFechada[aba] = true; abAplicar(aba); return; }
+  abFechada[aba] = false;
+  if (!ch.classList.contains('active')) ch.click();
+  abAplicar(aba);
+  // a faixa que abriu fica à vista (o conteúdo de uma faixa de cima pode ter empurrado a página)
+  const b = sec.querySelector(':scope > .ab-barra.aberta'); if (!b) return;
+  setTimeout(() => { const r = b.getBoundingClientRect(); if (r.top < 60 || r.top > window.innerHeight * 0.5) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+}
+function abAplicarTodas() { document.querySelectorAll('.tab-content').forEach(sec => { if (abFileira(sec)) abAplicar(sec.id); }); }
+/** O alternador na ⚙ de cada aba que tem micro-abas (antes do que a ⚙ dela já mostrava). */
+function abHtmlVista(aba) {
+  const b = abVista(aba) === 'barras';
+  return `<h4 class="dev-titulo">Como ver esta aba</h4>
+    <div class="cfg-vista ab-vista-cfg"><span class="cfg-vista-seg" role="group" aria-label="Como ver esta aba">
+      <button type="button" class="${b ? '' : 'on'}" onclick="abMudarVista('${aba}', 'cartoes')">▦ Cartões</button>
+      <button type="button" class="${b ? 'on' : ''}" onclick="abMudarVista('${aba}', 'barras')">☰ Barras</button></span>
+      <small>${b ? 'Cada parte da aba é uma faixa: toque para abrir, só uma fica aberta.' : 'As partes da aba ficam nas micro-abas do alto.'} Vale neste aparelho.</small></div>`;
+}
+if (typeof CFG_ABA_EXTRA !== 'undefined') document.querySelectorAll('.tab-content').forEach(sec => {
+  if (!abFileira(sec)) return;
+  const k = 'btn-' + sec.id, antes = CFG_ABA_EXTRA[k];
+  CFG_ABA_EXTRA[k] = () => abHtmlVista(sec.id) + (typeof antes === 'function' ? antes() : '');
+});
+// quem troca a seção (micro-aba, botão dentro de um quadro, aviso do Painel…) abre a faixa dela
+const AB_FUNCOES = {};   // verSecaoX → id da aba
+document.querySelectorAll('.tab-content').forEach(sec => {
+  const f = abFileira(sec); if (!f) return;
+  f.querySelectorAll(':scope > span').forEach(s => {
+    const m = (s.getAttribute('onclick') || '').match(/^\s*(verSecao\w+)\(/); if (m) AB_FUNCOES[m[1]] = sec.id;
+  });
+});
+Object.keys(AB_FUNCOES).forEach(fn => {
+  const f = window[fn], aba = AB_FUNCOES[fn]; if (typeof f !== 'function') return;
+  window[fn] = function () {
+    const r = f.apply(this, arguments);
+    if (abVista(aba) === 'barras') { abFechada[aba] = false; abAplicar(aba); }
+    return r;
+  };
+});
+// uma micro-aba ligada/desligada na ⚙ (ex.: Entregas) muda as faixas
+if (typeof aplicarAjustesAba === 'function') {
+  const _aaaAb = aplicarAjustesAba;
+  aplicarAjustesAba = function () { const r = _aaaAb.apply(this, arguments); abAplicarTodas(); return r; };
+}
+if (typeof changeTab === 'function') {
+  const _ctAb = changeTab;
+  changeTab = function () { const r = _ctAb.apply(this, arguments); setTimeout(abAplicarTodas, 0); return r; };
+}
+abAplicarTodas();

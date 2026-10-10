@@ -5955,3 +5955,20 @@ body.mod-ligado #settings.cfg-barras.tab-content.active > .card { padding-top: 0
 /* A1: linhas de ajuste no ⚙ da aba ("Abrir em [Semana]", "das [07:00] às [22:00]") */
 .cfg-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0; font-size: var(--t-apoio); color: var(--txt2); }
 .cfg-linha select { width: auto; min-width: 0; margin: 0; min-height: 0; height: 34px; padding: 0 10px; font-size: var(--t-apoio); }
+
+/* ═══ ⑧ (10/10): PASSADA DE MINIMALISMO EM TODAS AS ABAS ═══
+   1. A alça dos módulos (⠿ ⤢ ▾) ganhou lugar na linha do TÍTULO. Antes cada cartão reservava uma faixa de
+      52 px no alto só para ela (armadilha 47: flutuando, cobria botões) — medido: 53 px da borda ao título.
+      Agora, quando o cartão começa por um título, a alça fica ao lado dele e o título ganha o espaço da
+      direita; a faixa própria só sobra para cartão que não começa por título. */
+body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) { padding-top: var(--s5); }
+body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
+body.mod-ligado .card:not(.mod-recolhido) > .mod-corpo > h2:first-child { padding-right: 124px; min-height: 36px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+/* o mesmo quando o título mora num cabeçalho próprio (ex.: o das Notas: título + contador) */
+body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) { padding-top: var(--s5); }
+body.mod-ligado .card:not(.mod-recolhido):has(> .mod-corpo > :first-child:not(h2) > h2:first-child) > .mod-alca { top: calc(var(--s5) - 6px); right: 12px; }
+body.mod-ligado .card:not(.mod-recolhido) > .mod-corpo > :first-child:not(h2):has(> h2:first-child) { padding-right: 124px; min-height: 36px; }
+/* 2. Vão entre as abas de seção e o 1º cartão (36–94 px medidos): a margem solta do 1º cartão de cada seção
+      somava com o arredondamento da grade (armadilha 60). A seção já tem o vão da grade em cima. */
+body[data-casca="nova"] .tab-content.active > .agenda-sec > .card:first-child,
+body[data-casca="nova"] .tab-content.active > .agenda-sec > :first-child > .card:first-child { margin-top: 0 !important; }

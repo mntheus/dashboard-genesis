@@ -2566,6 +2566,10 @@ body[data-casca="nova"] #paineis[data-modo="canto"] { bottom: 14px; }
 @media (min-width: 1700px) { :root { --col-max: 1800px; --zona-lateral: 360px; } }   /* so daqui para cima cabe lateral */
 @media (min-width: 2400px) { :root { --col-max: 2400px; --zona-lateral: 420px; } }
 
+/* 1.6 (10/10) "centralizar × lateralizar o layout": o body é flex e centraliza a coluna; à esquerda/direita ela
+   encosta no lado escolhido. Só aparece quando a tela é mais larga que a coluna (ultrawide ou com janelas abertas). */
+body[data-casca="nova"][data-layout="esquerda"] { justify-content: flex-start; }
+body[data-casca="nova"][data-layout="direita"] { justify-content: flex-end; }
 /* a coluna central: o teto vira variavel (antes era 1100 cravado) */
 body[data-casca="nova"] > .container { max-width: var(--col-max); }
 /* no modo "abas na lateral" a grade do trilho tinha teto proprio de 1280 */
@@ -2579,6 +2583,9 @@ body[data-casca="nova"] > .container { max-width: var(--col-max); }
 /* bem largo, as janelas podem usar os DOIS lados */
 @media (min-width: 2400px) {
   body[data-casca="nova"][data-abas="topo"].com-paineis { padding-left: var(--zona-lateral); }
+  /* 1.6: encostado de um lado, a zona das janelas fica só do outro (senão a coluna só andava 100 px) */
+  body[data-casca="nova"][data-abas="topo"].com-paineis[data-layout="esquerda"] { padding-left: 16px; }
+  body[data-casca="nova"][data-abas="topo"].com-paineis[data-layout="direita"] { padding-right: 16px; }
 }
 
 

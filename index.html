@@ -1609,6 +1609,13 @@
           <span data-pos="lateral" onclick="escolherPosicaoAbas('lateral')">⬅️ Na lateral</span>
         </div>
         <p class="hint" style="margin-top:6px">Na lateral só em telas largas (no celular ficam sempre no topo).</p>
+        <label style="margin-top:14px; display:block;">Conteúdo em tela muito larga:</label>
+        <div class="focus-header-tabs" id="layout-posicao" style="border:none; padding:0;">
+          <span data-layout="centro" onclick="escolherLayout('centro')">⬌ No centro</span>
+          <span data-layout="esquerda" onclick="escolherLayout('esquerda')">⇤ À esquerda</span>
+          <span data-layout="direita" onclick="escolherLayout('direita')">⇥ À direita</span>
+        </div>
+        <p class="hint" style="margin-top:6px">Só muda algo quando a tela é mais larga que o conteúdo (ultrawide, ou com as janelas flutuantes abertas). O espaço que sobra fica do outro lado.</p>
         <label style="margin-top:10px; display:block;">Ordem e visibilidade:</label>
         <ul id="abas-ordem" class="abas-ordem"></ul>
         <button type="button" class="btn" style="width:100%; margin-top:10px" onclick="restaurarAparencia()">↺ Restaurar padrão</button>

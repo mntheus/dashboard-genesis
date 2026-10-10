@@ -3213,7 +3213,7 @@ const ABAS_INFO = [
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
   ['btn-business', '📈 Negócios'], ['btn-inventory', '🎒 Inventário'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
-const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
  *  com cópia, um `const c = cfgAparencia()` guardado numa variável se perderia
  *  na chamada seguinte. Mesmo cuidado do cfgFlut(). */
@@ -3247,6 +3247,7 @@ function aplicarAparencia() {
   document.body.dataset.cores = c.cores;
   aplicarCapa();
   document.body.dataset.abas = c.abas;
+  document.body.dataset.layout = c.layout || 'centro';   // 1.6 (10/10): conteúdo no centro, à esquerda ou à direita
   const nav = document.querySelector('.tabs');
   if (nav) c.ordem.forEach(id => { const b = document.getElementById(id); if (b) { nav.appendChild(b); b.hidden = c.ocultas.includes(id); } });
   // se a aba aberta foi escondida, volta pro Painel
@@ -3260,6 +3261,9 @@ function escolherModoCor(m) {
   toast(m === 'neutro' ? '🩶 Modo neutro: cor só no que avisa (atraso, conta a pagar, dinheiro).' : '🎨 Modo colorido: tudo com as cores cheias.', 5000);
 }
 function escolherPosicaoAbas(p) { cfgAparencia().abas = p; salvarAparencia(); }
+/** 1.6 (ditado de 07/10, "centralizar × lateralizar o layout"): em tela mais larga que o conteúdo (ultrawide),
+ *  a coluna fica no centro, encostada à esquerda ou à direita. Em tela comum não muda nada. */
+function escolherLayout(p) { cfgAparencia().layout = ['centro', 'esquerda', 'direita'].includes(p) ? p : 'centro'; salvarAparencia(); if (typeof recolocarPaineis === 'function') setTimeout(recolocarPaineis, 60); }
 function moverAba(id, dir) {
   if (id === 'btn-focus' || id === 'btn-settings') return;   // as duas pontas são fixas
   const c = cfgAparencia(); const i = c.ordem.indexOf(id); const j = i + dir;
@@ -3280,6 +3284,7 @@ function renderAparencia() {
   const mc = document.getElementById('modo-cor');
   if (mc) mc.innerHTML = Object.entries(MODOS_COR).map(([k, m]) => `<span class="${c.cores === k ? 'active' : ''}" onclick="escolherModoCor('${k}')">${m[0]} ${m[1]}</span>`).join('');
   document.querySelectorAll('#abas-posicao span').forEach(s => s.classList.toggle('active', s.dataset.pos === c.abas));
+  document.querySelectorAll('#layout-posicao span').forEach(s => s.classList.toggle('active', s.dataset.layout === (c.layout || 'centro')));
   const fa = document.getElementById('arte-fonte'); if (fa) fa.querySelectorAll('span').forEach(s => s.classList.toggle('active', s.dataset.fonte === cfgArte().fonte));
   const al = document.getElementById('arte-ligado'); if (al) al.checked = cfgArte().ligado;
   renderCapas();

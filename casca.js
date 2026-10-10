@@ -118,7 +118,9 @@ function estadoDaAba(id) {
       }
       case 'home': {
         const n = typeof itensDoDia === 'function' ? itensDoDia(hoje).length : events.filter(e => e.date === hoje).length;
-        return n ? `Hoje: ${plural(n, 'item', 'itens')} na agenda.` : 'Hoje está livre na agenda.';
+        // A1 (10/10): o próximo compromisso na mesma linha (desligável no ⚙ da Agenda)
+        const prox = typeof agProximo === 'function' && cfgAgenda().proximo ? agProximo() : '';
+        return (n ? `Hoje: ${plural(n, 'item', 'itens')} na agenda` : 'Hoje está livre na agenda') + (prox ? ` · ${prox}.` : '.');
       }
       case 'finances': {
         const doMes = transactions.filter(t => (typeof dataTransacao === 'function' ? dataTransacao(t) : (t.date || '')).startsWith(ym));
@@ -510,7 +512,9 @@ if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-home'] = () => {
     <label class="cfg-linha">Abrir em <select onchange="mudarCfgAgenda('vista', this.value)">${Object.entries(AG_VISTAS).map(([k, n]) => `<option value="${k}"${c.vista === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
     <label class="cfg-linha">A grade do dia vai das <select onchange="mudarCfgAgenda('hIni', this.value)">${horas(0, 12, c.hIni)}</select>
       às <select onchange="mudarCfgAgenda('hFim', this.value)">${horas(14, 24, c.hFim)}</select></label>
-    <p class="hint" style="margin:4px 0 12px">Compromisso fora da faixa continua aparecendo na lista e no mês; a grade só mostra menos horas vazias.</p>`;
+    <p class="hint" style="margin:4px 0 12px">Compromisso fora da faixa continua aparecendo na lista e no mês; a grade só mostra menos horas vazias.</p>
+    <label class="check-line"><input type="checkbox" ${c.compactar ? 'checked' : ''} onchange="alternarCfgAgenda('compactar')"> Esconder sozinho as horas vazias do começo e do fim (a grade mostra das 08 às 20 e cresce até os seus compromissos; o ⇕ no canto mostra todas)</label>
+    <label class="check-line"><input type="checkbox" ${c.proximo ? 'checked' : ''} onchange="alternarCfgAgenda('proximo')"> Mostrar o próximo compromisso no cabeçalho da Agenda</label>`;
 };
 /** ⚙ da Saúde: o treino ao vivo (som, vibração, tela acesa) — "tudo que liga/desliga vai para as Configurações". */
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-health'] = () => {

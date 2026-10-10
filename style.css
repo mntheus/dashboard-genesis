@@ -1042,7 +1042,11 @@ body:has(#paineis[data-modo="celular"]:not([hidden])) .toast { bottom: 100px; }
 .livre-nada { color: var(--txt4); }
 
 .ag-grade { display: grid; grid-template-columns: 52px 1fr; grid-template-rows: auto 1fr; gap: 0; }
-.ag-canto { grid-column: 1; grid-row: 1; }
+.ag-canto { grid-column: 1; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; }
+/* A1 (10/10): o ⇕ que mostra as horas escondidas — pequeno, no canto vazio em cima da coluna das horas */
+.ag-todas { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 26px; border-radius: 8px;
+  border: 1px solid var(--fio-sutil); color: var(--txt3); font-size: .8rem; cursor: pointer; user-select: none; }
+.ag-todas:hover, .ag-todas:focus-visible { color: var(--txt-forte); border-color: color-mix(in srgb, var(--acento) 50%, transparent); outline: none; }
 .ag-cabecalhos { grid-column: 2; grid-row: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; margin-bottom: 4px; }
 .ag-grade.dia .ag-cabecalhos { grid-auto-columns: 1fr; }
 .ag-col-cab { text-align: center; padding: 5px 2px; border-radius: 8px; cursor: pointer; background: var(--bg); border: 1px solid transparent; }

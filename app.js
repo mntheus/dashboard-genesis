@@ -4843,9 +4843,56 @@ function cfgAgenda() {
   if (!(c.hIni >= 0 && c.hIni <= 12)) c.hIni = 6;
   if (!(c.hFim >= 14 && c.hFim <= 24)) c.hFim = 23;
   if (!AG_VISTAS[c.vista]) c.vista = 'auto';
+  // A1 (10/10): as duas propostas que estavam em aberto, ligadas por padrão e desligáveis no ⚙
+  if (c.compactar === undefined) c.compactar = true;   // esconder as horas vazias do começo e do fim
+  if (c.proximo === undefined) c.proximo = true;       // o próximo compromisso no cabeçalho
   return c;
 }
 function aplicarCfgAgenda() { const c = cfgAgenda(); AG_H_INI = c.hIni; AG_H_FIM = Math.max(c.hIni + 4, c.hFim); }
+function alternarCfgAgenda(campo) {
+  const c = cfgAgenda(); c[campo] = !c[campo];
+  localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
+  renderAgendaVista();
+  if (typeof atualizarCabecalhoAtivo === 'function') atualizarCabecalhoAtivo();
+}
+let agTodasHoras = false;   // o ⇕ do canto da grade: ver todas as horas até recarregar
+/** A1 (10/10): a grade esconde sozinha as horas vazias do começo e do fim. A janela sempre cobre das 08 às 20
+ *  (onde se costuma marcar e onde se clica para criar), cresce até o 1º e o último bloco dos dias à vista (com
+ *  uma hora de folga), inclui a hora de agora quando hoje está à vista, e nunca sai da faixa escolhida no ⚙.
+ *  Muda AG_H_INI/FIM até o próximo desenho: clique, arrasto e a linha do "agora" usam a mesma régua. */
+function agAplicarFaixa(dias) {
+  aplicarCfgAgenda();
+  const c = cfgAgenda(), ini0 = AG_H_INI, fim0 = AG_H_FIM;
+  if (!c.compactar || agTodasHoras) return { escondeu: false, ini0, fim0 };
+  let a = 8, b = 20;
+  dias.forEach(d => blocosDoDia(d).forEach(x => {
+    if (x.ini === null) return;
+    a = Math.min(a, Math.floor(x.ini / 60) - 1);
+    b = Math.max(b, Math.ceil(Math.min(x.fim, 24 * 60) / 60));
+  }));
+  if (dias.includes(hojeISO())) { const h = Math.floor(agoraMin() / 60); a = Math.min(a, h); b = Math.max(b, h + 1); }
+  AG_H_INI = Math.max(ini0, a); AG_H_FIM = Math.min(fim0, Math.max(b, AG_H_INI + 4));
+  return { escondeu: AG_H_INI > ini0 || AG_H_FIM < fim0, ini0, fim0 };
+}
+/** A1 (10/10): o próximo compromisso ou plantão, para o cabeçalho da Agenda ("" se não houver nos próximos 7 dias). */
+function agProximo() {
+  const h = hojeISO(), agora = agoraMin();
+  for (let i = 0; i < 7; i++) {
+    const d = somaDias(h, i);
+    const it = itensDoDia(d).filter(x => x.kind !== 'task' && x.time && !(x.obj && x.obj.done) && (i > 0 || minDeHora(x.time) >= agora));
+    if (!it.length) continue;
+    const x = it[0], o = x.obj;
+    const nome = x.kind === 'shift' ? `${vt().um.charAt(0).toUpperCase() + vt().um.slice(1)} ${o.desc || ''}`.trim() : o.title;
+    if (i === 0) {
+      const falta = minDeHora(x.time) - agora;
+      const em = falta < 60 ? `${falta} min` : falta < 180 ? `${Math.floor(falta / 60)} h${falta % 60 ? ' ' + String(falta % 60).padStart(2, '0') : ''}` : `${Math.round(falta / 60)} h`;
+      return `próximo: ${nome} às ${x.time} (em ${em})`;
+    }
+    return `próximo: ${nome} ${i === 1 ? 'amanhã' : DIAS_SEM[diaDaSemanaISO(d)] + ' ' + isoParaBR(d).slice(0, 5)} às ${x.time}`;
+  }
+  return '';
+}
+function minDeHora(t) { const [hh, mm] = String(t || '').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); }
 function mudarCfgAgenda(campo, v) {
   const c = cfgAgenda(); c[campo] = campo === 'vista' ? v : Number(v);
   localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
@@ -4917,6 +4964,8 @@ function linhaHoras() {
 function renderAgendaVista() {
   const el = document.getElementById('ag-vista'); if (!el) return;
   const rot = document.getElementById('ag-rotulo');
+  const diasVista = agVista === 'dia' ? [agDia] : Array.from({ length: 7 }, (_, i) => somaDias(inicioDaSemana(agDia), i));
+  const faixa = agVista === 'dia' || agVista === 'semana' ? agAplicarFaixa(diasVista) : (aplicarCfgAgenda(), { escondeu: false });
   const alturaGrade = (AG_H_FIM - AG_H_INI + 1) * AG_PX_HORA;
   if (agVista === 'mes') { el.innerHTML = ''; el.hidden = true; document.getElementById('sec-cal-mes').hidden = false; if (rot) rot.innerText = ''; return; }
   document.getElementById('sec-cal-mes').hidden = true; el.hidden = false;
@@ -4933,8 +4982,12 @@ function renderAgendaVista() {
       ${n.length ? `<div class="ag-sem-hora">${n.slice(0, 3).map(x => `<span title="${esc(x.titulo)}">${x.icone}</span>`).join('')}${n.length > 3 ? '<span>+' + (n.length - 3) + '</span>' : ''}</div>` : ''}</div>`;
   }).join('');
   const colunas = dias.map(d => `<div class="ag-col" data-dia="${d}" style="height:${alturaGrade}px" title="Clique num espaço vazio para criar aqui (ou arraste para escolher a duração)" onpointerdown="agFundoDown(event, '${d}')">${colunaDoDia(d, agVista === 'semana')}${faixaAgora(d)}</div>`).join('');
+  // o ⇕ só aparece quando há hora escondida (ou quando ele pediu para ver todas)
+  const todas = cfgAgenda().compactar && (faixa.escondeu || agTodasHoras)
+    ? `<span class="ag-todas" role="button" tabindex="0" onclick="agTodasHoras = !agTodasHoras; renderAgendaVista()" onkeydown="if(event.key==='Enter'){agTodasHoras = !agTodasHoras; renderAgendaVista()}"
+        title="${agTodasHoras ? 'Esconder de novo as horas vazias' : `Mostrar todas as horas (${String(faixa.ini0).padStart(2, '0')}–${String(faixa.fim0 + 1).padStart(2, '0')} h)`}">${agTodasHoras ? '⇡⇣' : '⇕'}</span>` : '';
   el.innerHTML = `<div class="ag-grade ${agVista}">
-      <div class="ag-canto"></div><div class="ag-cabecalhos">${cabec}</div>
+      <div class="ag-canto">${todas}</div><div class="ag-cabecalhos">${cabec}</div>
       <div class="ag-horas" style="height:${alturaGrade}px">${linhaHoras()}</div>
       <div class="ag-colunas">${colunas}</div>
     </div>`;

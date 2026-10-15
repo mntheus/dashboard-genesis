@@ -263,6 +263,7 @@ function prepararFolhas() {
     // A lista fica onde está. (Eram 26 dos 37 formulários — Tarefas, Metas, Carteira...)
     sec.querySelectorAll('form').forEach(form => {
       if (form.closest('.cs-folha, .modal, .modal-overlay')) return;
+      if (form.dataset.semFolha) return;   // (15/10) fica no lugar, sem botão no alto (ex.: os turnos salvos da Agenda)
       if (!form.querySelector('button[type="submit"], button:not([type])')) return;
       if (camposVisiveis(form) < 2) return;        // campo rápido de uma linha continua na tela
       const card = form.closest('.card'); if (!card) return;
@@ -429,6 +430,7 @@ function aplicarCasca() {
     montarCabecalhos();
     prepararFolhas();
     juntarBarras();
+    if (typeof agBotaoNovo === 'function') agBotaoNovo();   // (15/10) o "＋ Novo" da Agenda, em todas as seções
   } else {
     if (folhaAberta) fecharFolha(folhaAberta);
     const bDia = document.getElementById('btn-iniciar-dia');

@@ -257,9 +257,12 @@
         <h2 id="shift-form-title" data-vt="formTitulo">Agendar novo plantão</h2>
         <form id="shift-form">
           <input type="hidden" id="shift-id">
-          <label for="shift-place">Local (preenche hora, duração e valor padrão):</label>
-          <select id="shift-place" onchange="aplicarLocalPlantao()"></select>
+          <!-- 15/10 (ideia dele: "muito confuso adicionar plantão; caía como turno e não ia para a agenda — mais parecido
+               com o Google Agenda, turno ou recorrência só se eu pedir"): o básico primeiro; o turno salvo é um ATALHO
+               opcional e a repetição é uma escolha explícita, que por baixo cria o turno com escala fixa. -->
           <label for="shift-desc" data-vt="descLabel">Local:</label><input type="text" id="shift-desc" data-vt="descDica" data-vt-onde="placeholder" placeholder="Hospital X" required>
+          <div class="turno-atalho"><label for="shift-place">Atalho (opcional): preencher com um turno salvo</label>
+            <select id="shift-place" onchange="aplicarLocalPlantao()"></select></div>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label for="shift-date">Data:</label><input type="date" id="shift-date" required></div>
             <div><label for="shift-time">Início:</label><input type="time" id="shift-time" required></div>
@@ -267,6 +270,14 @@
           </div>
           <label for="shift-amount">Valor total (R$):</label><input type="number" id="shift-amount" step="0.01" required>
           <div id="shift-rate-hint" class="rate-hint"></div>
+          <div id="shift-repete-box">
+            <label for="shift-repete">Repetir:</label>
+            <select id="shift-repete" onchange="document.getElementById('shift-repete-dica').hidden = this.value === 'nao'">
+              <option value="nao">Não se repete</option>
+              <option value="semanal">Toda semana, neste mesmo dia</option>
+            </select>
+            <p class="hint" id="shift-repete-dica" hidden>Vira uma escala fixa: os das próximas semanas entram sozinhos na agenda. Para parar, desmarque a escala em “Turnos salvos”, lá embaixo.</p>
+          </div>
           <details class="task-more" id="shift-parts-box">
             <summary>🧮 Horas com valores diferentes (feriado, virada de dia, hora extra)</summary>
             <p class="hint" data-vt="faixasHint" data-vt-onde="html">Use quando o mesmo plantão tem horas pagas a preços diferentes.</p><p class="hint"> Duração e valor total passam a ser a soma das faixas.</p>
@@ -301,7 +312,7 @@
         <h2 data-vt="turnosTitulo">Turnos de plantão</h2>
         <p class="hint" data-vt="turnosHint" data-vt-onde="html"></p>
         <div id="turnos-sugeridos"></div>
-        <form id="place-form">
+        <form id="place-form" data-sem-folha="1">
           <input type="hidden" id="place-id">
           <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr; gap: 10px;">
             <div><label for="place-name">Turno:</label><input type="text" id="place-name" placeholder="Hospital X 12h" required></div>

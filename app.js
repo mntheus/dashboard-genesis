@@ -1413,7 +1413,7 @@ let shiftFilter = 'proximos';
 function preencherLocais() {
   const sel = document.getElementById('shift-place'); if (!sel) return;
   const atual = sel.value;
-  sel.innerHTML = '<option value="">— escolher turno —</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.time ? ' · ' + esc(p.time) : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ' · ' + fmtHora(valorHora(p.amount, p.hours)) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
+  sel.innerHTML = '<option value="">nenhum — vou digitar</option>' + places.map((p, i) => `<option value="${i}">${esc(p.name)}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.time ? ' · ' + esc(p.time) : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}${p.amount && p.hours ? ' · ' + fmtHora(valorHora(p.amount, p.hours)) : ''}</option>`).join('') + '<option value="outro">✏️ Outro (digitar)</option>';
   if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
   renderPlaces();
 }
@@ -1681,11 +1681,24 @@ document.getElementById('shift-form').addEventListener('submit', (e) => {
     Object.assign(s, dados);
   }
   else { s = { id: novoId(), paid: false, paidAt: null, ...dados }; shifts.push(s); }
+  // (15/10) "Repetir: toda semana" — só quando pedido: cria por baixo o turno com escala fixa, e este plantão já é a
+  // 1ª ocorrência dela (placeId + occur), para a escala não criar um segundo no mesmo dia
+  const repete = !id && (document.getElementById('shift-repete') || {}).value === 'semanal';
+  if (repete) {
+    const p = { id: novoId(), skips: [], name: `${dados.desc}${dados.hours ? ' ' + dados.hours + 'h' : ''}`, local: dados.desc,
+      time: dados.time, hours: dados.hours, amount: dados.amount, repete: true, weekdays: [diaDaSemanaISO(dados.date)], desde: dados.date };
+    places.push(p); salvar('places', places);
+    s.placeId = p.id; s.occur = dados.date;
+  }
   sincronizarLancamentoPlantao(s);
   salvar('shifts', shifts); salvar('finances', transactions);
-  if (soltou) gerarPlantoesFixos(true);
+  if (soltou || repete) gerarPlantoesFixos(true);
+  if (repete) preencherLocais();
   cancelarEdicaoPlantao(); renderShifts(); updateFinanceValues(); renderFinances(); renderJournal(); atualizarSaudacao();
-  toast(id ? '🚑 Plantão atualizado.' : '🚑 Plantão agendado (a receber).');
+  if (typeof renderAgendaVista === 'function') renderAgendaVista();
+  toast(id ? `🚑 ${vt().um.charAt(0).toUpperCase() + vt().um.slice(1)} atualizado.` : repete
+    ? `🚑 Agendado em ${isoParaBR(dados.date)} e ${[0, 6].includes(diaDaSemanaISO(dados.date)) ? 'todo' : 'toda'} ${DIAS_SEMANA[diaDaSemanaISO(dados.date)].toLowerCase()} — já está na agenda.`
+    : `🚑 Agendado em ${isoParaBR(dados.date)} às ${dados.time} — já está na agenda (a receber).`, 5000);
 });
 function cancelarEdicaoPlantao() {
   document.getElementById('shift-form').reset(); document.getElementById('shift-id').value = '';
@@ -1693,8 +1706,11 @@ function cancelarEdicaoPlantao() {
   document.getElementById('shift-form-title').innerText = vt().formTitulo;
   document.getElementById('shift-submit').innerText = vt().formBtn;
   document.getElementById('shift-cancel').hidden = true;
+  const rb = document.getElementById('shift-repete-box'); if (rb) rb.hidden = false;   // repetir: só ao criar
+  const rd = document.getElementById('shift-repete-dica'); if (rd) rd.hidden = true;
 }
 function editarPlantao(id) {
+  const rb = document.getElementById('shift-repete-box'); if (rb) rb.hidden = true;
   const s = shifts.find(x => x.id === id); if (!s) return;
   changeTab('home'); verSecaoAgenda('plantoes');
   document.getElementById('shift-id').value = s.id; document.getElementById('shift-place').value = '';
@@ -5181,6 +5197,23 @@ document.addEventListener('pointercancel', () => {
   if (agNovo) { if (agNovo.el && agNovo.el.parentNode) agNovo.el.parentNode.removeChild(agNovo.el); agNovo = null; }
 });
 
+/** (15/10, ideia dele: "ao clicar na agenda não dá para adicionar compromisso, só na aba de trabalho") — o
+ *  "＋ Novo" no alto da Agenda, à vista em TODAS as seções. Abre a mesma janelinha do clique na grade: o dia que
+ *  está à vista (ou hoje), na próxima hora cheia, por 1 hora. Ali dentro: compromisso, reunião ou "É plantão". */
+function agNovoAgora() {
+  const hoje = hojeISO(), iso = (agVista === 'dia' || agVista === 'semana') && agDia >= hoje ? agDia : hoje;
+  const ini = iso === hoje ? Math.min(22 * 60, (Math.floor(agoraMin() / 60) + 1) * 60) : 9 * 60;
+  abrirNovoRapido(iso, ini, ini + 60);
+  setTimeout(() => { const t = document.getElementById('novo-titulo'); if (t) t.focus(); }, 60);
+}
+function agBotaoNovo() {
+  const acoes = document.querySelector('#home > .cs-hero .cs-acoes'); if (!acoes || document.getElementById('ag-novo-btn')) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'ag-novo-btn'; b.className = 'cs-acao cs-acao-forte'; b.onclick = agNovoAgora;
+  b.title = 'Novo compromisso, reunião ou plantão (também dá para clicar num horário vazio da grade)';
+  b.innerHTML = (typeof ic === 'function' ? ic('mais') : '＋') + '<span>Novo</span>';
+  acoes.prepend(b);
+}
 /** Abre o modal rápido já preenchido com o que foi clicado na grade. */
 function abrirNovoRapido(iso, ini, fim) {
   const m = document.getElementById('novo-modal'); if (!m) return;

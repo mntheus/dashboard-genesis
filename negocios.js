@@ -27,7 +27,10 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 // ───────────────────────────── catálogo e estado ──────────────────────────
-const NG_PERIODOS = { '15d': [15, '1mo', '15 dias'], '1m': [31, '1mo', '1 mês'], '3m': [92, '3mo', '3 meses'], '6m': [183, '6mo', '6 meses'], '1a': [366, '1y', '1 ano'] };
+// (15/10, ideia dele: "semanal e diário") 7 dias entra; "1 dia" não — as fontes gratuitas dão UM ponto por dia
+// (a data, sem hora); o gráfico de um dia precisaria de cotação de hora em hora (só o Yahoo, pela ponte que ainda
+// não funciona, e a CoinGecko dão). A variação do dia já aparece no número de cada ativo.
+const NG_PERIODOS = { '7d': [7, '5d', '7 dias'], '15d': [15, '1mo', '15 dias'], '1m': [31, '1mo', '1 mês'], '3m': [92, '3mo', '3 meses'], '6m': [183, '6mo', '6 meses'], '1a': [366, '1y', '1 ano'] };
 const MERCADO_VALIDADE_MS = 6 * 3600 * 1000;   // cotação de hoje serve; de ontem, busca de novo
 const NG_NOTICIAS_VALIDADE_MS = 30 * 60 * 1000;
 const NG_CORES = ['#22c55e', '#38bdf8', '#f59e0b', '#a78bfa', '#f472b6', '#14b8a6', '#fb923c', '#60a5fa', '#e879f9', '#facc15', '#34d399', '#f87171'];

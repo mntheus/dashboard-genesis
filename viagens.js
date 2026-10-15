@@ -99,6 +99,7 @@ function vgRapidaAdicionar() {
     const t = { id: novoId(), destino: e.destino, inicio: e.inicio, fim: e.fim, status: e.inicio ? 'planejando' : 'ideia', orcamento: e.orcamento, notas: '', gasto: 0,
       mala: MALA_PADRAO.map(x => ({ text: x, done: false, estado: 'falta' })), docs: DOCS_PADRAO.map(x => ({ text: x, done: false, estado: 'falta' })), roteiro: [], reservas: [], createdAt: Date.now() };
     trips.push(t); salvar('trips', trips); renderViagens();
+    setTimeout(() => ilustrarViagem(t.id, true), 300);   // a foto e o resumo do destino, em silêncio
     toast(`✈️ ${t.destino}${t.inicio ? ' · ' + isoParaBR(t.inicio).slice(0, 5) : ''} — com mala e documentos prontos.`);
   }
   inp.value = ''; vgRapidaPrevia(); inp.focus();
@@ -111,7 +112,7 @@ function vgEmbarque(t, grande) {
   return `<div class="vg-embarque${grande ? ' grande' : ''}" style="--cor:${cor}" tabindex="0" onclick="vgAbrir(${t.id})" onkeydown="if (event.key === 'Enter') vgAbrir(${t.id})">
     <div class="vg-emb-corpo">
       <small class="vg-emb-rot">CARTÃO DE EMBARQUE · <span style="color:${s[2]}">${s[0]} ${s[1]}</span></small>
-      <div class="vg-emb-dest${String(t.destino).length > 16 ? ' longo' : ''}"><b>${esc(t.destino)}</b><span class="vg-cod">${esc(vgCodigo(t.destino))}</span></div>
+      <div class="vg-emb-dest${String(t.destino).length > 16 ? ' longo' : ''}">${t.img ? `<img class="vg-emb-img" src="${esc(t.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<b>${esc(t.destino)}</b><span class="vg-cod">${esc(vgCodigo(t.destino))}</span></div>
       <div class="vg-emb-datas">${t.inicio ? `<span>${isoParaBR(t.inicio).slice(0, 5)}</span><i>✈</i><span>${t.fim ? isoParaBR(t.fim).slice(0, 5) : '—'}</span>${t.inicio && t.fim ? `<small>${diasDeViagem(t)} dias</small>` : ''}` : '<small>sem data ainda</small>'}</div>
       <div class="vg-emb-aneis">${vgAnel(t.mala, '🧳')}${vgAnel(t.docs, '📄')}${(t.reservas || []).length ? `<span class="nt-marc sem-hash">🎟️ ${(t.reservas || []).length}</span>` : ''}</div>
       ${orc ? `<div class="vg-orc" title="${formatCurrency(gasto)} reservados de ${formatCurrency(orc)}"><div class="vg-orc-barra${gasto > orc ? ' passou' : ''}"><i style="width:${pct}%"></i></div><small>${finCompacto(gasto)} de ${finCompacto(orc)}</small></div>` : ''}
@@ -152,7 +153,35 @@ function vgRenderViagens() {
 }
 
 // ═══════════════════════ 3. A VIAGEM ABERTA (pop-up com abas) ═════════════
-function vgAbrir(id) { vgEstado.detalhe = { tipo: 'viagem', id }; vgMostrar(); }
+/** 🖼️ (15/10, ideia dele: "se criou uma viagem, atualize depois com imagem e referência, assim como no Lazer") —
+ *  foto e resumo do destino pela Wikipédia (a mesma busca do Lazer: `buscarNaWikipedia`, com o `wikiCasa` que
+ *  exige palavra em comum). Guarda só o ENDEREÇO da foto, nunca a imagem (nada de imagem na sincronização).
+ *  `silencioso`: a busca automática (ao criar, ou ao abrir uma viagem antiga) não avisa quando não acha. */
+async function ilustrarViagem(id, silencioso) {
+  const t = trips.find(x => x.id === id); if (!t || !t.destino || ilustrando.has(t.id)) return;
+  if (!navigator.onLine) { if (!silencioso) toast('Sem internet agora. A foto do destino precisa de rede.', 5000); return; }
+  ilustrando.add(t.id); vgRedesenharTudo();
+  const r = await buscarNaWikipedia(t.destino, t.destino);
+  ilustrando.delete(t.id);
+  t.buscadoEm = hojeISO();
+  if (r) { t.img = r.img; t.sobre = r.sobre; t.wiki = r.wiki; }
+  salvar('trips', trips); vgRedesenharTudo();
+  if (!r && !silencioso) toast(`Não achei "${t.destino}" na Wikipédia. Dá para escrever sobre o destino nas observações.`, 6000);
+}
+function vgRedesenharTudo() { renderViagens(); if (vgEstado.detalhe && vgEstado.detalhe.tipo === 'viagem') vgDesenharDetalhe(); }
+function vgTirarFoto(id) { const t = trips.find(x => x.id === id); if (!t) return; t.img = ''; t.sobre = ''; t.wiki = ''; salvar('trips', trips); vgRedesenharTudo(); }
+function vgSobre(t) {
+  if (ilustrando.has(t.id)) return '<p class="vg-sobre vg-buscando">🖼️ buscando a foto e o resumo do destino…</p>';
+  if (t.img || t.sobre) return `<div class="vg-sobre">${t.img ? `<img class="vg-foto" src="${esc(t.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+      <p>${esc(t.sobre || '')}${t.wiki ? ` <a href="${esc(t.wiki)}" target="_blank" rel="noopener">Wikipédia ↗</a>` : ''}
+        <button type="button" class="mini-btn xs" title="Tirar a foto e o resumo" onclick="vgTirarFoto(${t.id})">✕</button></p></div>`;
+  return `<p class="vg-sobre"><button type="button" class="mini-btn" onclick="ilustrarViagem(${t.id})">🖼️ Buscar foto e resumo de ${esc(t.destino)}</button></p>`;
+}
+function vgAbrir(id) {
+  vgEstado.detalhe = { tipo: 'viagem', id }; vgMostrar();
+  // viagem antiga, nunca ilustrada: busca uma vez, em silêncio
+  const t = trips.find(x => x.id === id); if (t && !t.img && !t.buscadoEm) ilustrarViagem(id, true);
+}
 function vgAbrirMilha(id) { vgEstado.detalhe = { tipo: 'milha', id }; vgMostrar(); }
 function vgMostrar() { const m = document.getElementById('vg-detalhe'); if (!m) return; vgDesenharDetalhe(); m.style.display = 'flex'; }
 function vgFechar() { const m = document.getElementById('vg-detalhe'); if (m) m.style.display = 'none'; vgEstado.detalhe = null; }
@@ -229,6 +258,7 @@ function vgDesenharDetalhe() {
         <div><b>${t.inicio ? `${isoParaBR(t.inicio)}${t.fim ? ' → ' + isoParaBR(t.fim) : ''}` : 'sem data'}</b><small>${q.txt}${t.orcamento ? ' · orçamento ' + formatCurrency(t.orcamento) : ''}</small></div>
         <select aria-label="Situação" onchange="vgStatus(${t.id}, this.value)">${Object.entries(STATUS_VIAGEM).map(([k, v]) => `<option value="${k}"${t.status === k ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
       </div>
+      ${vgSobre(t)}
       ${t.notas ? `<p class="lz-coment">${linkify(esc(t.notas))}</p>` : ''}
       <div class="focus-header-tabs filter-row vg-abas">${abas.map(([k, n, c]) => `<span class="${vgEstado.aba === k ? 'active' : ''}" onclick="vgVerAba('${k}')">${n} <small>${c}</small></span>`).join('')}</div>
       <div class="vg-aba">${vgEstado.aba === 'mala' ? vgListaMala(t, 'mala') : vgEstado.aba === 'docs' ? vgListaMala(t, 'docs') : vgEstado.aba === 'reservas' ? vgReservas(t) : vgRoteiro(t)}</div>

@@ -31,8 +31,21 @@ function treinoEmAndamento() { if (!tvEstado) tvEstado = tvLer(); return tvEstad
 function cfgTreinoVivo() {
   prefs.treinoVivo = prefs.treinoVivo || {};
   const c = prefs.treinoVivo;
-  ['som', 'vibrar', 'telaAcesa'].forEach(k => { if (c[k] === undefined) c[k] = true; });
+  ['som', 'vibrar', 'telaAcesa', 'agua'].forEach(k => { if (c[k] === undefined) c[k] = true; });
   return c;
+}
+/** 💧 (15/10, ideia dele: "sincronizar água com treino") — no descanso, um toque bebe 250 ml: soma na água do dia
+ *  (a mesma do copo da Saúde) e na água DESTE treino, que aparece no resumo do fim. */
+function tvBeber(ml) {
+  const s = treinoEmAndamento(); if (!s) return;
+  if (typeof beberAgua === 'function') beberAgua(ml);
+  s.agua = (s.agua || 0) + ml; tvGravar(); tvRender();
+  toast(`💧 +${ml} ml · ${spNum((hydration.ml || 0) / 1000)} de ${spNum((hydration.goal || 2500) / 1000)} L hoje`, 2500);
+}
+function tvAguaHTML(s) {
+  if (!cfgTreinoVivo().agua) return '';
+  const hoje = (typeof hydration !== 'undefined' && hydration.ml) || 0, meta = (typeof hydration !== 'undefined' && hydration.goal) || 2500;
+  return `<button type="button" class="tv-agua" onclick="tvBeber(250)" title="Somar 250 ml na água de hoje">💧 <b>+250 ml</b><small>${spNum(hoje / 1000)} de ${spNum(meta / 1000)} L hoje${s.agua ? ` · ${s.agua} ml no treino` : ''}</small></button>`;
 }
 function tvMudarCfg(k) {
   const c = cfgTreinoVivo(); c[k] = !c[k];
@@ -269,7 +282,8 @@ function tvRender(acabouDescanso) {
     caixa.innerHTML = `${topo}
       <section class="tv-fim">
         <div class="tv-fim-cab"><span class="tv-fim-ic">💪</span><div><h2>Treino concluído</h2>
-          <p>${tvMinutos(s)} min · ${feitas} de ${total} séries${vol ? ` · ${vol.toLocaleString('pt-BR')} kg levantados` : ''}</p></div></div>
+          <p>${tvMinutos(s)} min · ${feitas} de ${total} séries${vol ? ` · ${vol.toLocaleString('pt-BR')} kg levantados` : ''}${s.agua ? ` · 💧 ${s.agua} ml de água` : ''}</p></div></div>
+        ${cfgTreinoVivo().agua ? tvAguaHTML(s) : ''}
         <ul class="tv-fim-lista">${s.ex.map(e => `<li class="${e.feitas.length ? '' : 'pulado'}"><b>${esc(e.nome)}</b><span>${e.feitas.length ? e.feitas.map(f => `${esc(String(f.reps))}×${f.carga ? spNum(f.carga, f.carga % 1 ? 1 : 0) : '—'}`).join(' · ') : 'não feito'}</span></li>`).join('')}</ul>
         <label class="check-line"><input type="checkbox" ${s.atualizarFicha ? 'checked' : ''} onchange="treinoEmAndamento().atualizarFicha = this.checked; tvGravar()"> Atualizar a ficha com as cargas de hoje</label>
         ${tvSuplementosHTML()}
@@ -297,6 +311,7 @@ function tvRender(acabouDescanso) {
           <circle cx="60" cy="60" r="52" class="tv-anel-cheio" id="tv-desc-anel" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="0" transform="rotate(-90 60 60)"/></svg>
         <div class="tv-desc-txt"><small>DESCANSO</small><b id="tv-desc-n">${tvRelogio(s.descansoAte - Date.now())}</b></div>
         <div class="tv-desc-acoes"><button type="button" class="mini-btn" onclick="tvMaisDescanso(15)">＋15 s</button><button type="button" class="mini-btn" onclick="tvPularDescanso()">Pular ›</button></div>
+        ${tvAguaHTML(s)}
         <p class="tv-seguir"><small>A SEGUIR</small>${tvASeguir(s)}</p>
       </div>`
     : `${acabouDescanso ? `<p class="tv-bora">Bora! ${tvASeguir(s)}</p>` : ''}

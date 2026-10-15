@@ -3264,6 +3264,7 @@ function aplicarAparencia() {
   aplicarCapa();
   document.body.dataset.abas = c.abas;
   document.body.dataset.layout = c.layout || 'centro';   // 1.6 (10/10): conteúdo no centro, à esquerda ou à direita
+  matizDoTema();
   const nav = document.querySelector('.tabs');
   if (nav) c.ordem.forEach(id => { const b = document.getElementById(id); if (b) { nav.appendChild(b); b.hidden = c.ocultas.includes(id); } });
   // se a aba aberta foi escondida, volta pro Painel
@@ -3277,6 +3278,22 @@ function escolherModoCor(m) {
   toast(m === 'neutro' ? '🩶 Modo neutro: cor só no que avisa (atraso, conta a pagar, dinheiro).' : '🎨 Modo colorido: tudo com as cores cheias.', 5000);
 }
 function escolherPosicaoAbas(p) { cfgAparencia().abas = p; salvarAparencia(); }
+/** (15/10, ideia dele: "no minimalista, itens neutros mas com diferenciação — sequência de tons da MESMA cor")
+ *  O matiz (0–360) da cor de destaque do tema vai para `--neutro-matiz`: no modo neutro, etiquetas, bolinhas e
+ *  barrinhas viram TONS dessa cor (claro/escuro conforme a cor original de cada um) em vez de cinza. */
+function matizDoTema() {
+  try {
+    const cor = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim();
+    let r, g, b; const hx = cor.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i), rgb = cor.match(/rgba?\(([^)]+)\)/i);
+    if (hx) { let h = hx[1]; if (h.length === 3) h = h.split('').map(x => x + x).join(''); [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+    else if (rgb) [r, g, b] = rgb[1].split(',').map(x => parseFloat(x));
+    else return;
+    const M = Math.max(r, g, b) / 255, m = Math.min(r, g, b) / 255, d = M - m; if (!d) return;
+    const R = r / 255, G = g / 255, B = b / 255;
+    let h = M === R ? ((G - B) / d) % 6 : M === G ? (B - R) / d + 2 : (R - G) / d + 4; h = Math.round(h * 60); if (h < 0) h += 360;
+    document.documentElement.style.setProperty('--neutro-matiz', h);
+  } catch (e) { /* sem matiz: o neutro continua cinza */ }
+}
 /** 1.6 (ditado de 07/10, "centralizar × lateralizar o layout"): em tela mais larga que o conteúdo (ultrawide),
  *  a coluna fica no centro, encostada à esquerda ou à direita. Em tela comum não muda nada. */
 function escolherLayout(p) { cfgAparencia().layout = ['centro', 'esquerda', 'direita'].includes(p) ? p : 'centro'; salvarAparencia(); if (typeof recolocarPaineis === 'function') setTimeout(recolocarPaineis, 60); }
@@ -3806,10 +3823,24 @@ async function buscarNaWikipedia(termo, nome) {
       if (!r.ok) continue;
       const d = await r.json();
       if (d.type === 'disambiguation' || !d.extract) continue;
+      // (15/10) artigo sem foto principal (ex.: "Lisboa" em português): a foto oficial do lugar no Wikidata (P18)
+      let img = ((d.thumbnail || {}).source) || '';
+      if (!img && d.wikibase_item) {
+        try {
+          const w = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${encodeURIComponent(d.wikibase_item)}&property=P18&format=json&origin=*`);
+          const arq = ((((((await w.json()).claims || {}).P18 || [])[0] || {}).mainsnak || {}).datavalue || {}).value;
+          if (arq) img = WM + encodeURIComponent(arq) + '?width=400';
+        } catch (e) { /* sem foto: fica só o resumo */ }
+      }
+      // o resumo vem sem a pronúncia, mas às vezes sobra o ")" dela: "Paris ) é a capital…"
+      let sobre = String(d.extract);
+      const ab = sobre.indexOf('('), fe = sobre.indexOf(')');
+      if (fe >= 0 && (ab < 0 || fe < ab)) sobre = sobre.slice(0, fe) + sobre.slice(fe + 1);
+      sobre = sobre.replace(/\(\s*[;,]?\s*\)/g, '').replace(/\s+([,.;])/g, '$1').replace(/\s{2,}/g, ' ').trim();
       return {
         titulo: d.title || achado.title,
-        sobre: String(d.extract).slice(0, 420),
-        img: ((d.thumbnail || {}).source) || '',
+        sobre: sobre.slice(0, 420),
+        img,
         wiki: (((d.content_urls || {}).desktop || {}).page) || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(achado.title)}`
       };
     } catch (e) { /* offline, bloqueado ou fora do ar: tenta o próximo idioma */ }
@@ -4098,9 +4129,17 @@ document.getElementById('trip-form').addEventListener('submit', (e) => {
   const id = document.getElementById('trip-id').value;
   const dados = { destino: document.getElementById('trip-destino').value.trim(), inicio: document.getElementById('trip-inicio').value, fim: document.getElementById('trip-fim').value, status: document.getElementById('trip-status').value, orcamento: parseFloat(document.getElementById('trip-orcamento').value) || 0, notas: document.getElementById('trip-notas').value.trim() };
   if (!dados.destino) return;
-  if (id) { const t = trips.find(x => String(x.id) === id); if (t) Object.assign(t, dados); }
-  else trips.push({ id: novoId(), gasto: 0, mala: MALA_PADRAO.map(x => ({ text: x, done: false })), docs: DOCS_PADRAO.map(x => ({ text: x, done: false })), roteiro: [], reservas: [], createdAt: Date.now(), ...dados });
+  // 🖼️ (15/10) viagem nova, ou com o destino trocado: a foto e o resumo do destino são buscados de novo, em silêncio
+  let ilustrarId = null;
+  if (id) {
+    const t = trips.find(x => String(x.id) === id);
+    if (t) { if (t.destino !== dados.destino) { t.img = ''; t.sobre = ''; t.wiki = ''; t.buscadoEm = ''; ilustrarId = t.id; } Object.assign(t, dados); }
+  } else {
+    const t = { id: novoId(), gasto: 0, mala: MALA_PADRAO.map(x => ({ text: x, done: false })), docs: DOCS_PADRAO.map(x => ({ text: x, done: false })), roteiro: [], reservas: [], createdAt: Date.now(), ...dados };
+    trips.push(t); ilustrarId = t.id;
+  }
   salvar('trips', trips); cancelarEdicaoViagem(); renderViagens(); toast(id ? '✈️ Viagem atualizada.' : '✈️ Viagem criada com mala e documentos prontos.');
+  if (ilustrarId && typeof ilustrarViagem === 'function') setTimeout(() => ilustrarViagem(ilustrarId, true), 300);
 });
 function cancelarEdicaoViagem() { document.getElementById('trip-form').reset(); document.getElementById('trip-id').value = ''; document.getElementById('trip-submit').innerText = 'Criar viagem'; document.getElementById('trip-cancel').hidden = true; }
 function editarViagem(id) {

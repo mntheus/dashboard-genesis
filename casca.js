@@ -526,7 +526,7 @@ if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-health'] = () => {
   if (typeof cfgTreinoVivo !== 'function') return '';
   const c = cfgTreinoVivo(), item = (k, nome) => `<label class="check-line"><input type="checkbox" ${c[k] ? 'checked' : ''} onchange="tvMudarCfg('${k}')"> ${nome}</label>`;
   return `<h4 class="dev-titulo">Treino ao vivo</h4>
-    ${item('som', 'Bipe no fim do descanso')}${item('vibrar', 'Vibrar no fim do descanso (celular)')}${item('telaAcesa', 'Manter a tela acesa durante o treino')}`;
+    ${item('som', 'Bipe no fim do descanso')}${item('vibrar', 'Vibrar no fim do descanso (celular)')}${item('telaAcesa', 'Manter a tela acesa durante o treino')}${item('agua', 'Botão de água no descanso (💧 +250 ml, soma na água do dia)')}`;
 };
 /** Os marcadores das Notas saem da linha de baixo e viram um seletor (# marcadores ▾). */
 function montarMarcadoresNotas() {

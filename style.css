@@ -1008,7 +1008,12 @@ body[data-cores="neutro"] .semana-cards,
 body[data-cores="neutro"] .mes-bar,
 body[data-cores="neutro"] .rot-tag,
 body[data-cores="neutro"] .task-list-tag,
-body[data-cores="neutro"] .etapa-topo { filter: saturate(0.32); }
+body[data-cores="neutro"] .etapa-topo {
+  /* (15/10, ideia dele: "itens neutros mas diferenciados por uma sequência de tons da MESMA cor") — cada item vira um
+     tom da cor de destaque do tema: o cinza guarda o claro/escuro da cor original de cada um (é o que diferencia), o
+     sépia + hue-rotate pinta esse cinza no matiz do tema (`--neutro-matiz`, calculado pelo app; o sépia nasce em ~38°) */
+  filter: grayscale(1) sepia(.55) hue-rotate(calc((var(--neutro-matiz, 210) - 38) * 1deg)) saturate(1.5);
+}
 /* a cor da nota É a organização dela, então fica um pouco mais viva */
 body[data-cores="neutro"] .note-card, body[data-cores="neutro"] .color-dot { filter: saturate(0.45); }
 body[data-cores="neutro"] .pf-arte, body[data-cores="neutro"] .life-os-banner { filter: saturate(0.2); }
@@ -1331,6 +1336,9 @@ button, .btn {
   border-radius: var(--r1);
   display: inline-flex; align-items: center; justify-content: center;
 }
+/* (15/10) o "Mais detalhes" (<details class="task-more">) herdava o formato de botão acima: aberto, o título ficava
+   numa coluna e os campos em outra (armadilha 65). O <details> é uma coluna, como o formulário em volta. */
+details.task-more { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; min-height: 0; min-width: 0; }
 button:active, .btn:active, .mini-btn:active { transform: scale(.97); }
 
 input, select, textarea { min-height: var(--toque); padding: var(--s2) var(--s3); }
@@ -4484,6 +4492,15 @@ em.pagar { background: var(--perigo); box-shadow: 0 0 0 1px #fff3; } em.receber 
 .vg-emb-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
 .vg-emb-rot { font-size: .62rem; letter-spacing: .1em; font-weight: 700; color: var(--txt3); }
 .vg-emb-dest { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+/* 🖼️ (15/10) a foto do destino: redonda ao lado do nome no cartão; no detalhe, foto + resumo + link */
+.vg-emb-img { align-self: center; flex: none; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid color-mix(in srgb, var(--cor) 60%, transparent); }
+.vg-embarque.grande .vg-emb-img { width: 46px; height: 46px; }
+.vg-sobre { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0; font-size: var(--t-apoio); line-height: 1.5; color: var(--txt2); }
+.vg-sobre p { margin: 0; flex: 1; min-width: 0; }
+.vg-sobre .mini-btn.xs { margin-left: 4px; vertical-align: middle; }
+.vg-foto { flex: none; width: 96px; height: 96px; border-radius: 12px; object-fit: cover; border: 1px solid var(--fio-sutil); }
+.vg-buscando { color: var(--txt3); font-style: italic; }
+@media (max-width: 480px) { .vg-sobre { flex-direction: column; } .vg-foto { width: 100%; height: 150px; } }
 .vg-emb-dest b { font-size: 1.3rem; font-weight: 800; color: var(--txt-forte); text-transform: uppercase; letter-spacing: .02em; overflow-wrap: break-word; min-width: 0; line-height: 1.15; }
 .vg-emb-dest.longo b, .vg-embarque.grande .vg-emb-dest.longo b { font-size: 1.05rem; }
 .vg-cod { flex: 0 0 auto; padding: 1px 7px; border-radius: 6px; font-size: .7rem; font-weight: 800; letter-spacing: .1em; color: var(--cor); border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent); }
@@ -5857,6 +5874,13 @@ body.tv-aberto { overflow: hidden; }
 .tv-desc-txt small, .tv-seguir small, .tv-rot { font-size: .62rem; font-weight: 700; letter-spacing: .1em; color: var(--txt3); }
 .tv-desc-txt b { font-size: 2.6rem; font-weight: 300; font-variant-numeric: tabular-nums; color: var(--txt-forte); line-height: 1; }
 .tv-desc-acoes { display: flex; gap: 8px; }
+/* 💧 (15/10) a água no descanso: largura cheia, abaixo do anel, antes do "a seguir" */
+.tv-agua { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 0; margin: 4px 0 0; padding: 8px 12px;
+  border-radius: 10px; border: 1px solid color-mix(in srgb, var(--info) 40%, var(--fio-sutil)); background: color-mix(in srgb, var(--info) 10%, var(--sup-1));
+  color: var(--txt-forte); box-shadow: none; text-align: left; cursor: pointer; }
+.tv-agua b { font-weight: 700; }
+.tv-agua small { margin-left: auto; font-size: .74rem; color: var(--txt3); }
+.tv-fim .tv-agua { margin: 0 0 10px; }
 .tv-seguir { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--sup-1); color: var(--txt-forte); font-weight: 600; }
 .tv-lista { display: flex; flex-wrap: wrap; gap: 6px; }
 .tv-item { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 12px; border-radius: 12px; background: var(--sup-1); border: 1px solid var(--fio-sutil); font-size: .84rem; color: var(--txt2); max-width: 100%; }

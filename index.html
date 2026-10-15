@@ -1554,13 +1554,21 @@
     <div id="settings" class="tab-content">
       <!-- C2 (09/10): ver a Config em cartões ou em barras (cfgVista, por aparelho) -->
       <div id="cfg-vista" class="cfg-vista"></div>
+      <!-- 💡 15/10: as ideias de todas as abas num lugar só (e, no modo teste, o roteiro de quem testa). O data-recolhivel
+           é fixo e escrito aqui: os outros cartões são numerados pela ordem, e um cartão novo no alto mudaria a numeração
+           (o "recolhido" que cada aparelho guardou iria para o cartão errado). -->
+      <div class="card" id="cfg-ideias-card" style="margin-top: 20px;" data-recolhivel="ideias-settings" data-resumo="Anote o que faltou ou o que você mudaria em cada aba, e envie tudo de uma vez">
+        <h2 style="cursor:pointer" onclick="if (!event.target.closest('button')) alternarCard('ideias-settings')">💡 Ideias e sugestões <button type="button" class="card-toggle" onclick="alternarCard('ideias-settings')" title="Recolher">▾</button></h2>
+        <p class="hint">Cada aba tem o seu 💡, no canto de cima, ao lado da ⚙. Aqui ficam todas as ideias juntas: anote, marque as resolvidas e envie tudo de uma vez.</p>
+        <div id="cfg-ideias"></div>
+      </div>
       <div class="card" style="margin-top: 20px;" data-resumo="Abrir no Núcleo, cartões ao afastar, visual do cérebro, fundo e abertura">
         <h2>🌌 Núcleo — a tela de entrada</h2>
         <div id="nucleo-config"></div>
       </div>
       <div class="card">
         <h2>🖼️ Modo exemplo</h2>
-        <p class="hint">Abre o app inteiro preenchido com uma pessoa inventada, para ver como cada aba fica cheia. É mexível, mas nada é gravado: os seus dados não são lidos nem tocados, e não há sincronização. Também há uma miniatura &ldquo;Ver exemplo&rdquo; no cabeçalho de cada aba e entre os atalhos do Núcleo.</p>
+        <p class="hint">Abre o app inteiro preenchido com uma pessoa inventada, para ver como cada aba fica cheia. É mexível, mas nada é gravado (só as 💡 ideias que você anotar ficam guardadas): os seus dados não são lidos nem tocados, e não há sincronização. Também há uma miniatura &ldquo;Ver exemplo&rdquo; no cabeçalho de cada aba e entre os atalhos do Núcleo.</p>
         <button type="button" id="ex-cfg-botao" onclick="exemploEntrar('settings')">🖼️ Abrir o app preenchido (modo exemplo)</button>
       </div>
       <div class="card">
@@ -1678,6 +1686,7 @@
       <div class="card" style="margin-top: 20px;">
         <h2>☁️ Sincronização (PC ↔ Celular)</h2>
         <p class="hint">Cole aqui a URL do App da Web e o token que você criou no Apps Script. Eles ficam guardados só neste aparelho.</p>
+        <p class="hint so-teste">🧪 <b>No teste, pode pular esta parte.</b> A sincronização liga o app a uma planilha <b>sua</b> no Google (é preciso criar um pequeno script lá). Sem ela tudo funciona normalmente, e os dados ficam só neste aparelho.</p>
         <div class="sync-form">
           <label for="sync-url">URL do App da Web (termina em /exec)</label>
           <div class="input-eye"><input type="password" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"><button type="button" class="mini-btn" id="btn-ver-url" title="Mostrar URL" onclick="alternarVerUrl()">👁️</button></div>
@@ -1803,7 +1812,7 @@
   <div id="aba-config-modal" class="modal">
     <div class="modal-content" style="max-width: 520px;">
       <div class="modal-body">
-        <h3 style="font-size:1rem">⚙ <span id="aba-config-titulo" style="color:var(--acento)"></span></h3>
+        <h3 style="font-size:1rem"><span id="aba-config-titulo" style="color:var(--acento)"></span></h3>
         <div id="aba-config-corpo"></div>
         <div class="modal-actions"><button class="btn" style="width:100%; margin:0" onclick="fecharConfigAba()">Fechar</button></div>
       </div>

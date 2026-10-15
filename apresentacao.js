@@ -40,6 +40,32 @@ const AP_PASSOS = [
       Você pode pular e mexer depois: tudo que liga e desliga está em ⚙️ Config.</p>`
   },
   {
+    // 🧪 15/10: só para quem abriu o link de convite (modo teste) — o exemplo e as ideias, logo no começo
+    chave: 'teste',
+    so: () => typeof modoTeste === 'function' && modoTeste(),
+    titulo: 'Você está testando o Genesis',
+    html: () => `
+      <p class="ap-texto">Obrigado por topar! Três coisas para aproveitar o teste:</p>
+      <div class="ap-tour">
+        <div class="ap-tour-l">
+          <div class="ap-micro ap-emoji">🖼️</div>
+          <div><b>Veja o app cheio</b><small>O <b>modo exemplo</b> abre tudo preenchido com uma pessoa inventada — pode
+            mexer à vontade, nada é gravado. Fica no botão <b>“Ver exemplo”</b> no alto de cada aba e em ⚙️ Config.</small></div>
+        </div>
+        <div class="ap-tour-l">
+          <div class="ap-micro">${ic('ideia')}</div>
+          <div><b>Anote ideias</b><small>Cada aba tem um <b>💡 Ideias</b> no canto de cima. O que faltou, o que ficou
+            confuso, o que você mudaria — uma ideia por vez, do seu jeito. Elas ficam guardadas até no exemplo.</small></div>
+        </div>
+        <div class="ap-tour-l">
+          <div class="ap-micro ap-emoji">📤</div>
+          <div><b>Mande quando quiser</b><small>No 💡 ou em ⚙️ Config → <b>Ideias e sugestões</b>, toque em
+            <b>📤 Enviar ideias</b>: o texto sai pelo WhatsApp, e-mail ou o app que você escolher.</small></div>
+        </div>
+      </div>
+      <p class="ap-hint">O que você lançar fora do exemplo fica só neste aparelho. As próximas telas deixam o app com a sua cara.</p>`
+  },
+  {
     chave: 'nome',
     titulo: 'Como posso te chamar?',
     html: () => `
@@ -131,9 +157,13 @@ const AP_PASSOS = [
       seu jeito. Nada aqui é definitivo: <b>tudo que liga e desliga está em ⚙️ Config</b>, inclusive
       rever esta apresentação e escolher a abertura (com som, só a luz, ou desligada).</p>
       <p class="ap-texto ap-texto2">Comece pelo que já é seu: lance um compromisso na Agenda ou uma
-      tarefa, e o Núcleo passa a te contar o dia.</p>`
+      tarefa, e o Núcleo passa a te contar o dia.</p>
+      ${typeof modoTeste === 'function' && modoTeste() ? `<p class="ap-texto ap-texto2">Quer ver primeiro como tudo fica cheio?
+        <button type="button" class="mini-btn" onclick="apFechar(true); exemploEntrar('nucleo')">🖼️ Ver o exemplo agora</button></p>` : ''}`
   }
 ];
+/** Os passos que valem agora (o do modo teste só aparece para quem abriu o convite). */
+function apPassos() { return AP_PASSOS.filter(p => !p.so || p.so()); }
 
 let apN = -1;              // passo atual (-1 = fechada)
 let apAuto = false;        // abriu sozinha (primeiro uso) ou pelo botão da Config
@@ -203,24 +233,25 @@ function apMontar() {
 
 function apIrPara(n) {
   const el = apMontar();
-  const saindo = AP_PASSOS[apN];
+  const passos = apPassos();
+  const saindo = passos[apN];
   if (saindo && saindo.aoSair) tenta(saindo.aoSair);
-  apN = Math.max(0, Math.min(AP_PASSOS.length - 1, n));
-  const p = AP_PASSOS[apN];
+  apN = Math.max(0, Math.min(passos.length - 1, n));
+  const p = passos[apN];
   document.getElementById('ap-titulo').innerHTML = p.titulo;
   const corpo = document.getElementById('ap-corpo');
   corpo.innerHTML = p.html();
   corpo.scrollTop = 0;
   el.dataset.passo = p.chave;
   document.getElementById('ap-pontos').innerHTML =
-    AP_PASSOS.map((_, i) => `<i class="${i === apN ? 'on' : i < apN ? 'ja' : ''}"></i>`).join('');
+    passos.map((_, i) => `<i class="${i === apN ? 'on' : i < apN ? 'ja' : ''}"></i>`).join('');
   document.getElementById('ap-voltar').disabled = apN === 0;
-  const ultimo = apN === AP_PASSOS.length - 1;
+  const ultimo = apN === passos.length - 1;
   document.getElementById('ap-ok').innerHTML = ultimo ? 'Entrar no Genesis' : apN === 0 ? 'Começar ›' : 'Continuar ›';
   document.getElementById('ap-pular').hidden = ultimo;
   if (p.aoEntrar) tenta(p.aoEntrar);
 }
-function apProximo() { if (apN >= AP_PASSOS.length - 1) apFechar(true); else apIrPara(apN + 1); }
+function apProximo() { if (apN >= apPassos().length - 1) apFechar(true); else apIrPara(apN + 1); }
 function apVoltar() { if (apN > 0) apIrPara(apN - 1); }
 function apPular() { apFechar(true); }
 
@@ -234,7 +265,7 @@ function abrirApresentacao(auto) {
 }
 
 function apFechar(concluida) {
-  const saindo = AP_PASSOS[apN];
+  const saindo = apPassos()[apN];
   if (saindo && saindo.aoSair) tenta(saindo.aoSair);
   const el = document.getElementById('ap-tela');
   apN = -1;

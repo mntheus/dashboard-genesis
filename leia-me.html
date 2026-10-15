@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <title>Genesis — Leia-me (versão de teste)</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- Leia-me para quem recebe o convite de teste (15/10/2026). Página pública: nada pessoal aqui
+       (nenhum nome, telefone ou e-mail — quem convidou é "quem te mandou o link"). -->
+  <style>
+    :root {
+      --bg: #05070d; --card: #0d111b; --borda: #1d2433; --txt: #c9d2e3; --txt2: #9aa6bd; --forte: #f2f5fb;
+      --acento: #7aa2ff; --ok: #34d399; --aviso: #fbbf24; --info: #38bdf8;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f4f6fb; --card: #ffffff; --borda: #dbe1ec; --txt: #2b3445; --txt2: #5d6880; --forte: #0f1626;
+        --acento: #3b63d6; --ok: #0f9f6e; --aviso: #b7791f; --info: #0b7fb3; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--txt); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; }
+    .rotulo { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--txt2); }
+    h1 { font-size: clamp(1.9rem, 1.4rem + 2vw, 2.6rem); font-weight: 300; color: var(--forte); margin: 6px 0 4px; letter-spacing: -.02em; }
+    .sub { color: var(--txt2); margin: 0 0 22px; }
+    h2 { font-size: 1.15rem; color: var(--forte); margin: 0 0 10px; }
+    section { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 18px 18px 14px; margin: 0 0 14px; }
+    section.destaque { border-color: color-mix(in srgb, var(--acento) 55%, var(--borda)); background: color-mix(in srgb, var(--acento) 7%, var(--card)); }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 0 0 10px; padding-left: 22px; }
+    li { margin: 4px 0; }
+    b, strong { color: var(--forte); }
+    a { color: var(--acento); }
+    .abrir { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 6px; padding: 12px 20px; border-radius: 12px;
+      background: var(--acento); color: #fff; font-weight: 600; text-decoration: none; }
+    .abrir:hover { filter: brightness(1.08); }
+    .dica { font-size: .9rem; color: var(--txt2); }
+    .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
+    .grade > div { border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; font-size: .92rem; }
+    .grade b { display: block; margin-bottom: 2px; }
+    .exemplos li { font-style: italic; color: var(--txt); }
+    .rodape { text-align: center; font-size: .82rem; color: var(--txt2); margin-top: 24px; }
+    kbd { font: inherit; font-size: .85em; padding: 1px 6px; border: 1px solid var(--borda); border-radius: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="rotulo">A♠ A♥ A♦ · Genesis</div>
+  <h1>Leia-me</h1>
+  <p class="sub">Versão de teste · obrigado por topar testar!</p>
+
+  <section>
+    <h2>O que é o Genesis</h2>
+    <p>Um <b>“Life OS”</b>: agenda, dinheiro, tarefas, notas, estudos, negócios, saúde, lazer, viagens, contatos e mais —
+      tudo num lugar só, num app que abre no navegador e pode ser instalado no celular e no PC.</p>
+    <p>A tela de entrada é o <b>Núcleo</b>: um cérebro em 3D em que cada “pérola” é uma área da sua vida. Em cima ficam as
+      abas; em cada aba, o <b>⚙</b> do canto abre as opções dela e o <b>💡</b> guarda as suas ideias.</p>
+    <a class="abrir" href="./">Abrir o Genesis ›</a>
+    <p class="dica">Funciona sem internet depois da primeira abertura. Não pede conta, nem senha, nem cadastro.</p>
+  </section>
+
+  <section>
+    <h2>Instalar (opcional, mas fica bem melhor)</h2>
+    <div class="grade">
+      <div><b>📱 Android (Chrome)</b>Abra o link, toque em <kbd>⋮</kbd> no canto e em <b>“Instalar app”</b> (ou “Adicionar à tela inicial”).</div>
+      <div><b>🍎 iPhone (Safari)</b>Abra o link no <b>Safari</b>, toque em <kbd>Compartilhar</kbd> e em <b>“Adicionar à Tela de Início”</b>.</div>
+      <div><b>💻 PC (Chrome ou Edge)</b>Na barra de endereço aparece um ícone de <b>instalar</b>. Ou use direto no navegador.</div>
+    </div>
+    <p class="dica">Instalado, ele abre em tela cheia, como um app comum, e fica com ícone próprio.</p>
+  </section>
+
+  <section>
+    <h2>Primeiros passos</h2>
+    <ol>
+      <li><b>A abertura</b> tem um feixe de luz (e som — se o aparelho pedir, toque na tela para entrar).</li>
+      <li><b>A apresentação</b> tem poucas telas: seu nome, como você chama o seu trabalho, a cor do app e um tour do Núcleo.
+        Dá para pular e rever depois em ⚙️ Config → Núcleo.</li>
+      <li><b>No Núcleo</b>, toque numa pérola para ver o resumo da área; <b>“Abrir ›”</b> leva à página completa.
+        Role o mouse para trás (ou afaste com dois dedos) e aparecem as <b>descobertas</b> em volta do cérebro.</li>
+      <li><b>As abas</b> ficam no alto. Toque em qualquer uma — e repare no <b>⚙</b> e no <b>💡</b> do canto de cima.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Ver o app cheio: o modo exemplo</h2>
+    <p>Um app novo começa vazio, e vazio não mostra nada. Por isso existe o <b>modo exemplo</b>: ele abre o app inteiro
+      preenchido com uma pessoa inventada — agenda, gastos, treinos, viagens, tudo.</p>
+    <ul>
+      <li>Para entrar: o botão <b>“Ver exemplo”</b> no alto de cada aba, ou ⚙️ Config → <b>Modo exemplo</b>.</li>
+      <li>Pode mexer à vontade: <b>nada é gravado</b> (só as 💡 ideias que você anotar, essas ficam).</li>
+      <li>Para voltar: <b>“Sair do exemplo”</b>, no mesmo lugar. Seus dados de verdade voltam intactos.</li>
+    </ul>
+  </section>
+
+  <section class="destaque">
+    <h2>💡 O mais importante: anotar ideias</h2>
+    <p>É para isso que você está testando. <b>Cada aba tem um 💡 Ideias</b> no canto de cima, ao lado da ⚙. Toque nele
+      sempre que pensar <i>“faltou…”</i>, <i>“não entendi…”</i> ou <i>“seria bom se…”</i>. Uma ideia por vez, do seu jeito —
+      <b>nenhuma é pequena demais</b>.</p>
+    <p>Ideias que ajudam muito:</p>
+    <ul class="exemplos">
+      <li>“Procurei onde lançar um gasto e não achei de primeira.”</li>
+      <li>“No celular, esta tela ficou apertada / o texto cortou.”</li>
+      <li>“Esperava que ao tocar aqui abrisse o detalhe.”</li>
+      <li>“Faltou um campo para o valor da parcela.”</li>
+      <li>“Eu usaria esta aba para controlar a academia dos meus filhos.”</li>
+      <li>“Gostei muito disto — não mexa.” (elogio também é ideia!)</li>
+    </ul>
+    <p>Todas as ideias aparecem juntas em ⚙️ Config → <b>Ideias e sugestões</b>, onde também dá para anotar escolhendo a aba.</p>
+    <p><b>Para mandar:</b> toque em <b>📤 Enviar ideias</b> (no 💡 de qualquer aba ou na Config). No celular abre o
+      “compartilhar” — escolha o WhatsApp ou o e-mail de quem te mandou o link. No PC o texto é copiado: é só colar
+      na conversa. Vão juntas as ideias novas, separadas por aba, com o tipo de aparelho e o tamanho da tela.</p>
+  </section>
+
+  <section>
+    <h2>Um roteiro de 15 minutos (se quiser)</h2>
+    <ol>
+      <li>Passe pela abertura e pela apresentação.</li>
+      <li>Entre no <b>modo exemplo</b> e passeie por três abas que te interessem.</li>
+      <li>Saia do exemplo e lance algo <b>seu</b>: um compromisso na Agenda, uma tarefa, um gasto nas Finanças.</li>
+      <li>Troque a cor em ⚙️ Config → Aparência.</li>
+      <li>Abra no celular <b>e</b> no PC, se puder — a tela muda bastante de um para o outro.</li>
+      <li>Anote pelo menos <b>três ideias</b> e toque em <b>📤 Enviar ideias</b>.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Seus dados</h2>
+    <ul>
+      <li>Tudo o que você lança fica <b>só neste aparelho</b> (no navegador). Nada vai para servidor nenhum, e quem te
+        convidou não vê os seus dados — só as ideias que você decidir mandar.</li>
+      <li>O celular e o PC <b>não</b> se falam sozinhos: cada um guarda o seu. (Existe uma sincronização opcional por uma
+        planilha <b>sua</b> no Google, mas para o teste não precisa.)</li>
+      <li>Cópia de segurança: ⚙️ Config → <b>Exportar backup</b> baixa um arquivo com tudo.</li>
+      <li>Para apagar tudo: nas configurações do navegador, apague os dados deste site.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Se algo der errado</h2>
+    <ul>
+      <li><b>Não apareceu a novidade?</b> Feche o app de verdade (tire da lista de apps abertos) e abra de novo — às vezes duas vezes.</li>
+      <li><b>O som da abertura incomoda?</b> ⚙️ Config → Núcleo → Abertura → “Só a luz” ou “Desligada”.</li>
+      <li><b>Algo quebrou ou ficou estranho?</b> Anote no 💡 da aba (se der, com um print enviado junto na conversa).</li>
+    </ul>
+  </section>
+
+  <p class="rodape">Genesis · versão de teste · <a href="./">abrir o app</a></p>
+</main>
+</body>
+</html>

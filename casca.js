@@ -34,6 +34,7 @@ const ICONES = {
   busca:    'M10.5 17.5a7 7 0 110-14 7 7 0 010 14zM20.5 20.5l-5-5',
   grade:    'M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z',
   fechar:   'M6.5 6.5l11 11M17.5 6.5l-11 11',
+  ideia:    'M9.5 18.5h5M10.5 21h3M12 3.5a5.5 5.5 0 00-3.3 9.9c.7.5 1.1 1.3 1.1 2.1v.5h4.4v-.5c0-.8.4-1.6 1.1-2.1A5.5 5.5 0 0012 3.5z',
   seta:     'M9.5 6l6 6-6 6'
 };
 function ic(nome, cls) { return `<svg class="ic ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONES[nome] || ''}"/></svg>`; }

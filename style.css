@@ -906,6 +906,49 @@ body[data-abas="lateral"] .aba-cfg-btn { top: 14px; right: 14px; }
 .dev-item .dev-mover { opacity: 0.35; }
 .dev-item:hover .dev-mover { opacity: 1; }
 
+/* ── 💡 IDEIAS (15/10): o caderno de cada aba como convite, e o cartão da Config ── */
+.ideia-convite { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 0; margin: 0 0 14px; padding: 12px 14px; text-align: left;
+  border-radius: 12px; border: 1px solid color-mix(in srgb, var(--acento) 40%, var(--fio-sutil));
+  background: color-mix(in srgb, var(--acento) 9%, var(--sup-1, var(--card))); box-shadow: none; color: var(--txt-forte); cursor: pointer; }
+.ideia-convite:hover { border-color: color-mix(in srgb, var(--acento) 70%, transparent); }
+.ideia-convite-ic { font-size: 1.5rem; flex: none; }
+.ideia-convite b { display: block; font-size: .95rem; }
+.ideia-convite small { display: block; font-size: .78rem; font-weight: 400; color: var(--txt3); margin-top: 2px; }
+.ideia-convite-ir { margin-left: auto; color: var(--txt3); font-size: 1.2rem; flex: none; }
+.ideia-chamada { margin: 0 0 10px; font-size: .88rem; line-height: 1.45; color: var(--txt2); }
+.ideia-form { display: flex; flex-direction: row; gap: 8px; margin: 0; align-items: center; }   /* "form" em geral empilha em coluna */
+.ideia-form input { flex: 1; min-width: 0; margin: 0; }
+.ideia-form button[type="submit"] { flex: none; margin: 0; width: 46px; padding: 10px 0; }
+/* no celular o "mover para outra aba" espremia a ideia numa coluna de 80 px: some (ele continua no PC) */
+@media (max-width: 520px) { .dev-item .dev-mover { display: none; } }
+.ideia-form-cfg select { flex: 0 1 170px; min-width: 0; margin: 0; }
+@media (max-width: 520px) { .ideia-form-cfg { flex-wrap: wrap; } .ideia-form-cfg select { flex: 1 1 100%; } }
+.ideia-atalhos { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.ideia-atalho { min-height: 0; height: 28px; margin: 0; padding: 0 11px; border-radius: 999px; font-size: .78rem; font-weight: 500;
+  color: var(--txt2); background: transparent; border: 1px dashed color-mix(in srgb, var(--acento) 45%, var(--fio-sutil)); box-shadow: none; }
+.ideia-atalho:hover { color: var(--txt-forte); border-style: solid; }
+.ideia-enviada { display: inline-block; margin-left: 6px; font-size: .68rem; color: var(--ok); }
+.ideia-envio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--fio-sutil); font-size: .82rem; color: var(--txt3); }
+.ideia-envio b { color: var(--txt-forte); }
+.ideia-enviar { margin: 0; }
+.ideia-enviar[disabled] { opacity: .45; cursor: default; }
+.ideia-geral { margin-top: 10px; }
+.ideia-grupo { margin-top: 8px; }
+.ideia-grupo > b { font-size: .78rem; color: var(--txt3); }
+.ideia-grupo .dev-lista { margin-top: 2px; max-height: none; }
+.ideia-vazio { margin: 6px 0 0; }
+.ideia-rodape { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: .82rem; }
+.ideia-rodape a { color: var(--acento); text-decoration: none; }
+.ideia-rodape a:hover { text-decoration: underline; }
+.teste-faixa { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; font-size: .86rem; line-height: 1.45; color: var(--txt2);
+  background: color-mix(in srgb, var(--info) 10%, var(--sup-1, var(--card))); border: 1px solid color-mix(in srgb, var(--info) 35%, var(--fio-sutil)); }
+.teste-faixa > b { color: var(--txt-forte); font-size: .95rem; }
+.teste-faixa ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.teste-faixa .mini-btn { margin: 4px 0 0; }
+.so-teste { display: none; }
+body.modo-teste .so-teste { display: block; }
+
 /* contraste: os temas claros estavam lavados demais para ler */
 [data-tema="claro"] { --txt: #0f172a; --txt2: #1e293b; --txt3: #475569; --txt4: #64748b; }
 [data-tema="papel"] { --txt: #2b2417; --txt2: #3f3626; --txt3: #63563f; --txt4: #837458; }
@@ -2335,6 +2378,7 @@ body.ap-ativa { overflow: hidden; }
 .ap-tour-l > div:last-child { flex: 1; }
 .ap-tour-l b { font-size: var(--t-corpo); color: var(--txt); }
 .ap-tour-l small { display: block; margin-top: 3px; font-size: var(--t-apoio); line-height: 1.5; color: var(--txt3); }
+.ap-micro.ap-emoji { font-size: 1.15rem; line-height: 1; align-items: center; justify-content: center; }   /* 🧪 passo do teste (15/10) */
 .ap-micro { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; padding: 7px 8px; border-radius: var(--r2);
   background: var(--bg2); border: 1px solid var(--borda); max-width: 112px; }
 .ap-micro .ic { width: 18px; height: 18px; fill: none; stroke: var(--acento); stroke-width: 1.6;
@@ -6011,6 +6055,25 @@ body.mod-ligado #settings.cfg-barras.tab-content.active > .card { padding-top: 0
 .aba-arrumar-btn.on { color: var(--bg); background: var(--acento); border-color: var(--acento); }
 .aba-arrumar-volta { right: 86px; width: 30px; height: 30px; top: 18px; }
 body[data-casca="nova"] .aba-dev-btn { right: 86px; }
+/* 💡 (15/10): o caderno virou "Ideias" e ganhou destaque — o mesmo tamanho dos vizinhos, na cor do tema (antes:
+   26 px, meio apagado). No modo teste ele leva o nome escrito. Na Config não há ⚙ nem ✎: ele vai para o canto. */
+body[data-casca="nova"] .aba-dev-btn {
+  top: 16px; width: 34px; height: 34px; border-radius: 10px; opacity: 1; gap: 5px;
+  color: color-mix(in srgb, var(--acento) 85%, var(--txt2));
+  background: color-mix(in srgb, var(--acento) 10%, var(--sup-2));
+  border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--fio-sutil));
+}
+body[data-casca="nova"] .aba-dev-btn .ic { width: 17px; height: 17px; }
+body[data-casca="nova"] .aba-dev-btn:hover { color: var(--txt-forte); border-color: color-mix(in srgb, var(--acento) 65%, transparent); }
+.aba-dev-rot { font-size: .78rem; font-weight: 600; }
+/* com o nome escrito ele vai até 160 px do canto: o cabeçalho reserva 170 (antes 128 — o "Sair do exemplo" encostava,
+   411 px² em 14 telas a 1280). No celular fica só a lâmpada, para não espremer o título. */
+@media (min-width: 701px) {
+  body.modo-teste[data-casca="nova"] .aba-dev-btn { width: auto; padding: 0 10px 0 8px; }
+  body.modo-teste[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 170px; }
+}
+@media (max-width: 700px) { .aba-dev-rot { display: none; } }
+body[data-casca="nova"] #settings > .aba-dev-btn { right: 6px; }
 /* a margem de 14 px do ⚙ vinha do layout clássico e o deixava abaixo dos vizinhos: os três na mesma linha */
 body[data-casca="nova"] .tab-content > .aba-cfg-btn { margin: 0; }
 body.ar-editando .tab-content.active > .aba-dev-btn { display: none; }

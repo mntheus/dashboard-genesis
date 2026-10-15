@@ -31,9 +31,12 @@
   const og = { get: P.getItem, set: P.setItem, rem: P.removeItem, key: P.key, clear: P.clear };
   let aparencia = {};
   try { aparencia = JSON.parse(og.get.call(L, 'lifeos_prefs')) || {}; } catch (e) { aparencia = {}; }
-  P.getItem = function (k) { if (this !== L) return og.get.call(this, k); k = String(k); return k in mem ? mem[k] : null; };
-  P.setItem = function (k, v) { if (this !== L) return og.set.call(this, k, v); mem[String(k)] = String(v); };
-  P.removeItem = function (k) { if (this !== L) return og.rem.call(this, k); delete mem[String(k)]; };
+  // 💡 (15/10) a ÚNICA exceção: as ideias. Quem testa passeia pelo exemplo e anota ideias ali — elas não podem
+  // sumir ao sair. `lifeos_devnotes` passa direto para o localStorage de verdade (só ele; nada mais é tocado).
+  const PASSA = { lifeos_devnotes: 1 };
+  P.getItem = function (k) { if (this !== L) return og.get.call(this, k); k = String(k); if (PASSA[k]) return og.get.call(L, k); return k in mem ? mem[k] : null; };
+  P.setItem = function (k, v) { if (this !== L) return og.set.call(this, k, v); if (PASSA[String(k)]) return og.set.call(L, String(k), String(v)); mem[String(k)] = String(v); };
+  P.removeItem = function (k) { if (this !== L) return og.rem.call(this, k); if (PASSA[String(k)]) return og.rem.call(L, String(k)); delete mem[String(k)]; };
   P.key = function (i) { if (this !== L) return og.key.call(this, i); const ks = Object.keys(mem); return i >= 0 && i < ks.length ? ks[i] : null; };
   P.clear = function () { if (this !== L) return og.clear.call(this); Object.keys(mem).forEach(k => delete mem[k]); };
   const compr = Object.getOwnPropertyDescriptor(P, 'length');

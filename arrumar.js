@@ -283,6 +283,7 @@ const AB_RESUMOS = {
   'business/projetos': 'Projetos de negócio',
   'health/painel': 'Treino, corpo, comida e médico de relance', 'health/treinos': 'Fichas e treinos feitos',
   'health/medidas': 'O corpo hoje, peso e medidas', 'health/comida': 'Planos alimentares e refeições',
+  'health/receitas': 'O livro: sumário, porções e a lista de compras',
   'health/medico': 'Remédios, prevenção, consultas e exames',
   'leisure/painel': 'O que está na tela, a próxima saída, a música e o ano',
   'leisure/midia': 'Filmes, séries e documentários', 'leisure/saidas': 'Museus, shows e programas', 'leisure/musica': 'Playlists por momento',

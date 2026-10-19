@@ -55,6 +55,7 @@ let vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || [];         //
 let fichas = JSON.parse(localStorage.getItem('lifeos_fichas')) || [];         // fichas de treino
 let dietas = JSON.parse(localStorage.getItem('lifeos_dietas')) || [];         // planos alimentares
 let pratos = JSON.parse(localStorage.getItem('lifeos_pratos')) || [];         // pratos prontos: a refeição que se repete, num toque (10/10)
+let receitas = JSON.parse(localStorage.getItem('lifeos_receitas')) || [];     // livro de receitas (19/10, módulo 50 — receitas.js)
 let topics = JSON.parse(localStorage.getItem('lifeos_topics')) || [];       // Estudos: temas
 let materials = JSON.parse(localStorage.getItem('lifeos_materials')) || []; // Estudos: livros, cursos...
 let sessions = JSON.parse(localStorage.getItem('lifeos_sessions')) || [];   // Estudos: sessões (Pomodoro + manuais)
@@ -3157,8 +3158,10 @@ function verSecaoSaude(s, el) {
   saudeSecao = s;
   document.querySelectorAll('#saude-secoes > span').forEach(x => x.classList.remove('active'));
   if (el) el.classList.add('active');
-  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes > span')[i]; if (sp) sp.classList.add('active'); }
-  ['painel', 'treinos', 'medidas', 'comida', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
+  // (19/10) 📖 Receitas entrou entre Comida e Médico: a ordem aqui é a das micro-abas no HTML (escolhe por posição)
+  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'receitas', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes > span')[i]; if (sp) sp.classList.add('active'); }
+  ['painel', 'treinos', 'medidas', 'comida', 'receitas', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
+  if (s === 'receitas' && typeof rcRender === 'function') rcRender();
   // o gráfico do peso mede a largura de onde está: escondido, ela é zero
   if (s === 'medidas' && typeof renderMedidas === 'function') renderMedidas();
 }
@@ -3253,6 +3256,7 @@ function renderSaude() {
   organizarSaude(); preencherSelectsSaude(); sincronizarHabitosRemedios(); renderPainelSaude(); renderTreinos();
   renderMedidas(); renderRefeicoes(); renderMedico(); renderFichas(); renderDietas();
   renderRotinaMedica(); renderPrevencao(); preencherBancoAlimentos();
+  if (typeof rcRender === 'function') rcRender();   // 📖 o livro de receitas (19/10)
 }
 
 // ============================================================================
@@ -4702,8 +4706,8 @@ function redesenharRede() { renderRede(); renderCurriculo(); }
 // O desenho da Rede (termômetro, cartões de visita) e do Currículo (medidor, linha) mora no rede.js (08/10).
 function renderRede() { rdRenderRede(); }
 // Config/Backup
-function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, saidas, milhas, curriculo, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, pratos, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, inventario, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
-function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.saidas) salvar('saidas', data.saidas); if (data.milhas) salvar('milhas', data.milhas); if (data.curriculo) salvar('curriculo', data.curriculo); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas', 'pratos'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'inventario', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
+function exportData() { const data = { habits, habitlog: habitLog, shifts, places, events, finances: transactions, recurring, budget, tasks, tasklists, routines, notes, orders, media, saidas, milhas, curriculo, playlists, trips, contacts, devnotes, servicos, pacientes, repasses, maquinas, filamentos, produtos, ordens, vendas, fichas, dietas, pratos, receitas, study: studyData, topics, materials, sessions, ritual, assets, moves, goals, projects, wealth, inventario, workouts, measures, hydration, meals, medical, profile }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); const dateString = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`; a.download = `genesis_backup_${dateString}.json`; a.click(); URL.revokeObjectURL(url); const statusEl = document.getElementById('backup-status'); statusEl.innerText = "Backup exportado!"; setTimeout(() => statusEl.innerText = "", 3000); }
+function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); tirarFoto('antes de importar arquivo'); snapPausado = true; if (data.habits) salvar('habits', data.habits); if (data.habitlog) salvar('habitlog', data.habitlog); if (data.shifts) salvar('shifts', data.shifts); if (data.places) salvar('places', data.places); if (data.events) salvar('events', data.events); if (data.finances) salvar('finances', data.finances); if (data.recurring) salvar('recurring', data.recurring); if (data.budget) salvar('budget', data.budget); if (data.tasks) salvar('tasks', data.tasks); if (data.tasklists) salvar('tasklists', data.tasklists); if (data.routines) salvar('routines', data.routines); if (data.orders) salvar('orders', data.orders); if (data.media) salvar('media', data.media); if (data.saidas) salvar('saidas', data.saidas); if (data.milhas) salvar('milhas', data.milhas); if (data.curriculo) salvar('curriculo', data.curriculo); if (data.playlists) salvar('playlists', data.playlists); if (data.trips) salvar('trips', data.trips); if (data.contacts) salvar('contacts', data.contacts); if (data.devnotes) salvar('devnotes', data.devnotes); if (data.servicos) salvar('servicos', data.servicos); if (data.pacientes) salvar('pacientes', data.pacientes); if (data.repasses) salvar('repasses', data.repasses); ['maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'fichas', 'dietas', 'pratos', 'receitas'].forEach(k => { if (data[k]) salvar(k, data[k]); }); if (data.notes) salvar('notes', data.notes); if (data.study) salvar('study', data.study); if (data.topics) salvar('topics', data.topics); if (data.materials) salvar('materials', data.materials); if (data.sessions) salvar('sessions', data.sessions); if (data.ritual) salvar('ritual', data.ritual); ['assets', 'moves', 'goals', 'projects', 'wealth', 'inventario', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile'].forEach(k => { if (data[k]) salvar(k, data[k]); }); snapPausado = false; location.reload(); } catch (error) { snapPausado = false; alert("Erro ao ler o arquivo."); } }; reader.readAsText(file); }
 
 // ============================================================================
 // PERFIL DE TRABALHO — o app deixa de ser "de médico"
@@ -5803,7 +5807,9 @@ const CAMPOS_LISTA = {
   'event-followups':  'encaminhamento',
   'project-steps':    'próximo passo',
   'ritual-roadmap':   'item do roteiro',
-  'workout-exercises':'exercício'
+  'workout-exercises':'exercício',
+  'rc-ingredientes':  'ingrediente',
+  'rc-passos':        'passo'
 };
 function modoLista(id) {
   prefs.listaModo = prefs.listaModo || {};
@@ -7796,7 +7802,7 @@ if (_vndProd) _vndProd.addEventListener('change', previaVenda);
 // planilha tiver de mais novo. Em empate, a planilha vence.
 // URL e token ficam SÓ no localStorage deste aparelho (aba Config).
 // ============================================================================
-const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile', 'fichas', 'dietas', 'saidas', 'milhas', 'curriculo', 'inventario', 'pratos'];
+const SYNC_MODULOS = ['habits', 'habitlog', 'shifts', 'places', 'events', 'finances', 'recurring', 'budget', 'tasks', 'tasklists', 'routines', 'notes', 'orders', 'media', 'playlists', 'trips', 'contacts', 'devnotes', 'servicos', 'pacientes', 'repasses', 'maquinas', 'filamentos', 'produtos', 'ordens', 'vendas', 'study', 'topics', 'materials', 'sessions', 'ritual', 'assets', 'moves', 'goals', 'projects', 'wealth', 'workouts', 'measures', 'hydration', 'meals', 'medical', 'profile', 'fichas', 'dietas', 'saidas', 'milhas', 'curriculo', 'inventario', 'pratos', 'receitas'];
 const SYNC_INTERVALO_MS = 30000; // sincronização periódica com o app aberto
 
 let syncMeta = JSON.parse(localStorage.getItem('lifeos_sync_meta')) || null;
@@ -7933,7 +7939,7 @@ function redesenharTudo() {
   trips = JSON.parse(localStorage.getItem('lifeos_trips')) || []; contacts = JSON.parse(localStorage.getItem('lifeos_contacts')) || [];
   devnotes = JSON.parse(localStorage.getItem('lifeos_devnotes')) || {};
   servicos = JSON.parse(localStorage.getItem('lifeos_servicos')) || []; pacientes = JSON.parse(localStorage.getItem('lifeos_pacientes')) || []; repasses = JSON.parse(localStorage.getItem('lifeos_repasses')) || [];
-  maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || []; filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || []; ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || []; vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || []; fichas = JSON.parse(localStorage.getItem("lifeos_fichas")) || []; dietas = JSON.parse(localStorage.getItem("lifeos_dietas")) || []; pratos = JSON.parse(localStorage.getItem("lifeos_pratos")) || [];
+  maquinas = JSON.parse(localStorage.getItem('lifeos_maquinas')) || []; filamentos = JSON.parse(localStorage.getItem('lifeos_filamentos')) || []; produtos = JSON.parse(localStorage.getItem('lifeos_produtos')) || []; ordens = JSON.parse(localStorage.getItem('lifeos_ordens')) || []; vendas = JSON.parse(localStorage.getItem('lifeos_vendas')) || []; fichas = JSON.parse(localStorage.getItem("lifeos_fichas")) || []; dietas = JSON.parse(localStorage.getItem("lifeos_dietas")) || []; pratos = JSON.parse(localStorage.getItem("lifeos_pratos")) || []; receitas = JSON.parse(localStorage.getItem("lifeos_receitas")) || [];
   notes = JSON.parse(localStorage.getItem('lifeos_notes')) || []; normalizarNotas();
   const st = JSON.parse(localStorage.getItem('lifeos_study'));
   if (st) { studyData = st; if (!studyData.dias) studyData.dias = {}; }

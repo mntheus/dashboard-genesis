@@ -237,6 +237,16 @@
     { id: 4502, nome: 'Iogurte com granola', tipo: 'lanche', kcal: 280, prot: 14, usos: 6, criadoEm: 1 },
     { id: 4503, nome: 'Omelete com salada', tipo: 'jantar', kcal: 380, prot: 28, usos: 4, criadoEm: 1 },
     { id: 4504, nome: 'Whey com banana', tipo: 'lanche', kcal: 230, prot: 26, usos: 3, criadoEm: 1 }]);
+  // (19/10) o livro de receitas (receitas.js)
+  S('receitas', [
+    { id: 4601, nome: 'Panqueca de banana', cat: 'cafe', tempo: 15, porcoes: 1, kcal: 320, prot: 18, fav: true, vezes: 7, ultimaVez: d(-2), img: '', criadoEm: 1,
+      ingredientes: ['1 banana madura', '2 ovos', '2 colheres de aveia', '1 pitada de canela'], passos: ['Amasse a banana com um garfo', 'Misture os ovos, a aveia e a canela', 'Doure dos dois lados em frigideira antiaderente'], fonte: '', notas: 'Com mel e morango fica ótima.' },
+    { id: 4602, nome: 'Frango com legumes', cat: 'almoco', tempo: 35, porcoes: 2, kcal: 450, prot: 42, fav: false, vezes: 4, ultimaVez: d(-5), img: '', criadoEm: 1,
+      ingredientes: ['300 g de peito de frango', '1 abobrinha', '1 cenoura', '½ cebola', '2 colheres de azeite', 'Sal e pimenta a gosto'], passos: ['Corte o frango em cubos e tempere', 'Doure o frango no azeite e reserve', 'Refogue a cebola, a cenoura e a abobrinha', 'Volte o frango e acerte o sal'], fonte: '', notas: 'Rende a marmita de 2 plantões.' },
+    { id: 4603, nome: 'Sopa de abóbora', cat: 'jantar', tempo: 40, porcoes: 4, kcal: 210, prot: 6, fav: false, vezes: 2, ultimaVez: d(-12), img: '', criadoEm: 1,
+      ingredientes: ['1 kg de abóbora cabotiá', '1 cebola', '2 dentes de alho', '1 litro de água', '1 colher de azeite', 'Gengibre a gosto'], passos: ['Refogue a cebola e o alho no azeite', 'Junte a abóbora em cubos e a água', 'Cozinhe até amolecer (uns 25 min)', 'Bata no liquidificador e finalize com gengibre'], fonte: '', notas: '' },
+    { id: 4604, nome: 'Brigadeiro de colher', cat: 'doce', tempo: 20, porcoes: 6, kcal: 180, prot: 3, fav: false, vezes: 1, ultimaVez: '', img: '', criadoEm: 1,
+      ingredientes: ['1 lata de leite condensado', '2 colheres de cacau em pó', '1 colher de manteiga'], passos: ['Junte tudo na panela em fogo baixo', 'Mexa sem parar até desgrudar do fundo', 'Sirva morno ou gelado'], fonte: 'da vó', notas: '' }]);
   S('meals', [{ id: nid(), date: d(0), time: '07:10', type: 'cafe', desc: 'Café da manhã: ovos e pão', quality: 'boa', planoRef: '401:0' }, { id: nid(), date: d(0), time: '12:30', type: 'almoco', desc: 'Marmita do plantão', quality: 'ok' }]);
   S('medical', [
     { id: nid(), kind: 'consulta', title: 'Dermatologista', date: d(12), time: '15:00', place: 'Clínica X', notes: '', done: false, eventId: null },

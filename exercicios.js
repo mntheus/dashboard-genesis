@@ -144,7 +144,12 @@ const EX_BANCO = [
   ['Rosca scott', 'biceps', 'rosca', 'maquina', 'Apoio tira o impulso.'],
   ['Rosca concentrada', 'biceps', 'rosca', 'livre', 'Cotovelo apoiado na coxa.'],
   ['Rosca no cabo', 'biceps', 'rosca', 'cabo', 'Tensão constante.'],
-  ['Rosca inversa', 'biceps', 'rosca', 'livre', 'Pegada pronada: antebraço.'],
+  // ── ANTEBRAÇO (19/10, ideia dele: "um exercício pode ter mais de uma classe — a remada pega costas e antebraço") ──
+  ['Rosca inversa', 'antebraco', 'rosca', 'livre', 'Pegada pronada: antebraço, com o bíceps ajudando.'],
+  ['Rosca de punho', 'antebraco', 'rosca', 'livre', 'Antebraço apoiado no banco: só o punho sobe e desce.'],
+  ['Rosca de punho invertida', 'antebraco', 'rosca', 'livre', 'Pegada por cima e carga leve.'],
+  ['Suspensão na barra', 'antebraco', 'puxar-v', 'corpo', 'Pendurado de braço esticado, 20–40 s: treina a pegada.'],
+  ['Caminhada do fazendeiro', 'antebraco', 'avancar', 'livre', 'Um peso em cada mão, ombros para trás, passos curtos.'],
   // ── TRÍCEPS ─────────────────────────────────────────────────────────────
   ['Tríceps pulley', 'triceps', 'triceps', 'cabo', 'Cotovelo parado; só o antebraço anda.'],
   ['Tríceps corda', 'triceps', 'triceps', 'cabo', 'Abra a corda no fim do movimento.'],
@@ -236,36 +241,47 @@ function exercicioDoBanco(nome) {
 function figuraDoNome(nome, grupo, tam) {
   const e = exercicioDoBanco(nome);
   if (e) return figuraExercicio(e.padrao, tam);
-  const porGrupo = { peito: 'empurrar-h', costas: 'puxar-h', ombro: 'empurrar-v', biceps: 'rosca',
-    triceps: 'triceps', perna: 'agachar', gluteo: 'gluteo', abdomen: 'abdominal',
-    cardio: 'cardio', mobilidade: 'alongar' };
-  return figuraExercicio(porGrupo[grupo] || 'alongar', tam);
+  return figuraExercicio(EX_POR_GRUPO[grupo] || 'alongar', tam);
 }
 
 // ── S2 (09/10): QUAIS MÚSCULOS cada exercício trabalha, para acender o mapa do corpo ──
 // O grupo do exercício é o principal; o padrão de movimento diz quem ajuda
 // (supino: peito, com tríceps e ombro ajudando; stiff: posterior, com glúteo e lombar).
+// (19/10) Antebraço entrou: as puxadas e as roscas usam a pegada.
 const EX_PAPEIS = {
   'empurrar-h': ['peito', 'triceps', 'ombro'], 'empurrar-v': ['ombro', 'triceps'],
-  'puxar-h': ['costas', 'biceps', 'ombro'], 'puxar-v': ['costas', 'biceps'],
+  'puxar-h': ['costas', 'biceps', 'antebraco', 'ombro'], 'puxar-v': ['costas', 'biceps', 'antebraco'],
   'agachar': ['perna', 'gluteo', 'abdomen'], 'quadril': ['perna', 'gluteo', 'costas'],
-  'avancar': ['perna', 'gluteo'], 'rosca': ['biceps'], 'triceps': ['triceps'], 'elevacao': ['ombro'],
+  'avancar': ['perna', 'gluteo'], 'rosca': ['biceps', 'antebraco'], 'triceps': ['triceps'], 'elevacao': ['ombro'],
   'abdominal': ['abdomen'], 'prancha': ['abdomen', 'ombro'], 'gluteo': ['gluteo', 'perna'],
   'panturrilha': ['perna'], 'cardio': ['perna', 'abdomen'], 'alongar': []
 };
-const EX_NO_MAPA = ['peito', 'costas', 'ombro', 'biceps', 'triceps', 'perna', 'gluteo', 'abdomen'];
-const EX_POR_GRUPO = { peito: 'empurrar-h', costas: 'puxar-h', ombro: 'empurrar-v', biceps: 'rosca', triceps: 'triceps',
+const EX_NO_MAPA = ['peito', 'costas', 'ombro', 'biceps', 'antebraco', 'triceps', 'perna', 'gluteo', 'abdomen'];
+const EX_POR_GRUPO = { peito: 'empurrar-h', costas: 'puxar-h', ombro: 'empurrar-v', biceps: 'rosca', antebraco: 'rosca', triceps: 'triceps',
   perna: 'agachar', gluteo: 'gluteo', abdomen: 'abdominal', cardio: 'cardio', mobilidade: 'alongar' };
-function musculosDoExercicio(nome, grupo) {
+/** Quem trabalha: `prim` = o grupo do exercício; `sec` = quem ajuda. Ideia dele (15/10): "um exercício pode ter mais
+ *  de uma classe". Sem escolha dele, quem ajuda vem do padrão de movimento; `extras` (o que ELE marcou na ficha,
+ *  `e.grupos`) substitui essa lista — e é o que também conta no "há quanto tempo treinei" do painel. */
+function musculosDoExercicio(nome, grupo, extras) {
   const e = exercicioDoBanco(nome); const g = e ? e.grupo : grupo;
   const padrao = e ? e.padrao : EX_POR_GRUPO[g] || 'alongar';
   const lista = EX_PAPEIS[padrao] || [];
   const prim = EX_NO_MAPA.includes(g) ? [g] : lista.slice(0, 1);
-  return { prim, sec: lista.filter(x => !prim.includes(x)), padrao };
+  const sec = Array.isArray(extras) ? extras.filter(x => x !== g && GRUPOS_MUSC[x]) : lista.filter(x => !prim.includes(x));
+  return { prim, sec, padrao, escolhidos: Array.isArray(extras) };
+}
+/** "🧗 Costas · com 💪 Bíceps, ✊ Antebraço" — a linha que diz todos os grupos de um exercício. */
+function gruposDoExercicioTexto(nome, grupo, extras) {
+  const p = musculosDoExercicio(nome, grupo, extras), b = exercicioDoBanco(nome);
+  const n = k => (GRUPOS_MUSC[k] || ['', k]);
+  // a classe do exercício (Cardio, Mobilidade…) vem antes; os músculos que não são ela, depois
+  const classe = (b ? b.grupo : grupo) || p.prim[0] || '';
+  const com = [...new Set([...p.prim, ...p.sec])].filter(k => k !== classe);
+  return (classe ? `${n(classe)[0]} ${esc(n(classe)[1])}` : 'Geral') + (com.length ? ` · com ${com.map(k => esc(n(k)[1])).join(', ')}` : '');
 }
 /** O mapa do corpo com os músculos do exercício acesos. `lado`: 'frente' | 'costas' | '' (os dois) | 'auto'. */
-function mapaDoExercicio(nome, grupo, lado) {
-  const p = musculosDoExercicio(nome, grupo);
+function mapaDoExercicio(nome, grupo, lado, extras) {
+  const p = musculosDoExercicio(nome, grupo, extras);
   if (lado === 'auto') lado = p.prim.some(g => ['costas', 'triceps', 'gluteo'].includes(g)) ? 'costas' : 'frente';
   return typeof spMapaMuscular === 'function' ? spMapaMuscular({}, new Set(), { prim: p.prim, sec: p.sec, lado: lado || '' }) : figuraExercicio(p.padrao, 44);
 }
@@ -278,9 +294,22 @@ function mapaDoExercicio(nome, grupo, lado) {
 let exBancoDestino = null;     // { tipo:'ficha', id, dia } | { tipo:'treino' }
 let exBancoFiltro = { grupo: '', equip: '', busca: '' };
 
+// ── AERÓBICO (19/10, ideia dele: "oferecer opções de adicionar aeróbico ao treino") ──
+// Esteira, bike, corda… não são "3 × 10 com 20 kg": são MINUTOS e intensidade. Na ficha e no treino ao vivo
+// o exercício de Cardio vira tempo (com cronômetro) em vez de séries.
+const EX_INTENSIDADE = { leve: ['🙂', 'leve'], moderado: ['😤', 'moderado'], forte: ['🔥', 'forte'] };
+/** É aeróbico? Pelo grupo Cardio (o Remo ergômetro tem padrão de puxada, mas é cardio). */
+function exAerobico(e) { if (!e) return false; if (e.aerob !== undefined) return !!e.aerob; const b = exercicioDoBanco(e.nome); return (b ? b.grupo : e.grupo) === 'cardio'; }
+function exNovoAerobico(nome, grupo, min, int) {
+  return { id: novoId(), nome, grupo: grupo || 'cardio', aerob: true, min: min || 20, int: int || 'moderado',
+    series: 1, reps: (min || 20) + ' min', carga: 0, descanso: 0, obs: '' };
+}
+/** "20 min · 😤 moderado" */
+function exAerobicoTexto(e) { const i = EX_INTENSIDADE[e.int] || EX_INTENSIDADE.moderado; return `${Number(e.min) || 20} min · ${i[0]} ${i[1]}`; }
+
 function abrirBancoExercicios(destino) {
   exBancoDestino = destino || { tipo: 'treino' };
-  exBancoFiltro = { grupo: '', equip: '', busca: '' };
+  exBancoFiltro = { grupo: (destino && destino.grupo) || '', equip: '', busca: '' };
   let el = document.getElementById('ex-banco');
   if (!el) {
     el = document.createElement('div');
@@ -328,36 +357,41 @@ function renderBancoExercicios() {
   const lista = document.getElementById('ex-banco-lista'); if (!lista) return;
   const b = exBancoFiltro.busca.trim().toLowerCase();
   const semAcento = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const achados = EX_LISTA.map((e, i) => ({ e, i })).filter(({ e }) =>
-    (!exBancoFiltro.grupo || e.grupo === exBancoFiltro.grupo) &&
-    (!exBancoFiltro.equip || e.equip === exBancoFiltro.equip) &&
-    (!b || semAcento(e.nome).includes(semAcento(b))));
-  if (!achados.length) { lista.innerHTML = `<p class="hint">Nenhum exercício com esses filtros.</p>`; return; }
-  lista.innerHTML = achados.map(({ e, i }) => `
+  const g = exBancoFiltro.grupo;
+  const passa = e => (!exBancoFiltro.equip || e.equip === exBancoFiltro.equip) && (!b || semAcento(e.nome).includes(semAcento(b)));
+  const todos = EX_LISTA.map((e, i) => ({ e, i })).filter(({ e }) => passa(e));
+  // (19/10) um exercício tem mais de um grupo: filtrar por Bíceps mostra as roscas E, separadas, as puxadas em que ele ajuda
+  const achados = g ? todos.filter(({ e }) => e.grupo === g) : todos;
+  const ajudam = g ? todos.filter(({ e }) => e.grupo !== g && musculosDoExercicio(e.nome, e.grupo).sec.includes(g)) : [];
+  if (!achados.length && !ajudam.length) { lista.innerHTML = `<p class="hint">Nenhum exercício com esses filtros.</p>`; return; }
+  const cartao = ({ e, i }) => `
     <button type="button" class="ex-cartao" onclick="porExercicioNoDestino(${i})" title="${esc(e.dica)}">
       <span class="ex-cartao-fig">${mapaDoExercicio(e.nome, e.grupo, '')}<i class="ex-cartao-mov" title="${esc((EX_FIGURAS[e.padrao] || {}).nome || '')}">${figuraExercicio(e.padrao, 22)}</i></span>
       <span class="ex-cartao-txt">
         <strong>${esc(e.nome)}</strong>
-        <small>${(GRUPOS_MUSC[e.grupo] || ['', e.grupo])[0]} ${esc((GRUPOS_MUSC[e.grupo] || ['', e.grupo])[1])} · ${EX_EQUIP[e.equip][0]} ${esc(EX_EQUIP[e.equip][1])}</small>
+        <small>${gruposDoExercicioTexto(e.nome, e.grupo)} · ${EX_EQUIP[e.equip][0]} ${esc(EX_EQUIP[e.equip][1])}</small>
         <em>${esc(e.dica)}</em>
-      </span></button>`).join('');
+      </span></button>`;
+  lista.innerHTML = achados.map(cartao).join('') +
+    (ajudam.length ? `<p class="ex-banco-sep">Também trabalham ${esc((GRUPOS_MUSC[g] || ['', g])[1])}, ajudando</p>` + ajudam.map(cartao).join('') : '');
 }
 function porExercicioNoDestino(indice) {
   const e = EX_LISTA[indice]; if (!e || !exBancoDestino) return;
   if (exBancoDestino.tipo === 'ficha') {
     const f = fichaPorId(exBancoDestino.id);
     if (!f || !f.dias[exBancoDestino.dia]) { toast('A ficha mudou — abra de novo.'); fecharBancoExercicios(); return; }
-    f.dias[exBancoDestino.dia].exercicios.push({ id: novoId(), nome: e.nome, grupo: e.grupo,
-      series: 3, reps: '10', carga: 0, descanso: 60, obs: '' });
+    const aero = exAerobico(e);
+    f.dias[exBancoDestino.dia].exercicios.push(aero ? exNovoAerobico(e.nome, e.grupo, 20, 'moderado')
+      : { id: novoId(), nome: e.nome, grupo: e.grupo, series: 3, reps: '10', carga: 0, descanso: 60, obs: '' });
     salvar('fichas', fichas);
     // abre a ficha para ele VER o que acabou de entrar (estava fechada e parecia que nada acontecia)
     if (typeof fichaAberta !== 'undefined') { fichaAberta = exBancoDestino.id; diaAberto = exBancoDestino.dia; }
     renderFichas();
-    toast(`${e.nome} entrou na ficha. Ajuste séries e carga ali.`, 3500);
+    toast(aero ? `${e.nome} entrou na ficha: 20 min, moderado. Ajuste o tempo ali.` : `${e.nome} entrou na ficha. Ajuste séries e carga ali.`, 3500);
   } else {
     const campo = document.getElementById('workout-exercises');
     if (!campo) return;
-    campo.value = (campo.value ? campo.value.replace(/\s*$/, '') + '\n' : '') + `${e.nome} 3x10`;
+    campo.value = (campo.value ? campo.value.replace(/\s*$/, '') + '\n' : '') + (exAerobico(e) ? `${e.nome} 20 min` : `${e.nome} 3x10`);
     toast(`${e.nome} entrou no treino de hoje.`, 3000);
   }
 }

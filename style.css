@@ -937,6 +937,10 @@ body[data-abas="lateral"] .aba-cfg-btn { top: 14px; right: 14px; }
 .ideia-grupo { margin-top: 8px; }
 .ideia-grupo > b { font-size: .78rem; color: var(--txt3); }
 .ideia-grupo .dev-lista { margin-top: 2px; max-height: none; }
+/* (19/10) No caderno da aba a lista era uma caixa de 240 px com rolagem própria: no print dele, a 3ª ideia cortada
+   no meio da frase, sem sinal de que havia mais, e a janela com espaço sobrando embaixo. Agora cresce; quem rola,
+   se precisar, é a janela inteira ("rolar só se precisar"). */
+.dev-lista.dev-caderno { max-height: none; overflow: visible; }
 .ideia-vazio { margin: 6px 0 0; }
 .ideia-rodape { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: .82rem; }
 .ideia-rodape a { color: var(--acento); text-decoration: none; }
@@ -2884,6 +2888,23 @@ body.ex-banco-aberto { overflow: hidden; }
 .ex-carga { justify-content: flex-end; }
 .ex-carga strong { font-variant-numeric: tabular-nums; }
 .ex-linha .item-actions { justify-content: flex-end; }
+/* (19/10) os grupos de cada exercício: os chips abrem embaixo da linha, na largura toda */
+.ex-nome small { white-space: normal; line-height: 1.35; }
+.ex-grupos { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 4px 0 2px; }
+.ex-grupos small { font-size: 0.7rem; color: var(--txt4); }
+.ex-grupos > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex-gr-ch { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; border-radius: 999px;
+  font-size: 0.76rem; border: 1px dashed var(--fio-sutil); background: transparent; color: var(--txt3); cursor: pointer; }
+.ex-gr-ch.on { border-style: solid; border-color: var(--acento); color: var(--txt-forte); background: color-mix(in srgb, var(--acento) 14%, transparent); }
+.ex-gr-ch.prim { border-style: solid; border-color: var(--acento); background: var(--acento); color: var(--bg); cursor: default; font-weight: 600; }
+/* aeróbico na ficha: minutos no lugar da carga, intensidade no lugar das séries */
+.ex-int { all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; color: var(--txt2); padding: 4px 8px;
+  border-radius: 999px; border: 1px solid var(--fio-sutil); white-space: nowrap; }
+.ex-int:hover { border-color: var(--acento); color: var(--txt-forte); }
+.ex-novo .so-aerob { display: none; }
+.ex-novo.aerob .so-aerob { display: inline-block; }
+.ex-novo.aerob .so-forca { display: none; }
+.ex-banco-sep { grid-column: 1 / -1; margin: 10px 0 2px; font-size: 0.74rem; color: var(--txt4); letter-spacing: .02em; }
 
 /* o botão de treinar deixa de voar para a borda do cartão: fica na mesma faixa */
 .ficha-dias { align-items: center; }
@@ -2917,6 +2938,18 @@ body.ex-banco-aberto { overflow: hidden; }
   .ex-linha > .ex-carga { grid-area: carga; justify-content: flex-start; }
   .ex-linha > .item-actions { grid-area: acoes; justify-content: flex-end; }
   .ex-nome strong { white-space: normal; }
+  .ex-linha > .ex-series { white-space: nowrap; }
+}
+/* (19/10) Fold fechado e celular pequeno: na 2ª linha não cabem séries + carga + botões — medido em 344 px, a carga
+   ficava POR BAIXO dos ↑ ↓ ✕ (131–259 × 145–307 px) e saía da linha. Os botões descem para uma 3ª linha;
+   no aeróbico, a intensidade também ganha a sua. Medido: em 500 px ainda sobrepunha 12 px; 620 px já cabe. */
+@media (max-width: 600px) {
+  .ex-linha { grid-template-columns: 42px minmax(0, 1fr) auto; column-gap: 10px;
+    grid-template-areas: 'fig nome nome' '. series carga' '. acoes acoes'; }
+  .ex-linha > .item-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .ex-linha > .ex-carga { justify-content: flex-end; }
+  .ex-linha.aerob { grid-template-areas: 'fig nome nome' '. carga carga' '. series series' '. acoes acoes'; }
+  .ex-linha.aerob > .ex-carga { justify-content: flex-start; }
 }
 
 /* ══ PAINEL DA SAÚDE (08/10) ══════════════════════════════════════════════
@@ -5900,7 +5933,17 @@ body.tv-aberto { overflow: hidden; }
 .tv-sup-ch small { color: var(--txt3); }
 .tv-sup-novo { padding: 4px 12px; border: 1px dashed var(--fio-sutil); color: var(--txt2); }
 .tv-sup-novo:hover { color: var(--txt-forte); border-color: var(--txt3); }
-.tv-pe { display: flex; justify-content: center; gap: 8px; }
+.tv-pe { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+/* (19/10) aeróbico ao vivo: cronômetro de minutos no anel, ± 5 min e a intensidade */
+.tv-aero { display: flex; flex-direction: column; gap: 12px; }
+.tv-aero-anel { grid-template-columns: 120px 1fr; }
+.tv-aero-anel .tv-anel { grid-row: 1; }
+.tv-ints { display: flex; flex-wrap: wrap; gap: 6px; }
+.tv-int { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 4px 12px;
+  border-radius: 999px; font-size: .84rem; color: var(--txt2); border: 1px solid var(--fio-sutil); }
+.tv-int.on { color: var(--bg); background: var(--tom); border-color: var(--tom); font-weight: 700; }
+.tv-add-aero { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--fio-sutil); }
+.tv-add-aero .tv-rot { margin-right: 4px; }
 .tv-fim { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--fio-sutil); }
 .tv-fim-cab { display: flex; align-items: center; gap: 14px; }
 .tv-fim-ic { font-size: 2.4rem; }
@@ -6238,7 +6281,9 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
 .pr-form-dica { grid-column: 1 / -1; color: var(--txt3); font-size: .74rem; }
 .pr-form-bt { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
 .pr-form-bt button { margin: 0; }
-@media (max-width: 600px) { .pr-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pr-form #pr-nome { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .pr-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pr-form #pr-nome { grid-column: 1 / -1; }
+  /* (19/10) no Fold fechado o "🕒 pela hora" saía cortado em meia coluna: a refeição ganha a linha toda */
+  .pr-form #pr-tipo { grid-column: 1 / -1; } }
 .pr-guardado { display: inline-flex; align-items: center; justify-content: center; width: 32px; color: var(--acento); }
 .pr-escolha h3 { font-size: 1rem; margin: 0 0 10px; }
 .pr-escolha-lista { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }

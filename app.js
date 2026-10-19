@@ -2818,6 +2818,7 @@ function removerMedida(id) {
 const GRUPOS_MUSC = {
   peito:     ['🎽', 'Peito'],      costas:  ['🧗', 'Costas'],
   ombro:     ['🏐', 'Ombros'],     biceps:  ['💪', 'Bíceps'],
+  antebraco: ['✊', 'Antebraço'],
   triceps:   ['🦾', 'Tríceps'],    perna:   ['🦵', 'Pernas'],
   gluteo:    ['🍑', 'Glúteos'],    abdomen: ['🧱', 'Abdômen'],
   cardio:    ['🏃', 'Cardio'],     mobilidade: ['🧘', 'Mobilidade']
@@ -2870,7 +2871,10 @@ function addExercicio(id, i) {
   const g = document.getElementById('ex-grupo').value;
   const nome = document.getElementById('ex-nome').value.trim();
   if (!nome) { toast('Escolha ou escreva o exercício.'); return; }
-  f.dias[i].exercicios.push({ id: novoId(), nome, grupo: g,
+  if (g === 'cardio') {
+    // aeróbico é tempo, não séries (19/10)
+    f.dias[i].exercicios.push(exNovoAerobico(nome, g, parseInt(document.getElementById('ex-min').value) || 20, document.getElementById('ex-int').value));
+  } else f.dias[i].exercicios.push({ id: novoId(), nome, grupo: g,
     series: parseInt(document.getElementById('ex-series').value) || 3,
     reps: document.getElementById('ex-reps').value.trim() || '10',
     carga: parseFloat(document.getElementById('ex-carga').value) || 0,
@@ -2897,18 +2901,54 @@ function ajustarCarga(id, i, exId, delta) {
   e.carga = Math.max(0, Math.round(((Number(e.carga) || 0) + delta) * 10) / 10);
   salvar('fichas', fichas); renderFichas();
 }
+/** Aeróbico: ± minutos e a intensidade, direto na ficha. */
+function ajustarMinAerobico(id, i, exId, delta) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
+  e.aerob = true; e.min = Math.max(5, (Number(e.min) || 20) + delta); e.reps = e.min + ' min'; e.series = 1; e.descanso = 0;
+  salvar('fichas', fichas); renderFichas();
+}
+function trocarIntensidade(id, i, exId) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
+  const ks = Object.keys(EX_INTENSIDADE); e.aerob = true; e.int = ks[(ks.indexOf(e.int || 'moderado') + 1) % ks.length];
+  salvar('fichas', fichas); renderFichas();
+}
+// ── Os grupos de cada exercício (19/10, ideia dele: "um exercício pode ter mais de uma classe") ──
+// O ✎ na linha abre os chips de todos os grupos; os marcados viram `e.grupos` (quem trabalha junto) e passam a
+// acender o mapa e a contar no "há quanto tempo treinei" do painel. Sem mexer, vale o que o banco sugere.
+let exGruposAberto = null;   // id do exercício com os chips abertos
+function abrirGruposExercicio(exId) { exGruposAberto = exGruposAberto === exId ? null : exId; renderFichas(); }
+function alternarGrupoExercicio(id, i, exId, g) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
+  const atual = musculosDoExercicio(e.nome, e.grupo, e.grupos).sec;
+  e.grupos = atual.includes(g) ? atual.filter(x => x !== g) : [...atual, g];
+  salvar('fichas', fichas); renderFichas();
+}
+function gruposExercicioHTML(f, i, e) {
+  const p = musculosDoExercicio(e.nome, e.grupo, e.grupos);
+  const chips = Object.entries(GRUPOS_MUSC).filter(([k]) => !['cardio', 'mobilidade'].includes(k)).map(([k, v]) => {
+    if (p.prim.includes(k)) return `<span class="ex-gr-ch prim" title="O grupo principal deste exercício">${v[0]} ${esc(v[1])}</span>`;
+    const on = p.sec.includes(k);
+    return `<button type="button" class="ex-gr-ch${on ? ' on' : ''}" aria-pressed="${on}" onclick="alternarGrupoExercicio(${f.id}, ${i}, ${e.id}, '${k}')">${v[0]} ${esc(v[1])}</button>`;
+  }).join('');
+  return `<div class="ex-grupos"><small>${p.escolhidos ? 'Do seu jeito' : 'Sugestão pelo movimento'} — toque para marcar quem trabalha junto:</small><div>${chips}</div></div>`;
+}
 function preencherExercicios() {
   const g = document.getElementById('ex-grupo'); if (!g) return;
   if (!g.options.length) g.innerHTML = Object.entries(GRUPOS_MUSC).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join('');
   const dl = document.getElementById('ex-sugestoes');
   if (dl) dl.innerHTML = (EXERCICIOS[g.value] || []).map(n => `<option value="${esc(n)}">`).join('');
+  // Cardio: o formulário troca séries/reps/kg/descanso por minutos e intensidade
+  const caixa = g.closest('.ex-novo'); if (caixa) caixa.classList.toggle('aerob', g.value === 'cardio');
 }
 /** Treinar por esta ficha: cria o treino do dia já com os exercícios listados. */
 function treinarComFicha(id, i) {
   const f = fichaPorId(id); if (!f || !f.dias[i]) return;
   const d = f.dias[i];
   if (!d.exercicios.length) { toast('Esse dia ainda não tem exercício nenhum.'); return; }
-  const linhas = d.exercicios.map(e => `${e.nome} ${e.series}x${e.reps}${e.carga ? ' ' + e.carga + 'kg' : ''}`);
+  const linhas = d.exercicios.map(e => exAerobico(e) ? `${e.nome} ${Number(e.min) || 20} min` : `${e.nome} ${e.series}x${e.reps}${e.carga ? ' ' + e.carga + 'kg' : ''}`);
   verSecaoSaude('treinos');
   document.getElementById('workout-type').value = 'musculacao';
   document.getElementById('workout-date').value = hojeISO();
@@ -2946,29 +2986,41 @@ function renderFichas() {
         ${f.dias.length > 1 ? `<button class="mini-btn" onclick="removerDia(${f.id}, ${i})">✕ apagar dia</button>` : ''}
         <button class="btn-treinar" onclick="treinoAoVivo(${f.id}, ${i})" title="Modo ao vivo: marca as séries e conta o descanso">▶ Treinar agora</button>
         <button class="mini-btn" onclick="treinarComFicha(${f.id}, ${i})" title="Só preencher o registro abaixo, sem o modo ao vivo">📝 só registrar</button></div>`;
-      h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => `
-        <div class="ex-linha">
-          <span class="ex-ic ex-fig-ficha ex-fig-mapa">${mapaDoExercicio(e.nome, e.grupo, 'auto')}</span>
-          <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${(GRUPOS_MUSC[e.grupo] || ['', 'Geral'])[1]} · descanso ${e.descanso}s</small></span>
-          <span class="ex-series">${e.series} × ${esc(e.reps)}</span>
+      h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => {
+        const aero = exAerobico(e);
+        return `
+        <div class="ex-linha${aero ? ' aerob' : ''}">
+          <span class="ex-ic ex-fig-ficha ex-fig-mapa">${mapaDoExercicio(e.nome, e.grupo, 'auto', e.grupos)}</span>
+          <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${gruposDoExercicioTexto(e.nome, e.grupo, e.grupos)}${aero ? '' : ` · descanso ${e.descanso}s`}</small></span>
+          ${aero ? `<span class="ex-series"><button type="button" class="ex-int" onclick="trocarIntensidade(${f.id}, ${i}, ${e.id})" title="Trocar a intensidade">${exAerobicoTexto(e).split(' · ')[1]}</button></span>
+          <span class="ex-carga">
+            <button class="mini-btn xs" onclick="ajustarMinAerobico(${f.id}, ${i}, ${e.id}, -5)" aria-label="Menos 5 minutos">−</button>
+            <strong>${Number(e.min) || 20} min</strong>
+            <button class="mini-btn xs" onclick="ajustarMinAerobico(${f.id}, ${i}, ${e.id}, 5)" aria-label="Mais 5 minutos">＋</button></span>`
+          : `<span class="ex-series">${e.series} × ${esc(e.reps)}</span>
           <span class="ex-carga">
             <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, -2.5)">−</button>
             <strong>${e.carga ? e.carga + ' kg' : '—'}</strong>
-            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, 2.5)">＋</button></span>
+            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, 2.5)">＋</button></span>`}
           <span class="item-actions">
+            ${aero ? '' : `<button class="mini-btn xs${exGruposAberto === e.id ? ' on' : ''}" onclick="abrirGruposExercicio(${e.id})" title="Quais grupos este exercício trabalha">✎ grupos</button>`}
             <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, -1)">↑</button>
             <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, 1)">↓</button>
             <button class="mini-btn xs" onclick="removerExercicio(${f.id}, ${i}, ${e.id})">✕</button></span>
-        </div>`).join('') : '<div class="pf-vazio">Nenhum exercício neste dia.</div>') + '</div>';
+          ${exGruposAberto === e.id && !aero ? gruposExercicioHTML(f, i, e) : ''}
+        </div>`; }).join('') : '<div class="pf-vazio">Nenhum exercício neste dia.</div>') + '</div>';
       h += `<div class="ex-novo">
         <select id="ex-grupo" onchange="preencherExercicios()"></select>
         <input type="text" id="ex-nome" list="ex-sugestoes" placeholder="exercício"><datalist id="ex-sugestoes"></datalist>
-        <input type="number" id="ex-series" min="1" value="3" title="séries">
-        <input type="text" id="ex-reps" value="10" title="repetições" style="max-width:70px">
-        <input type="number" id="ex-carga" step="0.5" min="0" placeholder="kg">
-        <input type="number" id="ex-descanso" min="0" step="15" value="60" title="descanso (s)">
+        <input type="number" id="ex-series" class="so-forca" min="1" value="3" title="séries">
+        <input type="text" id="ex-reps" class="so-forca" value="10" title="repetições" style="max-width:70px">
+        <input type="number" id="ex-carga" class="so-forca" step="0.5" min="0" placeholder="kg">
+        <input type="number" id="ex-descanso" class="so-forca" min="0" step="15" value="60" title="descanso (s)">
+        <input type="number" id="ex-min" class="so-aerob" min="5" step="5" value="20" title="minutos" aria-label="Minutos">
+        <select id="ex-int" class="so-aerob" aria-label="Intensidade">${Object.entries(EX_INTENSIDADE).map(([k, v]) => `<option value="${k}"${k === 'moderado' ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
         <button class="mini-btn" onclick="addExercicio(${f.id}, ${i})" title="Adicionar o que está escrito">＋</button>
-        <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i} })" title="Abrir o banco de exercícios">📚 Banco</button></div>`;
+        <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i} })" title="Abrir o banco de exercícios">📚 Banco</button>
+        <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i}, grupo: 'cardio' })" title="Esteira, bike, corda… em minutos">🏃 ＋ aeróbico</button></div>`;
     }
     return h + '</div>';
   }).join('');
@@ -5727,7 +5779,7 @@ function renderConfigAba() {
     </form>
     ${htmlAtalhosIdeia('dev-input')}
     <h4 class="dev-titulo">Anotadas aqui <small>${abertas.length ? plural(abertas.length, 'ideia', 'ideias') : 'nenhuma ainda'}</small></h4>
-    <ul class="dev-lista">${abertas.map(linha).join('') || '<li class="dev-vazio">Seja o primeiro: a primeira ideia desta aba é sua.</li>'}${feitas.length ? `<li class="dev-sep">resolvidas (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
+    <ul class="dev-lista dev-caderno">${abertas.map(linha).join('') || '<li class="dev-vazio">Seja o primeiro: a primeira ideia desta aba é sua.</li>'}${feitas.length ? `<li class="dev-sep">resolvidas (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
     <div class="ideia-envio">
       <span>${total ? `Você tem <b>${plural(total, 'ideia', 'ideias')}</b> em todas as abas${novas ? ` · <b>${novas}</b> ainda não ${palavra(novas, 'enviada', 'enviadas')}` : ' · todas enviadas'}.` : 'Quando tiver ideias, mande todas de uma vez.'}</span>
       <button type="button" class="btn ideia-enviar" onclick="enviarIdeias()" ${total ? '' : 'disabled'}>📤 Enviar ideias</button>

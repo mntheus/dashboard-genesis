@@ -51,6 +51,7 @@ const SP_PALAVRAS_GRUPO = [
   [/supino|crucifixo|peck|voador|flex[aã]o de bra/i, 'peito'],
   [/puxada|remada|barra fixa|pull ?down|terra|serrote|graviton/i, 'costas'],
   [/desenvolvimento|eleva[cç][aã]o (lateral|frontal)|ombro|arnold|face ?pull/i, 'ombro'],
+  [/punho|antebra[cç]o|fazendeiro|pegada|grip/i, 'antebraco'],
   [/rosca|b[ií]ceps/i, 'biceps'],
   [/tr[ií]ceps|mergulho|franc[eê]s|testa|coice/i, 'triceps'],
   [/gl[uú]te|p[eé]lvica|hip thrust|abdu[cç]/i, 'gluteo'],
@@ -75,13 +76,24 @@ function spGrupoDaLinha(linha) {
   const p = SP_PALAVRAS_GRUPO.find(([re]) => re.test(nome));
   return p ? p[1] : null;
 }
+/** (19/10) Os grupos que ELE marcou num exercício da ficha (`e.grupos`) também contam como treinados. */
+function spExtrasDoNome(nome) {
+  const n = String(nome || '').trim().toLowerCase(); if (!n) return [];
+  for (const f of fichas) for (const d of (f.dias || [])) for (const e of (d.exercicios || []))
+    if (Array.isArray(e.grupos) && String(e.nome || '').trim().toLowerCase() === n) return e.grupos;
+  return [];
+}
 function spGruposDoTreino(w) {
   const gs = new Set(SP_TIPO_GRUPOS[w.type] || []);
-  (w.exercises || []).forEach(l => { const g = spGrupoDaLinha(l); if (g) gs.add(g); });
+  (w.exercises || []).forEach(l => {
+    const g = spGrupoDaLinha(l); if (g) gs.add(g);
+    const nome = String(l || '').replace(/\s+\d+\s*[x×]\s*\S+.*$/i, '').replace(/\s+\d+([.,]\d+)?\s*(kg|min|km|m)\b.*$/i, '');
+    spExtrasDoNome(nome).forEach(x => gs.add(x));
+  });
   // treino carregado da ficha sem a lista: a observação diz qual dia foi
   if (!(w.exercises || []).length && w.note) {
     fichas.forEach(f => (f.dias || []).forEach(d => {
-      if (d.nome && w.note.includes(d.nome)) (d.exercicios || []).forEach(e => { if (e.grupo) gs.add(e.grupo); });
+      if (d.nome && w.note.includes(d.nome)) (d.exercicios || []).forEach(e => { if (e.grupo) gs.add(e.grupo); (e.grupos || []).forEach(x => gs.add(x)); });
     }));
   }
   return gs;
@@ -125,7 +137,6 @@ function spMapaMuscular(rec, prox, papel) {
   const base = f => `<g class="mm-base">${f}</g>`;
   const frente = [
     base('<circle cx="50" cy="13" r="8.5"/><rect x="46" y="21" width="8" height="6" rx="2"/>' +
-      '<ellipse cx="24.5" cy="70" rx="3.8" ry="9.5" transform="rotate(12 24.5 70)"/><ellipse cx="75.5" cy="70" rx="3.8" ry="9.5" transform="rotate(-12 75.5 70)"/>' +
       '<circle cx="22" cy="82" r="3"/><circle cx="78" cy="82" r="3"/>' +
       '<path d="M40 81 H60 L62 92 Q50 96 38 92 Z"/>' +
       '<circle cx="44" cy="128" r="3.4"/><circle cx="56" cy="128" r="3.4"/>' +
@@ -135,12 +146,13 @@ function spMapaMuscular(rec, prox, papel) {
     reg('abdomen', '<rect x="41.5" y="49" width="17" height="31" rx="5"/>'),
     '<path class="mm-linha" d="M50 51 V78 M42.5 58 H57.5 M42.5 65 H57.5 M43 72 H57"/>',
     reg('biceps', '<ellipse cx="28" cy="51" rx="4.6" ry="9" transform="rotate(10 28 51)"/><ellipse cx="72" cy="51" rx="4.6" ry="9" transform="rotate(-10 72 51)"/>'),
+    // (19/10) o antebraço era só contorno; virou grupo (a remada pega a pegada)
+    reg('antebraco', '<ellipse cx="24.5" cy="70" rx="3.8" ry="9.5" transform="rotate(12 24.5 70)"/><ellipse cx="75.5" cy="70" rx="3.8" ry="9.5" transform="rotate(-12 75.5 70)"/>'),
     reg('perna', '<ellipse cx="44" cy="109" rx="6.3" ry="16"/><ellipse cx="56" cy="109" rx="6.3" ry="16"/>' +
       '<ellipse cx="44" cy="145" rx="4.3" ry="13"/><ellipse cx="56" cy="145" rx="4.3" ry="13"/>')
   ].join('');
   const costas = [
     base('<circle cx="150" cy="13" r="8.5"/><rect x="146" y="21" width="8" height="5" rx="2"/>' +
-      '<ellipse cx="124.5" cy="70" rx="3.8" ry="9.5" transform="rotate(12 124.5 70)"/><ellipse cx="175.5" cy="70" rx="3.8" ry="9.5" transform="rotate(-12 175.5 70)"/>' +
       '<circle cx="122" cy="82" r="3"/><circle cx="178" cy="82" r="3"/>' +
       '<circle cx="144" cy="129" r="3.4"/><circle cx="156" cy="129" r="3.4"/>' +
       '<ellipse cx="143" cy="162" rx="4.6" ry="2.6"/><ellipse cx="157" cy="162" rx="4.6" ry="2.6"/>'),
@@ -149,6 +161,7 @@ function spMapaMuscular(rec, prox, papel) {
       '<rect x="143.5" y="76" width="13" height="8" rx="3"/>'),
     reg('ombro', '<ellipse cx="133" cy="35" rx="7.5" ry="6.5"/><ellipse cx="167" cy="35" rx="7.5" ry="6.5"/>'),
     reg('triceps', '<ellipse cx="128" cy="51" rx="4.6" ry="9" transform="rotate(10 128 51)"/><ellipse cx="172" cy="51" rx="4.6" ry="9" transform="rotate(-10 172 51)"/>'),
+    reg('antebraco', '<ellipse cx="124.5" cy="70" rx="3.8" ry="9.5" transform="rotate(12 124.5 70)"/><ellipse cx="175.5" cy="70" rx="3.8" ry="9.5" transform="rotate(-12 175.5 70)"/>'),
     reg('gluteo', '<ellipse cx="144.5" cy="92" rx="6.5" ry="7"/><ellipse cx="155.5" cy="92" rx="6.5" ry="7"/>'),
     reg('perna', '<ellipse cx="144" cy="113" rx="6" ry="14"/><ellipse cx="156" cy="113" rx="6" ry="14"/>' +
       '<ellipse cx="144" cy="146" rx="5" ry="12"/><ellipse cx="156" cy="146" rx="5" ry="12"/>')
@@ -176,7 +189,7 @@ function spQuadroTreino() {
   const rec = spRecenciaGrupos();
   const treinoHoje = workouts.filter(w => w.date === hoje);
   const sug = treinoHoje.length ? null : proximoDiaDeTreino();
-  const prox = new Set(sug ? sug.dia.exercicios.map(e => e.grupo).filter(Boolean) : []);
+  const prox = new Set(sug ? sug.dia.exercicios.flatMap(e => [e.grupo, ...(e.grupos || [])]).filter(Boolean) : []);
   // a semana corrente, de domingo a sábado
   const ini = inicioSemanaISO();
   const semana = workouts.filter(w => w.date >= ini && w.date <= spSomaDias(ini, 6));
@@ -194,7 +207,8 @@ function spQuadroTreino() {
   let info = '<span class="sp-dica">Toque num músculo ou num dia da semana.</span>';
   if (spEstado.grupo) {
     const g = spEstado.grupo; const x = rec[g]; const nome = (GRUPOS_MUSC[g] || ['', g]);
-    const feitos = x ? (x.treino.exercises || []).filter(l => spGrupoDaLinha(l) === g).map(l => l.replace(/\s+\d+\s*[x×].*$/i, '')) : [];
+    const feitos = x ? (x.treino.exercises || []).map(l => l.replace(/\s+\d+\s*[x×].*$/i, '').replace(/\s+\d+([.,]\d+)?\s*(kg|min|km|m)\b.*$/i, ''))
+      .filter((nome, k) => spGrupoDaLinha(x.treino.exercises[k]) === g || spExtrasDoNome(nome).includes(g)) : [];
     info = `<span><strong>${nome[0]} ${esc(nome[1])}</strong> · ${x ? spHaQuanto(x.dias) + (feitos.length ? ' — ' + esc(feitos.slice(0, 3).join(', ')) : '') : 'parado há mais de 14 dias'}</span>
       <button type="button" class="mini-btn" onclick="spBancoDoGrupo('${g}')">📚 exercícios</button>`;
   } else if (spEstado.dia) {

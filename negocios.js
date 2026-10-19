@@ -517,14 +517,14 @@ async function ngTestarPonte() {
 }
 function ngGuiaPonte() {
   ngFolha('Ligar a ponte (1 passo seu)', `<ol class="ng-guia">
-    <li>No computador, abra o arquivo <code>computador\\sincronizacao\\Code.gs</code> da pasta do Genesis e copie <strong>tudo</strong>.</li>
+    <li>Toque em <button type="button" class="mini-btn" onclick="copiarCodigoSync()">📋 Copiar o código novo</button> — a sua senha já vai dentro (a mesma que este aparelho usa).</li>
     <li>Abra o seu script <strong>Genesis Sync</strong> em <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>.</li>
-    <li><strong>Antes de colar:</strong> copie a linha <code>const TOKEN = '…'</code> do script que já está lá (é a sua frase secreta).</li>
-    <li>Apague tudo, cole o arquivo novo e <strong>troque a linha do TOKEN pela sua</strong>. Salve (Ctrl+S).</li>
+    <li>Apague tudo, <strong>cole</strong> (Ctrl+V) e salve (Ctrl+S).</li>
     <li>Menu <strong>Implantar → Gerenciar implantações</strong> → ✎ editar → Versão: <strong>Nova versão</strong> → Implantar. O endereço continua o mesmo.</li>
     <li>O Google vai pedir permissão nova (<em>conectar a um serviço externo</em>): é a ponte buscando cotações e notícias. Autorize.</li>
     <li>Volte aqui e toque em <strong>Testar a ponte</strong>.</li></ol>
     <p class="hint">A ponte só LÊ: busca cotações no Yahoo e manchetes de jornais e devolve para o app. Não grava nada em lugar nenhum e só atende quem tem o seu token.</p>`);
+  if (typeof baixarCodigoSync === 'function') baixarCodigoSync().catch(() => {});
 }
 
 // ═════════════════════ "＋ ACOMPANHAR" (a folha de busca) ══════════════════

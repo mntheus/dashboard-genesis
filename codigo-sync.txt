@@ -1,0 +1,397 @@
+/**
+ * Dashboard Genesis — Backend de Sincronização (v3: + Google Calendar + ponte de cotações e notícias)
+ * Cole ESTE arquivo inteiro dentro do editor do Google Apps Script.
+ *
+ * O que ele faz:
+ *  1) guarda os dados do seu Life OS numa planilha do Google e devolve/recebe
+ *     esses dados para o app (computador e celular) via internet;
+ *  2) (v2) espelha plantões e compromissos numa agenda chamada "Genesis"
+ *     dentro do seu Google Calendar — cria, atualiza e apaga eventos sozinho.
+ *
+ * Como ele é seguro:
+ * - O código roda DENTRO da sua conta Google. Não existe senha nem chave
+ *   do Google aqui dentro.
+ * - A única coisa secreta é o TOKEN abaixo + o link do Web App. Nada disso
+ *   vai para o GitHub: você digita os dois na aba Config, em cada aparelho.
+ *   (Se você copiou este código pelo botão do app, a senha já veio preenchida.)
+ */
+
+// ⚠️ TROQUE por uma frase só sua (letras e números, sem espaços).
+// Ex: 'genesis-minha-frase-7391'
+const TOKEN = 'TROQUE-ESTE-TOKEN';
+
+// Nome da aba da planilha onde os dados ficam. Não precisa mexer.
+const ABA = 'dados';
+// Nome da agenda no Google Calendar e da aba que guarda o "de-para" item → evento.
+const NOME_AGENDA = 'Genesis';
+const ABA_AGENDA = 'agenda';
+
+/** Teste rápido: abra o link do Web App no navegador. Deve aparecer "ok": true. */
+function doGet(e) {
+  return json({ ok: true, msg: 'Genesis sync ativo', versao: 3, ponte: true, fuso: Session.getScriptTimeZone() });
+}
+
+/** É por aqui que o app conversa com a planilha. */
+function doPost(e) {
+  try {
+    const body = JSON.parse(e.postData.contents);
+
+    if (body.token !== TOKEN) {
+      return json({ ok: false, erro: 'token invalido' });
+    }
+    if (body.acao === 'pull') {
+      return json({ ok: true, dados: lerTudo() });
+    }
+    if (body.acao === 'push') {
+      const dados = gravarComMerge(body.dados || {});
+      const resposta = { ok: true, dados: dados };
+      // Só mexe na agenda quando o app pede (plantões/compromissos mudaram).
+      if (body.agenda === true) {
+        try { resposta.agenda = sincronizarAgenda(dados); }
+        catch (err) { resposta.agenda = { ok: false, erro: String(err) }; }
+      }
+      return json(resposta);
+    }
+    // (v3) a PONTE: cotações do Yahoo e notícias, buscadas aqui porque o
+    // navegador não pode ler esses sites direto (eles não liberam CORS).
+    if (body.acao === 'mercado') return json(ponteMercado(body));
+    if (body.acao === 'buscar') return json(ponteBuscar(body));
+    if (body.acao === 'noticias') return json(ponteNoticias(body));
+    return json({ ok: false, erro: 'acao desconhecida' });
+
+  } catch (err) {
+    return json({ ok: false, erro: String(err) });
+  }
+}
+
+/* ---------------------------------------------------------------- */
+
+/** Lê a planilha e devolve { modulo: { updatedAt, valor } } */
+function lerTudo() {
+  const aba = getAba();
+  const linhas = aba.getDataRange().getValues();
+  const saida = {};
+  for (let i = 1; i < linhas.length; i++) {
+    const [modulo, updatedAt, texto] = linhas[i];
+    if (!modulo) continue;
+    saida[modulo] = {
+      updatedAt: Number(updatedAt) || 0,
+      valor: texto ? JSON.parse(texto) : null
+    };
+  }
+  return saida;
+}
+
+/**
+ * Grava só o que for MAIS NOVO que o que já está na planilha.
+ * Isso evita que o celular (com dado velho) apague o que o PC acabou de salvar.
+ * Devolve o estado final já mesclado, para o app adotar.
+ */
+function gravarComMerge(entrada) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000); // se o PC e o celular sincronizarem juntos, um espera o outro
+  try {
+    const aba = getAba();
+    const linhas = aba.getDataRange().getValues();
+
+    // mapeia modulo -> numero da linha na planilha
+    const posicao = {};
+    for (let i = 1; i < linhas.length; i++) {
+      if (linhas[i][0]) posicao[linhas[i][0]] = i + 1;
+    }
+
+    Object.keys(entrada).forEach(function (modulo) {
+      const novo = entrada[modulo] || {};
+      const novoQuando = Number(novo.updatedAt) || 0;
+      const linha = posicao[modulo];
+
+      if (linha) {
+        const antigoQuando = Number(aba.getRange(linha, 2).getValue()) || 0;
+        if (novoQuando <= antigoQuando) return; // o da planilha é mais novo: mantém
+        aba.getRange(linha, 2, 1, 2).setValues([[novoQuando, JSON.stringify(novo.valor)]]);
+      } else {
+        aba.appendRow([modulo, novoQuando, JSON.stringify(novo.valor)]);
+      }
+    });
+
+    SpreadsheetApp.flush();
+    return lerTudo();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getAba() {
+  const planilha = SpreadsheetApp.getActiveSpreadsheet();
+  let aba = planilha.getSheetByName(ABA);
+  if (!aba) {
+    aba = planilha.insertSheet(ABA);
+    aba.appendRow(['modulo', 'updatedAt', 'json']);
+  }
+  if (aba.getLastRow() === 0) {
+    aba.appendRow(['modulo', 'updatedAt', 'json']);
+  }
+  return aba;
+}
+
+function json(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ============================ GOOGLE CALENDAR ============================ */
+
+/** Pega (ou cria) a agenda "Genesis" no seu Google Calendar. */
+function obterAgenda() {
+  const lista = CalendarApp.getCalendarsByName(NOME_AGENDA);
+  if (lista.length) return lista[0];
+  const nova = CalendarApp.createCalendar(NOME_AGENDA, { summary: 'Plantões e compromissos do Dashboard Genesis', color: CalendarApp.Color.ORANGE });
+  return nova;
+}
+
+/** Aba 'agenda': chave (p+id ou e+id) | id do evento no Calendar | assinatura do conteúdo. */
+function getAbaAgenda() {
+  const planilha = SpreadsheetApp.getActiveSpreadsheet();
+  let aba = planilha.getSheetByName(ABA_AGENDA);
+  if (!aba) { aba = planilha.insertSheet(ABA_AGENDA); aba.appendRow(['chave', 'eventId', 'hash']); }
+  if (aba.getLastRow() === 0) aba.appendRow(['chave', 'eventId', 'hash']);
+  return aba;
+}
+
+function dataHora(iso, hhmm) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!hhmm) return new Date(y, m - 1, d);
+  const [hh, mm] = String(hhmm).split(':').map(Number);
+  return new Date(y, m - 1, d, hh || 0, mm || 0);
+}
+function moeda(v) { return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+const ICONES_TIPO = { trabalho: '💼', pessoal: '🏠', saude: '🩺', estudo: '📚', negocios: '📈', social: '🎉', outro: '📌' };
+const NOMES_TIPO = { trabalho: 'Trabalho', pessoal: 'Pessoal', saude: 'Saúde', estudo: 'Estudo', negocios: 'Negócios', social: 'Social', outro: 'Outro' };
+
+/** Plantão do app → item de agenda. */
+function itemDePlantao(s) {
+  if (!s || !s.id || !s.date) return null;
+  const inicio = dataHora(s.date, s.time || '07:00');
+  const horas = Number(s.hours) || 12;
+  const fim = new Date(inicio.getTime() + horas * 3600 * 1000);
+  return {
+    chave: 'p' + s.id,
+    titulo: '🚑 Plantão ' + (s.desc || '') + (s.paid ? ' ✅' : ''),
+    inicio: inicio, fim: fim, diaTodo: false,
+    descricao: 'Valor: ' + moeda(s.amount) + ' · ' + (s.paid ? 'Pago' : 'A receber') + (s.hours ? ' · ' + s.hours + 'h' : '') + (s.notes ? '\n' + s.notes : '') + '\n\n(Dashboard Genesis)'
+  };
+}
+
+/** Compromisso do app → item de agenda. */
+function itemDeCompromisso(e) {
+  if (!e || !e.id || !e.date) return null;
+  const icone = ICONES_TIPO[e.type] || ICONES_TIPO.outro;
+  const item = { chave: 'e' + e.id, titulo: icone + ' ' + (e.title || '') + (e.done ? ' ✅' : ''), descricao: (NOMES_TIPO[e.type] || 'Outro') + (e.notes ? '\n' + e.notes : '') + '\n\n(Dashboard Genesis)' };
+  if (e.time) {
+    item.inicio = dataHora(e.date, e.time);
+    item.fim = e.endTime ? dataHora(e.date, e.endTime) : new Date(item.inicio.getTime() + 3600 * 1000);
+    if (item.fim <= item.inicio) item.fim = new Date(item.inicio.getTime() + 3600 * 1000);
+    item.diaTodo = false;
+  } else {
+    item.inicio = dataHora(e.date); item.fim = null; item.diaTodo = true;
+  }
+  return item;
+}
+
+function assinatura(it) { return JSON.stringify([it.titulo, String(it.inicio), String(it.fim), it.diaTodo, it.descricao]); }
+
+/**
+ * Espelha plantões + compromissos na agenda "Genesis".
+ * Cria o que é novo, atualiza o que mudou, apaga o que sumiu do app.
+ */
+function sincronizarAgenda(dados) {
+  const cal = obterAgenda();
+  const aba = getAbaAgenda();
+  const linhas = aba.getDataRange().getValues();
+  const mapa = {};
+  for (let i = 1; i < linhas.length; i++) if (linhas[i][0]) mapa[linhas[i][0]] = { eventId: linhas[i][1], hash: linhas[i][2] };
+
+  const itens = [];
+  ((dados.shifts && dados.shifts.valor) || []).forEach(function (s) { const it = itemDePlantao(s); if (it) itens.push(it); });
+  ((dados.events && dados.events.valor) || []).forEach(function (e) { const it = itemDeCompromisso(e); if (it) itens.push(it); });
+
+  const novasLinhas = [];
+  let criados = 0, atualizados = 0, removidos = 0;
+
+  itens.forEach(function (it) {
+    const hash = assinatura(it);
+    const reg = mapa[it.chave];
+    delete mapa[it.chave];
+    if (reg && reg.hash === hash) { novasLinhas.push([it.chave, reg.eventId, hash]); return; } // nada mudou
+    let ev = null;
+    if (reg && reg.eventId) { try { ev = cal.getEventById(reg.eventId); } catch (err) { ev = null; } }
+    if (ev) {
+      try {
+        ev.setTitle(it.titulo); ev.setDescription(it.descricao);
+        if (it.diaTodo) ev.setAllDayDate(it.inicio); else ev.setTime(it.inicio, it.fim);
+        atualizados++;
+      } catch (err) { ev = null; }
+    }
+    if (!ev) {
+      ev = it.diaTodo ? cal.createAllDayEvent(it.titulo, it.inicio, { description: it.descricao }) : cal.createEvent(it.titulo, it.inicio, it.fim, { description: it.descricao });
+      criados++;
+    }
+    novasLinhas.push([it.chave, ev.getId(), hash]);
+  });
+
+  // o que sobrou no mapa não existe mais no app → apaga do Calendar
+  Object.keys(mapa).forEach(function (chave) {
+    try { const ev = cal.getEventById(mapa[chave].eventId); if (ev) ev.deleteEvent(); } catch (err) {}
+    removidos++;
+  });
+
+  // reescreve a aba de-para
+  aba.clearContents();
+  aba.appendRow(['chave', 'eventId', 'hash']);
+  if (novasLinhas.length) aba.getRange(2, 1, novasLinhas.length, 3).setValues(novasLinhas);
+
+  return { ok: true, criados: criados, atualizados: atualizados, removidos: removidos, total: itens.length };
+}
+
+/**
+ * NOTA TÉCNICA (para o Claude — você não precisa entender isto):
+ * o app chama este Web App com fetch usando
+ *   headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+ * e o corpo em JSON.stringify. O Apps Script não envia cabeçalhos CORS,
+ * então um POST com 'application/json' dispara preflight e falha no navegador.
+ * O campo body.agenda === true pede o espelhamento no Calendar; o app só
+ * manda isso quando shifts/events mudaram desde o último espelhamento.
+ */
+
+/* ================================ PONTE (v3) ================================
+ * Pedido dele em 08/10/2026: acompanhar ações (B3 e do mundo), ouro, índices
+ * e trazer NOTÍCIAS. Esses sites não deixam o navegador ler direto (não
+ * liberam CORS), então o app pede para ESTE script, que roda na conta dele,
+ * buscar e devolver. Continua o pilar do isolamento: nada é gravado em lugar
+ * nenhum — só lê e devolve (com um cache de minutos para não martelar).
+ *
+ * Não é um proxy aberto: só fala com os endereços fixos abaixo, só para quem
+ * tem o TOKEN, e só com símbolos/buscas validados.
+ * ========================================================================== */
+const PONTE_FEEDS = {
+  infomoney:  { nome: 'InfoMoney',   url: 'https://www.infomoney.com.br/feed/' },
+  moneytimes: { nome: 'Money Times', url: 'https://www.moneytimes.com.br/feed/' },
+  exame:      { nome: 'Exame',       url: 'https://exame.com/feed/' },
+  g1:         { nome: 'g1 Economia', url: 'https://g1.globo.com/rss/g1/economia/' },
+  investing:  { nome: 'Investing',   url: 'https://br.investing.com/rss/news.rss' },
+  google:     { nome: 'Google Notícias', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=pt-BR&gl=BR&ceid=BR:pt-419' }
+};
+const PONTE_FAIXAS = { '5d': 1, '1mo': 1, '3mo': 1, '6mo': 1, '1y': 1 };
+const PONTE_UA = { 'User-Agent': 'Mozilla/5.0 (Genesis)' };
+
+/** Lê do cache do script; se não tiver, busca e guarda por `segundos`. */
+function ponteCache(chave, segundos, buscar) {
+  const cache = CacheService.getScriptCache();
+  const k = chave.length > 200 ? Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, chave)) : chave;
+  const tinha = cache.get(k);
+  if (tinha) return JSON.parse(tinha);
+  const valor = buscar();
+  try { cache.put(k, JSON.stringify(valor), segundos); } catch (e) { /* grande demais: segue sem cache */ }
+  return valor;
+}
+
+/** Cotações históricas do Yahoo Finance. body: { simbolos: ['NVDA','GC=F'], faixa: '3mo' } */
+function ponteMercado(body) {
+  const faixa = PONTE_FAIXAS[body.faixa] ? body.faixa : '3mo';
+  const simbolos = (body.simbolos || []).filter(s => /^[A-Za-z0-9.^=\-]{1,20}$/.test(s)).slice(0, 15);
+  const series = {};
+  simbolos.forEach(s => {
+    try {
+      series[s] = ponteCache('y:' + s + ':' + faixa, 1800, () => {
+        const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(s) + '?range=' + faixa + '&interval=1d';
+        const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: PONTE_UA });
+        if (r.getResponseCode() !== 200) return { erro: 'Yahoo ' + r.getResponseCode() };
+        const j = JSON.parse(r.getContentText());
+        const res = j.chart && j.chart.result && j.chart.result[0];
+        if (!res) return { erro: 'sem dados' };
+        const meta = res.meta || {};
+        const off = (meta.gmtoffset || 0) * 1000;
+        const ts = res.timestamp || [];
+        const fech = (res.indicators && res.indicators.quote && res.indicators.quote[0] && res.indicators.quote[0].close) || [];
+        const pontos = [];
+        ts.forEach((t, i) => {
+          const v = fech[i];
+          if (v === null || v === undefined || !isFinite(v)) return;
+          pontos.push({ d: new Date(t * 1000 + off).toISOString().slice(0, 10), v: Math.round(v * 10000) / 10000 });
+        });
+        return { pontos: pontos, moeda: meta.currency || '', nome: meta.shortName || meta.longName || s, agora: meta.regularMarketPrice || null };
+      });
+    } catch (e) { series[s] = { erro: String(e) }; }
+  });
+  return { ok: true, series: series };
+}
+
+/** Procura um símbolo pelo nome. body: { q: 'nvidia' } */
+function ponteBuscar(body) {
+  const q = String(body.q || '').trim().slice(0, 40);
+  if (!q) return { ok: true, itens: [] };
+  const itens = ponteCache('b:' + q.toLowerCase(), 3600, () => {
+    const url = 'https://query1.finance.yahoo.com/v1/finance/search?q=' + encodeURIComponent(q) + '&quotesCount=10&newsCount=0';
+    const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: PONTE_UA });
+    if (r.getResponseCode() !== 200) return [];
+    const j = JSON.parse(r.getContentText());
+    return (j.quotes || []).filter(x => x.symbol).map(x => ({
+      s: x.symbol, n: x.shortname || x.longname || x.symbol, t: x.quoteType || '', b: x.exchDisp || x.exchange || ''
+    }));
+  });
+  return { ok: true, itens: itens };
+}
+
+/** Notícias de RSS. body: { fontes: ['infomoney', ...], buscas: ['Petrobras', ...] } */
+function ponteNoticias(body) {
+  const pedidos = [];
+  (body.fontes || []).forEach(k => { if (PONTE_FEEDS[k]) pedidos.push({ chave: k, nome: PONTE_FEEDS[k].nome, url: PONTE_FEEDS[k].url }); });
+  (body.buscas || []).slice(0, 6).forEach(q => {
+    q = String(q || '').trim().slice(0, 40); if (!q) return;
+    pedidos.push({ chave: 'q:' + q, nome: 'Google Notícias', busca: q,
+      url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=pt-BR&gl=BR&ceid=BR:pt-419' });
+  });
+  const itens = [];
+  pedidos.forEach(p => {
+    try {
+      const lista = ponteCache('n:' + p.url, 1200, () => {
+        const r = UrlFetchApp.fetch(p.url, { muteHttpExceptions: true, headers: PONTE_UA, followRedirects: true });
+        if (r.getResponseCode() !== 200) return [];
+        return lerRSS(r.getContentText()).slice(0, 12);
+      });
+      lista.forEach(it => { it.k = p.chave; it.f = it.f || p.nome; if (p.busca) it.q = p.busca; itens.push(it); });
+    } catch (e) { /* uma fonte fora do ar não derruba as outras */ }
+  });
+  return { ok: true, itens: itens };
+}
+
+/** RSS → [{ t, l, d, r, f }]. Por expressão regular de propósito: muito RSS
+ *  vem com entidade HTML que o XmlService recusa, e aí a fonte inteira sumiria. */
+function lerRSS(xml) {
+  // tira as tags DUAS vezes: o Google manda o HTML do resumo escapado (&lt;a ...&gt;),
+  // que só vira tag depois de decodificar
+  const semTag = s => s.replace(/<[^>]+>/g, ' ');
+  const tira = s => semTag(semTag(String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&#039;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n)))
+    .replace(/&amp;/g, '&')).replace(/\s+/g, ' ').trim();
+  const campo = (bloco, nome) => { const m = bloco.match(new RegExp('<' + nome + '[^>]*>([\\s\\S]*?)</' + nome + '>', 'i')); return m ? m[1] : ''; };
+  const out = [];
+  (xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || []).forEach(b => {
+    const t = tira(campo(b, 'title'));
+    const l = tira(campo(b, 'link'));
+    if (!t || !/^https?:\/\//.test(l)) return;
+    // a Investing manda "2026-10-08 13:18:23" sem fuso, e é UTC: lido como hora
+    // local, a notícia ia para 3 h no futuro e furava a fila das manchetes
+    let pd = tira(campo(b, 'pubDate'));
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(pd)) pd = pd.replace(' ', 'T') + 'Z';
+    const quando = new Date(pd);
+    // resumo: sem o rodapé automático do WordPress e sem repetir o título (Google)
+    let r = tira(campo(b, 'description')).replace(/\s*The post .* appeared first on .*$/i, '').trim();
+    if (r && t.indexOf(r.slice(0, 40)) === 0) r = '';
+    out.push({ t: t, l: l, d: isNaN(quando) ? '' : quando.toISOString(), r: r.slice(0, 220), f: tira(campo(b, 'source')) });
+  });
+  return out;
+}

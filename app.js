@@ -5651,7 +5651,9 @@ function renderCfgIdeias() {
       <ol>
         <li><b>Veja o app cheio.</b> O modo exemplo abre tudo preenchido com uma pessoa inventada — pode mexer à vontade, nada é gravado.
           <button type="button" class="mini-btn" onclick="exemploEntrar('settings')">🖼️ Ver o exemplo</button></li>
-        <li><b>Use do seu jeito.</b> Fora do exemplo, o que você lançar fica <b>só neste aparelho</b>; nada vai para servidor nenhum.</li>
+        <li><b>Use de verdade.</b> Fora do exemplo, o que você lança fica guardado neste aparelho. Para ter o mesmo no celular e no computador, ligue a <b>☁️ sincronização</b> — uma planilha <b>sua</b>, na sua conta Google; ninguém mais vê.
+          <button type="button" class="mini-btn" onclick="guiaSync()">☁️ Como ligar</button></li>
+        <li><b>Versão nova chega sozinha.</b> Abra sempre pelo mesmo link (ou pelo ícone instalado): tudo o que você lançou continua aqui.</li>
         <li><b>Anote ideias.</b> No 💡 de cada aba ou aqui embaixo — o que faltou, o que ficou confuso, o que você mudaria. Depois, <b>📤 Enviar ideias</b>.</li>
       </ol></div>` : ''}
     <form class="ideia-form ideia-form-cfg" onsubmit="event.preventDefault(); addIdeiaCfg()">
@@ -5700,7 +5702,8 @@ if (/(^|[?&#])(teste|convite)(=|&|$)/.test(location.search.slice(1) + '&' + loca
   prefs.teste = { ligado: true, desde: (prefs.teste && prefs.teste.desde) || hojeISO() };
   try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { }
   // o endereço volta a ficar limpo (quem instala o app no celular leva o start_url do manifest; o modo fica guardado)
-  try { history.replaceState(null, '', location.pathname); } catch (e) { }
+  // (o "#ligar=" do link de sincronização fica: quem lê e apaga é o receberLinkSync, no fim da partida)
+  try { history.replaceState(null, '', location.pathname + (/ligar=/.test(location.hash) ? location.hash : '')); } catch (e) { }
 }
 document.body.classList.toggle('modo-teste', modoTeste());
 
@@ -7819,6 +7822,7 @@ let syncPendente = localStorage.getItem('lifeos_sync_pendente') === '1';
 let syncTimer = null;
 let syncEmAndamento = false;
 let syncEditouDurante = false; // alguma gravação aconteceu enquanto a rede respondia?
+let syncUltimoErro = '';        // o guia de ligar mostra a causa em português
 
 /** Grava um módulo no localStorage, carimba a hora e agenda uma sincronização. */
 function salvar(modulo, valor) {
@@ -7853,6 +7857,8 @@ async function sincronizar() {
 
   syncEmAndamento = true; syncEditouDurante = false; setSyncStatus('andamento');
   try {
+    // 1ª conversa DESTE aparelho com a planilha: junta antes de mandar qualquer coisa (ver primeiraConexao)
+    if (!localStorage.getItem('lifeos_sync_ultima') && await primeiraConexao()) redesenharTudo();
     const dados = {};
     SYNC_MODULOS.forEach(m => {
       const bruto = localStorage.getItem('lifeos_' + m);
@@ -7888,15 +7894,68 @@ async function sincronizar() {
     setSyncStatus(editouDurante ? 'pendente' : 'ok');
     if (mudou) redesenharTudo();
     if (editouDurante) agendarSync();
+    syncUltimoErro = '';
+    return true;
   } catch (err) {
     console.error('Sync:', err);
-    setSyncStatus(navigator.onLine ? 'erro' : 'offline', String(err.message || err));
+    syncUltimoErro = String(err.message || err);
+    setSyncStatus(navigator.onLine ? 'erro' : 'offline', syncUltimoErro);
+    return false;
   } finally {
     syncEmAndamento = false;
     // Só depois de saber o estado mais novo é que fechamos o dia anterior
     // (evita que um aparelho zere hábitos que o outro já marcou hoje).
     verificarNovoDia();
   }
+}
+
+/** A 1ª vez que um aparelho fala com a planilha (19/10, pensando em quem testa em dois aparelhos).
+ *  Antes valia só o "mais novo ganha", módulo a módulo: o aparelho que chegava escondia o que só o
+ *  outro tinha, e um aparelho virgem — que já grava nome e ritual em branco ao abrir, com a hora de
+ *  agora — passava por cima do nome e do perfil guardados na planilha (e daí nos dois aparelhos).
+ *  Agora: lê a planilha antes, guarda uma cópia do que havia aqui, junta as listas pelo id (nada some
+ *  dos dois lados) e, no resto, quem chega adota a planilha. Devolve true se mudou algo aqui. */
+async function primeiraConexao() {
+  const resp = await fetch(syncConfig.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: syncConfig.token, acao: 'pull' })
+  });
+  const r = await resp.json();
+  if (!r.ok) throw new Error(r.erro || 'resposta inválida do servidor');
+  const remoto = r.dados || {};
+  // planilha nova: este é o primeiro aparelho, ele manda tudo do jeito que está
+  if (!SYNC_MODULOS.some(m => remoto[m] && remoto[m].valor != null)) return false;
+  if (tirarFoto('antes de ligar a sincronização')) renderCopias();
+  let mudou = false;
+  SYNC_MODULOS.forEach(m => {
+    const rm = remoto[m]; if (!rm || rm.valor == null) return;
+    const bruto = localStorage.getItem('lifeos_' + m);
+    let local = null; try { local = bruto ? JSON.parse(bruto) : null; } catch (e) {}
+    const junto = juntarPorId(rm.valor, local);
+    const texto = JSON.stringify(junto === null ? rm.valor : junto);
+    // o que só existia aqui ganha a hora de agora, para subir no envio logo em seguida
+    syncMeta[m] = junto !== null && texto !== JSON.stringify(rm.valor) ? Date.now() : rm.updatedAt;
+    if (texto !== bruto) { localStorage.setItem('lifeos_' + m, texto); mudou = true; }
+  });
+  localStorage.setItem('lifeos_sync_meta', JSON.stringify(syncMeta));
+  return mudou;
+}
+/** Junta duas versões de um módulo sem perder item. Listas em que TODO item tem id viram a união
+ *  (no mesmo id fica a da planilha); objeto só de listas (o caderno de ideias, por aba) junta aba a
+ *  aba. Devolve null quando não dá para juntar com segurança — aí vale a planilha. */
+function juntarPorId(remoto, local) {
+  const temId = l => Array.isArray(l) && l.every(x => x && typeof x === 'object' && x.id !== undefined && x.id !== null && x.id !== '');
+  const soListas = o => o && typeof o === 'object' && !Array.isArray(o) && Object.values(o).every(temId);
+  const uniao = (a, b) => { const ids = new Set(a.map(x => String(x.id))); return a.concat(b.filter(x => !ids.has(String(x.id)))); };
+  if (local == null) return null;
+  if (temId(remoto) && temId(local)) return uniao(remoto, local);
+  if (soListas(remoto) && soListas(local)) {
+    const r = Object.assign({}, remoto);
+    Object.keys(local).forEach(k => { r[k] = r[k] ? uniao(r[k], local[k]) : local[k]; });
+    return r;
+  }
+  return null;
 }
 
 /** Adota o que veio da planilha se for mais novo (ou igual e diferente — empate: planilha vence). */
@@ -7969,7 +8028,7 @@ function setSyncStatus(estado, detalhe) {
   const ultima = localStorage.getItem('lifeos_sync_ultima');
   const hora = ultima ? new Date(Number(ultima)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   const mapa = {
-    naoconfig: ['⚪', 'Sincronização não configurada — preencha URL e token abaixo.', '#64748b'],
+    naoconfig: ['⚪', 'Sincronização desligada — toque em 📘 Como ligar.', '#64748b'],
     andamento: ['🔄', 'Sincronizando...', '#38bdf8'],
     ok:        ['🟢', 'Sincronizado' + (hora ? ' às ' + hora : '') + ' · automático a cada 30 s', '#22c55e'],
     pendente:  ['🟡', 'Alterações pendentes' + (hora ? ' (último sync ' + hora + ')' : ''), '#f59e0b'],
@@ -8008,6 +8067,117 @@ function carregarSyncConfigNaTela() {
   const a = document.getElementById('sync-agenda'); if (a) a.checked = !!syncConfig.agenda;
   const st = JSON.parse(localStorage.getItem('lifeos_agenda_status') || 'null'); const el = document.getElementById('agenda-status');
   if (st && el) { el.innerText = (st.estado === 'ok' ? '📆 Google Agenda ' + new Date(st.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ': ' : '📆 Google Agenda — erro: ') + st.texto; el.style.color = st.estado === 'ok' ? 'var(--ok)' : 'var(--perigo)'; }
+}
+
+// --- ☁️ LIGAR A SINCRONIZAÇÃO SEM SABER PROGRAMAR (19/10/2026) ----------------------------------
+// Queixa do amigo que testou: "não consigo sincronizar e ninguém explicou como". Agora o app tem o
+// passo a passo, copia o código do script com a senha DELE já dentro (a senha nasce aqui, com
+// crypto, e nunca aparece na tela) e gera um link que liga o 2º aparelho num toque.
+// A planilha continua na conta de quem usa: o pilar do isolamento não muda.
+const URL_SYNC_OK = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_\-]+\/exec$/;
+let codigoSyncCache = null;
+/** Baixa o código do script (codigo-sync.txt, sem senha nenhuma) e guarda: o botão de copiar
+ *  precisa copiar NA HORA do toque, senão o navegador do celular recusa a área de transferência. */
+function baixarCodigoSync() {
+  if (codigoSyncCache) return Promise.resolve(codigoSyncCache);
+  return fetch('codigo-sync.txt', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(t => (codigoSyncCache = t));
+}
+/** A senha deste aparelho; se ainda não existe, cria agora e guarda (antes de copiar o código, para
+ *  que um recarregar no meio do caminho não deixe o script com uma senha que o app esqueceu). */
+function garantirTokenSync() {
+  if (syncConfig.token) return syncConfig.token;
+  const b = new Uint8Array(20); crypto.getRandomValues(b);
+  syncConfig.token = 'genesis-' + Array.from(b, x => (x % 36).toString(36)).join('');
+  localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
+  const t = document.getElementById('sync-token'); if (t) t.value = syncConfig.token;
+  return syncConfig.token;
+}
+function copiarParaColar(txt, feito) {
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(feito).catch(() => copiarNaMarra(txt, feito));
+  else copiarNaMarra(txt, feito);
+}
+function copiarCodigoSync() {
+  const st = document.getElementById('guia-sync-copiado');
+  const copiar = codigo => {
+    const linha = "const TOKEN = 'TROQUE-ESTE-TOKEN';";
+    if (!codigo.includes(linha)) { toast('⚠️ O código baixado veio diferente do esperado. Avise quem te convidou.', 7000); return; }
+    const pronto = codigo.replace(linha, "const TOKEN = '" + garantirTokenSync() + "';   // a sua senha, criada pelo app: não mostre a ninguém");
+    copiarParaColar(pronto, () => { if (st) st.innerText = '✅ copiado — agora cole no Apps Script'; toast('📋 Código copiado, com a sua senha dentro.', 5000); });
+  };
+  if (codigoSyncCache) { copiar(codigoSyncCache); return; }
+  baixarCodigoSync().then(copiar).catch(e => toast('⚠️ Não consegui baixar o código agora (' + (e.message || e) + '). Confira a internet e toque de novo.', 7000));
+}
+/** Traduz o erro da sincronização para o que a pessoa pode fazer. */
+function dicaErroSync(m) {
+  m = String(m || '');
+  if (/token invalido/i.test(m)) return 'A senha do script não é a deste aparelho. Toque em 📋 Copiar o código de novo, cole por cima no Apps Script, salve e faça Implantar → Gerenciar implantações → ✎ → Versão: Nova versão → Implantar.';
+  if (/Failed to fetch|NetworkError|Load failed|JSON|Unexpected token/i.test(m)) return 'O Google não respondeu como o app esperava. Confira: 1) em "Quem pode acessar" ficou Qualquer pessoa; 2) o endereço é o do App da Web (termina em /exec); 3) você autorizou o acesso no passo 5.';
+  return m;
+}
+function guiaSync() {
+  const ligado = syncConfigurado() && !!localStorage.getItem('lifeos_sync_ultima');
+  ngFolha('☁️ Ligar a sincronização', `
+    <p class="hint">${ligado ? '🟢 <b>Este aparelho já está ligado.</b> Para ligar outro, use o passo 7.' : 'Uns 5 minutos, <b>no computador</b> (no celular o editor do Google é apertado). Depois, o celular liga num toque.'}
+      O que você lança num aparelho aparece no outro, e nada se perde quando sair versão nova. Fica numa planilha <b>sua</b>, na <b>sua</b> conta Google.</p>
+    <ol class="ng-guia guia-sync">
+      <li><b>Copie o código</b> — a sua senha já vai dentro dele.<br><button type="button" class="mini-btn acao" onclick="copiarCodigoSync()">📋 Copiar o código</button> <small id="guia-sync-copiado"></small></li>
+      <li>Abra uma <b>planilha nova</b> na sua conta: <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a>. Dê o nome <b>Genesis DB</b>.</li>
+      <li>Na planilha, menu <b>Extensões → Apps Script</b>. Apague o que estiver escrito, <b>cole</b> (Ctrl+V) e salve (Ctrl+S). Pode chamar o projeto de <b>Genesis Sync</b>.</li>
+      <li>Botão azul <b>Implantar → Nova implantação</b>. Na engrenagem ⚙, escolha <b>App da Web</b>. Deixe <b>Executar como: Eu</b> e <b>Quem pode acessar: Qualquer pessoa</b>. Toque em <b>Implantar</b>.</li>
+      <li><b>Autorizar acesso</b> → escolha a sua conta. O Google avisa <em>"O Google não verificou este app"</em>: é normal, o "app" é você mesmo. Toque em <b>Avançado → Acessar Genesis Sync (não seguro)</b> → <b>Permitir</b>.</li>
+      <li>Copie o <b>URL do app da Web</b> (termina em <code>/exec</code>), cole aqui e toque em Ligar:
+        <form class="guia-sync-form" onsubmit="event.preventDefault(); ligarSyncPeloGuia()">
+          <input type="url" id="guia-sync-url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Endereço do App da Web">
+          <button type="submit" class="mini-btn">Ligar</button></form>
+        <div id="guia-sync-status" class="guia-sync-status" role="status"></div></li>
+      <li><b>No celular (ou em outro computador):</b> <button type="button" class="mini-btn acao" onclick="levarSyncOutroAparelho()">📲 Copiar o link do outro aparelho</button><br>
+        Mande para você mesmo (WhatsApp "conversa comigo" ou e-mail) e abra lá. Ele já entra ligado. <b>Esse link é a chave da sua planilha:</b> só para você.</li>
+    </ol>
+    <details class="guia-sync-mais"><summary>Por que é seguro? E se eu já usei em dois aparelhos?</summary><ul>
+      <li>O código roda dentro da sua conta Google e só grava nessa planilha (e numa agenda "Genesis", só se você ligar a opção da agenda). Não mexe em mais nada seu.</li>
+      <li>"Qualquer pessoa" quer dizer que o endereço atende sem login — mas sem a sua senha o script recusa tudo.</li>
+      <li>A senha nasceu neste aparelho e nunca aparece na tela. Não vai para o GitHub nem para quem te convidou. Suas ideias continuam chegando a ele só pelo 📤 Enviar ideias.</li>
+      <li>O Google pede três permissões: a planilha (guardar os dados), a agenda (só usada se você ligar a agenda "Genesis") e serviço externo (cotações e notícias da aba Negócios).</li>
+      <li>Já usou em dois aparelhos? Ligue primeiro naquele em que você mais usou. No outro, as listas se juntam sem perder item, e antes o app guarda uma cópia do que havia lá (⚙️ Config → 🛟 Cópias).</li>
+    </ul></details>`);
+  baixarCodigoSync().catch(() => {});
+}
+async function ligarSyncPeloGuia() {
+  const campo = document.getElementById('guia-sync-url'), st = document.getElementById('guia-sync-status'); if (!campo || !st) return;
+  const url = campo.value.trim();
+  if (!URL_SYNC_OK.test(url)) { st.innerText = '⚠️ Esse não parece o endereço certo: ele começa com https://script.google.com/macros/s/ e termina em /exec.'; return; }
+  if (!syncConfig.token) { st.innerText = '⚠️ Faça o passo 1 primeiro (copiar o código): é ele que cria a sua senha.'; return; }
+  syncConfig.url = url; localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
+  carregarSyncConfigNaTela();
+  st.innerText = '🔄 Testando a conversa com a sua planilha…';
+  marcarPendente(true);
+  const ok = await sincronizar();
+  if (ok) st.innerHTML = '🟢 <b>Ligado!</b> A partir de agora sincroniza sozinho. Falta só o passo 7, no outro aparelho.';
+  else if (ok === false) st.innerText = '🔴 ' + dicaErroSync(syncUltimoErro);
+  else st.innerText = 'Sem internet agora — tente de novo quando voltar.';
+}
+/** Copia um link com o endereço e a senha (no "#", que nunca sai do navegador: o site não recebe). */
+function levarSyncOutroAparelho() {
+  if (!syncConfigurado()) { toast('☁️ Ligue a sincronização neste aparelho primeiro (📘 Como ligar).', 6000); return; }
+  const chave = btoa(unescape(encodeURIComponent(JSON.stringify({ u: syncConfig.url, t: syncConfig.token })))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const link = location.origin + location.pathname + (modoTeste() ? '?teste' : '') + '#ligar=' + chave;
+  copiarParaColar(link, () => toast('📲 Link copiado. Ele é a chave da sua planilha: mande só para você mesmo e abra no outro aparelho.', 8000));
+}
+/** Abriu o app por esse link: pergunta e liga. Este aparelho passa a ser "novo" para a planilha,
+ *  então a 1ª conversa junta em vez de passar por cima (ver primeiraConexao). */
+function receberLinkSync() {
+  const m = /(?:^#|&)ligar=([A-Za-z0-9_\-]+)/.exec(location.hash); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
+  let d = null;
+  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { }
+  if (!d || !URL_SYNC_OK.test(d.u || '') || !d.t) { toast('⚠️ Este link de sincronização veio incompleto. Gere outro no aparelho que já está ligado.', 8000); return; }
+  if (syncConfig.url === d.u && syncConfig.token === d.t) { toast('☁️ Este aparelho já estava ligado à sua planilha.', 4000); return; }
+  if (!confirm('Ligar este aparelho à sua planilha do Genesis?\n\nO que está na planilha aparece aqui. Se este aparelho já tiver coisas lançadas, as listas se juntam — e antes o app guarda uma cópia do que havia aqui (Config → Cópias).')) return;
+  if (syncConfig.url !== d.u) localStorage.removeItem('lifeos_sync_ultima');
+  syncConfig = { url: d.u, token: d.t, agenda: !!syncConfig.agenda };
+  localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
+  toast('☁️ Ligando à sua planilha…', 4000);
 }
 
 // Gatilhos automáticos: voltou a internet / voltou pro app (celular) / a cada 30 s com o app visível
@@ -8056,4 +8226,5 @@ setTimeout(() => atualizarMercado(false), 1500);
 setTimeout(() => { if (typeof ngPonteEstado === 'function' && ngPonteEstado() === 'ok') ngNoticias(false); }, 4000);
 aplicarPerfil(); carregarPrefsNaTela(); atualizarSaudacao(); atualizarBotaoDia();
 if (!profile.name && !window.GENESIS_PRIMEIRO_USO && !localStorage.getItem('lifeos_perfil_avisado')) { localStorage.setItem('lifeos_perfil_avisado', '1'); setTimeout(() => toast('👤 Bem-vindo ao Genesis! Coloque seu nome em ⚙️ Config → Perfil.', 8000), 1500); }
+receberLinkSync();
 carregarSyncConfigNaTela(); setSyncStatus(syncConfigurado() ? (syncPendente ? "pendente" : "ok") : "naoconfig"); sincronizar();

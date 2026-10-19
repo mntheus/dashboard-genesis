@@ -6829,3 +6829,16 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
   .rc-pag { padding: 16px 16px 30px; }
   .rc-pag.esq .rc-num { display: none; }
 }
+
+/* ☁️ 19/10: o passo a passo da sincronização (Config → Sincronização → 📘 Como ligar) */
+.sync-guia-botoes { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 6px; }
+.sync-guia-botoes .btn { flex: 1 1 200px; }
+.guia-sync li { overflow-wrap: anywhere; }
+.guia-sync li .mini-btn { margin-top: 4px; }
+.guia-sync .mini-btn.acao { background: var(--info); color: var(--bg); font-weight: 700; border-color: transparent; }
+.guia-sync-form { display: flex; gap: 8px; margin-top: 8px; }
+.guia-sync-form input { flex: 1; min-width: 0; }
+.guia-sync-status { margin-top: 6px; min-height: 1.2em; font-size: var(--t-apoio); color: var(--txt-forte); }
+.guia-sync-mais { font-size: var(--t-apoio); color: var(--txt); line-height: 1.5; }
+.guia-sync-mais summary { cursor: pointer; font-weight: 600; color: var(--txt-forte); }
+.guia-sync-mais ul { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }

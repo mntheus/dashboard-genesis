@@ -8,7 +8,8 @@ contatos num lugar só. HTML, CSS e JavaScript puros, instalável (PWA) e que fu
 - **Convite de teste:** o endereço do app com `?teste` no fim liga o roteiro de quem testa.
 
 Os dados de quem usa ficam **só no aparelho** (no navegador). Nada vai para servidor. A sincronização entre aparelhos
-é opcional e usa uma planilha da própria pessoa no Google.
+é opcional e usa uma planilha da própria pessoa no Google (passo a passo no app: Config → ☁️ Sincronização →
+📘 Como ligar; o código do script, sem senha nenhuma, é o `codigo-sync.txt`).
 
 Para conhecer sem lançar nada: o **modo exemplo** (botão “Ver exemplo” no alto de cada aba) abre o app inteiro
 preenchido com uma pessoa inventada. Ideias e sugestões: o **💡** no canto de cada aba.

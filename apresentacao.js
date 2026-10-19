@@ -143,9 +143,9 @@ const AP_PASSOS = [
       <p class="ap-texto">Por padrão o Genesis guarda tudo <b>só neste aparelho</b>. É assim que ele
       funciona offline e é assim que os seus dados não passam por servidor de ninguém.</p>
       <p class="ap-texto ap-texto2">Para ver as mesmas coisas no PC e no celular, você cria uma
-      <b>planilha na sua própria conta Google</b> e cola o endereço e a senha dela em
-      ⚙️ <b>Config → Sincronização</b>. O app conversa só com a sua planilha — o passo a passo vem junto
-      com o app, e ele funciona inteiro sem isso.</p>
+      <b>planilha na sua própria conta Google</b>: ⚙️ <b>Config → ☁️ Sincronização → 📘 Como ligar</b>
+      mostra o passo a passo (uns 5 minutos, no computador) e já cria a sua senha. O app conversa só com
+      a sua planilha, e funciona inteiro sem isso.</p>
       <p class="ap-hint">Quer só uma cópia de segurança? ⚙️ Config → <b>Exportar backup</b> baixa um
       arquivo com tudo, sem depender de nada online.</p>`
   },

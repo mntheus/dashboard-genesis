@@ -1727,14 +1727,18 @@
         <div id="backup-status" style="font-size: 0.9rem; color: var(--info); text-align: center; height: 20px;"></div>
       </div>
       <div class="card" style="margin-top: 20px;">
-        <h2>☁️ Sincronização (PC ↔ Celular)</h2>
-        <p class="hint">Cole aqui a URL do App da Web e o token que você criou no Apps Script. Eles ficam guardados só neste aparelho.</p>
-        <p class="hint so-teste">🧪 <b>No teste, pode pular esta parte.</b> A sincronização liga o app a uma planilha <b>sua</b> no Google (é preciso criar um pequeno script lá). Sem ela tudo funciona normalmente, e os dados ficam só neste aparelho.</p>
+        <h2>☁️ Sincronização (computador ↔ celular)</h2>
+        <p class="hint">Liga o app a uma planilha <b>sua</b>, na sua conta Google: o que você lança num aparelho aparece no outro, e nada se perde quando sair versão nova. O endereço e a senha ficam guardados só neste aparelho.</p>
+        <p class="hint so-teste">🧪 <b>Testando em mais de um aparelho?</b> Ligue: o passo a passo leva uns 5 minutos no computador, e o celular liga depois num toque.</p>
+        <div class="sync-guia-botoes">
+          <button class="btn" type="button" onclick="guiaSync()">📘 Como ligar (passo a passo)</button>
+          <button class="btn" type="button" onclick="levarSyncOutroAparelho()">📲 Ligar outro aparelho</button>
+        </div>
         <div class="sync-form">
           <label for="sync-url">URL do App da Web (termina em /exec)</label>
           <div class="input-eye"><input type="password" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"><button type="button" class="mini-btn" id="btn-ver-url" title="Mostrar URL" onclick="alternarVerUrl()">👁️</button></div>
           <label for="sync-token">Token</label>
-          <input type="password" id="sync-token" placeholder="a frase que você definiu no Code.gs (nunca é exibida)" autocomplete="off">
+          <input type="password" id="sync-token" placeholder="a senha do seu script (nunca é exibida)" autocomplete="off">
         </div>
         <div style="display: flex; gap: 15px; margin-top: 15px;">
           <button class="btn" onclick="salvarSyncConfig()" style="flex: 1; background-color: var(--info); color: var(--bg);">💾 Salvar e testar</button>
@@ -1888,6 +1892,8 @@
        "Rever a apresentacao" em Config -> Nucleo. Detalhes em apresentacao.js. */
     window.GENESIS_PRIMEIRO_USO = (function () {
       try {
+        /* abriu pelo link "ligar outro aparelho": nao e gente nova, os dados vem da planilha */
+        if (/[#&]ligar=/.test(location.hash)) { localStorage.setItem('lifeos_apresentacao', '1'); return false; }
         var f = localStorage.getItem('lifeos_apresentacao');
         if (f === '1') return false;           /* ja viu, ou ja era usuario antigo */
         if (f === 'pendente') return true;     /* comecou e fechou o app no meio */

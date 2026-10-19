@@ -6305,3 +6305,427 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
   .ab-barra .ab-seta { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
   .ab-barra .ab-resumo { grid-column: 2; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.3; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PAINEL DE RESUMO NAS ABAS (19/10, resumos.js) — a grade de quadros do Painel da Saúde levada às 7 abas que
+   não tinham. Cada quadro é uma sub-aba e tem um desenho só dele; cada quadro também é um "container", para o
+   desenho se rearrumar pela largura DELE (no ultrawide a grade tem 4 colunas e o quadro fica estreito).
+   ════════════════════════════════════════════════════════════════════════════ */
+.rs-painel { container-type: inline-size; }
+.rs-painel .sp-quadro { container: rsq / inline-size; }
+/* fora de um cartão a grade fica mais larga que a da Saúde: em 1280 px abria 4 colunas de 300 px, com meio quadro
+   vazio. 2 colunas até o ultrawide; 4 só a partir de 1800 px de painel */
+@container (min-width: 1240px) { .rs-painel > .sp-grade { grid-template-columns: 1fr 1fr; } }
+@container (min-width: 1800px) { .rs-painel > .sp-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.rs-info { justify-content: space-between; margin-top: auto; }
+
+/* ── AGENDA ─────────────────────────────────────────────────────────────── */
+.rs-ag-hoje { --tom: var(--acento); }
+.rs-ag-semana { --tom: var(--info); }
+.rs-ag-reunioes { --tom: var(--roxo); }
+.rs-ag-plantoes { --tom: var(--laranja); }
+/* o relógio de 24 h: meia-noite no alto, plantões no anel de fora, compromissos no de dentro */
+.rs-ag-dia { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 1fr); gap: 14px; align-items: center; }
+@container rsq (max-width: 440px) { .rs-ag-dia { grid-template-columns: 1fr; } }
+.rs-relogio { position: relative; width: 100%; max-width: 250px; margin: 0 auto; aspect-ratio: 1; }
+.rs-relogio svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rs-rel-trilho { fill: none; stroke: var(--sup-2); stroke-width: 11; }
+.rs-rel-tick { stroke: var(--fio-sutil); stroke-width: 1; }
+.rs-rel-tick.forte { stroke: var(--txt4); stroke-width: 1.6; }
+.rs-rel-rot { font-size: 8.5px; fill: var(--txt4); text-anchor: middle; }
+.rs-rel-arco { fill: none; stroke: var(--c); stroke-width: 11; stroke-linecap: round; cursor: pointer; opacity: .9; transition: stroke-width var(--mov), opacity var(--mov); }
+.rs-rel-arco.passou { opacity: .38; }
+.rs-rel-arco.sel, .rs-rel-arco:hover { stroke-width: 15; opacity: 1; }
+.rs-rel-ponteiro { stroke: var(--txt-forte); stroke-width: 2; stroke-linecap: round; }
+.rs-rel-ponta { fill: var(--tom); }
+.rs-rel-centro { position: absolute; inset: 28%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; pointer-events: none; }
+.rs-rel-centro small { font-size: .58rem; font-weight: 700; letter-spacing: .1em; color: var(--tom); }
+.rs-rel-centro b { font-size: .86rem; color: var(--txt-forte); line-height: 1.2; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.rs-rel-centro span { font-size: .7rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.rs-ag-lista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rs-ag-item { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 4px 50px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px 4px 0; border-radius: 8px; }
+.rs-ag-item i { width: 4px; height: 70%; border-radius: 2px; background: var(--c); }
+.rs-ag-item.rs-ag-tar { --c: var(--txt4); }
+.rs-ag-item:hover, .rs-ag-item.sel { background: var(--sup-2); }
+.rs-ag-item.passou { opacity: .5; }
+.rs-ag-h { font-size: .76rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.rs-ag-t { font-size: .84rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* os próximos 7 dias: a altura de cada pilha é o dia ocupado (14 h = cheio) */
+.rs-sem { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.rs-sem-dia { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border-radius: 10px; min-width: 0; }
+.rs-sem-dia:hover { background: var(--sup-2); }
+.rs-sem-dia.hoje { background: color-mix(in srgb, var(--tom) 12%, transparent); }
+.rs-sem-dia.sel { outline: 2px solid var(--tom); outline-offset: -2px; }
+.rs-sem-pilha { display: flex; flex-direction: column; width: 100%; max-width: 30px; height: 112px; padding: 2px; box-sizing: border-box; border-radius: 7px; background: var(--sup-2); overflow: hidden; }
+.rs-sem-carga { display: flex; flex-direction: column; gap: 2px; margin-top: auto; width: 100%; }
+.rs-sem-carga i { display: block; flex-basis: 0; min-height: 5px; border-radius: 4px; background: var(--c); }
+.rs-sem-dia em { font-style: normal; font-size: .62rem; color: var(--txt3); min-height: 1.1em; }
+.rs-sem-dia small { font-size: .6rem; text-transform: uppercase; letter-spacing: .04em; color: var(--txt4); }
+.rs-sem-dia b { font-size: .9rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+/* reuniões: a folhinha da próxima e a pauta marcável */
+.rs-reu { display: flex; flex-direction: column; gap: 10px; }
+.rs-reu-cab { display: flex; gap: 12px; align-items: center; }
+.rs-reu-data { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none; width: 52px; height: 58px; border-radius: 12px;
+  background: color-mix(in srgb, var(--tom) 16%, transparent); border: 1px solid color-mix(in srgb, var(--tom) 40%, transparent); }
+.rs-reu-data b { font-size: 1.45rem; line-height: 1; color: var(--txt-forte); }
+.rs-reu-data small { font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; color: var(--tom); }
+.rs-reu-cab > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.rs-reu-cab strong { color: var(--txt-forte); }
+.rs-reu-cab small { font-size: .76rem; color: var(--txt3); }
+.rs-reu-pauta { display: flex; flex-direction: column; gap: 2px; }
+.rs-reu-pauta > small { font-size: .6rem; font-weight: 700; letter-spacing: .08em; color: var(--txt4); }
+.rs-reu-p { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .84rem; color: var(--txt); cursor: pointer; }
+.rs-reu-p.ok { color: var(--txt4); text-decoration: line-through; }
+.rs-reu-p input { flex: none; width: 18px; height: 18px; min-width: 0; min-height: 0; margin: 0; padding: 0; accent-color: var(--tom); }
+/* o mês de plantões: uma folhinha com cada plantão pintado pelo estado do dinheiro */
+.rs-pl { display: flex; flex-direction: column; gap: 4px; }
+.rs-pl-sem, .rs-pl-mes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.rs-pl-sem small { text-align: center; font-size: .6rem; color: var(--txt4); }
+.rs-pl-cel { all: unset; box-sizing: border-box; display: grid; place-items: center; height: 30px; border-radius: 8px; font-size: .74rem; color: var(--txt4); font-variant-numeric: tabular-nums; }
+.rs-pl-cel.vazia { visibility: hidden; }
+.rs-pl-cel.hoje { outline: 1.5px solid var(--txt3); outline-offset: -1.5px; color: var(--txt-forte); }
+.rs-pl-cel.tem { cursor: pointer; font-weight: 700; color: var(--txt-forte); }
+.rs-pl-cel.pago { background: color-mix(in srgb, var(--ok) 26%, transparent); }
+.rs-pl-cel.receber { background: color-mix(in srgb, var(--atencao) 30%, transparent); }
+.rs-pl-cel.vem { border: 1.5px dashed var(--tom); color: var(--tom); }
+.rs-pl-cel.sel { outline: 2px solid var(--tom); outline-offset: 1px; }
+.rs-pl-leg { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 4px; font-size: .66rem; color: var(--txt4); }
+.rs-pl-leg i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 3px; vertical-align: -1px; }
+.rs-pl-leg i.pago { background: color-mix(in srgb, var(--ok) 55%, transparent); }
+.rs-pl-leg i.receber { background: color-mix(in srgb, var(--atencao) 60%, transparent); }
+.rs-pl-leg i.vem { border: 1.5px dashed var(--tom); box-sizing: border-box; }
+.rs-pl-pago { color: var(--ok); }
+.rs-pl-receber { color: var(--atencao); }
+.rs-pl-vem { color: var(--tom); }
+.rs-mais { all: unset; box-sizing: border-box; cursor: pointer; align-self: flex-start; font-size: .76rem; color: var(--tom); padding: 4px 2px; }
+
+/* ── TAREFAS ────────────────────────────────────────────────────────────── */
+.rs-tar-hoje { --tom: var(--acento); }
+.rs-tar-matriz { --tom: var(--atencao); }
+.rs-tar-listas { --tom: var(--info); }
+.rs-tar-rotinas { --tom: var(--roxo); }
+/* as contas do dia: um fio de contas, cheia = feita, vazia = vence hoje, vermelha = atrasada */
+.rs-contas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 22px; padding: 2px 0 4px; border-bottom: 1px dashed var(--fio-sutil); }
+.rs-conta { width: 16px; height: 16px; border-radius: 50%; box-sizing: border-box; border: 2px solid var(--tom); }
+.rs-conta.feita { background: var(--tom); }
+.rs-conta.atrasada { border-color: var(--perigo); background: color-mix(in srgb, var(--perigo) 18%, transparent); }
+.rs-contas small { font-size: .7rem; color: var(--txt3); }
+.rs-tar-lista { display: flex; flex-direction: column; gap: 2px; }
+.rs-tar-linha { display: flex; align-items: center; gap: 10px; min-height: 40px; transition: opacity .3s, transform .3s; }
+.rs-tar-linha.indo { opacity: 0; transform: translateX(14px); }
+.rs-tar-ok { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--tom); }
+.rs-tar-ok svg { width: 14px; height: 14px; fill: none; stroke: var(--tom); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.rs-tar-ok:hover svg, .rs-tar-linha.indo .rs-tar-ok svg { opacity: 1; }
+.rs-tar-linha.atr .rs-tar-ok { border-color: var(--perigo); }
+.rs-tar-linha > span { display: flex; flex-direction: column; min-width: 0; }
+.rs-tar-linha b { font-weight: 600; font-size: .86rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-tar-linha small { font-size: .7rem; color: var(--txt3); }
+.rs-tar-linha.atr small { color: var(--perigo); }
+.rs-ritmo { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+.rs-ritmo > small { font-size: .58rem; font-weight: 700; letter-spacing: .1em; color: var(--txt4); }
+.rs-ritmo > div { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; align-items: end; height: 46px; }
+.rs-ritmo-b { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: flex-end; height: 100%; }
+.rs-ritmo-b i { display: block; width: 100%; height: calc(4px + var(--v) * 38px); border-radius: 3px; background: color-mix(in srgb, var(--tom) calc(35% + var(--v) * 65%), var(--sup-2)); }
+.rs-ritmo-b.hoje i { outline: 1.5px solid var(--txt3); outline-offset: 1px; }
+.rs-ritmo-b.sel i { background: var(--txt-forte); }
+/* a matriz em miniatura: a cor de cada canto acende com o quanto ele tem */
+.rs-mz { flex: 1; display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); gap: 4px; }
+.rs-mz-eixo { font-size: .6rem; color: var(--txt4); text-align: center; text-transform: uppercase; letter-spacing: .06em; }
+.rs-mz-eixo.x1 { grid-column: 2; grid-row: 1; } .rs-mz-eixo.x2 { grid-column: 3; grid-row: 1; }
+.rs-mz-eixo.y1, .rs-mz-eixo.y2 { grid-column: 1; writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; justify-self: center; }
+.rs-mz-eixo.y1 { grid-row: 2; } .rs-mz-eixo.y2 { grid-row: 3; }
+.rs-mz-grade { grid-column: 2 / 4; grid-row: 2 / 4; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rs-mz-q { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: 84px; padding: 8px 10px; border-radius: 12px;
+  background: color-mix(in srgb, var(--c) calc(6% + var(--v) * 24%), var(--sup-1)); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.rs-mz-q:hover { border-color: var(--c); }
+.rs-mz-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: .74rem; font-weight: 700; color: var(--c); }
+.rs-mz-cab b { font-size: 1.1rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.rs-mz-q small { font-size: .72rem; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-mz-q small.vazio { color: var(--txt4); white-space: normal; }
+/* listas: abertas na cor da lista + concluídas na semana, lado a lado na mesma barra */
+.rs-lis { display: flex; flex-direction: column; gap: 4px; }
+.rs-li { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(70px, 34%) minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 34px; padding: 2px 6px; border-radius: 8px; }
+.rs-li:hover { background: var(--sup-2); }
+.rs-li-nome { font-size: .82rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-li-barra { display: flex; height: 10px; border-radius: 5px; background: var(--sup-2); overflow: hidden; }
+.rs-li-barra i.ab { background: var(--c); }
+.rs-li-barra i.ok { background: color-mix(in srgb, var(--c) 35%, transparent); }
+.rs-li-n { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
+.rs-li-n b { font-size: .9rem; color: var(--txt-forte); }
+.rs-li-n small { font-size: .66rem; color: var(--ok); }
+.rs-li-leg { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 2px; vertical-align: -1px; background: var(--tom); }
+.rs-li-leg.ok { background: color-mix(in srgb, var(--tom) 35%, transparent); margin-left: 10px; }
+/* rotinas: uma régua de 14 dias com o ícone de cada rotina no dia em que ela vem */
+.rs-regua { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; }
+.rs-regua-dia { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 96px; padding: 4px 0; border-radius: 8px; background: var(--sup-1); min-width: 0; }
+.rs-regua-dia.hoje { background: color-mix(in srgb, var(--tom) 14%, transparent); }
+.rs-regua-dia.dom { box-shadow: inset 1px 0 0 var(--fio-sutil); }
+.rs-regua-dia small { font-size: .56rem; color: var(--txt4); text-transform: uppercase; }
+.rs-regua-dia b { font-size: .7rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.rs-regua-r { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 100%; max-width: 28px; aspect-ratio: 1; border-radius: 8px; font-size: .9rem;
+  background: color-mix(in srgb, var(--tom) 16%, transparent); border: 1px solid color-mix(in srgb, var(--tom) 40%, transparent); }
+.rs-regua-r.atr { border-color: var(--perigo); }
+.rs-regua-r.sel { background: var(--tom); }
+@container rsq (max-width: 400px) { .rs-regua { grid-template-columns: repeat(7, minmax(0, 1fr)); } .rs-regua-dia { min-height: 70px; } }
+
+/* ── NOTAS ──────────────────────────────────────────────────────────────── */
+.rs-nt-mural { --tom: var(--atencao); }
+.rs-nt-marcadores { --tom: var(--roxo); }
+.rs-nt-listas { --tom: var(--ok); }
+.rs-nt-entregas { --tom: var(--info); }
+/* o mural: post-its tortinhos, na cor de cada nota */
+.rs-mural { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 4px 2px; }
+@container rsq (max-width: 380px) { .rs-mural { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rs-post { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 84px; padding: 10px 10px 8px;
+  border-radius: 4px 4px 10px 4px; transform: rotate(var(--rot)); transition: transform var(--mov);
+  background: color-mix(in srgb, var(--nh) 20%, var(--sup-2)); border: 1px solid color-mix(in srgb, var(--nh) 40%, var(--fio-sutil)); box-shadow: 0 6px 14px -10px #000; }
+.rs-post:hover { transform: rotate(0) translateY(-2px); }
+.rs-post b { font-size: .8rem; color: var(--txt-forte); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.rs-post small { font-size: .7rem; color: var(--txt3); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rs-post-tacha { position: absolute; top: -8px; right: 6px; font-size: .8rem; }
+/* a nuvem: o tamanho do marcador é o quanto ele é usado */
+.rs-nuvem { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; }
+.rs-nuvem-m { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 3px 9px; border-radius: 999px; font-size: var(--t);
+  color: var(--txt-forte); background: color-mix(in srgb, var(--tom) 12%, transparent); border: 1px solid color-mix(in srgb, var(--tom) 30%, transparent); }
+.rs-nuvem-m small { font-size: .62rem; color: var(--txt3); }
+.rs-nuvem-m:hover, .rs-nuvem-m.on { background: var(--tom); color: var(--bg); }
+.rs-nuvem-m:hover small, .rs-nuvem-m.on small { color: var(--bg); }
+/* listas: barra de progresso na cor da lista e os próximos itens */
+.rs-ntls { display: flex; flex-direction: column; gap: 6px; }
+.rs-ntl { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 10px; background: var(--sup-1); border: 1px solid var(--fio-sutil); }
+.rs-ntl:hover { border-color: var(--nh); }
+.rs-ntl-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rs-ntl-cab b { font-size: .84rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-ntl-cab small { font-size: .7rem; color: var(--txt3); flex: none; }
+.rs-ntl-barra { height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.rs-ntl-barra i { display: block; height: 100%; background: var(--nh); border-radius: 3px; }
+.rs-ntl-it { font-size: .74rem; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* entregas: uma estrada de 14 dias com cada pacote no dia em que chega */
+.rs-estrada { padding: 26px 14px 4px; }
+.rs-estrada-pista { position: relative; height: 70px; border-radius: 10px; background: repeating-linear-gradient(90deg, var(--fio-sutil) 0 14px, transparent 14px 26px) center / 100% 2px no-repeat, var(--sup-2); }
+.rs-pac { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: calc(8px + var(--n) * 19px); transform: translateX(-50%); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 1rem;
+  background: color-mix(in srgb, var(--st) 22%, var(--sup-1)); border: 1.5px solid var(--st); }
+.rs-pac.atr { border-color: var(--perigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--perigo) 25%, transparent); }
+.rs-pac.sel { transform: translateX(-50%) scale(1.15); background: var(--st); }
+.rs-estrada-marcas { position: relative; height: 18px; }
+.rs-estrada-marcas small { position: absolute; transform: translateX(-50%); font-size: .62rem; color: var(--txt4); }
+.rs-atr { color: var(--perigo); }
+.rs-ok { color: var(--ok); }
+
+/* ── ESTUDOS ────────────────────────────────────────────────────────────── */
+.rs-es-aneis { --tom: var(--acento); }
+.rs-es-leitura { --tom: var(--rosa); }
+.rs-es-dias { --tom: var(--info); }
+.rs-es-ritual { --tom: var(--laranja); }
+/* os anéis da semana: um por tema, na cor do tema, fechando quando a meta é batida */
+.rs-es-semana { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 14px; align-items: center; }
+@container rsq (max-width: 400px) { .rs-es-semana { grid-template-columns: 1fr; } }
+.rs-aneis { position: relative; width: 100%; max-width: 210px; aspect-ratio: 1; margin: 0 auto; }
+.rs-aneis svg { width: 100%; height: 100%; display: block; }
+.rs-anel { cursor: pointer; }
+.rs-anel-fundo { fill: none; stroke: color-mix(in srgb, var(--c) 16%, var(--sup-2)); stroke-width: 11; }
+.rs-anel-cheio { fill: none; stroke: var(--c); stroke-width: 11; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.rs-anel.sel .rs-anel-cheio, .rs-anel:hover .rs-anel-cheio { stroke-width: 14; }
+.rs-anel.cheio .rs-anel-cheio { filter: drop-shadow(0 0 4px var(--c)); }
+.rs-aneis-centro { position: absolute; inset: 36%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+.rs-aneis-centro b { font-size: .9rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.rs-aneis-centro small { font-size: .62rem; color: var(--txt3); }
+.rs-anel-legs { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rs-anel-leg { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 2px 8px; border-radius: 8px; }
+.rs-anel-leg:hover, .rs-anel-leg.sel { background: var(--sup-2); }
+.rs-anel-leg i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.rs-anel-leg span { font-size: .82rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-anel-leg small { font-size: .7rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+/* na leitura: um marcador de página por material, a barra na cor do tema */
+.rs-leits { display: flex; flex-direction: column; gap: 6px; }
+.rs-leit { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 30px minmax(0, 1fr) 42px; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border-radius: 10px; }
+.rs-leit:hover { background: var(--sup-2); }
+.rs-leit-ic { display: grid; place-items: center; width: 30px; height: 38px; border-radius: 3px 6px 6px 3px; font-size: .95rem;
+  background: color-mix(in srgb, var(--c) 22%, var(--sup-2)); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.rs-leit-tx { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.rs-leit-tx b { font-size: .84rem; font-weight: 600; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-leit-barra { height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.rs-leit-barra i { display: block; height: 100%; background: var(--c); border-radius: 3px; }
+.rs-leit-p { font-size: .78rem; color: var(--txt2); text-align: right; font-variant-numeric: tabular-nums; }
+/* sessões: a média de cada dia da semana nas últimas 8 semanas, com o melhor dia aceso */
+.rs-esds { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.rs-esd { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.rs-esd > span { display: flex; align-items: flex-end; width: 100%; max-width: 34px; height: 96px; border-radius: 8px; background: var(--sup-1); overflow: hidden; }
+.rs-esd > span i { display: block; width: 100%; height: calc(var(--v) * 100%); min-height: 3px; border-radius: 8px; background: color-mix(in srgb, var(--tom) 55%, transparent); }
+.rs-esd.melhor > span i { background: var(--tom); box-shadow: 0 0 12px -2px var(--tom); }
+.rs-esd.sel > span { outline: 2px solid var(--tom); outline-offset: 1px; }
+.rs-esd small { font-size: .62rem; color: var(--txt4); text-transform: uppercase; }
+.rs-esd.hoje small:last-child { color: var(--txt-forte); font-weight: 700; }
+.rs-esd-v { min-height: 1.1em; font-variant-numeric: tabular-nums; }
+.rs-es-ult { display: flex; flex-direction: column; gap: 2px; }
+.rs-es-ult small { font-size: .72rem; color: var(--txt3); }
+.rs-es-ult b { color: var(--txt2); font-weight: 600; }
+/* o ritual: os passos da semana numa trilha que enche de baixo para cima */
+.rs-rit { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 12px; }
+.rs-rit-barra { position: relative; border-radius: 4px; background: var(--sup-2); overflow: hidden; }
+.rs-rit-barra i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--tom); border-radius: 4px; transition: height .4s ease; }
+.rs-rit-passos { display: flex; flex-direction: column; gap: 2px; }
+.rs-rit-p { display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; font-size: .84rem; color: var(--txt); }
+.rs-rit-p.ok span { color: var(--txt4); text-decoration: line-through; }
+.rs-rit-p input { flex: none; width: 18px; height: 18px; min-width: 0; min-height: 0; margin: 0; padding: 0; accent-color: var(--tom); }
+.rs-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── LAZER ──────────────────────────────────────────────────────────────── */
+.rs-lz-tela { --tom: var(--roxo); }
+.rs-lz-sair { --tom: var(--ok); }
+.rs-lz-musica { --tom: var(--rosa); }
+.rs-lz-ano { --tom: var(--laranja); }
+/* a fita de cinema: os pôsteres em quadros, com os furinhos em cima e embaixo */
+.rs-fita { padding: 12px 0; border-radius: 6px; background:
+  radial-gradient(circle, var(--bg) 2.6px, transparent 3px) 0 3px / 14px 8px repeat-x,
+  radial-gradient(circle, var(--bg) 2.6px, transparent 3px) 0 calc(100% - 3px) / 14px 8px repeat-x, #111; }
+.rs-fita-trilho { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 8px; padding: 0 8px; overflow-x: auto; scrollbar-width: none; }
+.rs-fita-q { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rs-fita-q .lz-capa { box-shadow: none; border-radius: 3px; }
+.rs-fita-q.sel .lz-capa { outline: 2px solid var(--tom); outline-offset: 2px; }
+.rs-fita-q small { font-size: .66rem; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.rs-fita-selo { position: absolute; top: 4px; left: 4px; padding: 1px 6px; border-radius: 999px; font-size: .6rem; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .65); }
+.rs-fita-selo.assistindo { background: color-mix(in srgb, var(--atencao) 85%, #000); color: #111; }
+/* sair: a próxima em foto grande, com o texto por cima */
+.rs-sair-capa { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: block; border-radius: 12px; overflow: hidden; }
+.rs-sair-capa .lz-foto { aspect-ratio: 5 / 2; border-radius: 12px; }
+.rs-sair-capa:hover .lz-foto img { transform: scale(1.03); }
+.rs-sair-capa .lz-foto img { transition: transform .4s ease; }
+.rs-sair-txt { position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 2px; padding: 26px 14px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, .82)); color: #fff; }
+.rs-sair-txt small { font-size: .62rem; font-weight: 700; letter-spacing: .08em; color: #86efac; }
+.rs-sair-txt b { font-size: 1rem; }
+.rs-sair-txt span { font-size: .74rem; color: #e2e8f0; }
+.rs-chips-t { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rs-chips-t > small { font-size: .58rem; font-weight: 700; letter-spacing: .1em; color: var(--txt4); margin-right: 2px; }
+.rs-chip-t { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 2px 10px; border-radius: 999px; font-size: .76rem; color: var(--txt2); border: 1px dashed color-mix(in srgb, var(--tom) 50%, transparent); }
+.rs-chip-t b { color: var(--txt-forte); }
+.rs-chip-t:hover { border-style: solid; color: var(--txt-forte); }
+/* música: um disco de vinil por momento, na cor do momento; o toque toca */
+.rs-discos { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 12px; }
+.rs-disco { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.rs-disco-v { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%;
+  background: radial-gradient(circle, var(--c) 0 22%, #0b0b0b 23% 26%, #1a1a1a 27% 40%, #0f0f0f 41% 55%, #1c1c1c 56% 70%, #0d0d0d 71%); box-shadow: 0 6px 14px -8px var(--c); transition: transform .8s ease; }
+.rs-disco-v i { font-style: normal; font-size: .9rem; }
+.rs-disco:hover .rs-disco-v { transform: rotate(160deg); }
+.rs-disco small { font-size: .74rem; color: var(--txt-forte); }
+.rs-disco em { font-style: normal; font-size: .62rem; color: var(--txt4); }
+/* o ano: vistos e saídas empilhados mês a mês */
+.rs-ano { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; align-items: end; }
+.rs-ano-m { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.rs-ano-m > span { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 100%; max-width: 26px; height: 100px; border-radius: 6px; background: var(--sup-1); overflow: hidden; }
+.rs-ano-m i { display: block; width: 100%; }
+.rs-ano-m i.v { background: var(--roxo); }
+.rs-ano-m i.s { background: var(--ok); }
+.rs-ano-m.futuro > span { opacity: .4; }
+.rs-ano-m.hoje small { color: var(--txt-forte); font-weight: 700; }
+.rs-ano-m.sel > span { outline: 2px solid var(--tom); outline-offset: 1px; }
+.rs-ano-m small { font-size: .62rem; color: var(--txt4); }
+.rs-leg-v, .rs-leg-s { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 0; vertical-align: -1px; background: var(--roxo); }
+.rs-leg-s { background: var(--ok); margin-left: 8px; }
+
+/* ── VIAGENS ────────────────────────────────────────────────────────────── */
+.rs-vg-prox { --tom: var(--info); }
+.rs-vg-ano { --tom: var(--roxo); }
+.rs-vg-milhas { --tom: var(--atencao); }
+.rs-vg-custo { --tom: var(--ok); }
+/* a janela do avião: a foto do destino lá fora e quantos dias faltam */
+.rs-vg-prox-corpo { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr); gap: 16px; align-items: center; }
+@container rsq (max-width: 360px) { .rs-vg-prox-corpo { grid-template-columns: 1fr; justify-items: center; } }
+.rs-janela { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: grid; place-items: center; width: 100%; max-width: 170px; aspect-ratio: 3 / 4; overflow: hidden;
+  border-radius: 46% / 34%; border: 9px solid color-mix(in srgb, var(--txt) 14%, var(--sup-2)); box-shadow: inset 0 0 0 2px #0006, 0 8px 18px -12px #000;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor) 60%, #0b1830), color-mix(in srgb, var(--cor) 25%, #0b1220)); }
+.rs-janela img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rs-janela-ceu { position: absolute; inset: 0; background: linear-gradient(115deg, #fff2 0 18%, transparent 30%), linear-gradient(transparent 45%, #0009); }
+.rs-janela-txt { position: relative; display: flex; flex-direction: column; align-items: center; color: #fff; text-shadow: 0 2px 6px #000a; margin-top: 30%; }
+.rs-janela-txt b { font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.rs-janela-txt b.txt { font-size: .95rem; text-align: center; padding: 0 8px; }
+.rs-janela-txt small { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+.rs-vg-dados { display: flex; flex-direction: column; gap: 8px; min-width: 0; width: 100%; }
+.rs-vg-dados > strong { font-size: 1.1rem; color: var(--txt-forte); }
+.rs-vg-dados > small { font-size: .76rem; color: var(--txt3); margin-top: -6px; }
+.rs-vg-med { display: grid; grid-template-columns: 92px minmax(0, 1fr) 40px; align-items: center; gap: 8px; }
+.rs-vg-med small { font-size: .72rem; color: var(--txt3); }
+.rs-vg-med b { font-size: .74rem; color: var(--txt2); text-align: right; font-variant-numeric: tabular-nums; }
+.rs-vg-med-b { height: 7px; border-radius: 4px; background: var(--sup-2); overflow: hidden; }
+.rs-vg-med-b i { display: block; height: 100%; border-radius: 4px; background: var(--tom); }
+.rs-vg-med.passou .rs-vg-med-b i { background: var(--perigo); }
+/* o ano numa régua: cada viagem um trecho na cor do destino; as feitas cheias, as que vêm listradas */
+.rs-vg-regua { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 6px 2px 0; }
+.rs-vg-pista { position: relative; height: 58px; border-radius: 10px; background: var(--sup-2); }
+.rs-vg-seg { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: 10px; bottom: 10px; display: grid; place-items: center; overflow: hidden; border-radius: 7px;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--cor) 70%, transparent) 0 6px, color-mix(in srgb, var(--cor) 35%, transparent) 6px 12px); border: 1px solid var(--cor); }
+.rs-vg-seg.feita { background: var(--cor); }
+.rs-vg-seg span { font-size: .6rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #0008; letter-spacing: .04em; }
+.rs-vg-seg.sel { outline: 2px solid var(--txt-forte); outline-offset: 2px; }
+.rs-vg-hoje { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--txt-forte); border-radius: 1px; }
+.rs-vg-meses { position: relative; height: 20px; margin-top: 4px; }
+.rs-vg-meses small { position: absolute; font-size: .6rem; color: var(--txt4); text-transform: uppercase; }
+@container rsq (max-width: 420px) { .rs-vg-meses small:nth-child(even) { display: none; } }
+/* milhas: o saldo de cada programa e o aviso de validade */
+.rs-mis, .rs-cus { display: flex; flex-direction: column; gap: 4px; }
+.rs-mi, .rs-cu { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(70px, 30%) minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 38px; padding: 2px 6px; border-radius: 8px; }
+.rs-mi:hover, .rs-cu:hover { background: var(--sup-2); }
+.rs-mi-nome, .rs-cu-nome { font-size: .82rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-mi-barra { height: 10px; border-radius: 5px; background: var(--sup-2); overflow: hidden; }
+.rs-mi-barra i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, color-mix(in srgb, var(--tom) 55%, transparent), var(--tom)); }
+.rs-mi-n, .rs-cu-n { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.rs-mi-n b, .rs-cu-n { font-size: .82rem; color: var(--txt-forte); }
+.rs-mi-n small, .rs-cu-n small { font-size: .62rem; color: var(--txt3); }
+.rs-mi-n small.perto { color: var(--atencao); font-weight: 700; }
+.rs-mi-n small.vencido { color: var(--perigo); font-weight: 700; }
+/* o que custa: orçamento (contorno) e reservado (cheio) na mesma barra */
+.rs-cu-barra { position: relative; height: 12px; border-radius: 6px; background: var(--sup-2); }
+.rs-cu-barra i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
+.rs-cu-barra i.orc { border: 1.5px dashed color-mix(in srgb, var(--cor) 70%, var(--txt3)); box-sizing: border-box; }
+.rs-cu-barra i.gas { background: var(--cor); opacity: .85; }
+.rs-cu.passou .rs-cu-barra i.gas { background: var(--perigo); }
+.rs-cu-leg { display: inline-block; width: 12px; height: 10px; border-radius: 3px; margin: 0 4px 0 0; vertical-align: -1px; background: var(--tom); }
+.rs-cu-leg.orc { background: none; border: 1.5px dashed var(--txt3); margin-left: 10px; box-sizing: border-box; }
+
+/* ── REDE ───────────────────────────────────────────────────────────────── */
+.rs-rd-radar { --tom: var(--acento); }
+.rs-rd-aniv { --tom: var(--rosa); }
+.rs-rd-falar { --tom: var(--atencao); }
+.rs-rd-cv { --tom: var(--roxo); }
+/* o radar: você no meio; quem está em dia perto, quem sumiu na borda */
+.rs-radar { width: 100%; max-width: 280px; margin: 0 auto; aspect-ratio: 1; }
+.rs-radar svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rs-rd-anel { fill: color-mix(in srgb, var(--t) 5%, transparent); stroke: color-mix(in srgb, var(--t) 45%, transparent); stroke-width: 1; stroke-dasharray: 3 4; }
+.rs-rd-eu { font-size: 8px; fill: var(--txt4); text-anchor: middle; text-transform: uppercase; letter-spacing: .1em; }
+.rs-rd-p { cursor: pointer; }
+.rs-rd-p circle { fill: color-mix(in srgb, var(--c) 30%, var(--sup-1)); stroke: var(--c); stroke-width: 1.5; transition: r .2s; }
+.rs-rd-p.frio circle { opacity: .75; }
+.rs-rd-p.fav circle { stroke-width: 2.5; stroke: var(--atencao); }
+.rs-rd-p text { font-size: 8.5px; font-weight: 700; fill: var(--txt-forte); text-anchor: middle; pointer-events: none; }
+.rs-rd-p:hover circle, .rs-rd-p.sel circle { r: 15; fill: var(--c); }
+.rs-rd-p.sel text, .rs-rd-p:hover text { fill: #000; }
+/* aniversários: uma vela por pessoa; a chama cresce quanto mais perto */
+.rs-velas { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; align-items: end; min-height: 150px; }
+.rs-vela { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.rs-vela-chama { width: 12px; height: calc(10px + var(--h) * 12px); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff7c2, #fbbf24 45%, #f97316); box-shadow: 0 0 calc(4px + var(--h) * 12px) #fbbf24; opacity: calc(.35 + var(--h) * .65); }
+.rs-vela.ja .rs-vela-chama { animation: rs-tremer 1.2s ease-in-out infinite; }
+@keyframes rs-tremer { 0%, 100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.12) rotate(2deg); } }
+.rs-vela-corpo { width: 16px; height: calc(30px + var(--h) * 60px); border-radius: 3px 3px 2px 2px; background: repeating-linear-gradient(160deg, var(--c) 0 6px, color-mix(in srgb, var(--c) 55%, #fff) 6px 9px); }
+.rs-vela b { font-size: .7rem; color: var(--txt-forte); font-variant-numeric: tabular-nums; }
+.rs-vela small { font-size: .66rem; color: var(--txt3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-vela.sel b { color: var(--tom); }
+@media (prefers-reduced-motion: reduce) { .rs-vela.ja .rs-vela-chama { animation: none; } }
+/* falar esta semana */
+.rs-fals { display: flex; flex-direction: column; gap: 4px; }
+.rs-fal { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 42px; }
+.rs-fal-av { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: .72rem; font-weight: 800; color: #000; background: var(--c); }
+.rs-fal > span { display: flex; flex-direction: column; min-width: 0; }
+.rs-fal b { font-size: .84rem; color: var(--txt-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-fal small { font-size: .7rem; color: var(--txt3); }
+/* o currículo: o medidor e o que falta */
+.rs-cv { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: center; }
+.rs-cv-anel { position: relative; width: 110px; height: 110px; }
+.rs-cv-anel svg { width: 100%; height: 100%; }
+.rs-cv-anel b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.3rem; color: var(--txt-forte); }
+.rs-cv-fundo { fill: none; stroke: var(--sup-2); stroke-width: 10; }
+.rs-cv-cheio { fill: none; stroke: var(--tom); stroke-width: 10; stroke-linecap: round; }
+.rs-cv-cheio.ok { stroke: var(--ok); }
+.rs-cv-lista { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rs-cv-lista > small { font-size: .58rem; font-weight: 700; letter-spacing: .1em; color: var(--txt4); }
+.rs-cv-f { all: unset; box-sizing: border-box; cursor: pointer; font-size: .8rem; color: var(--txt2); min-height: 28px; display: flex; align-items: center; }
+.rs-cv-f:hover { color: var(--tom); }

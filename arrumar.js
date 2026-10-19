@@ -19,7 +19,15 @@
 const AR_GRADES = [
   { aba: 'health', sel: '#health-dash > .sp-grade', chave: 'saude-painel', render: 'renderPainelSaude' },
   { aba: 'finances', sel: '#fin-painel > .sp-grade', chave: 'fin-painel', render: 'renderFinPainel' },
-  { aba: 'business', sel: '#biz-dash > .sp-grade', chave: 'ng-painel', render: 'renderPainelNegocios' }
+  { aba: 'business', sel: '#biz-dash > .sp-grade', chave: 'ng-painel', render: 'renderPainelNegocios' },
+  // (19/10) os painéis de resumo das outras abas (resumos.js)
+  { aba: 'home', sel: '#rs-home > .sp-grade', chave: 'rs-home', render: 'rsRenderHome' },
+  { aba: 'tasks', sel: '#rs-tasks > .sp-grade', chave: 'rs-tasks', render: 'rsRenderTasks' },
+  { aba: 'notes', sel: '#rs-notes > .sp-grade', chave: 'rs-notes', render: 'rsRenderNotes' },
+  { aba: 'studies', sel: '#rs-studies > .sp-grade', chave: 'rs-studies', render: 'rsRenderStudies' },
+  { aba: 'leisure', sel: '#rs-leisure > .sp-grade', chave: 'rs-leisure', render: 'rsRenderLeisure' },
+  { aba: 'trips', sel: '#rs-trips > .sp-grade', chave: 'rs-trips', render: 'rsRenderTrips' },
+  { aba: 'net', sel: '#rs-net > .sp-grade', chave: 'rs-net', render: 'rsRenderNet' }
 ];
 const AR_LINHA = 60;          // a "linha" da altura de um quadro, em px
 let arEditando = null;        // id da aba em edição (ou null)
@@ -257,13 +265,17 @@ arAplicarTudo(); arBotoes();
 // ════════════════════════════════════════════════════════════════════════════
 /** O resumo de uma linha de cada faixa (aba/seção). Seção sem resumo aqui usa os títulos dos cartões dela. */
 const AB_RESUMOS = {
-  'home/cal': 'Dia, semana e mês num lugar só', 'home/compromissos': 'Os próximos e o que marcar',
+  'home/painel': 'O dia, a semana, as reuniões e os plantões de relance',
+  'home/cal':'Dia, semana e mês num lugar só', 'home/compromissos': 'Os próximos e o que marcar',
   'home/reunioes': 'Pauta, ata e encaminhamentos', 'home/plantoes': 'Escala, turnos e o que falta receber',
   'finances/painel': 'O mês num olhar: rio, calendário e potes', 'finances/lancamentos': 'Extrato do banco, nova transação e histórico',
   'finances/orcamento': 'Quanto já foi de cada pote', 'finances/recorrentes': 'Contas e entradas que se repetem',
   'finances/analise': 'Por categoria e os últimos meses',
+  'tasks/painel': 'O dia, a matriz, as listas e as rotinas de relance',
   'tasks/foco': 'O que importa hoje', 'tasks/listas': 'Todas as listas de tarefas', 'tasks/rotinas': 'O que se repete',
+  'notes/painel': 'O mural, os marcadores, as listas e as entregas de relance',
   'notes/notas': 'Mural ou caderno, com marcadores', 'notes/listas': 'Listas de marcar', 'notes/entregas': 'Compras e o que está para chegar',
+  'studies/painel': 'Metas da semana, leitura, sessões e o ritual de relance',
   'studies/mesa': 'A semana por tema e o livro aberto', 'studies/estante': 'Livros, cursos e materiais',
   'studies/sessoes': 'O caminho do estudo e as sessões', 'studies/ritual': 'O estudo semanal de negócios',
   'business/painel': 'Mercado, carteira, metas e projetos de relance', 'business/mercado': 'Cotações e gráficos',
@@ -272,9 +284,12 @@ const AB_RESUMOS = {
   'health/painel': 'Treino, corpo, comida e médico de relance', 'health/treinos': 'Fichas e treinos feitos',
   'health/medidas': 'O corpo hoje, peso e medidas', 'health/comida': 'Planos alimentares e refeições',
   'health/medico': 'Remédios, prevenção, consultas e exames',
+  'leisure/painel': 'O que está na tela, a próxima saída, a música e o ano',
   'leisure/midia': 'Filmes, séries e documentários', 'leisure/saidas': 'Museus, shows e programas', 'leisure/musica': 'Playlists por momento',
+  'trips/painel': 'A próxima viagem, o ano, as milhas e o que custa',
   'trips/viagens': 'As viagens, planejadas e feitas', 'trips/milhas': 'Programas e saldos de milhas',
-  'net/contatos': 'Pessoas, aniversários e quem retomar', 'net/curriculo': 'Experiência e formação',
+  'net/painel': 'O radar, os aniversários, quem falar e o currículo',
+  'net/contatos':'Pessoas, aniversários e quem retomar', 'net/curriculo': 'Experiência e formação',
   'clinic/painel': 'O mês da clínica, repasses e comissões', 'clinic/funil': 'Quem chegou e em que etapa está',
   'clinic/servicos': 'O que a clínica vende',
   'prod/painel': 'A oficina de relance', 'prod/fila': 'As ordens na fila', 'prod/catalogo': 'Produtos e custo real',

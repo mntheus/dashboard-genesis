@@ -20,8 +20,9 @@
 
 /** As abas que ganham o Painel. `secoes` = o que some quando o Painel está aberto (a função da aba devolve). */
 const RS_ABAS = {
+  // `junto`: a parte que aparece EMBAIXO do Painel (pedido dele, 19/10: a Agenda "abre em ambas as partes")
   home: { fn: 'verSecaoAgenda', fileira: 'agenda-secoes', primeira: 'cal', render: 'rsRenderHome',
-    secoes: ['sec-cal', 'sec-compromissos', 'sec-plantoes'] },
+    secoes: ['sec-cal', 'sec-compromissos', 'sec-plantoes'], junto: { chip: 'cal', secao: 'sec-cal', nome: 'Calendário' } },
   tasks: { fn: 'verSecaoTarefas', fileira: 'tarefas-secoes', primeira: 'foco', render: 'rsRenderTasks',
     secoes: ['sec-tar-foco', 'sec-tar-listas', 'sec-tar-rotinas'] },
   notes: { fn: 'verSecaoNotas', fileira: 'notas-secoes', primeira: 'notas', render: 'rsRenderNotes',
@@ -41,6 +42,11 @@ const rsSel = {};     // aba → o que foi tocado (a linha de detalhe responde a
 function cfgRs() { prefs.rsPainel = prefs.rsPainel || {}; return prefs.rsPainel; }
 function rsLigado(aba) { return cfgRs()[aba] !== false; }
 function rsNomeDoChip(ch) { const m = (ch.getAttribute('onclick') || '').match(/\(\s*'([^']+)'/); return m ? m[1] : ''; }
+/** A parte que vem junto, embaixo do Painel — se a aba tem, se está ligada (⚙) e fora das ☰ Barras (lá é uma faixa por vez). */
+function rsJunto(aba) {
+  const d = RS_ABAS[aba]; if (!d || !d.junto || cfgRs()[aba + ':junto'] === false) return null;
+  return typeof abVista === 'function' && abVista(aba) === 'barras' ? null : d.junto;
+}
 
 // ───────────────────────────── montar e trocar ─────────────────────────────
 /** Põe a micro-aba "📊 Painel" na frente e a seção dela logo antes da primeira seção da aba. */
@@ -66,8 +72,11 @@ function rsEmbrulhar(aba) {
     if (s === 'painel') {
       if (!rsLigado(aba)) return nova.call(this, d.primeira);
       rsAtivo[aba] = true;
-      if (fil) fil.querySelectorAll(':scope > span').forEach(x => x.classList.toggle('active', x.id === 'rs-chip-' + aba));
-      d.secoes.forEach(id => { const e = document.getElementById(id); if (e) e.hidden = true; });
+      // a parte que vem junto se abre pela função de sempre (estado da aba, filtros, botões), e o Painel por cima
+      const j = rsJunto(aba);
+      if (j) orig.call(this, j.chip);
+      if (fil) fil.querySelectorAll(':scope > span').forEach(x => x.classList.toggle('active', x.id === 'rs-chip-' + aba || (!!j && rsNomeDoChip(x) === j.chip)));
+      d.secoes.forEach(id => { if (j && id === j.secao) return; const e = document.getElementById(id); if (e) e.hidden = true; });
       if (box) box.hidden = false;
       rsDesenhar(aba);
       if (typeof sincronizarBotoesDeSecao === 'function') sincronizarBotoesDeSecao();
@@ -101,10 +110,17 @@ function rsMudar(aba, on) {
   if (on) window[d.fn]('painel', ch); else if (rsAtivo[aba]) window[d.fn](d.primeira);
   if (typeof renderConfigAba === 'function') renderConfigAba();
 }
+function rsMudarJunto(aba, on) {
+  cfgRs()[aba + ':junto'] = !!on;
+  try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { }
+  if (rsAtivo[aba]) window[RS_ABAS[aba].fn]('painel');
+  if (typeof renderConfigAba === 'function') renderConfigAba();
+}
 function rsHtmlCfg(aba) {
-  const on = rsLigado(aba);
+  const on = rsLigado(aba), j = RS_ABAS[aba].junto;
   return `<h4 class="dev-titulo">Painel de resumo</h4>
     <label class="check-line"><input type="checkbox" ${on ? 'checked' : ''} onchange="rsMudar('${aba}', this.checked)"> Mostrar o 📊 Painel como primeira micro-aba</label>
+    ${j && on ? `<label class="check-line"><input type="checkbox" ${cfgRs()[aba + ':junto'] !== false ? 'checked' : ''} onchange="rsMudarJunto('${aba}', this.checked)"> Abrir com o ${j.nome} junto, embaixo do Painel</label>` : ''}
     <small class="hint">${on ? 'A aba abre no resumo de todas as partes dela; cada quadro leva à sua.' : 'Desligado: a aba abre direto na primeira parte, como antes.'} Vale neste aparelho.</small>`;
 }
 

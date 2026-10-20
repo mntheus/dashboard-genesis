@@ -76,12 +76,65 @@ function tvAeroComecar() {
   const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.aerob || e.aeroIni) return;
   tvAcordarSom(); e.aeroIni = Date.now(); e.aeroAvisou = false; s.descansoAte = 0; tvVibrar(40); tvGravar(); tvRender();
 }
+// (20/10, ideia dele: dados objetivos no aeróbico) "Terminei" não grava na hora: abre a ficha de NÚMEROS — o tempo vem
+// do cronômetro, ele digita a distância (ou o nível da máquina) e o app mostra pace/velocidade e o gasto em kcal.
 function tvAeroTerminar() {
   const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.aerob || !e.aeroIni) return;
-  e.feitas.push({ min: tvAeroMin(e), int: e.int, em: Date.now() }); e.aeroIni = 0; tvVibrar(40);
+  e.aeroPend = { seg: Math.max(60, Math.round((Date.now() - e.aeroIni) / 1000)) }; e.aeroIni = 0; tvVibrar(40);
+  tvGravar(); tvRender();
+}
+/** "Já fiz" (correu na rua, sem o cronômetro): abre a ficha de números com o tempo da meta. */
+function tvAeroAnotar() {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.aerob) return;
+  e.aeroIni = 0; e.aeroPend = { seg: (Number(e.min) || 20) * 60 }; tvGravar(); tvRender();
+}
+/** Lê "31:20", "31" ou "1:05:00" → segundos. */
+function tvLerTempo(txt) {
+  const p = String(txt || '').trim().split(':').map(x => parseFloat(x.replace(',', '.')) || 0);
+  return p.length >= 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0] * 60;
+}
+function tvAeroCampos() {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  return { seg: tvLerTempo(v('tv-ae-tempo')), dist: parseFloat(v('tv-ae-dist').replace(',', '.')) || 0, nivel: parseFloat(v('tv-ae-nivel').replace(',', '.')) || 0 };
+}
+/** Enquanto ele digita: as contas embaixo, sem redesenhar (o cursor fica onde está). */
+function tvAeroPrevia() {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e) return;
+  const c = tvAeroCampos(), r = exAeroContas(e.nome, c.seg, c.dist, c.nivel), t = EX_AERO_TIPOS[exAeroTipo(e.nome)];
+  const el = document.getElementById('tv-ae-contas'); if (!el) return;
+  const um = (b, l) => `<div class="tv-ae-m"><b>${b}</b><small>${l}</small></div>`;
+  el.innerHTML = (t.ritmo === 'pace' ? um(r.ritmo ? r.ritmo.replace(' /km', '') : '—', 'pace /km') + um(r.kmh ? r.kmh.toFixed(1).replace('.', ',') : '—', 'km/h')
+    : t.ritmo === 'kmh' ? um(r.kmh ? r.kmh.toFixed(1).replace('.', ',') : '—', 'km/h') + um(c.seg ? exMinSeg(c.seg) : '—', 'tempo')
+    : t.ritmo ? um(r.ritmo ? r.ritmo.split(' /')[0] : '—', t.ritmo === '500m' ? '/500 m' : '/100 m') + um(c.seg ? exMinSeg(c.seg) : '—', 'tempo')
+    : um(c.seg ? exMinSeg(c.seg) : '—', 'tempo') + um(r.met.toFixed(1).replace('.', ','), 'MET'))
+    + um(r.kcal ? '≈ ' + r.kcal : '—', 'kcal');
+  const n = document.getElementById('tv-ae-peso'); if (n) n.hidden = r.pesoReal;
+}
+function tvAeroGuardar() {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.aerob || !e.aeroPend) return;
+  const c = tvAeroCampos(); if (!c.seg) { toast('Diga quanto tempo durou (ex.: 31:20).'); return; }
+  const t = EX_AERO_TIPOS[exAeroTipo(e.nome)], r = exAeroContas(e.nome, c.seg, c.dist, c.nivel);
+  e.feitas.push({ min: Math.max(1, Math.round(c.seg / 60)), seg: Math.round(c.seg), dist: c.dist || 0, unid: t.dist || '', nivel: c.nivel || 0,
+    ritmo: r.ritmo, kcal: r.kcal, met: Math.round(r.met * 10) / 10, em: Date.now() });
+  e.aeroPend = null;
   if (s.ex.every(x => x.feitas.length >= x.series)) { s.fim = true; tvGravar(); tvRender(); tvBipe(2); return; }
   const i = tvProximoIndice(s, s.atual); if (i >= 0) s.atual = i;
   tvGravar(); tvRender(true);
+}
+function tvAeroDescartar() { const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e) return; e.aeroPend = null; tvGravar(); tvRender(); }
+function tvAeroFormHTML(s, e) {
+  const t = EX_AERO_TIPOS[exAeroTipo(e.nome)], p = e.aeroPend;
+  return `<form class="tv-ae-form" onsubmit="event.preventDefault(); tvAeroGuardar()">
+      <div class="tv-ae-campos">
+        <label><small>Tempo</small><input type="text" id="tv-ae-tempo" inputmode="numeric" value="${exMinSeg(p.seg)}" oninput="tvAeroPrevia()" aria-label="Tempo (minutos:segundos)"></label>
+        ${t.dist ? `<label><small>Distância (${t.dist})</small><input type="text" id="tv-ae-dist" inputmode="decimal" placeholder="${t.dist === 'km' ? 'ex.: 5,2' : 'ex.: 1500'}" oninput="tvAeroPrevia()" aria-label="Distância em ${t.dist}"></label>` : ''}
+        ${t.nivel ? `<label><small>Nível da máquina</small><input type="text" id="tv-ae-nivel" inputmode="numeric" placeholder="1 a 20" oninput="tvAeroPrevia()" aria-label="Nível da máquina"></label>` : ''}
+      </div>
+      <div class="tv-ae-contas" id="tv-ae-contas"></div>
+      <p class="tv-ae-pe" id="tv-ae-peso">O gasto usa 70 kg: anote seu peso em Saúde → Corpo para a conta ficar certa.</p>
+      <button type="submit" class="tv-fiz">✓ Guardar ${esc(e.nome)}</button>
+      <button type="button" class="tv-desfaz" onclick="tvAeroDescartar()">voltar sem guardar</button>
+    </form>`;
 }
 function tvAeroAjustar(d) {
   const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.aerob) return;
@@ -101,9 +154,13 @@ function tvAddAero(i) {
   tvGravar(); tvRender(); toast(`🏃 ${nome} entrou no fim do treino: 15 min. Ajuste e toque em Começar.`, 3500);
 }
 function tvAeroHTML(s, e) {
+  if (e.aeroPend) return tvAeroFormHTML(s, e);
   const correndo = !!e.aeroIni, alvo = (Number(e.min) || 20) * 60000;
   const passou = correndo ? Date.now() - e.aeroIni : 0, c = 2 * Math.PI * 52, p = Math.min(1, passou / alvo);
-  const ints = Object.entries(EX_INTENSIDADE).map(([k, v]) => `<button type="button" class="tv-int${e.int === k ? ' on' : ''}" aria-pressed="${e.int === k}" onclick="tvAeroIntensidade('${k}')">${v[0]} ${v[1]}</button>`).join('');
+  // (20/10) no lugar de leve/moderado/forte: o que vai ser medido ao terminar (e o "já fiz", para quem correu sem o cronômetro)
+  const t = EX_AERO_TIPOS[exAeroTipo(e.nome)];
+  const mede = t.dist ? `Ao terminar: ${t.dist === 'km' ? 'distância em km' : 'distância em metros'} → ${t.ritmo === 'kmh' ? 'velocidade' : t.ritmo === 'pace' ? 'pace' : 'ritmo'} e gasto em kcal` : t.nivel ? 'Ao terminar: o nível da máquina → gasto em kcal' : 'Ao terminar: o gasto em kcal pelo tempo';
+  const ints = `<p class="tv-ae-mede">${mede}</p>${correndo ? '' : '<button type="button" class="tv-desfaz" onclick="tvAeroAnotar()">já fiz — só anotar os números</button>'}`;
   return `<div class="tv-aero">
       <div class="tv-descanso tv-aero-anel">
         <svg viewBox="0 0 120 120" class="tv-anel" aria-hidden="true"><circle cx="60" cy="60" r="52" class="tv-anel-fundo"/>
@@ -111,16 +168,58 @@ function tvAeroHTML(s, e) {
         <div class="tv-desc-txt"><small>${correndo ? 'NO AERÓBICO' : 'META'}</small><b id="tv-aero-n">${correndo ? tvRelogio(passou) : (Number(e.min) || 20) + ' min'}</b><small id="tv-aero-de">${correndo ? 'de ' + (Number(e.min) || 20) + ' min' : ''}</small></div>
       </div>
       <div class="tv-ajustes"><div class="tv-aj"><button type="button" onclick="tvAeroAjustar(-5)" aria-label="Menos 5 minutos">−</button><span><b>${Number(e.min) || 20}</b><small>min</small></span><button type="button" onclick="tvAeroAjustar(5)" aria-label="Mais 5 minutos">＋</button></div></div>
-      <div class="tv-ints" role="group" aria-label="Intensidade">${ints}</div>
+      ${ints}
       ${tvAguaHTML(s)}
       <button type="button" class="tv-fiz" onclick="${correndo ? 'tvAeroTerminar()' : 'tvAeroComecar()'}">${correndo ? `✓ Terminei · ${tvAeroMin(e)} min` : `▶ Começar ${Number(e.min) || 20} min`}</button>
+    </div>`;
+}
+
+// ── alongamento ao vivo (20/10, ideia dele) — tempo de sustentação, um cronômetro por lado ──
+// ▶ Segurar 30 s → o anel conta para trás → bipe/vibra → (cada lado) "agora o esquerdo" → ▶ → conta a vez → descanso curto.
+function tvNovoAlong(e) {
+  return { id: e.id || novoId(), nome: e.nome, grupo: e.grupo || 'mobilidade', grupos: e.grupos, along: true, seg: Number(e.seg) || 30,
+    lados: e.lados === undefined ? exLadosPadrao(e.nome) : !!e.lados, series: Math.max(1, Number(e.series) || 2), reps: (Number(e.seg) || 30) + ' s',
+    carga: 0, descanso: Number(e.descanso) || 15, repsAgora: '', cargaAgora: 0, feitas: [], alIni: 0, alLado: 0 };
+}
+function tvAlongComecar() {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.along || e.alIni) return;
+  tvAcordarSom(); e.alIni = Date.now(); s.descansoAte = 0; tvVibrar(40); tvGravar(); tvRender();
+}
+/** O tempo acabou (o relógio chama) ou ele tocou em "pronto": direito → esquerdo; os dois lados → conta a vez. */
+function tvAlongFim() {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.along || !e.alIni) return;
+  e.alIni = 0; tvVibrar([120, 60, 120]); tvBipe(1);
+  if (e.lados && !e.alLado) { e.alLado = 1; tvGravar(); tvRender(); return; }
+  e.alLado = 0; e.feitas.push({ seg: e.seg, lados: e.lados, em: Date.now() });
+  if (s.ex.every(x => x.feitas.length >= x.series)) { s.descansoAte = 0; s.fim = true; tvGravar(); tvRender(); tvBipe(2); return; }
+  if (e.feitas.length >= e.series) { const i = tvProximoIndice(s, s.atual); if (i >= 0) s.atual = i; }
+  s.descansoDe = e.descanso; s.descansoAte = Date.now() + e.descanso * 1000; tvAvisou = false;
+  tvGravar(); tvRender();
+}
+function tvAlongAjustar(d) {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e || !e.along || e.alIni) return;
+  e.seg = Math.max(10, Math.min(180, (Number(e.seg) || 30) + d)); e.reps = e.seg + ' s'; tvGravar(); tvRender();
+}
+function tvAlongHTML(s, e) {
+  const correndo = !!e.alIni, alvo = (Number(e.seg) || 30) * 1000, passou = correndo ? Date.now() - e.alIni : 0;
+  const c = 2 * Math.PI * 52, p = Math.min(1, passou / alvo), lado = e.lados ? (e.alLado ? 'esquerdo' : 'direito') : '';
+  const vez = Math.min(e.series, e.feitas.length + 1);
+  return `<div class="tv-aero tv-along">
+      <div class="tv-descanso tv-aero-anel">
+        <svg viewBox="0 0 120 120" class="tv-anel" aria-hidden="true"><circle cx="60" cy="60" r="52" class="tv-anel-fundo"/>
+          <circle cx="60" cy="60" r="52" class="tv-anel-cheio" id="tv-along-anel" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - p)).toFixed(1)}" transform="rotate(-90 60 60)"/></svg>
+        <div class="tv-desc-txt"><small>${correndo ? 'SEGURE' : 'SUSTENTAÇÃO'}</small><b id="tv-along-n">${correndo ? tvRelogio(alvo - passou) : e.seg + ' s'}</b><small>${e.lados ? 'lado ' + lado : 'corpo todo'}</small></div>
+      </div>
+      <div class="tv-lados">${e.lados ? `<span class="${e.alLado ? '' : 'on'}">Direito</span><span class="${e.alLado ? 'on' : ''}">Esquerdo</span>` : ''}<span class="tv-vez">vez ${vez} de ${e.series}</span></div>
+      ${correndo ? '' : `<div class="tv-ajustes"><div class="tv-aj"><button type="button" onclick="tvAlongAjustar(-5)" aria-label="Menos 5 segundos">−</button><span><b>${e.seg}</b><small>segundos</small></span><button type="button" onclick="tvAlongAjustar(5)" aria-label="Mais 5 segundos">＋</button></div></div>`}
+      <button type="button" class="tv-fiz" onclick="${correndo ? 'tvAlongFim()' : 'tvAlongComecar()'}">${correndo ? '✓ Pronto' : `▶ Segurar ${e.seg} s${lado ? ' · ' + lado : ''}`}</button>
     </div>`;
 }
 
 /** O que vem a seguir, em palavras ("Série 3 · 10 × 30 kg" ou o próximo exercício). */
 function tvASeguir(s) {
   const e = s.ex[s.atual]; if (!e) return '';
-  const fmt = x => x.aerob ? `${Number(x.min) || 20} min · ${(EX_INTENSIDADE[x.int] || EX_INTENSIDADE.moderado)[1]}`
+  const fmt = x => x.aerob ? `${Number(x.min) || 20} min` : x.along ? `${x.series} × ${Number(x.seg) || 30} s${x.lados ? ' cada lado' : ''}`
     : `${esc(String(x.repsAgora || x.reps))} × ${x.cargaAgora ? spNum(x.cargaAgora, x.cargaAgora % 1 ? 1 : 0) + ' kg' : 'peso do corpo'}`;
   if (e.aerob && e.feitas.length < e.series) return `${esc(e.nome)} · ${fmt(e)}`;
   if (e.feitas.length < e.series) return `Série ${e.feitas.length + 1} de ${e.series} · ${fmt(e)}`;
@@ -140,7 +239,7 @@ function treinoAoVivo(fichaId, diaIdx) {
     tvEstado = {
       fichaId: f.id, dia: diaIdx, titulo: `${f.nome} — ${d.nome}`, data: hojeISO(), inicio: Date.now(),
       atual: 0, descansoAte: 0, descansoDe: 0, fim: false, atualizarFicha: true,
-      ex: d.exercicios.map(e => exAerobico(e) ? tvNovoAero(e)
+      ex: d.exercicios.map(e => exAerobico(e) ? tvNovoAero(e) : exAlongamento(e) ? tvNovoAlong(e)
         : ({ id: e.id, nome: e.nome, grupo: e.grupo, grupos: e.grupos, series: Math.max(1, Number(e.series) || 3),
         reps: String(e.reps || '10'), carga: Number(e.carga) || 0, descanso: Number(e.descanso) || 60,
         repsAgora: String(e.reps || '10'), cargaAgora: Number(e.carga) || 0, feitas: [] }))
@@ -177,7 +276,8 @@ function tvFechar() {
 function tvFiz() {
   const s = treinoEmAndamento(); if (!s || s.fim) return;
   const e = s.ex[s.atual]; if (!e) return;
-  if (e.aerob && e.feitas.length < e.series) { if (e.aeroIni) tvAeroTerminar(); else tvAeroComecar(); return; }
+  if (e.aerob && e.feitas.length < e.series) { if (e.aeroPend) tvAeroGuardar(); else if (e.aeroIni) tvAeroTerminar(); else tvAeroComecar(); return; }
+  if (e.along && e.feitas.length < e.series) { if (e.alIni) tvAlongFim(); else tvAlongComecar(); return; }
   tvAcordarSom();   // o navegador só deixa tocar som depois de um toque: este é o toque
   if (e.feitas.length >= e.series) { const i = tvProximoIndice(s, s.atual); if (i >= 0) { s.atual = i; tvGravar(); tvRender(); } return; }
   e.feitas.push({ reps: e.repsAgora || e.reps, carga: Number(e.cargaAgora) || 0, em: Date.now() });
@@ -239,18 +339,23 @@ function tvSalvar() {
   if (!feitos.length) { toast('Nenhuma série feita ainda.'); return; }
   const unicos = l => [...new Set(l)];
   const linhas = feitos.map(e => {
-    if (e.aerob) return `${e.nome} ${e.feitas.reduce((a, f) => a + (Number(f.min) || 0), 0)} min`;
+    // (20/10) o aeróbico leva os números medidos: "Corrida ao ar livre 31 min 5,2 km (6:01 /km) · 430 kcal"
+    if (e.aerob) return `${e.nome} ${e.feitas.map(f => `${Number(f.min) || 0} min${f.dist ? ' ' + String(f.dist).replace('.', ',') + ' ' + f.unid : ''}${f.ritmo ? ' (' + f.ritmo + ')' : ''}${f.kcal ? ' · ' + f.kcal + ' kcal' : ''}`).join(' + ')}`;
+    if (e.along) return `${e.nome} ${e.feitas.length}x${Number(e.seg) || 30}s${e.lados ? ' cada lado' : ''}`;
     const reps = unicos(e.feitas.map(f => String(f.reps))), cargas = unicos(e.feitas.map(f => Number(f.carga) || 0)).filter(Boolean);
     return `${e.nome} ${e.feitas.length}x${reps.join('/')}${cargas.length ? ' ' + cargas.map(c => String(c).replace('.', ',')).join('/') + 'kg' : ''}`;
   });
   // só aeróbico no treino? então o tipo é o do aeróbico (esteira = corrida, bike = bike…), não "musculação"
-  const aeros = feitos.filter(e => e.aerob), soAero = aeros.length === feitos.length;
+  const aeros = feitos.filter(e => e.aerob), soAero = aeros.length === feitos.length, soAlong = feitos.every(e => e.along);
   const tipoAero = n => /corrida|esteira/i.test(n) ? 'corrida' : /caminhada/i.test(n) ? 'caminhada' : /bike|bicicleta/i.test(n) ? 'bike' : /nata/i.test(n) ? 'natacao' : 'outro';
   const intAero = { leve: 1, moderado: 2, forte: 3 };
+  // a intensidade (1–3) agora sai do MET medido; o aeróbico antigo (sem MET) ainda usa leve/moderado/forte
+  const intDe = f => f.met ? exIntDoMet(f.met) : intAero[f.int] || 2;
   const cardioMin = aeros.reduce((a, e) => a + e.feitas.reduce((b, f) => b + (Number(f.min) || 0), 0), 0);
-  workouts.push({ id: novoId(), createdAt: Date.now(), date: s.data, type: soAero ? tipoAero(aeros[0].nome) : 'musculacao', minutes: tvMinutos(s),
-    intensity: soAero ? Math.max(...aeros.map(e => intAero[e.int] || 2)) : 2,
-    exercises: linhas, note: s.titulo, aoVivo: { series: tvFeitas(s), volume: Math.round(tvVolume(s)), ...(cardioMin ? { cardioMin } : {}) } });
+  const kcal = aeros.reduce((a, e) => a + e.feitas.reduce((b, f) => b + (Number(f.kcal) || 0), 0), 0);
+  workouts.push({ id: novoId(), createdAt: Date.now(), date: s.data, type: soAero ? tipoAero(aeros[0].nome) : soAlong ? 'alongamento' : 'musculacao', minutes: tvMinutos(s),
+    intensity: soAero ? Math.max(...aeros.flatMap(e => e.feitas.map(intDe))) : soAlong ? 1 : 2,
+    exercises: linhas, note: s.titulo, aoVivo: { series: tvFeitas(s), volume: Math.round(tvVolume(s)), ...(cardioMin ? { cardioMin } : {}), ...(kcal ? { kcal } : {}) } });
   salvar('workouts', workouts);
   const f = fichaPorId(s.fichaId), d = f && f.dias[s.dia];
   if (f && d) {
@@ -324,6 +429,14 @@ function tvTique() {
   const s = treinoEmAndamento(); if (!s || !tvAberto()) return;
   const rel = document.getElementById('tv-relogio'); if (rel) rel.textContent = tvRelogio(Date.now() - s.inicio);
   const ea = s.ex[s.atual];
+  // (20/10) o alongamento conta PARA TRÁS; no fim do tempo, troca de lado ou conta a vez sozinho
+  if (ea && ea.along && ea.alIni && !s.fim) {
+    const alvo = (Number(ea.seg) || 30) * 1000, passou = Date.now() - ea.alIni;
+    const n = document.getElementById('tv-along-n'); if (n) n.textContent = tvRelogio(Math.max(0, alvo - passou));
+    const anel = document.getElementById('tv-along-anel');
+    if (anel) { const c = 2 * Math.PI * 52; anel.style.strokeDashoffset = (c * (1 - Math.min(1, passou / alvo))).toFixed(1); }
+    if (passou >= alvo) tvAlongFim();
+  }
   if (ea && ea.aerob && ea.aeroIni && !s.fim) {
     const passou = Date.now() - ea.aeroIni, alvo = (Number(ea.min) || 20) * 60000;
     const n = document.getElementById('tv-aero-n'); if (n) n.textContent = tvRelogio(passou);
@@ -366,7 +479,7 @@ function tvRender(acabouDescanso) {
         <div class="tv-fim-cab"><span class="tv-fim-ic">💪</span><div><h2>Treino concluído</h2>
           <p>${tvMinutos(s)} min · ${feitas} de ${total} séries${vol ? ` · ${vol.toLocaleString('pt-BR')} kg levantados` : ''}${s.agua ? ` · 💧 ${s.agua} ml de água` : ''}</p></div></div>
         ${cfgTreinoVivo().agua ? tvAguaHTML(s) : ''}
-        <ul class="tv-fim-lista">${s.ex.map(e => `<li class="${e.feitas.length ? '' : 'pulado'}"><b>${esc(e.nome)}</b><span>${e.feitas.length ? e.feitas.map(f => e.aerob ? `${Number(f.min) || 0} min · ${(EX_INTENSIDADE[f.int] || EX_INTENSIDADE.moderado)[1]}` : `${esc(String(f.reps))}×${f.carga ? spNum(f.carga, f.carga % 1 ? 1 : 0) : '—'}`).join(' · ') : 'não feito'}</span></li>`).join('')}</ul>
+        <ul class="tv-fim-lista">${s.ex.map(e => `<li class="${e.feitas.length ? '' : 'pulado'}"><b>${esc(e.nome)}</b><span>${e.feitas.length ? e.feitas.map(f => e.aerob ? `${Number(f.min) || 0} min${f.dist ? ' · ' + String(f.dist).replace('.', ',') + ' ' + f.unid : ''}${f.ritmo ? ' · ' + f.ritmo : ''}${f.kcal ? ' · ≈ ' + f.kcal + ' kcal' : ''}${f.int && !f.met ? ' · ' + (EX_INTENSIDADE[f.int] || EX_INTENSIDADE.moderado)[1] : ''}` : e.along ? `${Number(f.seg) || 30} s${f.lados ? ' cada lado' : ''}` : `${esc(String(f.reps))}×${f.carga ? spNum(f.carga, f.carga % 1 ? 1 : 0) : '—'}`).join(' · ') : 'não feito'}</span></li>`).join('')}</ul>
         <label class="check-line"><input type="checkbox" ${s.atualizarFicha ? 'checked' : ''} onchange="treinoEmAndamento().atualizarFicha = this.checked; tvGravar()"> Atualizar a ficha com as cargas de hoje</label>
         ${tvSuplementosHTML()}
         <div class="tv-fim-acoes">
@@ -407,8 +520,9 @@ function tvRender(acabouDescanso) {
         <small class="tv-ex-n">Exercício ${s.atual + 1} de ${s.ex.length}${grupoNome ? ' · ' + grupoNome : ''}</small>
         <h2>${esc(e.nome)}</h2>
         ${banco && banco.dica ? `<p class="tv-dica">${esc(banco.dica)}</p>` : ''}
-        ${e.aerob ? (completo ? `<p class="tv-ok">✓ ${e.feitas.reduce((a, f) => a + (Number(f.min) || 0), 0)} min feitos</p>${acao}` : tvAeroHTML(s, e)) : `<div class="tv-series" aria-label="Séries">${Array.from({ length: e.series }, (_, k) => `<i class="${k < e.feitas.length ? 'ok' : k === e.feitas.length ? 'agora' : ''}">${k < e.feitas.length ? '✓' : k + 1}</i>`).join('')}</div>
-        ${completo ? '<p class="tv-ok">✓ Todas as séries feitas</p>' : `<div class="tv-ajustes">
+        ${e.aerob ? (completo ? `<p class="tv-ok">✓ ${e.feitas.reduce((a, f) => a + (Number(f.min) || 0), 0)} min feitos</p>${acao}` : tvAeroHTML(s, e))
+          : e.along && !completo && !(s.descansoAte > Date.now()) ? tvAlongHTML(s, e) : `<div class="tv-series" aria-label="Séries">${Array.from({ length: e.series }, (_, k) => `<i class="${k < e.feitas.length ? 'ok' : k === e.feitas.length ? 'agora' : ''}">${k < e.feitas.length ? '✓' : k + 1}</i>`).join('')}</div>
+        ${completo ? '<p class="tv-ok">✓ Todas as séries feitas</p>' : e.along ? '' : `<div class="tv-ajustes">
           <div class="tv-aj"><button type="button" onclick="tvAjustar('reps', -1)" aria-label="Menos repetições">−</button><span><b>${esc(String(e.repsAgora || e.reps))}</b><small>reps</small></span><button type="button" onclick="tvAjustar('reps', 1)" aria-label="Mais repetições">＋</button></div>
           <div class="tv-aj"><button type="button" onclick="tvAjustar('carga', -1)" aria-label="Menos 1 kg">−</button><span><input type="text" class="tv-carga-in" inputmode="decimal" enterkeyhint="done" aria-label="Carga em kg (pode digitar, ex.: 37,5)" value="${e.cargaAgora ? String(spNum(e.cargaAgora, e.cargaAgora % 1 ? 1 : 0)) : ''}" placeholder="—" onfocus="this.select()" onchange="tvCarga(this.value)" onkeydown="if (event.key === 'Enter') this.blur()"><small>kg</small></span><button type="button" onclick="tvAjustar('carga', 1)" aria-label="Mais 1 kg">＋</button></div>
         </div>`}

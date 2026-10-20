@@ -307,6 +307,61 @@ function exNovoAerobico(nome, grupo, min, int) {
 /** "20 min · 😤 moderado" */
 function exAerobicoTexto(e) { const i = EX_INTENSIDADE[e.int] || EX_INTENSIDADE.moderado; return `${Number(e.min) || 20} min · ${i[0]} ${i[1]}`; }
 
+// ── ALONGAMENTO (20/10, ideia dele: "a parte de alongamento não condiz com marcações de séries tipo musculação") ──
+// Mobilidade é TEMPO DE SUSTENTAÇÃO: "2 × 30 s · cada lado" — sem kg nem repetições. No treino ao vivo, um cronômetro
+// por lado (direito, depois esquerdo), com bipe e vibração no fim de cada tempo.
+function exAlongamento(e) { if (!e) return false; if (e.along !== undefined) return !!e.along; const b = exercicioDoBanco(e.nome); return (b ? b.grupo : e.grupo) === 'mobilidade'; }
+/** Cada lado? Quase todo alongamento é de um lado por vez; os de corpo inteiro / coluna, não. */
+function exLadosPadrao(nome) { return !/geral|gato|camelo|coluna|respira|pesco[cç]o|cobra/i.test(nome || ''); }
+function exNovoAlong(nome, grupo, seg, vezes, lados) {
+  const s = Number(seg) || 30;
+  return { id: novoId(), nome, grupo: grupo || 'mobilidade', along: true, seg: s, series: Number(vezes) || 2,
+    lados: lados === undefined ? exLadosPadrao(nome) : !!lados, reps: s + ' s', carga: 0, descanso: 15, obs: '' };
+}
+/** "2 × 30 s · cada lado" (o exercício antigo, gravado com séries × reps, vira tempo: 30 s por padrão) */
+function exAlongTexto(e) { return `${Number(e.series) || 2} × ${Number(e.seg) || 30} s${(e.lados === undefined ? exLadosPadrao(e.nome) : e.lados) ? ' · cada lado' : ''}`; }
+
+// ── AERÓBICO OBJETIVO (20/10, ideia dele: "todos os dados específicos de cada aeróbico de forma objetiva e não
+// subjetiva — corrida: trocar intensidade por pace, calcular gasto energético") ──
+// Cada tipo pede o que dá para medir: corrida/caminhada = km + tempo → pace; bike = km + tempo → km/h; natação =
+// metros + tempo → ritmo por 100 m; remo = metros + tempo → por 500 m; elíptico/escada = tempo + nível da máquina;
+// corda/burpee/polichinelo = tempo. O gasto: kcal = MET × peso (kg) × horas — o MET sai do tipo e da velocidade
+// (corrida e caminhada pela fórmula do ACSM; os outros pelo Compêndio de Atividades Físicas).
+const EX_AERO_TIPOS = {
+  corrida:   { re: /corrida|esteira|correr/i, dist: 'km', ritmo: 'pace' },
+  caminhada: { re: /caminhada|caminhar/i, dist: 'km', ritmo: 'pace' },
+  bike:      { re: /bike|bicicleta|ciclismo|spinning/i, dist: 'km', ritmo: 'kmh' },
+  natacao:   { re: /nata[cç]/i, dist: 'm', ritmo: '100m' },
+  remo:      { re: /remo/i, dist: 'm', ritmo: '500m' },
+  maquina:   { re: /el[ií]ptico|escada|transport/i, dist: '', nivel: true },
+  livre:     { re: /./, dist: '' }
+};
+function exAeroTipo(nome) { return Object.keys(EX_AERO_TIPOS).find(k => EX_AERO_TIPOS[k].re.test(nome || '')) || 'livre'; }
+/** O peso mais recente (Saúde → Corpo). Sem nenhum, 70 kg — e quem chama avisa que é estimativa. */
+function exPesoAtual() {
+  const l = (typeof measures !== 'undefined' ? measures : []).filter(m => Number(m.weight) && m.date).sort((a, b) => b.date.localeCompare(a.date));
+  return l.length ? { kg: Number(l[0].weight), real: true } : { kg: 70, real: false };
+}
+const exMinSeg = s => { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+/** As contas de um aeróbico feito: { pace, kmh, ritmo (texto), met, kcal }. seg = tempo total; dist em km ou m (pelo tipo). */
+function exAeroContas(nome, seg, dist, nivel) {
+  const t = EX_AERO_TIPOS[exAeroTipo(nome)], k = exAeroTipo(nome), h = (Number(seg) || 0) / 3600;
+  const d = Number(dist) || 0, km = t.dist === 'm' ? d / 1000 : d, kmh = h && km ? km / h : 0;
+  let met, ritmo = '';
+  if (k === 'corrida' && kmh) { met = (0.2 * kmh * 1000 / 60 + 3.5) / 3.5; ritmo = exMinSeg(seg / km) + ' /km'; }
+  else if (k === 'caminhada' && kmh) { met = (0.1 * kmh * 1000 / 60 + 3.5) / 3.5; ritmo = exMinSeg(seg / km) + ' /km'; }
+  else if (k === 'bike' && kmh) { met = kmh < 16 ? 4 : kmh < 19 ? 6.8 : kmh < 22 ? 8 : kmh < 25 ? 10 : kmh < 30 ? 12 : 15.8; ritmo = kmh.toFixed(1).replace('.', ',') + ' km/h'; }
+  else if (k === 'natacao' && d) { const p = seg / (d / 100); met = p > 180 ? 5.8 : p > 120 ? 8.3 : 10; ritmo = exMinSeg(p) + ' /100 m'; }
+  else if (k === 'remo' && d) { const p = seg / (d / 500); met = p > 160 ? 5 : p > 135 ? 7 : p > 120 ? 8.5 : 12; ritmo = exMinSeg(p) + ' /500 m'; }
+  else if (k === 'maquina') { const n = Number(nivel) || 8, escada = /escada/i.test(nome); met = Math.max(4, Math.min(12, (escada ? 8 : 5) + (n - 8) * (escada ? 0.3 : 0.25))); }
+  else met = /corda/i.test(nome) ? 11.8 : /burpee/i.test(nome) ? 8 : /polichinelo/i.test(nome) ? 7.7
+    : k === 'corrida' ? 9.8 : k === 'caminhada' ? 3.5 : k === 'bike' ? 6.8 : k === 'natacao' ? 7 : k === 'remo' ? 7 : 7;
+  const peso = exPesoAtual();
+  return { kmh, ritmo, met, kcal: Math.round(met * peso.kg * h), pesoReal: peso.real };
+}
+/** Intensidade 1–3 pelo MET (os registros antigos e o fator de atividade ainda usam leve/moderado/forte). */
+function exIntDoMet(met) { return met < 6 ? 1 : met < 9 ? 2 : 3; }
+
 function abrirBancoExercicios(destino) {
   exBancoDestino = destino || { tipo: 'treino' };
   exBancoFiltro = { grupo: (destino && destino.grupo) || '', equip: '', busca: '' };
@@ -382,6 +437,7 @@ function porExercicioNoDestino(indice) {
     if (!f || !f.dias[exBancoDestino.dia]) { toast('A ficha mudou — abra de novo.'); fecharBancoExercicios(); return; }
     const aero = exAerobico(e);
     f.dias[exBancoDestino.dia].exercicios.push(aero ? exNovoAerobico(e.nome, e.grupo, 20, 'moderado')
+      : exAlongamento(e) ? exNovoAlong(e.nome, e.grupo)
       : { id: novoId(), nome: e.nome, grupo: e.grupo, series: 3, reps: '10', carga: 0, descanso: 60, obs: '' });
     salvar('fichas', fichas);
     // abre a ficha para ele VER o que acabou de entrar (estava fechada e parecia que nada acontecia)
@@ -391,7 +447,7 @@ function porExercicioNoDestino(indice) {
   } else {
     const campo = document.getElementById('workout-exercises');
     if (!campo) return;
-    campo.value = (campo.value ? campo.value.replace(/\s*$/, '') + '\n' : '') + (exAerobico(e) ? `${e.nome} 20 min` : `${e.nome} 3x10`);
+    campo.value = (campo.value ? campo.value.replace(/\s*$/, '') + '\n' : '') + (exAerobico(e) ? `${e.nome} 20 min` : exAlongamento(e) ? `${e.nome} 2x30s` : `${e.nome} 3x10`);
     toast(`${e.nome} entrou no treino de hoje.`, 3000);
   }
 }

@@ -2954,8 +2954,11 @@ function addExercicio(id, i) {
   const nome = document.getElementById('ex-nome').value.trim();
   if (!nome) { toast('Escolha ou escreva o exercício.'); return; }
   if (g === 'cardio') {
-    // aeróbico é tempo, não séries (19/10)
-    f.dias[i].exercicios.push(exNovoAerobico(nome, g, parseInt(document.getElementById('ex-min').value) || 20, document.getElementById('ex-int').value));
+    // aeróbico é tempo, não séries (19/10); a intensidade virou números medidos no treino (20/10)
+    f.dias[i].exercicios.push(exNovoAerobico(nome, g, parseInt(document.getElementById('ex-min').value) || 20));
+  } else if (g === 'mobilidade') {
+    // alongamento é tempo de sustentação: 2 × 30 s (cada lado, se for de um lado) — ajusta na linha depois (20/10)
+    f.dias[i].exercicios.push(exNovoAlong(nome, g));
   } else f.dias[i].exercicios.push({ id: novoId(), nome, grupo: g,
     series: parseInt(document.getElementById('ex-series').value) || 3,
     reps: document.getElementById('ex-reps').value.trim() || '10',
@@ -2990,6 +2993,19 @@ function ajustarMinAerobico(id, i, exId, delta) {
   e.aerob = true; e.min = Math.max(5, (Number(e.min) || 20) + delta); e.reps = e.min + ' min'; e.series = 1; e.descanso = 0;
   salvar('fichas', fichas); renderFichas();
 }
+/** (20/10) a carga digitada na ficha (37,5): vírgula ou ponto, 0,1 kg */
+function mudarCargaFicha(id, i, exId, txt) {
+  const f = fichaPorId(id); if (!f || !f.dias[i]) return;
+  const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
+  const n = parseFloat(String(txt || '').replace(',', '.'));
+  e.carga = isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : 0;
+  salvar('fichas', fichas); renderFichas();
+}
+/** Alongamento: ± 5 s de sustentação, quantas vezes (1–4) e cada lado / sem lados (20/10). */
+function alongDaFicha(id, i, exId) { const f = fichaPorId(id); const e = f && f.dias[i] && f.dias[i].exercicios.find(x => x.id === exId); if (e) { e.along = true; e.carga = 0; } return e; }
+function ajustarSegAlong(id, i, exId, d) { const e = alongDaFicha(id, i, exId); if (!e) return; e.seg = Math.max(10, Math.min(180, (Number(e.seg) || 30) + d)); e.reps = e.seg + ' s'; salvar('fichas', fichas); renderFichas(); }
+function trocarVezesAlong(id, i, exId) { const e = alongDaFicha(id, i, exId); if (!e) return; e.series = (Number(e.series) || 2) % 4 + 1; salvar('fichas', fichas); renderFichas(); }
+function trocarLadosAlong(id, i, exId) { const e = alongDaFicha(id, i, exId); if (!e) return; e.lados = !(e.lados === undefined ? exLadosPadrao(e.nome) : e.lados); salvar('fichas', fichas); renderFichas(); }
 function trocarIntensidade(id, i, exId) {
   const f = fichaPorId(id); if (!f || !f.dias[i]) return;
   const e = f.dias[i].exercicios.find(x => x.id === exId); if (!e) return;
@@ -3023,14 +3039,14 @@ function preencherExercicios() {
   const dl = document.getElementById('ex-sugestoes');
   if (dl) dl.innerHTML = (EXERCICIOS[g.value] || []).map(n => `<option value="${esc(n)}">`).join('');
   // Cardio: o formulário troca séries/reps/kg/descanso por minutos e intensidade
-  const caixa = g.closest('.ex-novo'); if (caixa) caixa.classList.toggle('aerob', g.value === 'cardio');
+  const caixa = g.closest('.ex-novo'); if (caixa) { caixa.classList.toggle('aerob', g.value === 'cardio'); caixa.classList.toggle('along', g.value === 'mobilidade'); }
 }
 /** Treinar por esta ficha: cria o treino do dia já com os exercícios listados. */
 function treinarComFicha(id, i) {
   const f = fichaPorId(id); if (!f || !f.dias[i]) return;
   const d = f.dias[i];
   if (!d.exercicios.length) { toast('Esse dia ainda não tem exercício nenhum.'); return; }
-  const linhas = d.exercicios.map(e => exAerobico(e) ? `${e.nome} ${Number(e.min) || 20} min` : `${e.nome} ${e.series}x${e.reps}${e.carga ? ' ' + e.carga + 'kg' : ''}`);
+  const linhas = d.exercicios.map(e => exAerobico(e) ? `${e.nome} ${Number(e.min) || 20} min` : exAlongamento(e) ? `${e.nome} ${Number(e.series) || 2}x${Number(e.seg) || 30}s` : `${e.nome} ${e.series}x${e.reps}${e.carga ? ' ' + e.carga + 'kg' : ''}`);
   verSecaoSaude('treinos');
   document.getElementById('workout-type').value = 'musculacao';
   document.getElementById('workout-date').value = hojeISO();
@@ -3069,27 +3085,36 @@ function renderFichas() {
         <button class="btn-treinar" onclick="treinoAoVivo(${f.id}, ${i})" title="Modo ao vivo: marca as séries e conta o descanso">▶ Treinar agora</button>
         <button class="mini-btn" onclick="treinarComFicha(${f.id}, ${i})" title="Só preencher o registro abaixo, sem o modo ao vivo">📝 só registrar</button></div>`;
       h += '<div class="ex-lista">' + (d.exercicios.length ? d.exercicios.map(e => {
-        const aero = exAerobico(e);
+        const aero = exAerobico(e), along = !aero && exAlongamento(e);
+        // (20/10) o que o aeróbico mede (no lugar de leve/moderado/forte): "km · pace", "m · /100 m", "nível"…
+        const tA = aero ? EX_AERO_TIPOS[exAeroTipo(e.nome)] : null;
+        const mede = tA ? (tA.dist === 'km' ? (tA.ritmo === 'kmh' ? 'km · km/h' : 'km · pace') : tA.dist === 'm' ? `metros · /${tA.ritmo === '500m' ? 500 : 100} m` : tA.nivel ? 'tempo · nível' : 'tempo') + ' · kcal' : '';
         return `
-        <div class="ex-linha${aero ? ' aerob' : ''}">
+        <div class="ex-linha${aero ? ' aerob' : ''}${along ? ' along' : ''}">
           <span class="ex-ic ex-fig-ficha ex-fig-mapa">${mapaDoExercicio(e.nome, e.grupo, 'auto', e.grupos)}</span>
-          <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${gruposDoExercicioTexto(e.nome, e.grupo, e.grupos)}${aero ? '' : ` · descanso ${e.descanso}s`}</small></span>
-          ${aero ? `<span class="ex-series"><button type="button" class="ex-int" onclick="trocarIntensidade(${f.id}, ${i}, ${e.id})" title="Trocar a intensidade">${exAerobicoTexto(e).split(' · ')[1]}</button></span>
+          <span class="ex-nome"><strong>${esc(e.nome)}</strong><small>${gruposDoExercicioTexto(e.nome, e.grupo, e.grupos)}${aero || along ? '' : ` · descanso ${e.descanso}s`}</small></span>
+          ${aero ? `<span class="ex-series"><span class="ex-mede" title="O que o treino ao vivo pede ao terminar">${mede}</span></span>
           <span class="ex-carga">
             <button class="mini-btn xs" onclick="ajustarMinAerobico(${f.id}, ${i}, ${e.id}, -5)" aria-label="Menos 5 minutos">−</button>
             <strong>${Number(e.min) || 20} min</strong>
             <button class="mini-btn xs" onclick="ajustarMinAerobico(${f.id}, ${i}, ${e.id}, 5)" aria-label="Mais 5 minutos">＋</button></span>`
+          : along ? `<span class="ex-series"><button type="button" class="ex-int" onclick="trocarVezesAlong(${f.id}, ${i}, ${e.id})" title="Quantas vezes (toque troca)">${Number(e.series) || 2} ×</button>
+            <button type="button" class="ex-int" onclick="trocarLadosAlong(${f.id}, ${i}, ${e.id})" title="Cada lado ou o corpo todo (toque troca)">${(e.lados === undefined ? exLadosPadrao(e.nome) : e.lados) ? 'cada lado' : 'sem lados'}</button></span>
+          <span class="ex-carga">
+            <button class="mini-btn xs" onclick="ajustarSegAlong(${f.id}, ${i}, ${e.id}, -5)" aria-label="Menos 5 segundos">−</button>
+            <strong>${Number(e.seg) || 30} s</strong>
+            <button class="mini-btn xs" onclick="ajustarSegAlong(${f.id}, ${i}, ${e.id}, 5)" aria-label="Mais 5 segundos">＋</button></span>`
           : `<span class="ex-series">${e.series} × ${esc(e.reps)}</span>
           <span class="ex-carga">
-            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, -2.5)">−</button>
-            <strong>${e.carga ? e.carga + ' kg' : '—'}</strong>
-            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, 2.5)">＋</button></span>`}
+            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, -1)" aria-label="Menos 1 kg">−</button>
+            <input type="text" class="ex-carga-in" inputmode="decimal" enterkeyhint="done" value="${e.carga ? String(e.carga).replace('.', ',') : ''}" placeholder="kg" aria-label="Carga em kg (pode digitar, ex.: 37,5)" onfocus="this.select()" onchange="mudarCargaFicha(${f.id}, ${i}, ${e.id}, this.value)" onkeydown="if (event.key === 'Enter') this.blur()">
+            <button class="mini-btn xs" onclick="ajustarCarga(${f.id}, ${i}, ${e.id}, 1)" aria-label="Mais 1 kg">＋</button></span>`}
           <span class="item-actions">
-            ${aero ? '' : `<button class="mini-btn xs${exGruposAberto === e.id ? ' on' : ''}" onclick="abrirGruposExercicio(${e.id})" title="Quais grupos este exercício trabalha">✎ grupos</button>`}
+            ${aero || along ? '' : `<button class="mini-btn xs${exGruposAberto === e.id ? ' on' : ''}" onclick="abrirGruposExercicio(${e.id})" title="Quais grupos este exercício trabalha">✎ grupos</button>`}
             <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, -1)">↑</button>
             <button class="mini-btn xs" onclick="moverExercicio(${f.id}, ${i}, ${e.id}, 1)">↓</button>
             <button class="mini-btn xs" onclick="removerExercicio(${f.id}, ${i}, ${e.id})">✕</button></span>
-          ${exGruposAberto === e.id && !aero ? gruposExercicioHTML(f, i, e) : ''}
+          ${exGruposAberto === e.id && !aero && !along ? gruposExercicioHTML(f, i, e) : ''}
         </div>`; }).join('') : '<div class="pf-vazio">Nenhum exercício neste dia.</div>') + '</div>';
       h += `<div class="ex-novo">
         <select id="ex-grupo" onchange="preencherExercicios()"></select>
@@ -3099,7 +3124,6 @@ function renderFichas() {
         <input type="number" id="ex-carga" class="so-forca" step="0.5" min="0" placeholder="kg">
         <input type="number" id="ex-descanso" class="so-forca" min="0" step="15" value="60" title="descanso (s)">
         <input type="number" id="ex-min" class="so-aerob" min="5" step="5" value="20" title="minutos" aria-label="Minutos">
-        <select id="ex-int" class="so-aerob" aria-label="Intensidade">${Object.entries(EX_INTENSIDADE).map(([k, v]) => `<option value="${k}"${k === 'moderado' ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
         <button class="mini-btn" onclick="addExercicio(${f.id}, ${i})" title="Adicionar o que está escrito">＋</button>
         <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i} })" title="Abrir o banco de exercícios">📚 Banco</button>
         <button class="mini-btn ex-abrir-banco" onclick="abrirBancoExercicios({ tipo: 'ficha', id: ${f.id}, dia: ${i}, grupo: 'cardio' })" title="Esteira, bike, corda… em minutos">🏃 ＋ aeróbico</button></div>`;

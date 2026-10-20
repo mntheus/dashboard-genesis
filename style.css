@@ -2876,7 +2876,10 @@ body.ex-banco-aberto { overflow: hidden; }
 .ficha-dias, .ficha-acoes, .ex-linha, .ex-novo { max-width: 880px; }
 
 .ex-linha {
-  grid-template-columns: 42px minmax(0, 19rem) 72px 124px auto;
+  /* (20/10) a coluna das séries 72 → 116 px: o alongamento tem "3 ×" + "cada lado" (36 + 4 + 70 = 110 px) e o aeróbico
+     "km · pace · kcal" (com 72 quebravam em 2 linhas, medir-ficha.js em 1280); a mesma largura em todas as linhas mantém
+     o alinhamento */
+  grid-template-columns: 42px minmax(0, 19rem) 116px 124px auto;
   column-gap: 14px; row-gap: 6px;
   padding: 9px 13px; border-radius: var(--r2);
 }
@@ -2950,8 +2953,8 @@ body.ex-banco-aberto { overflow: hidden; }
     grid-template-areas: 'fig nome nome' '. series carga' '. acoes acoes'; }
   .ex-linha > .item-actions { justify-content: flex-start; flex-wrap: wrap; }
   .ex-linha > .ex-carga { justify-content: flex-end; }
-  .ex-linha.aerob { grid-template-areas: 'fig nome nome' '. carga carga' '. series series' '. acoes acoes'; }
-  .ex-linha.aerob > .ex-carga { justify-content: flex-start; }
+  .ex-linha.aerob, .ex-linha.along { grid-template-areas: 'fig nome nome' '. carga carga' '. series series' '. acoes acoes'; }
+  .ex-linha.aerob > .ex-carga, .ex-linha.along > .ex-carga { justify-content: flex-start; }
 }
 
 /* ══ PAINEL DA SAÚDE (08/10) ══════════════════════════════════════════════
@@ -7333,3 +7336,30 @@ body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > 
 .tv-aj .tv-carga-in { width: 70px; min-height: 0; height: 34px; margin: 0; padding: 0 4px; border-radius: 8px; border: 1px dashed var(--fio-sutil, var(--borda));
   background: transparent; color: var(--txt-forte); font-size: 1.45rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .tv-aj .tv-carga-in:focus { border-style: solid; border-color: var(--acento); outline: none; }
+/* ═══ 20/10 — TREINO: alongamento por tempo e aeróbico com números (ideias dele 6 e 7) ═══ */
+/* ficha: a carga digitável (37,5) no lugar do número fixo; o que o aeróbico mede; alongamento sem campos de força */
+.ex-carga .ex-carga-in { width: 64px; min-height: 0; height: 30px; margin: 0; padding: 0 4px; border-radius: 8px; text-align: center;
+  font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--txt-forte); background: transparent;
+  border: 1px dashed var(--fio-sutil, var(--borda)); }
+.ex-carga .ex-carga-in:focus { border-style: solid; border-color: var(--acento); outline: none; }
+.ex-mede { font-size: .74rem; color: var(--txt3); }
+.ex-linha.along .ex-series { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.ex-novo.along .so-forca, .ex-novo.along .so-aerob { display: none; }
+/* treino ao vivo — alongamento: os lados e a vez */
+.tv-lados { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tv-lados span { padding: 4px 12px; border-radius: 8px; border: 1px solid var(--fio-sutil, var(--borda)); color: var(--txt3); font-size: .82rem; font-weight: 600; }
+.tv-lados span.on { border-color: var(--ok); color: var(--txt-forte); background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.tv-lados .tv-vez { border: 0; color: var(--txt3); font-weight: 500; }
+/* treino ao vivo — aeróbico: o que vai medir, e a ficha de números ao terminar */
+.tv-ae-mede { margin: 4px 0 0; text-align: center; font-size: .8rem; color: var(--txt3); }
+.tv-ae-form { display: flex; flex-direction: column; gap: 10px; }
+.tv-ae-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.tv-ae-campos label { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.tv-ae-campos label small { font-size: .74rem; color: var(--txt3); }
+.tv-ae-campos input { margin: 0; min-height: 46px; font-size: 1.25rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.tv-ae-contas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tv-ae-m { padding: 8px 4px; border-radius: 10px; background: var(--sup-1); text-align: center; }
+.tv-ae-m b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; color: var(--txt-forte); }
+.tv-ae-m small { font-size: .7rem; color: var(--txt3); }
+.tv-ae-pe { margin: 0; font-size: .74rem; color: var(--atencao); text-align: center; }
+.tv-ae-pe[hidden] { display: none; }

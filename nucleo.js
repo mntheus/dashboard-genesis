@@ -24,7 +24,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
 // sobe JUNTO com o CACHE_NAME do sw.js a cada publicação (ficou parada em v61 até a v76: as ideias enviadas diziam v61)
-const GENESIS_VERSAO = '20/10/2026 · v77';
+const GENESIS_VERSAO = '20/10/2026 · v78';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};

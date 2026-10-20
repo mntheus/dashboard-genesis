@@ -6927,3 +6927,20 @@ body .modal-content .novo-sec > label, #novo-p-turno-box > label, #novo-p-repete
 #novo-p-turno-box > label, #novo-p-repete-box > label { margin-bottom: 0; }
 .novo-quando small { flex-basis: 100%; color: var(--txt3); font-size: .8rem; }
 .modal-content input:disabled { opacity: .55; }
+/* ═══ 20/10 — revisão geral, item 4a (ele: "pode sim"): HISTÓRICO DAS FINANÇAS COMPACTO ═══
+   Era nome / categoria / data em 3 linhas (90 px cada no PC). Com largura (o quadro ≥ 560 px): uma linha só —
+   nome (reticências; o nome inteiro no title) · categoria · data … valor 💵 ✎ ✕. Estreito: 2 linhas (nome; categoria
+   e data juntas). Pelo tamanho do QUADRO (container query), não da tela: vale com os módulos lado a lado. */
+#transaction-list { container: historico / inline-size; gap: 6px; }
+#transaction-list > li { padding: 8px 10px 8px 12px; gap: 10px; }
+#transaction-list .transaction-info { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 3px; min-width: 0; }
+#transaction-list .transaction-info > span:first-child { flex-basis: 100%; min-width: 0; }
+#transaction-list .transaction-info .category-badge { margin-top: 0; }
+#transaction-list .transaction-info .item-date { margin-left: 0; }
+#transaction-list .transaction-info .item-notes { flex-basis: 100%; margin-top: 0; }
+@container historico (min-width: 560px) {
+  #transaction-list .transaction-info { flex-wrap: nowrap; }
+  #transaction-list .transaction-info > span:first-child { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #transaction-list .transaction-info > small { flex: none; white-space: nowrap; }
+  #transaction-list .transaction-info > small.item-notes { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}

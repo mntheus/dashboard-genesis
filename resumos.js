@@ -34,7 +34,10 @@ const RS_ABAS = {
   trips: { fn: 'verSecaoViagens', fileira: 'viagens-secoes', primeira: 'viagens', render: 'rsRenderTrips',
     secoes: ['sec-viagens', 'sec-milhas'] },
   net: { fn: 'verSecaoRede', fileira: 'rede-secoes', primeira: 'contatos', render: 'rsRenderNet',
-    secoes: ['sec-contatos', 'sec-curriculo'] }
+    secoes: ['sec-contatos', 'sec-curriculo'] },
+  // (20/10, item 10) a aba Cozinha (cozinha.js) — o Painel dos 5 quadros aprovado no desenho
+  kitchen: { fn: 'verSecaoCozinha', fileira: 'cozinha-secoes', primeira: 'receitas', render: 'rsRenderKitchen',
+    secoes: ['sec-cz-receitas', 'sec-cz-compras', 'sec-cz-despensa', 'sec-cz-pratos', 'sec-cz-aparelhos'] }
 };
 const rsAtivo = {};   // aba → o Painel está aberto nela
 const rsSel = {};     // aba → o que foi tocado (a linha de detalhe responde a ele)
@@ -705,6 +708,53 @@ function rsRdCV() {
 function rsRenderNet() {
   const el = document.getElementById('rs-net'); if (!el) return;
   el.innerHTML = `<div class="sp-grade">${rsRdRadar()}${rsRdAniv()}${rsRdFalar()}${rsRdCV()}</div>`;
+}
+
+// ───────────────────────────── COZINHA (20/10) ─────────────────────────────
+// Dá para fazer hoje · Compras · Despensa (larga) · Pratos · Aparelhos. Na grade de 2 colunas: 2 / 1 larga / 2;
+// na de 4: 1 + 1 + 2 / 2 + 2 — as linhas fecham (o "vazio" que ele apontou nos outros painéis, 20/10).
+function rsCzFazer() {
+  const l = receitas.map(r => { const ings = r.ingredientes || [], tem = ings.filter(t => czTem(t)).length; return { r, tem, n: ings.length, pct: ings.length ? tem / ings.length : 0 }; })
+    .filter(x => x.n).sort((a, b) => b.pct - a.pct || (b.r.vezes || 0) - (a.r.vezes || 0)).slice(0, 5);
+  const prontas = l.filter(x => x.tem === x.n).length;
+  const corpo = !receitas.length ? '<div class="sp-vazio">O livro está em branco: escreva uma receita e ela aparece aqui.</div>'
+    : !despensa.length ? '<div class="sp-vazio">Conte à 🥫 Despensa o que tem em casa e aqui aparece o que dá para cozinhar.</div>'
+    : `<div class="rs-cz-recs">${l.map(x => `<button type="button" class="rs-cz-rec${x.tem === x.n ? ' pronta' : ''}" onclick="czAbrirReceita(${x.r.id})">
+        <span>${esc(x.r.nome)}</span><b>${x.tem === x.n ? 'tem tudo' : `tem ${x.tem} de ${x.n}`}</b><i class="rs-cz-bar"><i style="width:${Math.round(x.pct * 100)}%"></i></i></button>`).join('')}</div>`;
+  return rsQuadro('rs-cz-fazer', '👨‍🍳', 'Dá para fazer hoje', despensa.length ? (prontas ? `${plural(prontas, 'receita', 'receitas')} com tudo em casa` : 'pelo que tem na despensa') : '',
+    "verSecaoCozinha('receitas')", corpo, `<span>${plural(receitas.length, 'receita', 'receitas')} no livro</span>`);
+}
+function rsCzCompras() {
+  const l = czListaCompras(false), ab = (l ? l.checklist : []).map((it, i) => ({ it, i })).filter(x => !x.it.done), mostra = ab.slice(0, 7);
+  return rsQuadro('rs-cz-compras', '🛒', 'Compras', ab.length ? plural(ab.length, 'para comprar', 'para comprar') : 'nada para comprar', "verSecaoCozinha('compras')",
+    `<ul class="rs-cz-lista">${mostra.map(({ it, i }) => `<li><button type="button" onclick="czMarcarCompra(${i})" title="Comprado: vai para a despensa"><i></i><span>${esc(it.text)}</span></button></li>`).join('')
+      || '<li class="sp-vazio">A lista está vazia.</li>'}${ab.length > mostra.length ? `<li class="rs-cz-mais"><button type="button" onclick="verSecaoCozinha('compras')">+${ab.length - mostra.length} na lista ›</button></li>` : ''}</ul>`,
+    '<span>marcar = comprado (vai para a despensa)</span>');
+}
+function rsCzDespensa() {
+  const prat = k => { const l = despensa.filter(d => (CZ_LOCAIS[d.local] ? d.local : 'armario') === k).sort((a, b) => a.nome.localeCompare(b.nome)), m = l.slice(0, 9);
+    return `<div class="rs-cz-prat cz-prat-${k}"><small>${CZ_LOCAIS[k][0]} ${CZ_LOCAIS[k][1]} · ${l.length}</small><div>${m.map(d => `<span class="rs-cz-pote">${esc(d.nome)}</span>`).join('')
+      || '<span class="rs-cz-vazia">vazia</span>'}${l.length > m.length ? `<span class="rs-cz-pote mais">+${l.length - m.length}</span>` : ''}</div></div>`; };
+  return rsQuadro('rs-cz-despensa', '🥫', 'Despensa', despensa.length ? plural(despensa.length, 'item em casa', 'itens em casa') : 'vazia', "verSecaoCozinha('despensa')",
+    `<div class="rs-cz-prats">${['geladeira', 'freezer', 'armario'].map(prat).join('')}</div>`, '<span>toque para ver, dar "acabou" ou mudar de lugar</span>');
+}
+function rsCzPratos() {
+  const l = typeof prOrdenados === 'function' ? prOrdenados(prTipoAgora()).slice(0, 6) : [];
+  return rsQuadro('rs-cz-pratos', '⚡', 'Pratos prontos', pratos.length ? 'um toque anota no diário' : '', "verSecaoCozinha('pratos')",
+    `<div class="rs-cz-chips">${l.map(p => `<button type="button" class="rs-cz-chip" onclick="prRegistrar(${p.id})" title="Anotar agora no diário">${(TIPOS_REFEICAO[p.tipo] || ['⚡'])[0]} ${esc(p.nome)}</button>`).join('')
+      || '<div class="sp-vazio">A refeição que se repete vira um toque: ＋ Novo prato.</div>'}</div>`,
+    `<span>${plural(pratos.length, 'prato pronto', 'pratos prontos')}</span>`);
+}
+function rsCzAparelhos() {
+  const l = czAparelhos(), hoje = hojeISO();
+  return rsQuadro('rs-cz-aparelhos', '🔌', 'Aparelhos', l.length ? 'do Inventário' : '', "verSecaoCozinha('aparelhos')",
+    `<div class="rs-cz-aps">${l.slice(0, 6).map(it => `<button type="button" class="rs-cz-ap" onclick="czAbrirNoInventario(${it.id})"><span aria-hidden="true">${esc(it.ic || '🔌')}</span><b>${esc(it.nome)}</b><small>${esc(it.garantia && it.garantia >= hoje ? 'garantia até ' + isoParaBR(it.garantia).slice(3) : (it.notas || ''))}</small></button>`).join('')
+      || '<div class="sp-vazio">Geladeira, airfryer, cafeteira: ＋ Aparelho (fica no Inventário).</div>'}</div>`,
+    `<span>${plural(l.length, 'aparelho', 'aparelhos')} na cozinha</span>`);
+}
+function rsRenderKitchen() {
+  const el = document.getElementById('rs-kitchen'); if (!el) return;
+  el.innerHTML = `<div class="sp-grade">${rsCzFazer()}${rsCzCompras()}${rsCzDespensa()}${rsCzPratos()}${rsCzAparelhos()}</div>`;
 }
 
 // ───────────────────────────── ligar tudo ──────────────────────────────────

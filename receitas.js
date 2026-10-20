@@ -108,7 +108,7 @@ function rcSumario(lista) {
 }
 function rcPagina(r, n) {
   const p = rcPorcoes(r), fator = p / (Number(r.porcoes) || 1);
-  const ten = rcEstado.tenho[r.id] || {}, fei = rcEstado.feitos[r.id] || {};
+  const ten = rcTenhoMapa(r), fei = rcEstado.feitos[r.id] || {};
   const ings = r.ingredientes || [], passos = r.passos || [];
   const temN = ings.filter((_, i) => ten[i]).length, falta = ings.length - temN;
   const c = RC_CATS[rcCat(r.cat)];
@@ -173,7 +173,13 @@ document.addEventListener('keydown', e => {
 });
 
 // ───────────────────────────── os toques da página ────────────────────────
-function rcTenho(id, i) { const t = rcEstado.tenho[id] = rcEstado.tenho[id] || {}; t[i] = !t[i]; rcDesenharFolha(); }
+/** O "tenho" de cada ingrediente: o que ele tocou vale; o que não tocou vem da Despensa da Cozinha (20/10, czTem). */
+function rcTenhoMapa(r) {
+  const toque = rcEstado.tenho[r.id] || {}, m = {};
+  (r.ingredientes || []).forEach((t, i) => { m[i] = i in toque ? !!toque[i] : (typeof czTem === 'function' && czTem(t)); });
+  return m;
+}
+function rcTenho(id, i) { const r = rcAchar(id); if (!r) return; const t = rcEstado.tenho[id] = rcEstado.tenho[id] || {}; t[i] = !rcTenhoMapa(r)[i]; rcDesenharFolha(); }
 function rcPasso(id, i) { const t = rcEstado.feitos[id] = rcEstado.feitos[id] || {}; t[i] = !t[i]; rcDesenharFolha(); }
 function rcMudarPorcoes(id, d) { const r = receitas.find(x => x.id === id); if (!r) return; rcEstado.porcoes[id] = Math.max(1, Math.min(40, rcPorcoes(r) + d)); rcDesenharFolha(); }
 function rcAchar(id) { return receitas.find(x => x.id === id); }
@@ -188,7 +194,7 @@ function rcListaCompras() {
 }
 function rcCompras(id) {
   const r = rcAchar(id); if (!r) return;
-  const ten = rcEstado.tenho[id] || {}, fator = rcPorcoes(r) / (Number(r.porcoes) || 1);
+  const ten = rcTenhoMapa(r), fator = rcPorcoes(r) / (Number(r.porcoes) || 1);
   const l = rcListaCompras(), ja = new Set(l.checklist.filter(i => !i.done).map(i => String(i.text).trim().toLowerCase()));
   let n = 0;
   (r.ingredientes || []).forEach((t, i) => {

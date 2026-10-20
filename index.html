@@ -1063,7 +1063,9 @@
       <div class="focus-header-tabs agenda-tabs" id="cozinha-secoes" style="margin-top:20px">
         <span class="active" onclick="verSecaoCozinha('receitas', this)">📖 Receitas</span>
         <span onclick="verSecaoCozinha('compras', this)">🛒 Compras</span>
+        <span onclick="verSecaoCozinha('despensa', this)">🥫 Despensa</span>
         <span onclick="verSecaoCozinha('pratos', this)">⚡ Pratos</span>
+        <span onclick="verSecaoCozinha('aparelhos', this)">🔌 Aparelhos</span>
       </div>
       <!-- (19/10) 📖 o livro de receitas (receitas.js); (20/10) mudou da Saúde para a Cozinha, sem mudar nada dentro -->
       <div id="sec-cz-receitas" class="agenda-sec">
@@ -1101,11 +1103,24 @@
           <div id="cz-compras"></div>
         </div>
       </div>
+      <div id="sec-cz-despensa" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="cz-despensa">
+          <h2>🥫 Despensa</h2>
+          <div id="cz-despensa"></div>
+        </div>
+      </div>
       <div id="sec-cz-pratos" class="agenda-sec" hidden>
         <div class="card" style="margin-top: 20px;" data-mod="cz-pratos">
           <h2>⚡ Pratos prontos</h2>
           <p class="hint">A refeição que se repete vira um toque: "Comi agora" anota no diário da Saúde, na hora.</p>
           <div id="cz-pratos"></div>
+        </div>
+      </div>
+      <div id="sec-cz-aparelhos" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="cz-aparelhos">
+          <h2>🔌 Aparelhos</h2>
+          <p class="hint">Geladeira, airfryer, cafeteira… cada um é um item do Inventário com "Onde fica: Cozinha" (valor, garantia e foto ficam lá). É a base para a casa inteligente.</p>
+          <div id="cz-aparelhos"></div>
         </div>
       </div>
     </div>

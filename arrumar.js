@@ -27,7 +27,8 @@ const AR_GRADES = [
   { aba: 'studies', sel: '#rs-studies > .sp-grade', chave: 'rs-studies', render: 'rsRenderStudies' },
   { aba: 'leisure', sel: '#rs-leisure > .sp-grade', chave: 'rs-leisure', render: 'rsRenderLeisure' },
   { aba: 'trips', sel: '#rs-trips > .sp-grade', chave: 'rs-trips', render: 'rsRenderTrips' },
-  { aba: 'net', sel: '#rs-net > .sp-grade', chave: 'rs-net', render: 'rsRenderNet' }
+  { aba: 'net', sel: '#rs-net > .sp-grade', chave: 'rs-net', render: 'rsRenderNet' },
+  { aba: 'kitchen', sel: '#rs-kitchen > .sp-grade', chave: 'rs-kitchen', render: 'rsRenderKitchen' }
 ];
 const AR_LINHA = 60;          // a "linha" da altura de um quadro, em px
 let arEditando = null;        // id da aba em edição (ou null)
@@ -285,8 +286,10 @@ const AB_RESUMOS = {
   'health/medidas': 'O corpo hoje, peso e medidas', 'health/comida': 'Planos alimentares e refeições',
   'health/medico': 'Remédios, prevenção, consultas e exames',
   // (20/10) a aba Cozinha (cozinha.js): o livro saiu da Saúde
+  'kitchen/painel': 'O que dá para fazer, compras, despensa, pratos e aparelhos',
   'kitchen/receitas': 'O livro: sumário, porções e o que falta comprar', 'kitchen/compras': 'A lista de compras (a mesma das Notas)',
-  'kitchen/pratos': 'A refeição que se repete, num toque',
+  'kitchen/despensa': 'O que tem em casa: geladeira, freezer e armário', 'kitchen/pratos': 'A refeição que se repete, num toque',
+  'kitchen/aparelhos': 'Geladeira, airfryer… (os itens do Inventário na cozinha)',
   'leisure/painel': 'O que está na tela, a próxima saída, a música e o ano',
   'leisure/midia': 'Filmes, séries e documentários', 'leisure/saidas': 'Museus, shows e programas', 'leisure/musica': 'Playlists por momento',
   'trips/painel': 'A próxima viagem, o ano, as milhas e o que custa',
@@ -437,6 +440,8 @@ const AB_VIVOS = {
     return n ? plural(n, 'item para comprar', 'itens para comprar') : 'Nada para comprar';
   },
   'kitchen/pratos': () => pratos.length ? plural(pratos.length, 'prato pronto', 'pratos prontos') : '',
+  'kitchen/despensa': () => despensa.length ? plural(despensa.length, 'item em casa', 'itens em casa') : 'Vazia',
+  'kitchen/aparelhos': () => { const n = typeof czAparelhos === 'function' ? czAparelhos().length : 0; return n ? plural(n, 'aparelho', 'aparelhos') : ''; },
   'leisure/midia': () => {
     const as = media.filter(m => m.status === 'assistindo').length, q = media.filter(m => m.status === 'quero').length;
     return as || q ? abJunta(as && plural(as, 'assistindo', 'assistindo'), q && plural(q, 'para ver', 'para ver')) : '';

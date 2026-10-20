@@ -183,7 +183,8 @@ function estadoDaAba(id) {
       }
       case 'kitchen': {
         const l = typeof czListaCompras === 'function' ? czListaCompras(false) : null, falta = l ? l.checklist.filter(i => !i.done).length : 0;
-        return `${plural((receitas || []).length, 'receita', 'receitas')}${falta ? ` · ${falta} para comprar` : ''} · ${plural((pratos || []).length, 'prato pronto', 'pratos prontos')}.`;
+        const casa = typeof despensa !== 'undefined' ? despensa.length : 0;
+        return `${plural((receitas || []).length, 'receita', 'receitas')}${falta ? ` · ${falta} para comprar` : ''}${casa ? ` · ${plural(casa, 'item', 'itens')} em casa` : ''} · ${plural((pratos || []).length, 'prato pronto', 'pratos prontos')}.`;
       }
       case 'leisure': {
         const quero = (media || []).filter(m => m.status === 'quero').length;

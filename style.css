@@ -7181,3 +7181,87 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
 .cz-prato > .mini-btn:nth-last-child(2) { grid-area: co; width: 100%; }
 .cz-prato-novo { margin-top: 12px; }
 #cz-pratos .pr-form { margin-top: 12px; }
+/* ═══ 20/10 — COZINHA, parte 2 (v75): despensa, aparelhos e o Painel ═══
+   A despensa tem três prateleiras com cara própria (pedido de 08/10: cada nicho com identidade): a geladeira fria,
+   o freezer de gelo e o armário de madeira; a linha grossa embaixo dos itens é a prateleira. */
+.cz-add select { flex: none; width: auto; max-width: 42%; margin: 0; }
+.cz-prats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+.cz-prat-geladeira { --pr: #60a5fa; }
+.cz-prat-freezer { --pr: #67e8f9; }
+.cz-prat-armario { --pr: #d6a36a; }
+.cz-prat { padding: 10px 12px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--pr) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pr) 12%, var(--card)), var(--card)); }
+.cz-prat-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cz-prat-cab b { color: var(--txt-forte); }
+.cz-prat-cab small { margin-left: auto; font-size: .76rem; color: var(--txt3); }
+.cz-prat-itens { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; min-height: 42px; padding-bottom: 8px;
+  border-bottom: 3px solid color-mix(in srgb, var(--pr) 45%, transparent); }
+.cz-pote { display: inline-flex; align-items: baseline; gap: 5px; min-height: 32px; margin: 0; padding: 4px 10px; border-radius: 9px;
+  border: 1px solid var(--fio-sutil, var(--borda)); background: var(--sup-2); color: var(--txt-forte); font-size: .85rem; font-weight: 500; }
+.cz-pote small { font-size: .72rem; color: var(--txt3); }
+.cz-pote.sel { border-color: var(--pr); background: color-mix(in srgb, var(--pr) 22%, var(--card)); }
+.cz-prat-vazia { padding: 6px 2px; font-size: .8rem; color: var(--txt4); }
+.cz-pote-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.cz-pote-acoes b { width: 100%; font-size: .82rem; color: var(--txt2); }
+.cz-pote-acoes .mini-btn { margin: 0; }
+/* aparelhos: um cartão por aparelho; o toque abre a ficha dele no Inventário */
+.cz-aps { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; }
+.cz-aps > .cz-vazio { grid-column: 1 / -1; border-top: 0; }
+.cz-ap { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--fio-sutil, var(--borda)); background: var(--sup-1); }
+.cz-ap:hover, .cz-ap:focus-visible { border-color: var(--acento); }
+.cz-ap-ic { font-size: 1.7rem; text-align: center; }
+.cz-ap-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cz-ap-tx b { color: var(--txt-forte); overflow-wrap: anywhere; }
+.cz-ap-tx small { font-size: .76rem; line-height: 1.3; color: var(--txt3); }
+.cz-ap-ir { color: var(--txt4); }
+.cz-soltos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.cz-soltos small { width: 100%; color: var(--txt3); }
+.cz-soltos .mini-btn { margin: 0; }
+.cz-ap-form { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--fio-sutil, var(--borda)); }
+.cz-ap-form input { margin: 0; }
+.cz-ap-ics { display: flex; flex-wrap: wrap; gap: 4px; }
+.cz-ap-ics button { width: 40px; min-height: 40px; margin: 0; padding: 0; border-radius: 9px; border: 1px solid var(--fio-sutil, var(--borda)); background: none; font-size: 1.2rem; }
+.cz-ap-ics button.on { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 18%, transparent); }
+/* o Painel da Cozinha (resumos.js): 2 colunas = 2 / despensa larga / 2; 4 colunas = 1 + 1 + 2 / 2 + 2 (linhas fechadas) */
+.rs-cz-fazer { --tom: var(--atencao); }
+.rs-cz-compras { --tom: var(--ok); }
+.rs-cz-despensa { --tom: var(--info); }
+.rs-cz-pratos { --tom: var(--roxo); }
+.rs-cz-aparelhos { --tom: var(--perigo); }
+#rs-kitchen .rs-cz-despensa { grid-column: 1 / -1; }
+@container (min-width: 1800px) { #rs-kitchen .rs-cz-despensa, #rs-kitchen .rs-cz-pratos, #rs-kitchen .rs-cz-aparelhos { grid-column: span 2; } }
+.rs-cz-recs { display: flex; flex-direction: column; gap: 4px; }
+.rs-cz-rec { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px;
+  padding: 6px 8px; border-radius: 9px; }
+.rs-cz-rec:hover, .rs-cz-rec:focus-visible { background: var(--sup-2); }
+.rs-cz-rec span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--txt-forte); }
+.rs-cz-rec b { font-size: .74rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.rs-cz-rec.pronta b { color: var(--ok); }
+.rs-cz-bar { grid-column: 1 / -1; display: block; height: 6px; border-radius: 3px; background: var(--sup-2); overflow: hidden; }
+.rs-cz-bar i { display: block; height: 100%; border-radius: 3px; background: var(--tom); }
+.rs-cz-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.rs-cz-lista button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 2px 6px; border-radius: 8px; }
+.rs-cz-lista button:hover, .rs-cz-lista button:focus-visible { background: var(--sup-2); }
+.rs-cz-lista i { flex: none; width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--txt4); }
+.rs-cz-lista span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-forte); }
+.rs-cz-mais button { font-size: .8rem; color: var(--txt3); }
+.rs-cz-prats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 10px; }
+.rs-cz-prat { padding: 8px 10px 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--pr) 35%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pr) 12%, transparent), transparent); }
+.rs-cz-prat > small { display: block; margin-bottom: 6px; font-size: .74rem; font-weight: 600; color: var(--txt2); }
+.rs-cz-prat > div { display: flex; flex-wrap: wrap; gap: 4px; min-height: 30px; padding-bottom: 6px; border-bottom: 3px solid color-mix(in srgb, var(--pr) 45%, transparent); }
+.rs-cz-pote { padding: 2px 8px; border-radius: 7px; background: var(--sup-2); font-size: .78rem; color: var(--txt-forte); }
+.rs-cz-pote.mais { color: var(--txt3); }
+.rs-cz-vazia { font-size: .76rem; color: var(--txt4); }
+.rs-cz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-cz-chip { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 12px; border-radius: 10px; font-size: .85rem; color: var(--txt-forte);
+  border: 1px solid color-mix(in srgb, var(--tom) 45%, transparent); background: color-mix(in srgb, var(--tom) 12%, transparent); }
+.rs-cz-chip:hover, .rs-cz-chip:focus-visible { background: color-mix(in srgb, var(--tom) 25%, transparent); }
+.rs-cz-aps { display: flex; flex-direction: column; gap: 4px; }
+.rs-cz-ap { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  min-height: 38px; padding: 2px 6px; border-radius: 8px; }
+.rs-cz-ap:hover, .rs-cz-ap:focus-visible { background: var(--sup-2); }
+.rs-cz-ap span { font-size: 1.3rem; text-align: center; }
+.rs-cz-ap b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--txt-forte); }
+.rs-cz-ap small { font-size: .72rem; color: var(--txt3); white-space: nowrap; }

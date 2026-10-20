@@ -247,6 +247,10 @@
       ingredientes: ['1 kg de abóbora cabotiá', '1 cebola', '2 dentes de alho', '1 litro de água', '1 colher de azeite', 'Gengibre a gosto'], passos: ['Refogue a cebola e o alho no azeite', 'Junte a abóbora em cubos e a água', 'Cozinhe até amolecer (uns 25 min)', 'Bata no liquidificador e finalize com gengibre'], fonte: '', notas: '' },
     { id: 4604, nome: 'Brigadeiro de colher', cat: 'doce', tempo: 20, porcoes: 6, kcal: 180, prot: 3, fav: false, vezes: 1, ultimaVez: '', img: '', criadoEm: 1,
       ingredientes: ['1 lata de leite condensado', '2 colheres de cacau em pó', '1 colher de manteiga'], passos: ['Junte tudo na panela em fogo baixo', 'Mexa sem parar até desgrudar do fundo', 'Sirva morno ou gelado'], fonte: 'da vó', notas: '' }]);
+  // (20/10) a despensa da Cozinha (módulo 51): dá para fazer a panqueca inteira e parte do frango com legumes
+  S('despensa', [['Ovos', '12', 'geladeira'], ['Banana', '6', 'armario'], ['Aveia', '500 g', 'armario'], ['Canela', '', 'armario'], ['Frango', '1 kg', 'freezer'],
+    ['Cebola', '3', 'armario'], ['Azeite', '', 'armario'], ['Sal', '', 'armario'], ['Leite', '1 l', 'geladeira'], ['Queijo minas', '', 'geladeira'], ['Pão de queijo', '', 'freezer']]
+    .map(([nome, qtd, local], i) => ({ id: 4701 + i, nome, qtd, local, criadoEm: 1 })));
   S('meals', [{ id: nid(), date: d(0), time: '07:10', type: 'cafe', desc: 'Café da manhã: ovos e pão', quality: 'boa', planoRef: '401:0' }, { id: nid(), date: d(0), time: '12:30', type: 'almoco', desc: 'Marmita do plantão', quality: 'ok' }]);
   S('medical', [
     { id: nid(), kind: 'consulta', title: 'Dermatologista', date: d(12), time: '15:00', place: 'Clínica X', notes: '', done: false, eventId: null },
@@ -328,7 +332,10 @@
     { id: 1304, nome: 'Geladeira', cat: 'casa', ic: '🧊', qtd: 1, valor: 2800, compra: 4200, data: anos(3), estado: 'bom', dep: '', dono: 'pessoal', onde: 'cozinha', garantia: '', notas: '', criadoEm: 4 },
     { id: 1305, nome: 'Estetoscópio', cat: 'medico', ic: '🩺', qtd: 1, valor: 900, compra: 1100, data: anos(6), estado: 'bom', dep: '', dono: 'empresa', onde: 'consultório', garantia: '', notas: '', criadoEm: 5 },
     { id: 1306, nome: 'Relógio de herança', cat: 'joia', ic: '⌚', qtd: 1, valor: 25000, compra: 0, data: '', estado: 'otimo', dep: '', dono: 'pessoal', onde: 'cofre', garantia: '', notas: 'herança', criadoEm: 6 },
-    { id: 1307, nome: 'Impressora 3D Bambu', cat: 'maquina', ic: '🖨️', qtd: 1, valor: 5400, compra: 6000, data: anos(1), estado: 'otimo', dep: '', dono: 'empresa', onde: 'Produção', garantia: '', notas: '', criadoEm: 7, maquinaId: 1201 }]);
+    { id: 1307, nome: 'Impressora 3D Bambu', cat: 'maquina', ic: '🖨️', qtd: 1, valor: 5400, compra: 6000, data: anos(1), estado: 'otimo', dep: '', dono: 'empresa', onde: 'Produção', garantia: '', notas: '', criadoEm: 7, maquinaId: 1201 },
+    // (20/10) os aparelhos da Cozinha são itens do Inventário com "Onde fica: cozinha" (a Geladeira, acima, também)
+    { id: 1308, nome: 'Airfryer', cat: 'casa', ic: '🍳', qtd: 1, valor: 450, compra: 600, data: anos(1), estado: 'otimo', dep: '', dono: 'pessoal', onde: 'cozinha', garantia: '', notas: 'Mondial 4 L', criadoEm: 8 },
+    { id: 1309, nome: 'Cafeteira', cat: 'casa', ic: '☕', qtd: 1, valor: 300, compra: 500, data: anos(2), estado: 'bom', dep: '', dono: 'pessoal', onde: 'cozinha', garantia: '', notas: 'de cápsulas', criadoEm: 9 }]);
 
   // ───────────────────── Clínica ─────────────────────
   const sv = [

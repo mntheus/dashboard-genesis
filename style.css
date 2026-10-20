@@ -7265,3 +7265,6 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
 .rs-cz-ap span { font-size: 1.3rem; text-align: center; }
 .rs-cz-ap b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--txt-forte); }
 .rs-cz-ap small { font-size: .72rem; color: var(--txt3); white-space: nowrap; }
+/* (20/10) o Painel de resumo em ENCAIXE de mural (resumos.js, rsEncaixar; a classe NÃO é .rs-mural, que é dos post-its): linhas de 4 px, cada quadro na altura do seu conteúdo e o
+   dense sobe o próximo para o buraco embaixo do mais baixo — fim do "vazio" dentro dos quadros (Rotinas, Marcadores…) */
+.rs-painel > .sp-grade.rs-encaixe { grid-auto-rows: 4px; row-gap: 0; grid-auto-flow: row dense; align-items: start; }

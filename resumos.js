@@ -100,6 +100,46 @@ function rsDesenhar(aba) {
   catch (e) { const el = document.getElementById('rs-' + aba); if (el) el.innerHTML = `<div class="sp-vazio">O painel não conseguiu se desenhar (${esc(e.message || String(e))}). As micro-abas seguem normais.</div>`; console.error(e); }
   // lado a lado (ou não) conforme as colunas de AGORA: a aba pode ter estado escondida (sem colunas) na partida
   rsArrumarLado(aba);
+  rsEncaixar(aba);
+}
+/** (20/10, o "vazio" que ele apontou aba por aba) Os quadros do Painel na altura NATURAL, encaixados como num mural.
+ *  Antes cada linha da grade ficava da altura do quadro mais alto e os outros sobravam vazios por dentro (medido em
+ *  2560: Rotinas 265 px, Falar esta semana 248, Marcadores 190…). Agora: linhas de 4 px, cada quadro ocupa as linhas da
+ *  sua altura e o `dense` sobe o próximo para o buraco embaixo do mais baixo. Com 1 coluna (celular, Agenda lado a lado)
+ *  e durante o ✎ Arrumar (o arrastar mede posições pela ordem), a grade volta ao normal. */
+const RS_LINHA = 4;
+function rsEncaixar(aba) {
+  const g = document.querySelector(`#rs-${aba} > .sp-grade`); if (!g) return;
+  const qs = [...g.children].filter(q => q.classList.contains('sp-quadro'));
+  const cols = getComputedStyle(g).gridTemplateColumns.split(/\s+/).filter(Boolean).length;
+  // a classe é rs-encaixe: "rs-mural" já era o mural de post-its das Notas e trazia grade de 3 colunas (armadilha 65)
+  const limpar = () => { g.classList.remove('rs-encaixe'); qs.forEach(q => { q.style.gridRowEnd = ''; q.style.marginBottom = ''; }); };
+  if (cols < 2 || !g.checkVisibility() || document.body.classList.contains('ar-editando')) return limpar();
+  g.classList.add('rs-encaixe');
+  // sem vão entre linhas (são de 4 px): o vão de baixo de cada quadro é a margem, do tamanho do vão entre colunas
+  const gap = parseFloat(getComputedStyle(g).columnGap) || 12;
+  qs.forEach(q => { q.style.marginBottom = gap + 'px'; });
+  // mede a altura NATURAL (sem o span de antes — armadilha 53: span tirado da altura que já tem se autoconfirma)
+  qs.forEach(q => { q.style.gridRowEnd = ''; });
+  const alts = qs.map(q => q.getBoundingClientRect().height);
+  qs.forEach((q, i) => { q.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((alts[i] + gap) / RS_LINHA)); });
+  // foto que carrega depois, texto que muda, coluna que estreita: mede de novo (uma vez por quadro novo)
+  if (typeof ResizeObserver === 'function') {
+    if (!g._rsVigia) {
+      let pend = 0;
+      g._rsVigia = new ResizeObserver(() => { cancelAnimationFrame(pend); pend = requestAnimationFrame(() => rsEncaixar(aba)); });
+      g._rsVigia.observe(g);
+    }
+    qs.forEach(q => { if (!q._rsVisto) { q._rsVisto = 1; g._rsVigia.observe(q); } });
+  }
+}
+// o ✎ Arrumar liga e desliga pela classe do body: refaz o encaixe da aba aberta
+if (typeof MutationObserver === 'function') {
+  let antes = document.body.classList.contains('ar-editando');
+  new MutationObserver(() => {
+    const agora = document.body.classList.contains('ar-editando'); if (agora === antes) return; antes = agora;
+    const aba = (typeof ABA_ATUAL === 'function' ? ABA_ATUAL() : '').replace(/^btn-/, ''); if (RS_ABAS[aba]) rsEncaixar(aba);
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 function rsTocar(aba, k) { rsSel[aba] = rsSel[aba] === k ? null : k; rsDesenhar(aba); }
 /** Qualquer gravação (de qualquer aparelho, pela sync também) redesenha o Painel que está à vista. */

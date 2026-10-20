@@ -6,7 +6,9 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- 20/10: "black" (e nao "black-translucent"): no iPhone instalado, o translucido poe a pagina por
+       baixo do relogio e da ilha, e o topo das abas e a engrenagem ficavam escondidos -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Genesis">
 
   <!-- POLÍTICA DE SEGURANÇA (CSP)
@@ -1734,6 +1736,15 @@
           <button class="btn" type="button" onclick="guiaSync()">📘 Como ligar (passo a passo)</button>
           <button class="btn" type="button" onclick="levarSyncOutroAparelho()">📲 Ligar outro aparelho</button>
         </div>
+        <form class="sync-colar" onsubmit="event.preventDefault(); ligarPeloLinkColado('sync-colar-link', 'sync-colar-status')">
+          <label for="sync-colar-link">📥 <b>Recebeu o link de outro aparelho?</b> Cole aqui (no iPhone: segure o dedo no campo → Colar).</label>
+          <div class="sync-colar-linha">
+            <input type="password" id="sync-colar-link" placeholder="cole o link aqui" autocomplete="off">
+            <button class="btn" type="submit">Ligar</button>
+          </div>
+          <div id="sync-colar-status" class="sync-colar-status" role="status"></div>
+        </form>
+        <p class="hint"><a href="guia.html#ligar" target="_blank" rel="noopener" onclick="if (typeof linkGuia === 'function') this.href = linkGuia('ligar')">🖼️ Guia ilustrado, com o desenho de cada tela</a></p>
         <div class="sync-form">
           <label for="sync-url">URL do App da Web (termina em /exec)</label>
           <div class="input-eye"><input type="password" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"><button type="button" class="mini-btn" id="btn-ver-url" title="Mostrar URL" onclick="alternarVerUrl()">👁️</button></div>

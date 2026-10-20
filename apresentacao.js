@@ -31,13 +31,34 @@ const AP_MICRO = [
 const AP_PASSOS = [
   {
     chave: 'boas-vindas',
-    titulo: 'Bem-vindo ao Genesis',
-    html: () => `
-      <p class="ap-texto">O Genesis é um <b>Life OS</b>: agenda, dinheiro, tarefas, notas, estudos,
+    // 💌 20/10: com convite personalizado (#para=), cumprimenta pelo nome — o nome vem do link, nunca do código
+    get titulo() { const c = typeof conviteAtual === 'function' && conviteAtual(); return c ? `Oi, ${esc(c.n)}!` : 'Bem-vindo ao Genesis'; },
+    html: () => {
+      const c = typeof conviteAtual === 'function' && conviteAtual();
+      return `${c ? `<p class="ap-texto">${c.de ? `<b>${esc(c.de)}</b> preparou` : 'Preparamos'} o Genesis para você. Vamos com calma:
+      cada tela tem pouca coisa, e nada aqui quebra se você tocar no lugar errado.</p>` : ''}
+      <p class="ap-texto${c ? ' ap-texto2' : ''}">O Genesis é um <b>Life OS</b>: agenda, dinheiro, tarefas, notas, estudos,
       saúde, viagens e mais — tudo num lugar só, guardado <b>no seu aparelho</b>.
       Funciona sem internet e nada sai daqui sem você mandar.</p>
-      <p class="ap-texto ap-texto2">São cinco telas rápidas para deixar o app com a sua cara.
-      Você pode pular e mexer depois: tudo que liga e desliga está em ⚙️ Config.</p>`
+      <p class="ap-texto ap-texto2">São poucas telas rápidas para deixar o app com a sua cara.
+      Você pode pular e mexer depois: tudo que liga e desliga está em ⚙️ Config.</p>`;
+    }
+  },
+  {
+    // 📲 20/10: no iPhone, o ícone da tela de início guarda os dados à parte do Safari — instalar ANTES de usar
+    chave: 'iphone',
+    so: () => typeof iphoneForaDoIcone === 'function' && iphoneForaDoIcone(),
+    titulo: 'Antes de começar: o ícone',
+    html: () => `
+      <p class="ap-texto">No iPhone, o Genesis guarda as suas coisas <b>dentro do ícone</b> da tela de início —
+      e não aqui no Safari. Por isso, coloque o ícone <b>antes</b> de começar a usar:</p>
+      <ol class="ap-passos-ios">
+        <li>Toque em <b>Compartilhar</b> <span class="ap-ios-ic" aria-hidden="true">⬆︎</span> (o quadradinho com a seta). Não achou? Toque nos <b>três pontinhos •••</b> e depois em Compartilhar.</li>
+        <li>Role a lista e toque em <b>Adicionar à Tela de Início</b>.</li>
+        <li>Toque em <b>Adicionar</b>. Depois feche o Safari e abra o Genesis <b>pelo ícone novo</b>.</li>
+      </ol>
+      <p class="ap-hint">Com desenhos de cada tela: <a href="${typeof linkGuia === 'function' ? linkGuia('iphone') : 'guia.html#iphone'}" target="_blank" rel="noopener">guia ilustrado do iPhone</a>.
+      Se preferir só olhar agora, pode continuar aqui — mas o que você lançar no Safari não vai para o ícone.</p>`
   },
   {
     // 🧪 15/10: só para quem abriu o link de convite (modo teste) — o exemplo e as ideias, logo no começo
@@ -79,7 +100,9 @@ const AP_PASSOS = [
       Pode deixar em branco e preencher depois em ⚙️ Config → Perfil.</p>`,
     aoEntrar: () => {
       const n = document.getElementById('ap-nome'), i = document.getElementById('ap-iniciais');
-      n.value = profile.name || ''; i.value = profile.initials || '';
+      // 💌 com convite, o nome já vem sugerido (só grava ao seguir, pelo apGravarNome de sempre)
+      const c = typeof conviteAtual === 'function' && conviteAtual();
+      n.value = profile.name || (c ? c.n : ''); i.value = profile.initials || '';
       n.addEventListener('input', apNomeMudou); i.addEventListener('input', apNomeMudou);
       setTimeout(() => n.focus(), 120);
     },

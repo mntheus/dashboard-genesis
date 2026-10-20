@@ -5672,6 +5672,7 @@ function renderCfgIdeias() {
       <button type="button" class="btn ideia-enviar" onclick="enviarIdeias()" ${total ? '' : 'disabled'}>📤 Enviar ideias</button>
     </div>
     <div class="ideia-rodape">
+      <a href="${linkGuia('')}" target="_blank" rel="noopener">🖼️ Guia ilustrado: instalar no celular e no computador, e ligar os dois</a>
       <a href="leia-me.html" target="_blank" rel="noopener">📖 Leia-me: o que é o Genesis, como instalar e como testar</a>
       <label class="check-line"><input type="checkbox" ${modoTeste() ? 'checked' : ''} onchange="alternarModoTeste(this.checked)"> Modo teste neste aparelho (roteiro de quem testa e o nome “Ideias” no 💡)</label>
     </div>`;
@@ -5685,6 +5686,37 @@ function addIdeiaCfg() {
   const novo = document.getElementById('cfg-ideia-txt'); if (novo) novo.focus();
   toast(`💡 Ideia anotada em ${ABA_NOME(s.value).replace(/^\S+\s/, '')}. Valeu!`, 2500);
 }
+
+// --- 💌 CONVITE PERSONALIZADO (20/10/2026): o link traz "#para=<chave>" ---------------------------
+// A chave é um JSON { n: nome de quem recebe, de: quem convidou } em base64. O nome mora SÓ no link (o
+// site é público: nenhum nome no código) e fica neste aparelho, em prefs.convite (fora da sincronização).
+// Usa: a apresentação cumprimenta pelo nome e já sugere o nome; o guia ilustrado (guia.html) também.
+/** Lê uma chave de link (base64url de um JSON). Devolve null se não for. */
+function lerChaveLink(chave) {
+  try { return JSON.parse(decodeURIComponent(escape(atob(String(chave).replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; }
+}
+function chaveDeLink(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function conviteAtual() { return prefs.convite && prefs.convite.n ? prefs.convite : null; }
+/** iPhone/iPad no Safari (ou num navegador de dentro de outro app), e não pelo ícone da tela de início.
+ *  No iPhone, o ícone guarda os dados num lugar SEPARADO do Safari: quem começa no Safari e depois
+ *  instala acha o app vazio. Por isso a apresentação pede para instalar antes de começar. */
+function iphoneForaDoIcone() {
+  const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return ios && !navigator.standalone && !(window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+}
+(function () {
+  const m = /(?:^#|&)para=([A-Za-z0-9_\-]+)/.exec(location.hash); if (!m) return;
+  const d = lerChaveLink(m[1]);
+  if (d && typeof d.n === 'string' && d.n.trim()) {
+    prefs.convite = { n: d.n.trim().slice(0, 40), de: String(d.de || '').trim().slice(0, 40), desde: (prefs.convite && prefs.convite.desde) || hojeISO() };
+    try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { }
+  }
+  // no iPhone fora do ícone o "#para" fica no endereço: se o "Adicionar à Tela de Início" levar o
+  // endereço atual, o ícone também nasce com o convite; nos outros aparelhos, o endereço fica limpo
+  if (iphoneForaDoIcone()) return;
+  const resto = location.hash.slice(1).split('&').filter(p => !/^para=/.test(p)).join('&');
+  try { history.replaceState(null, '', location.pathname + location.search + (resto ? '#' + resto : '')); } catch (e) { }
+})();
 
 // --- 🧪 MODO TESTE (15/10/2026): o link de convite traz "?teste" (ou "#teste") ---
 // Vale só no aparelho de quem abriu o convite (prefs, por aparelho, fora da sincronização). Muda pouco: a
@@ -8115,11 +8147,23 @@ function dicaErroSync(m) {
   if (/Failed to fetch|NetworkError|Load failed|JSON|Unexpected token/i.test(m)) return 'O Google não respondeu como o app esperava. Confira: 1) em "Quem pode acessar" ficou Qualquer pessoa; 2) o endereço é o do App da Web (termina em /exec); 3) você autorizou o acesso no passo 5.';
   return m;
 }
+/** Endereço do guia ilustrado (guia.html), levando o convite (se houver) e a seção. */
+function linkGuia(secao) {
+  const c = conviteAtual();
+  return 'guia.html#' + [c ? 'para=' + chaveDeLink({ n: c.n, de: c.de }) : '', secao || ''].filter(Boolean).join('&');
+}
 function guiaSync() {
   const ligado = syncConfigurado() && !!localStorage.getItem('lifeos_sync_ultima');
   ngFolha('☁️ Ligar a sincronização', `
     <p class="hint">${ligado ? '🟢 <b>Este aparelho já está ligado.</b> Para ligar outro, use o passo 7.' : 'Uns 5 minutos, <b>no computador</b> (no celular o editor do Google é apertado). Depois, o celular liga num toque.'}
       O que você lança num aparelho aparece no outro, e nada se perde quando sair versão nova. Fica numa planilha <b>sua</b>, na <b>sua</b> conta Google.</p>
+    <p class="guia-sync-desenhos">🖼️ Prefere ver cada tela desenhada? <a href="${linkGuia('ligar')}" target="_blank" rel="noopener">Abrir o guia ilustrado</a></p>
+    ${ligado ? '' : `<details class="guia-sync-mais guia-colar-caixa"><summary>📥 Já ligou no computador e este é o celular? Toque aqui</summary>
+      <form class="guia-sync-form guia-colar" onsubmit="event.preventDefault(); ligarPeloLinkColado('guia-colar-link', 'guia-colar-status')">
+      <label for="guia-colar-link">Cole aqui o link que você mandou para você (do passo 7):</label>
+      <span class="guia-colar-linha"><input type="password" id="guia-colar-link" autocomplete="off" placeholder="segure o dedo aqui → Colar">
+      <button type="submit" class="mini-btn acao">Ligar</button></span>
+      <span id="guia-colar-status" class="guia-sync-status" role="status"></span></form></details>`}
     <ol class="ng-guia guia-sync">
       <li><b>Copie o código</b> — a sua senha já vai dentro dele.<br><button type="button" class="mini-btn acao" onclick="copiarCodigoSync()">📋 Copiar o código</button> <small id="guia-sync-copiado"></small></li>
       <li>Abra uma <b>planilha nova</b> na sua conta: <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a>. Dê o nome <b>Genesis DB</b>.</li>
@@ -8131,8 +8175,12 @@ function guiaSync() {
           <input type="url" id="guia-sync-url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Endereço do App da Web">
           <button type="submit" class="mini-btn">Ligar</button></form>
         <div id="guia-sync-status" class="guia-sync-status" role="status"></div></li>
-      <li><b>No celular (ou em outro computador):</b> <button type="button" class="mini-btn acao" onclick="levarSyncOutroAparelho()">📲 Copiar o link do outro aparelho</button><br>
-        Mande para você mesmo (WhatsApp "conversa comigo" ou e-mail) e abra lá. Ele já entra ligado. <b>Esse link é a chave da sua planilha:</b> só para você.</li>
+      <li><b>No outro aparelho.</b> Aqui, toque em <button type="button" class="mini-btn acao" onclick="levarSyncOutroAparelho()">📲 Copiar o link do outro aparelho</button>
+        e mande para você mesmo (WhatsApp "conversa comigo" ou e-mail). <b>Esse link é a chave da sua planilha:</b> só para você.
+        <ul class="guia-sync-sub">
+          <li><b>Computador ou Android:</b> abra o link lá — ele já entra ligado.</li>
+          <li><b>iPhone (Genesis na tela de início):</b> segure o dedo no link → <b>Copiar</b>. Abra o Genesis <b>pelo ícone</b> → ⚙️ Config → ☁️ Sincronização → <b>📥 cole o link</b> → Ligar. (Tocar no link abriria o Safari, que no iPhone guarda os dados à parte.)</li>
+        </ul></li>
     </ol>
     <details class="guia-sync-mais"><summary>Por que é seguro? E se eu já usei em dois aparelhos?</summary><ul>
       <li>O código roda dentro da sua conta Google e só grava nessa planilha (e numa agenda "Genesis", só se você ligar a opção da agenda). Não mexe em mais nada seu.</li>
@@ -8143,25 +8191,44 @@ function guiaSync() {
     </ul></details>`);
   baixarCodigoSync().catch(() => {});
 }
-async function ligarSyncPeloGuia() {
-  const campo = document.getElementById('guia-sync-url'), st = document.getElementById('guia-sync-status'); if (!campo || !st) return;
-  const url = campo.value.trim();
-  if (!URL_SYNC_OK.test(url)) { st.innerText = '⚠️ Esse não parece o endereço certo: ele começa com https://script.google.com/macros/s/ e termina em /exec.'; return; }
-  if (!syncConfig.token) { st.innerText = '⚠️ Faça o passo 1 primeiro (copiar o código): é ele que cria a sua senha.'; return; }
-  syncConfig.url = url; localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
+/** O que a pessoa colou: o link de outro aparelho (#ligar=) ou o endereço do script (passo 6).
+ *  Os dois campos aceitam os dois (20/10): quem é leigo não tem como saber qual campo é de qual. */
+function lerColado(texto) {
+  texto = String(texto || '').trim();
+  const m = /ligar=([A-Za-z0-9_\-]+)/.exec(texto);
+  if (m) { const d = lerChaveLink(m[1]); return d && URL_SYNC_OK.test(d.u || '') && d.t ? { tipo: 'link', u: d.u, t: d.t } : { tipo: 'ruim' }; }
+  return URL_SYNC_OK.test(texto) ? { tipo: 'endereco', u: texto } : { tipo: 'ruim' };
+}
+/** Liga com o que foi colado e conta o andamento em `avisa`. Devolve true se ligou. */
+async function ligarComColado(texto, avisa, fimOk) {
+  const c = lerColado(texto);
+  if (c.tipo === 'endereco') {
+    if (!syncConfig.token) { avisa('⚠️ Esse é o endereço do script. Faça antes o passo 1 (📋 Copiar o código) neste aparelho: é ele que cria a sua senha.'); return false; }
+    syncConfig.url = c.u;
+  } else {
+    // o link de outro aparelho: este passa a ser "novo" para a planilha (a 1ª conversa junta, não passa por cima)
+    if (syncConfig.url !== c.u) localStorage.removeItem('lifeos_sync_ultima');
+    syncConfig = { url: c.u, token: c.t, agenda: !!syncConfig.agenda };
+  }
+  localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
   carregarSyncConfigNaTela();
-  st.innerText = '🔄 Testando a conversa com a sua planilha…';
+  avisa('🔄 Testando a conversa com a sua planilha…');
   marcarPendente(true);
   const ok = await sincronizar();
-  if (ok) st.innerHTML = '🟢 <b>Ligado!</b> A partir de agora sincroniza sozinho. Falta só o passo 7, no outro aparelho.';
-  else if (ok === false) st.innerText = '🔴 ' + dicaErroSync(syncUltimoErro);
-  else st.innerText = 'Sem internet agora — tente de novo quando voltar.';
+  if (ok) avisa(fimOk);
+  else if (ok === false) avisa('🔴 ' + dicaErroSync(syncUltimoErro));
+  else avisa(navigator.onLine ? 'Ainda ligando — confira daqui a pouco aqui na Sincronização.' : 'Sem internet agora — tente de novo quando voltar.');
+  return !!ok;
+}
+async function ligarSyncPeloGuia() {
+  const campo = document.getElementById('guia-sync-url'), st = document.getElementById('guia-sync-status'); if (!campo || !st) return;
+  if (lerColado(campo.value).tipo === 'ruim') { st.innerText = '⚠️ Esse não parece o endereço certo: ele começa com https://script.google.com/macros/s/ e termina em /exec.'; return; }
+  await ligarComColado(campo.value, t => { st.innerText = t; }, '🟢 Ligado! A partir de agora sincroniza sozinho. Falta só o passo 7, no outro aparelho.');
 }
 /** Copia um link com o endereço e a senha (no "#", que nunca sai do navegador: o site não recebe). */
 function levarSyncOutroAparelho() {
   if (!syncConfigurado()) { toast('☁️ Ligue a sincronização neste aparelho primeiro (📘 Como ligar).', 6000); return; }
-  const chave = btoa(unescape(encodeURIComponent(JSON.stringify({ u: syncConfig.url, t: syncConfig.token })))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const link = location.origin + location.pathname + (modoTeste() ? '?teste' : '') + '#ligar=' + chave;
+  const link = location.origin + location.pathname + (modoTeste() ? '?teste' : '') + '#ligar=' + chaveDeLink({ u: syncConfig.url, t: syncConfig.token });
   copiarParaColar(link, () => toast('📲 Link copiado. Ele é a chave da sua planilha: mande só para você mesmo e abra no outro aparelho.', 8000));
 }
 /** Abriu o app por esse link: pergunta e liga. Este aparelho passa a ser "novo" para a planilha,
@@ -8169,8 +8236,7 @@ function levarSyncOutroAparelho() {
 function receberLinkSync() {
   const m = /(?:^#|&)ligar=([A-Za-z0-9_\-]+)/.exec(location.hash); if (!m) return;
   try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
-  let d = null;
-  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { }
+  const d = lerChaveLink(m[1]);
   if (!d || !URL_SYNC_OK.test(d.u || '') || !d.t) { toast('⚠️ Este link de sincronização veio incompleto. Gere outro no aparelho que já está ligado.', 8000); return; }
   if (syncConfig.url === d.u && syncConfig.token === d.t) { toast('☁️ Este aparelho já estava ligado à sua planilha.', 4000); return; }
   if (!confirm('Ligar este aparelho à sua planilha do Genesis?\n\nO que está na planilha aparece aqui. Se este aparelho já tiver coisas lançadas, as listas se juntam — e antes o app guarda uma cópia do que havia aqui (Config → Cópias).')) return;
@@ -8178,6 +8244,17 @@ function receberLinkSync() {
   syncConfig = { url: d.u, token: d.t, agenda: !!syncConfig.agenda };
   localStorage.setItem('lifeos_sync_config', JSON.stringify(syncConfig));
   toast('☁️ Ligando à sua planilha…', 4000);
+}
+/** O mesmo link, COLADO num campo (20/10). É o caminho do iPhone: o link tocado abre no Safari, e o
+ *  Genesis instalado na tela de início guarda os dados num lugar separado do Safari. */
+async function ligarPeloLinkColado(idCampo, idStatus) {
+  const campo = document.getElementById(idCampo); if (!campo) return;
+  const st = idStatus && document.getElementById(idStatus);
+  const avisa = t => { if (st) st.innerText = t; else toast(t, 8000); };
+  const texto = campo.value;
+  if (lerColado(texto).tipo === 'ruim') { avisa('⚠️ Esse não parece o link de ligar. No aparelho que já está ligado: ☁️ Sincronização → 📲 Ligar outro aparelho, e copie de novo.'); return; }
+  campo.value = '';   // a chave não fica à mostra no campo
+  await ligarComColado(texto, avisa, '🟢 Ligado! O que está na sua planilha já aparece aqui, e daqui para a frente sincroniza sozinho.');
 }
 
 // Gatilhos automáticos: voltou a internet / voltou pro app (celular) / a cada 30 s com o app visível

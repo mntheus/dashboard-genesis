@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d14">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'none'; object-src 'none'">
+  <title>Genesis — Guia ilustrado</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- GUIA ILUSTRADO (20/10/2026) — para quem nunca mexeu com nada disso: cada passo tem o desenho da tela.
+       Página PÚBLICA: nenhum nome aqui. O nome de quem recebe vem do link (#para=<chave>, base64 de
+       { n, de }) e só é lido no navegador dela. Seções: #iphone #computador #ligar #duvidas. -->
+  <style>
+    :root {
+      --bg: #0b0d14; --card: #121623; --borda: #232a3b; --txt: #cdd5e5; --txt2: #9aa6bd; --forte: #f4f6fb;
+      --acento: #8b7cff; --acento2: #ff6fa3; --ok: #34d399; --aviso: #fbbf24; --erro: #f87171; --alvo: #ff4f8b;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f5f4fb; --card: #ffffff; --borda: #e2dfef; --txt: #2c2f45; --txt2: #62677f; --forte: #14162a;
+        --acento: #5b47e0; --acento2: #d63a74; --ok: #0f9f6e; --aviso: #b7791f; --erro: #c53030; --alvo: #e0245e; }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--txt); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow-wrap: anywhere; -webkit-text-size-adjust: 100%; }
+    main, .topo-in { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+    b, strong { color: var(--forte); }
+    a { color: var(--acento); }
+    p { margin: 0 0 10px; }
+
+    /* ── topo ── */
+    .topo { padding: calc(28px + env(safe-area-inset-top, 0px)) 0 18px;
+      background: radial-gradient(120% 90% at 10% 0%, color-mix(in srgb, var(--acento) 22%, transparent), transparent 60%),
+                  radial-gradient(90% 80% at 100% 10%, color-mix(in srgb, var(--acento2) 18%, transparent), transparent 60%); }
+    .rotulo { font-size: .74rem; letter-spacing: .18em; text-transform: uppercase; color: var(--txt2); display: flex; align-items: center; gap: 8px; }
+    .rotulo img { width: 22px; height: 22px; border-radius: 6px; }
+    h1 { font-size: clamp(2rem, 1.5rem + 2.4vw, 3rem); font-weight: 300; color: var(--forte); margin: 10px 0 6px; letter-spacing: -.02em; line-height: 1.15; }
+    .sub { font-size: 1.05rem; color: var(--txt); max-width: 640px; margin: 0 0 18px; }
+    .atalhos { display: flex; flex-wrap: wrap; gap: 8px; }
+    .atalhos a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 999px; text-decoration: none;
+      background: var(--card); border: 1px solid var(--borda); color: var(--forte); font-weight: 600; font-size: .95rem; min-height: 44px; }
+
+    /* ── blocos ── */
+    section { padding: 26px 0 6px; scroll-margin-top: 12px; }
+    h2 { font-size: 1.45rem; color: var(--forte); margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+    .intro { color: var(--txt); max-width: 700px; }
+    .caixa { background: var(--card); border: 1px solid var(--borda); border-radius: 18px; padding: 18px; margin: 0 0 14px; }
+    .destaque { border-color: color-mix(in srgb, var(--acento) 55%, var(--borda)); background: color-mix(in srgb, var(--acento) 8%, var(--card)); }
+    .calma { border-color: color-mix(in srgb, var(--ok) 55%, var(--borda)); background: color-mix(in srgb, var(--ok) 8%, var(--card)); }
+    .atencao { border-color: color-mix(in srgb, var(--aviso) 60%, var(--borda)); background: color-mix(in srgb, var(--aviso) 9%, var(--card)); }
+    .abrir { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; border-radius: 14px; min-height: 52px;
+      background: linear-gradient(135deg, var(--acento), var(--acento2)); color: #fff; font-weight: 700; font-size: 1.05rem; text-decoration: none; border: 0; cursor: pointer; font-family: inherit; }
+    .abrir.claro { background: var(--card); color: var(--forte); border: 1px solid var(--borda); }
+    .dica { font-size: .92rem; color: var(--txt2); }
+    kbd { display: inline-block; font: 600 .82em system-ui, sans-serif; padding: 2px 8px; border-radius: 7px; border: 1px solid var(--borda);
+      border-bottom-width: 3px; background: var(--card); color: var(--forte); white-space: nowrap; }
+
+    /* o que é */
+    .areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 16px; }
+    @media (min-width: 640px) { .areas { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .areas div { background: var(--bg); border: 1px solid var(--borda); border-radius: 14px; padding: 12px; text-align: center; font-size: .92rem; overflow-wrap: normal; }
+    .areas span { display: block; font-size: 1.7rem; line-height: 1.2; }
+    .trilha { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; counter-reset: t; margin: 10px 0 4px; }
+    .trilha a { display: block; text-decoration: none; color: var(--txt); background: var(--bg); border: 1px solid var(--borda); border-radius: 14px; padding: 12px 14px; }
+    .trilha a b { display: block; font-size: 1.02rem; }
+    .trilha a::before { counter-increment: t; content: counter(t); display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+      background: var(--acento); color: #fff; font-weight: 700; margin-bottom: 6px; }
+
+    /* palavras novas */
+    .glossario { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .glossario div { background: var(--bg); border: 1px solid var(--borda); border-radius: 14px; padding: 12px 14px; font-size: .95rem; }
+    .glossario b { display: block; font-size: 1.02rem; margin-bottom: 2px; }
+
+    /* o desenho da sincronização */
+    .ciclo { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 6px; text-align: center; font-size: .9rem; }
+    .ciclo .no { background: var(--bg); border: 1px solid var(--borda); border-radius: 16px; padding: 12px 14px; min-width: 110px; }
+    .ciclo .no span { display: block; font-size: 2rem; }
+    .ciclo .seta { font-size: 1.4rem; color: var(--acento2); }
+
+    /* ── os passos ── */
+    .passo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; background: var(--card); border: 1px solid var(--borda); border-radius: 18px; padding: 18px; margin: 0 0 14px; }
+    @media (min-width: 780px) { .passo { grid-template-columns: minmax(0, 1fr) minmax(0, 470px); align-items: center; } .passo.cel-lado { grid-template-columns: minmax(0, 1fr) 240px; } }
+    .passo h3 { margin: 0 0 8px; font-size: 1.12rem; color: var(--forte); display: flex; align-items: flex-start; gap: 10px; line-height: 1.35; }
+    .num { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--acento); color: #fff; font-size: 1rem; font-weight: 700; }
+    .passo .texto > p:last-child { margin-bottom: 0; }
+    .fig { display: flex; justify-content: center; min-width: 0; }
+    .fig-leg { font-size: .75rem; color: var(--txt2); text-align: center; margin-top: 6px; }
+
+    /* ── DESENHOS (as cores dos desenhos são fixas: são "fotos" de outras telas) ── */
+    /* o negrito da página segue o tema (branco no escuro); dentro do desenho, segue o desenho */
+    .cel b, .cel strong, .note b, .note strong { color: inherit; }
+    .alvo { position: relative; outline: 3px solid var(--alvo); outline-offset: 2px; border-radius: 7px; animation: pulsa 1.8s ease-in-out infinite; }
+    @keyframes pulsa { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--alvo) 60%, transparent); } 60% { box-shadow: 0 0 0 9px transparent; } }
+    .dedo::after { content: "👆"; position: absolute; right: -8px; bottom: -26px; font-size: 24px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); z-index: 5; pointer-events: none; }
+    .dedo.esq::after { right: auto; left: -6px; }
+    .dedo.cima::after { bottom: auto; top: -28px; transform: rotate(180deg); }
+    @media (prefers-reduced-motion: reduce) { .alvo { animation: none; } html { scroll-behavior: auto; } }
+
+    /* iPhone */
+    .cel { position: relative; width: 214px; height: 438px; border-radius: 36px; background: #0b0b0f; padding: 9px; flex: none;
+      box-shadow: 0 14px 34px rgba(0,0,0,.35), inset 0 0 0 2px #2b2b35; }
+    .cel .tela { position: relative; width: 100%; height: 100%; border-radius: 28px; overflow: hidden; background: #f2f2f7; color: #111;
+      font: 11px/1.35 -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; }
+    .cel .ilha { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 64px; height: 19px; border-radius: 11px; background: #000; z-index: 4; }
+    .cel .status { height: 34px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 2px 18px 0; font-weight: 700; font-size: 10.5px; }
+    .cel .cont { flex: 1; min-height: 0; padding: 6px 10px; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }
+    .cel .safari { flex: none; padding: 7px 9px 16px; display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,.75); border-top: 1px solid #dcdce3; }
+    .cel .pil { flex: 1; min-width: 0; background: #e4e4eb; border-radius: 15px; padding: 7px 10px; font-size: 10px; color: #333; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cel .red { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #e4e4eb; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #333; }
+    .cel .escuro { position: absolute; inset: 0; background: rgba(0,0,0,.28); z-index: 2; }
+    .cel .folha { position: absolute; left: 6px; right: 6px; bottom: 6px; z-index: 3; background: #fff; color: #111; border-radius: 18px; padding: 8px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 -6px 24px rgba(0,0,0,.2); }
+    .cel .folha .lin { display: flex; justify-content: space-between; align-items: center; padding: 7px 8px; border-radius: 9px; font-size: 10.5px; }
+    .cel .folha .lin + .lin { border-top: 1px solid #eee; }
+    .cel .menu { position: absolute; right: 8px; bottom: 58px; z-index: 3; width: 150px; background: rgba(255,255,255,.96); color: #111; border-radius: 14px; padding: 4px; box-shadow: 0 8px 26px rgba(0,0,0,.25); }
+    .cel .menu .lin { display: flex; justify-content: space-between; padding: 7px 9px; font-size: 10.5px; border-radius: 8px; }
+    .cel .card { background: #fff; border-radius: 12px; padding: 9px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+    .cel .campo { background: #f0f0f5; border: 1px solid #d9d9e2; border-radius: 9px; padding: 7px 8px; color: #888; font-size: 10px; }
+    .cel .bt { display: inline-block; background: #5b47e0; color: #fff; border-radius: 9px; padding: 6px 10px; font-weight: 700; font-size: 10px; text-align: center; }
+    .cel .bal { align-self: flex-start; max-width: 85%; background: #fff; border-radius: 12px 12px 12px 3px; padding: 7px 9px; font-size: 10px; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+    .cel .bal.eu { align-self: flex-end; background: #d9fdd3; border-radius: 12px 12px 3px 12px; }
+    .cel .bal u { color: #0a66c2; }
+    .cel .icones { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 6px; padding: 16px 10px; text-align: center; font-size: 8.5px; color: #fff; }
+    .cel .icones i { display: block; width: 40px; height: 40px; margin: 0 auto 3px; border-radius: 11px; font-style: normal; font-size: 19px; line-height: 40px; }
+    .cel .icones img { display: block; width: 40px; height: 40px; margin: 0 auto 3px; border-radius: 11px; }
+    .cel .fundo-ini { background: linear-gradient(160deg, #4c3fb8, #b4407a); color: #fff; }
+    .cel .escura { background: #0b0d14; color: #e8ebf3; }
+
+    /* notebook */
+    .note { width: 100%; max-width: 470px; }
+    .note .tampa { background: #1c1e24; border-radius: 14px 14px 5px 5px; padding: 9px 9px 11px; box-shadow: 0 14px 30px rgba(0,0,0,.3); }
+    .note .tela { background: #fff; color: #202124; border-radius: 4px; overflow: hidden; font: 11px/1.35 "Segoe UI", system-ui, sans-serif; min-height: 238px; display: flex; flex-direction: column; position: relative; }
+    .note .base { height: 13px; margin: 0 -16px; background: linear-gradient(#d4d7dd, #a8acb4); border-radius: 0 0 16px 16px; }
+    .note .abas { display: flex; gap: 4px; background: #dfe3e8; padding: 5px 6px 0; }
+    .note .abas span { background: #eef0f3; border-radius: 7px 7px 0 0; padding: 4px 9px; font-size: 9.5px; color: #444; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note .abas span.on { background: #fff; color: #111; font-weight: 600; }
+    .note .nav { display: flex; align-items: center; gap: 7px; padding: 5px 8px; background: #fff; border-bottom: 1px solid #e3e5e8; }
+    .note .end { flex: 1; min-width: 0; background: #f1f3f4; border-radius: 14px; padding: 4px 11px; color: #333; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note .ico { flex: none; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; color: #555; }
+    .note .pag { flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; position: relative; }
+    .note .gs-menu { display: flex; gap: 8px; font-size: 9.5px; color: #333; padding: 2px 0; flex-wrap: wrap; }
+    .note .gs-menu span { padding: 2px 4px; border-radius: 4px; }
+    .note .drop { position: absolute; z-index: 3; background: #fff; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.22); padding: 4px; min-width: 130px; font-size: 10px; }
+    .note .drop div { padding: 6px 9px; border-radius: 5px; }
+    .note .grade-gs { display: grid; grid-template-columns: 22px repeat(5, 1fr); border-top: 1px solid #e2e3e3; border-left: 1px solid #e2e3e3; font-size: 9px; color: #777; }
+    .note .grade-gs span { border-right: 1px solid #e2e3e3; border-bottom: 1px solid #e2e3e3; height: 15px; padding: 1px 3px; }
+    .note .cod { background: #fff; font: 10px/1.6 Consolas, ui-monospace, monospace; color: #333; border: 1px solid #e3e5e8; border-radius: 6px; padding: 6px 8px; }
+    .note .cod .nl { color: #9aa0a6; display: inline-block; width: 16px; }
+    .note .azul { display: inline-flex; align-items: center; gap: 4px; background: #1a73e8; color: #fff; border-radius: 14px; padding: 4px 11px; font-weight: 600; font-size: 10px; }
+    .note .cinza { display: inline-flex; background: #fff; color: #1a73e8; border: 1px solid #dadce0; border-radius: 14px; padding: 4px 11px; font-weight: 600; font-size: 10px; }
+    .note .janela { background: #fff; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.25); padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; font-size: 10px; }
+    .note .jfundo { background: #e9eaee; flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: center; }
+    .note .rotulo-c { font-size: 9px; color: #5f6368; }
+    .note .sel { border: 1px solid #c7c9cc; border-radius: 6px; padding: 5px 8px; display: flex; justify-content: space-between; }
+    .note .gen { background: #0b0d14; color: #e8ebf3; }
+    .note .gen .card { background: #151a28; border: 1px solid #262e42; border-radius: 9px; padding: 9px; display: flex; flex-direction: column; gap: 6px; }
+    .note .gen .bt { display: inline-block; background: #38bdf8; color: #0b0d14; border-radius: 8px; padding: 5px 10px; font-weight: 700; font-size: 10px; text-align: center; }
+    .note .gen .bt.roxo { background: #8b7cff; color: #fff; }
+    .note .gen .campo { background: #0b0f1a; border: 1px solid #2a3348; border-radius: 7px; padding: 5px 8px; color: #8a94ab; font-size: 9.5px; }
+    .note .aviso-g { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .note .aviso-g h4 { margin: 0; font-size: 13px; font-weight: 500; color: #202124; }
+    .note .peq { font-size: 9.5px; color: #5f6368; }
+    .note .toast { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: #1f2937; color: #fff; border-radius: 9px; padding: 5px 10px; font-size: 9.5px; white-space: nowrap; }
+    .ok-verde { color: #0f9f6e; font-weight: 700; }
+
+    /* erros e dúvidas */
+    .erros { display: grid; gap: 10px; }
+    .erros div { background: var(--bg); border: 1px solid var(--borda); border-left: 4px solid var(--erro); border-radius: 12px; padding: 10px 14px; font-size: .95rem; }
+    details { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 0 16px; margin: 0 0 10px; }
+    summary { cursor: pointer; padding: 14px 0; font-weight: 700; color: var(--forte); min-height: 44px; }
+    details[open] { padding-bottom: 12px; }
+    .rodape { text-align: center; font-size: .85rem; color: var(--txt2); padding: 24px 16px calc(36px + env(safe-area-inset-bottom, 0px)); }
+    .copiado { font-size: .9rem; color: var(--ok); margin-left: 8px; }
+  </style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-in">
+    <div class="rotulo"><img src="icon-180.png" alt="">Genesis · guia ilustrado</div>
+    <h1 id="ola">Bem-vindo ao Genesis</h1>
+    <p class="sub" id="ola-sub">Este guia vai com você passo a passo — com o desenho de cada tela e sem palavra difícil.
+      Não tem como estragar nada: se errar um passo, é só voltar e fazer de novo.</p>
+    <nav class="atalhos" aria-label="Partes do guia">
+      <a href="#iphone">📱 No iPhone</a>
+      <a href="#computador">💻 No computador</a>
+      <a href="#ligar">☁️ Ligar os dois</a>
+      <a href="#duvidas">❓ Dúvidas</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══════════════════════════════ O QUE É ═══════════════════════════════ -->
+  <section id="oque">
+    <div class="caixa destaque">
+      <h2>✨ O que é o Genesis</h2>
+      <p class="intro">Um aplicativo para organizar a vida num lugar só. Você escolhe o que usar — não precisa usar tudo.</p>
+      <div class="areas">
+        <div><span>📅</span>Agenda e compromissos</div>
+        <div><span>💰</span>Dinheiro do mês</div>
+        <div><span>✅</span>Tarefas e listas</div>
+        <div><span>📝</span>Notas e lembretes</div>
+        <div><span>💪</span>Saúde, água e treino</div>
+        <div><span>🍿</span>Filmes, séries e passeios</div>
+        <div><span>✈️</span>Viagens</div>
+        <div><span>📚</span>Estudos</div>
+      </div>
+      <p><b>A ordem que deixa tudo mais fácil</b> (uns 15 minutos, uma vez só):</p>
+      <div class="trilha">
+        <a href="#iphone"><b>No iPhone</b>Colocar o ícone na tela de início · 2 min</a>
+        <a href="#computador"><b>No computador</b>Abrir o Genesis · 1 min</a>
+        <a href="#ligar"><b>Ligar os dois</b>No computador, com calma · 10 min</a>
+        <a href="#ligar-iphone"><b>De volta ao iPhone</b>Colar um link · 1 min</a>
+      </div>
+      <p class="dica" style="margin-top:10px">Ligando os dois logo no começo, o que você anotar no celular aparece no computador, e vice-versa.
+        Se preferir, dá para usar só no iPhone e ligar outro dia.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ IPHONE ═══════════════════════════════ -->
+  <section id="iphone">
+    <h2>📱 No iPhone: o ícone na tela de início</h2>
+    <p class="intro">No iPhone, o Genesis guarda as suas coisas <b>dentro do ícone</b>. Por isso o primeiro passo é colocar o ícone —
+      e, daí em diante, abrir sempre por ele.</p>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">1</span>Abra o Genesis no Safari</h3>
+        <p>Toque no botão abaixo. Ele abre no <b>Safari</b> (o navegador da bússola 🧭).</p>
+        <p><a class="abrir" data-app href="./">Abrir o Genesis ›</a></p>
+        <p class="dica">Abriu dentro do WhatsApp ou de outro app? Procure os <b>três pontinhos •••</b> ou a <b>bússola 🧭</b> e escolha
+          <b>Abrir no Safari</b>.</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela escura"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="cont" style="align-items:center;justify-content:center;text-align:center;gap:10px">
+          <img src="icon-180.png" alt="" style="width:54px;height:54px;border-radius:14px">
+          <div style="font-size:13px;font-weight:600">Genesis</div>
+          <div style="font-size:9.5px;opacity:.7">toque na tela para entrar</div>
+        </div>
+        <div class="safari" style="background:rgba(30,32,40,.9);border-color:#333"><span class="red" style="background:#2a2d38;color:#ddd">‹</span>
+          <span class="pil" style="background:#2a2d38;color:#ddd">🔒 Genesis</span><span class="red" style="background:#2a2d38;color:#ddd">•••</span></div>
+      </div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">2</span>Toque nos três pontinhos ••• e em “Compartilhar”</h3>
+        <p>Os pontinhos ficam na <b>barra de baixo</b>, no canto direito. No menu que abrir, toque em <b>Compartilhar</b>.</p>
+        <p class="dica">Em iPhones com o sistema mais antigo, o botão <b>Compartilhar</b> (um quadradinho com uma seta para cima ⬆︎)
+          já aparece direto na barra de baixo — é só tocar nele.</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela escura"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="cont"></div>
+        <div class="escuro"></div>
+        <div class="menu">
+          <div class="lin alvo dedo"><span><b>Compartilhar</b></span><span>⬆︎</span></div>
+          <div class="lin"><span>Adicionar aos Favoritos</span><span>☆</span></div>
+          <div class="lin"><span>Nova Aba</span><span>＋</span></div>
+        </div>
+        <div class="safari" style="background:rgba(30,32,40,.9);border-color:#333;position:relative;z-index:3"><span class="red" style="background:#2a2d38;color:#ddd">‹</span>
+          <span class="pil" style="background:#2a2d38;color:#ddd">🔒 Genesis</span><span class="red" style="background:#4a4f63;color:#fff">•••</span></div>
+      </div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">3</span>Role a lista e toque em “Adicionar à Tela de Início”</h3>
+        <p>Sobe uma lista branca. Arraste para cima com o dedo até achar <b>Adicionar à Tela de Início</b> (tem um quadradinho com um ＋).</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela escura"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="escuro"></div>
+        <div class="folha">
+          <div class="lin" style="justify-content:center;color:#888">Genesis — Life OS</div>
+          <div class="lin"><span>Copiar</span><span>⧉</span></div>
+          <div class="lin"><span>Adicionar à Lista de Leitura</span><span>👓</span></div>
+          <div class="lin"><span>Adicionar aos Favoritos</span><span>☆</span></div>
+          <div class="lin alvo dedo"><span><b>Adicionar à Tela de Início</b></span><span>⊞</span></div>
+          <div class="lin"><span>Buscar na Página</span><span>🔍</span></div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">4</span>Toque em “Adicionar”</h3>
+        <p>Aparece o ícone com o nome <b>Genesis</b>. Se tiver a opção <b>Abrir como App Web</b>, deixe ligada (verdinha).
+          Depois toque em <b>Adicionar</b>, no canto de cima.</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="cont">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 2px 6px">
+            <span style="color:#0a66c2">Cancelar</span><b>Adicionar à Tela de Início</b><span class="alvo dedo" style="color:#0a66c2;font-weight:700;padding:1px 3px">Adicionar</span></div>
+          <div class="card" style="display:flex;gap:9px;align-items:center"><img src="icon-180.png" alt="" style="width:40px;height:40px;border-radius:10px">
+            <div><b style="font-size:12px">Genesis</b><div style="color:#888;font-size:9px">dashboard-genesis</div></div></div>
+          <div class="card" style="display:flex;justify-content:space-between;align-items:center">Abrir como App Web
+            <span style="width:30px;height:18px;border-radius:9px;background:#34c759;position:relative;display:inline-block"><span style="position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff"></span></span></div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">5</span>Feche o Safari e abra pelo ícone</h3>
+        <p>O <b>Genesis</b> agora mora na sua tela de início, como qualquer app. <b>Use sempre por ele</b> — é ali que as suas coisas ficam guardadas.</p>
+        <p>Na primeira vez aparece uma luz (com som — se pedir, toque na tela) e uma apresentação curta: o seu nome e a cor que você prefere.</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela fundo-ini"><div class="ilha"></div>
+        <div class="status" style="color:#fff"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="icones">
+          <span><i style="background:#34c759">💬</i>Mensagens</span><span><i style="background:#fff">📷</i>Câmera</span><span><i style="background:#ff9500">📒</i>Notas</span><span><i style="background:#5ac8fa">☁️</i>Tempo</span>
+          <span><i style="background:#fff">🗓️</i>Calendário</span><span><i style="background:#1c1c1e">⏰</i>Relógio</span><span><i style="background:#ff2d55">🎵</i>Música</span>
+          <span class="alvo dedo" style="border-radius:12px"><img src="icon-180.png" alt="">Genesis</span>
+        </div>
+      </div></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ COMPUTADOR ═══════════════════════════════ -->
+  <section id="computador">
+    <h2>💻 No computador</h2>
+    <p class="intro">Vale o navegador que você já usa — <b>Edge</b> (o azul, que vem no Windows) ou <b>Chrome</b>.</p>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">1</span>Leve este guia para o computador</h3>
+        <p>Copie o link deste guia e mande para você mesmo — pelo <b>WhatsApp Web</b> ou por <b>e-mail</b> — e abra no computador.</p>
+        <p><button type="button" class="abrir claro" id="copiar-guia">📋 Copiar o link deste guia</button><span class="copiado" id="copiar-guia-ok" role="status"></span></p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on">Genesis — Guia ilustrado</span><span>WhatsApp</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/guia.html</span></div>
+        <div class="pag" style="background:#f5f4fb"><b style="font-size:15px;font-weight:400">Bem-vindo ao Genesis</b>
+          <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="cinza">📱 No iPhone</span><span class="cinza alvo">💻 No computador</span><span class="cinza">☁️ Ligar os dois</span></div>
+          <div style="height:60px;border-radius:8px;background:#fff;border:1px solid #e2dfef"></div></div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">2</span>Abra o Genesis</h3>
+        <p>Clique no botão. O Genesis abre numa aba do navegador, com a mesma apresentação do celular.</p>
+        <p><a class="abrir" data-app href="./" target="_blank" rel="noopener">Abrir o Genesis ›</a></p>
+        <p class="dica">Para achar de novo depois: aperte <kbd>Ctrl</kbd> + <kbd>D</kbd> e salve nos favoritos.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Guia ilustrado</span><span class="on">Genesis — Life OS</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span><span class="ico">☆</span></div>
+        <div class="pag gen" style="align-items:center;justify-content:center;text-align:center">
+          <img src="icon-180.png" alt="" style="width:46px;height:46px;border-radius:12px">
+          <div style="font-size:13px">Oi! Como posso te chamar?</div>
+          <div class="campo" style="width:60%">Seu nome</div><span class="bt roxo">Continuar ›</span>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">3</span>(Se quiser) Instale como aplicativo</h3>
+        <p>Assim ele ganha ícone próprio e abre sozinho, sem as abas do navegador.</p>
+        <p><b>No Edge:</b> clique no ícone de <b>aplicativo</b> que aparece no fim da barra de endereço (ou nos <b>três pontinhos ···</b> → <b>Aplicativos</b> →
+          <b>Instalar este site como um aplicativo</b>) → <b>Instalar</b>.</p>
+        <p><b>No Chrome:</b> clique no ícone de <b>instalar</b> (um computadorzinho com uma seta) no fim da barra de endereço → <b>Instalar</b>.</p>
+        <p class="dica">Não achou? Tudo bem: usar pela aba do navegador funciona igualzinho.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on">Genesis — Life OS</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span><span class="ico alvo dedo">⊞</span><span class="ico">···</span></div>
+        <div class="pag gen">
+          <div class="janela" style="align-self:flex-end;width:62%;color:#202124"><b>Instalar o aplicativo?</b><span class="peq">Genesis — Life OS</span>
+            <div style="display:flex;gap:6px;justify-content:flex-end"><span class="cinza">Agora não</span><span class="azul">Instalar</span></div></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ LIGAR OS DOIS ═══════════════════════════════ -->
+  <section id="ligar">
+    <h2>☁️ Ligar o iPhone e o computador</h2>
+    <p class="intro">Ligados, os dois mostram as mesmas coisas: anotou no celular, aparece no computador. E se um dia você trocar de celular,
+      nada se perde. <b>Faça uma vez só, no computador, com calma</b> — uns 10 minutos. Não precisa entender nada de programação:
+      é copiar, colar e clicar.</p>
+
+    <div class="ciclo" aria-hidden="true">
+      <div class="no"><span>📱</span>iPhone</div><div class="seta">⇄</div>
+      <div class="no"><span>☁️</span>uma planilha <b>sua</b><br>no Google</div><div class="seta">⇄</div>
+      <div class="no"><span>💻</span>computador</div>
+    </div>
+
+    <div class="caixa">
+      <p><b>Antes de começar: quatro palavras que vão aparecer</b></p>
+      <div class="glossario">
+        <div><b>📧 Conta Google</b>É o seu Gmail. A planilha fica guardada nela. Tenha a senha do Gmail à mão: o Google pode pedir.</div>
+        <div><b>📊 Planilha</b>Um arquivo do Google parecido com o Excel. É onde o Genesis guarda uma cópia das suas coisas. <b>Só você vê.</b></div>
+        <div><b>⚙️ Script</b>Um programinha que fica <b>dentro da sua planilha</b> e conversa com o Genesis. Você só copia e cola — não precisa ler nem entender.</div>
+        <div><b>🔑 Token (a senha)</b>Uma senha comprida que o <b>Genesis cria sozinho</b> e já coloca dentro do script. Você <b>nunca</b> precisa ver, decorar ou mudar nada.</div>
+      </div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">1</span>No Genesis: Config → Sincronização → Como ligar</h3>
+        <p>No computador, abra o Genesis e vá em <b>⚙️ Config</b> (a última aba). Procure o quadro <b>☁️ Sincronização</b> e clique em
+          <b>📘 Como ligar (passo a passo)</b>.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on">Genesis — Life OS</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span></div>
+        <div class="pag gen">
+          <div style="font-size:14px;font-weight:300">⚙️ Config</div>
+          <div class="card"><b>☁️ Sincronização (computador ↔ celular)</b>
+            <span style="opacity:.75;font-size:9.5px">Liga o app a uma planilha sua, na sua conta Google…</span>
+            <span class="bt alvo dedo">📘 Como ligar (passo a passo)</span>
+            <span class="bt" style="background:#262e42;color:#e8ebf3">📲 Ligar outro aparelho</span></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">2</span>Clique em “📋 Copiar o código”</h3>
+        <p>Abre uma janelinha com os passos. Clique no botão colorido <b>📋 Copiar o código</b>.</p>
+        <p>O código fica “guardado na mão” do computador, pronto para colar — igual quando você copia um texto para mandar no WhatsApp.
+          <b>A senha já vai dentro dele</b>: você não muda nada.</p>
+        <p class="dica">Deixe esta aba do Genesis aberta: você volta para ela no passo 13.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on">Genesis — Life OS</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span></div>
+        <div class="pag gen">
+          <div class="card"><b>☁️ Ligar a sincronização</b>
+            <span style="font-size:9.5px">1. <b>Copie o código</b> — a sua senha já vai dentro dele.</span>
+            <span class="bt alvo dedo" style="align-self:flex-start">📋 Copiar o código</span>
+            <span style="font-size:9.5px;opacity:.75">2. Abra uma planilha nova…</span></div>
+          <div class="toast">📋 Código copiado, com a sua senha dentro.</div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">3</span>Abra uma planilha nova</h3>
+        <p>Abra uma <b>aba nova</b> (aperte <kbd>Ctrl</kbd> + <kbd>T</kbd>), escreva <b>sheets.new</b> lá em cima, na barra de endereço, e aperte <kbd>Enter</kbd>.</p>
+        <p class="dica">Se o Google pedir, entre com o seu Gmail e a senha dele. Depois abre uma planilha em branco.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis — Life OS</span><span class="on">Nova guia</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end alvo dedo" style="color:#111;font-weight:600">sheets.new</span></div>
+        <div class="pag" style="align-items:center;justify-content:center;color:#888">⏎ aperte Enter</div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">4</span>Dê um nome à planilha</h3>
+        <p>Clique em <b>Planilha sem título</b> (no alto, à esquerda) e escreva <b>Genesis DB</b>. Assim fica fácil achar depois.
+          (Pode pular, se quiser.)</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis</span><span class="on">Planilha sem título</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 docs.google.com/spreadsheets/…</span></div>
+        <div class="pag">
+          <div style="display:flex;align-items:center;gap:6px"><span style="background:#0f9d58;color:#fff;border-radius:4px;padding:2px 5px;font-size:10px">▦</span>
+            <span class="alvo dedo" style="font-size:12px;padding:1px 4px">Genesis DB</span></div>
+          <div class="gs-menu"><span>Arquivo</span><span>Editar</span><span>Ver</span><span>Inserir</span><span>Formatar</span><span>Dados</span><span>Ferramentas</span><span>Extensões</span><span>Ajuda</span></div>
+          <div class="grade-gs"><span></span><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>1</span><span></span><span></span><span></span><span></span><span></span><span>2</span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">5</span>Menu “Extensões” → “Apps Script”</h3>
+        <p>Na fileira de menus da planilha, clique em <b>Extensões</b> e depois em <b>Apps Script</b>. Abre uma aba nova — é ali que mora o script.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis</span><span class="on">Genesis DB</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 docs.google.com/spreadsheets/…</span></div>
+        <div class="pag">
+          <div style="font-size:12px">Genesis DB</div>
+          <div class="gs-menu"><span>Arquivo</span><span>Editar</span><span>Ver</span><span>Inserir</span><span>Formatar</span><span>Dados</span><span>Ferramentas</span><span class="alvo" style="background:#e8f0fe">Extensões</span><span>Ajuda</span></div>
+          <div class="drop" style="top:44px;left:42%"><div>Complementos ›</div><div>Macros ›</div><div class="alvo dedo" style="background:#e8f0fe"><b>Apps Script</b></div></div>
+          <div class="grade-gs"><span></span><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>1</span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">6</span>Apague o que está lá e cole o código</h3>
+        <p>Aparece um textinho em inglês (<i>function myFunction…</i>). Não se assuste: é só trocar.</p>
+        <p>Clique <b>no meio desse texto</b>. Aperte <kbd>Ctrl</kbd> + <kbd>A</kbd> (seleciona tudo) e depois <kbd>Ctrl</kbd> + <kbd>V</kbd>
+          (cola o código do Genesis por cima). Vai aparecer um texto bem comprido — é ele mesmo.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis DB</span><span class="on">Projeto sem título</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 script.google.com/…</span></div>
+        <div class="pag">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:11px">Apps Script · Projeto sem título</b>
+            <span><span class="cinza">💾</span> <span class="azul">Implantar ▾</span></span></div>
+          <div class="cod alvo dedo"><span class="nl">1</span><span style="background:#c8dcff">function myFunction() {</span><br><span class="nl">2</span><span style="background:#c8dcff">&nbsp;&nbsp;</span><br><span class="nl">3</span><span style="background:#c8dcff">}</span></div>
+          <div style="text-align:center;font-size:12px"><kbd style="color:#111;background:#fff;border-color:#ccc">Ctrl</kbd> + <kbd style="color:#111;background:#fff;border-color:#ccc">A</kbd> &nbsp;→&nbsp; <kbd style="color:#111;background:#fff;border-color:#ccc">Ctrl</kbd> + <kbd style="color:#111;background:#fff;border-color:#ccc">V</kbd></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">7</span>Salve</h3>
+        <p>Aperte <kbd>Ctrl</kbd> + <kbd>S</kbd> (ou clique no disquete 💾). Se pedir um nome para o projeto, escreva <b>Genesis Sync</b> e clique em <b>Renomear</b>.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis DB</span><span class="on">Genesis Sync</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 script.google.com/…</span></div>
+        <div class="pag">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:11px">Apps Script · Genesis Sync</b>
+            <span><span class="cinza alvo dedo">💾</span> <span class="azul">Implantar ▾</span></span></div>
+          <div class="cod"><span class="nl">1</span>/**<br><span class="nl">2</span> * Dashboard Genesis — Backend de Sincronização<br><span class="nl">3</span> * Cole ESTE arquivo inteiro…<br><span class="nl">…</span> …</div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">8</span>Clique em “Implantar” → “Nova implantação”</h3>
+        <p>O botão azul <b>Implantar</b> fica no alto, à direita. “Implantar” quer dizer: ligar o script na internet, para o Genesis conseguir conversar com ele.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span>Genesis DB</span><span class="on">Genesis Sync</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 script.google.com/…</span></div>
+        <div class="pag">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:11px">Apps Script · Genesis Sync</b>
+            <span><span class="cinza">💾</span> <span class="azul alvo">Implantar ▾</span></span></div>
+          <div class="drop" style="top:34px;right:10px"><div class="alvo dedo esq" style="background:#e8f0fe"><b>Nova implantação</b></div><div>Gerenciar implantações</div><div>Testar implantações</div></div>
+          <div class="cod" style="opacity:.6"><span class="nl">1</span>/**<br><span class="nl">2</span> * Dashboard Genesis…</div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">9</span>Escolha “App da Web” e “Qualquer pessoa”</h3>
+        <p>Na janelinha: clique na <b>engrenagem ⚙</b> ao lado de “Selecione o tipo” e escolha <b>App da Web</b>.</p>
+        <p>Embaixo, deixe <b>Executar como: Eu</b> e, em <b>Quem pode acessar</b>, escolha <b>Qualquer pessoa</b>. Depois clique em <b>Implantar</b>.</p>
+        <p class="dica">“Qualquer pessoa” parece estranho, mas é seguro: sem a sua senha (que só o Genesis tem), o script não entrega nada a ninguém.
+          Precisa ser exatamente <b>Qualquer pessoa</b> — e não “Qualquer pessoa com Conta do Google”.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="jfundo"><div class="janela">
+          <b style="font-size:11.5px">Nova implantação</b>
+          <div style="display:flex;align-items:center;gap:6px"><span class="ico alvo" style="background:#f1f3f4">⚙</span><span class="rotulo-c">Selecione o tipo:</span><b>App da Web</b></div>
+          <span class="rotulo-c">Executar como</span><div class="sel"><span>Eu</span><span>▾</span></div>
+          <span class="rotulo-c">Quem pode acessar</span><div class="sel alvo"><b>Qualquer pessoa</b><span>▾</span></div>
+          <div style="display:flex;justify-content:flex-end;gap:6px"><span class="cinza">Cancelar</span><span class="azul alvo dedo">Implantar</span></div>
+        </div></div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">10</span>“Autorizar acesso” e escolha a sua conta</h3>
+        <p>O Google pergunta se o script pode usar a sua planilha. Clique em <b>Autorizar acesso</b> e, na lista, clique no <b>seu Gmail</b>.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="jfundo"><div class="janela">
+          <b style="font-size:11.5px">Nova implantação</b>
+          <span class="peq">O app da Web precisa que você autorize o acesso aos seus dados.</span>
+          <div><span class="cinza alvo dedo">Autorizar acesso</span></div>
+        </div></div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">11</span>O aviso “O Google não verificou este app” — calma!</h3>
+        <div class="caixa calma" style="margin:6px 0 10px;padding:12px 14px">É <b>normal</b> e aparece para todo programinha pessoal. O Google avisa porque o script não passou por
+          uma “aprovação” deles — mas quem colocou o script ali foi <b>você</b>, na <b>sua</b> conta.</div>
+        <p>Clique em <b>Avançado</b> (escrito pequeno, embaixo, à esquerda) e depois em <b>Acessar Genesis Sync (não seguro)</b>.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="aviso-g">
+          <div style="font-size:16px">⚠️</div>
+          <h4>O Google não verificou este app</h4>
+          <span class="peq">O app está solicitando acesso a informações confidenciais na sua Conta do Google…</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <span class="alvo dedo" style="color:#1a73e8;font-size:10px;padding:1px 3px">Avançado</span><span class="azul">Voltar à segurança</span></div>
+          <span class="peq" style="border-top:1px solid #eee;padding-top:6px;margin-top:16px">Continue apenas se você confia no desenvolvedor.<br>
+            <u class="alvo" style="color:#1a73e8;padding:0 2px">Acessar Genesis Sync (não seguro)</u></span>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">12</span>Permita e copie o endereço</h3>
+        <p>Aparece a lista do que o script pode fazer. Se tiver <b>caixinhas</b>, marque <b>Selecionar tudo</b>. Clique em <b>Continuar</b> (ou <b>Permitir</b>).</p>
+        <p>Pronto: aparece uma tela de confirmação com o <b>URL do app da Web</b>. Clique em <b>Copiar</b>, embaixo dele.</p>
+        <p class="dica">O que o script pode fazer: mexer <b>só</b> nessa planilha; numa agenda chamada “Genesis”, só se um dia você ligar essa opção;
+          e buscar cotações e notícias para a aba Negócios. Nada além disso.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="jfundo"><div class="janela">
+          <b style="font-size:11.5px" class="ok-verde">✓ Implantação feita</b>
+          <span class="rotulo-c">App da Web — URL</span>
+          <div class="sel" style="color:#5f6368">https://script.google.com/macros/s/…/exec</div>
+          <div><span class="cinza alvo dedo">Copiar</span></div>
+          <div style="display:flex;justify-content:flex-end"><span class="azul">Concluído</span></div>
+        </div></div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">13</span>Volte ao Genesis, cole e clique em “Ligar”</h3>
+        <p>Clique na <b>primeira aba</b> lá em cima (a do Genesis). No passo 6 da janelinha há um campo comprido: clique nele, aperte
+          <kbd>Ctrl</kbd> + <kbd>V</kbd> e clique em <b>Ligar</b>.</p>
+        <p>Deu certo quando aparece <b class="ok-verde">🟢 Ligado!</b> 🎉</p>
+        <p class="dica">Apareceu 🔴? Veja “Se aparecer um aviso vermelho”, logo abaixo.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on alvo">Genesis — Life OS</span><span>Genesis DB</span><span>Genesis Sync</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span></div>
+        <div class="pag gen">
+          <div class="card"><span style="font-size:9.5px">6. Copie o URL do app da Web, cole aqui e toque em Ligar:</span>
+            <div style="display:flex;gap:5px"><span class="campo alvo" style="flex:1;color:#cfd6e6">https://script.google.com/macros/s/…/exec</span><span class="bt dedo" style="position:relative">Ligar</span></div>
+            <span style="font-size:10px">🟢 <b>Ligado!</b> A partir de agora sincroniza sozinho.</span></div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="caixa atencao">
+      <p><b>Se aparecer um aviso vermelho 🔴</b> (nada quebrou — é só ajustar):</p>
+      <div class="erros">
+        <div><b>“A senha do script não é a deste aparelho”</b><br>Volte ao passo 2, copie o código de novo e cole por cima no script (passo 6), salve, e faça
+          <b>Implantar → Gerenciar implantações → ✎ (lápis) → Versão: Nova versão → Implantar</b>. Depois clique em Ligar de novo.</div>
+        <div><b>“O Google não respondeu como o app esperava”</b><br>Confira três coisas: em <b>Quem pode acessar</b> ficou <b>Qualquer pessoa</b> (passo 9);
+          você copiou pelo botão <b>Copiar</b> do passo 12; e fez a autorização dos passos 10 e 11.</div>
+        <div><b>“Esse não parece o endereço certo”</b><br>O endereço tem de começar com <b>https://script.google.com/macros/s/</b> e terminar em <b>/exec</b>.
+          Use o botão <b>Copiar</b> do passo 12 em vez de selecionar com o mouse.</div>
+      </div>
+    </div>
+
+    <h2 id="ligar-iphone" style="margin-top:26px">📱 Agora, o iPhone (1 minuto)</h2>
+    <p class="intro">O computador já está ligado. Para o iPhone entrar junto, você leva um <b>link</b> do computador para o celular.</p>
+
+    <div class="passo">
+      <div class="texto">
+        <h3><span class="num">14</span>No computador: “📲 Copiar o link do outro aparelho”</h3>
+        <p>Na mesma janelinha do Genesis (passo 7 dela), clique em <b>📲 Copiar o link do outro aparelho</b>. Mande esse link <b>para você</b> —
+          no WhatsApp (a conversa com você mesmo, que aparece como “Você”) ou por e-mail.</p>
+        <p class="dica">🔑 Esse link é a chave da sua planilha: mande só para você, nunca para outra pessoa.</p>
+      </div>
+      <div class="fig"><div class="note"><div class="tampa"><div class="tela">
+        <div class="abas"><span class="on">Genesis — Life OS</span></div>
+        <div class="nav"><span class="ico">‹</span><span class="ico">↻</span><span class="end">🔒 …/dashboard-genesis/</span></div>
+        <div class="pag gen">
+          <div class="card"><span style="font-size:9.5px">7. <b>No outro aparelho.</b> Aqui, toque em</span>
+            <span class="bt roxo alvo dedo" style="align-self:flex-start">📲 Copiar o link do outro aparelho</span>
+            <span style="font-size:9.5px;opacity:.75">e mande para você mesmo…</span></div>
+          <div class="toast">📲 Link copiado.</div>
+        </div>
+      </div></div><div class="base"></div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">15</span>No iPhone: segure o dedo no link → “Copiar”</h3>
+        <p>Abra a conversa onde mandou o link. <b>Não toque rápido nele</b> (abriria o Safari). <b>Segure o dedo</b> em cima do link até aparecer um menu, e toque em <b>Copiar</b>.</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela" style="background:#efe7dd"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="cont">
+          <div style="text-align:center;font-size:9px;color:#666;background:#fff8;border-radius:8px;padding:3px">Você</div>
+          <div class="bal eu alvo dedo"><u>…/dashboard-genesis/#ligar=eyJ1Ijoi…</u></div>
+          <div class="card" style="align-self:flex-end;width:120px;padding:4px">
+            <div class="alvo" style="padding:5px 7px;border-radius:7px;font-weight:700">Copiar</div>
+            <div style="padding:5px 7px;color:#666">Abrir link</div><div style="padding:5px 7px;color:#666">Compartilhar…</div></div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="passo cel-lado">
+      <div class="texto">
+        <h3><span class="num">16</span>Abra o Genesis pelo ícone e cole o link</h3>
+        <p>Abra o <b>Genesis pelo ícone</b> da tela de início → <b>⚙️ Config</b> → quadro <b>☁️ Sincronização</b>.</p>
+        <p>No campo <b>📥 Recebeu o link de outro aparelho?</b>, <b>segure o dedo</b> → <b>Colar</b> → toque em <b>Ligar</b>.</p>
+        <p>Apareceu <b class="ok-verde">🟢 Ligado!</b>? Pronto: o iPhone e o computador agora são um só. 💜</p>
+      </div>
+      <div class="fig"><div class="cel"><div class="tela escura"><div class="ilha"></div>
+        <div class="status"><span>9:41</span><span>●●● 🔋</span></div>
+        <div class="cont">
+          <div style="font-size:15px;font-weight:300">⚙️ Config</div>
+          <div class="card" style="background:#151a28;color:#e8ebf3;border:1px solid #262e42;display:flex;flex-direction:column;gap:6px">
+            <b>☁️ Sincronização</b>
+            <span style="font-size:9.5px">📥 <b>Recebeu o link de outro aparelho?</b> Cole aqui.</span>
+            <span class="card alvo" style="align-self:flex-start;margin:4px 0 0 8px;padding:4px 10px;color:#111;font-weight:700">Colar</span>
+            <div class="campo" style="background:#0b0f1a;border-color:#2a3348;color:#8a94ab">cole o link aqui</div>
+            <span class="bt dedo" style="background:#38bdf8;color:#0b0d14;position:relative">Ligar</span>
+            <span style="font-size:10px">🟢 <b>Ligado!</b></span>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ DÚVIDAS ═══════════════════════════════ -->
+  <section id="duvidas">
+    <h2>❓ Dúvidas</h2>
+    <details><summary>Alguém mais vê as minhas coisas?</summary>
+      <p>Não. Ficam no seu aparelho e, se você ligou a sincronização, numa planilha <b>da sua conta Google</b>. Nem quem te mandou o link vê.
+        A senha (o token) foi criada pelo próprio Genesis e não aparece na tela.</p></details>
+    <details><summary>Quando sair uma versão nova, perco alguma coisa?</summary>
+      <p>Não. A versão nova chega sozinha, pelo mesmo ícone (ou pelo mesmo endereço). Se a novidade não aparecer, feche o app e abra de novo.</p></details>
+    <details><summary>Troquei de celular ou apaguei o ícone sem querer. E agora?</summary>
+      <p>Se a sincronização estava ligada, nada se perdeu: coloque o ícone de novo (parte 📱) e cole o link do outro aparelho (passos 14 a 16).
+        Tudo volta da sua planilha.</p></details>
+    <details><summary>Errei um passo no Google. Estraguei alguma coisa?</summary>
+      <p>Não. Dá para começar de novo do passo 1 com uma planilha nova — a antiga pode até ser apagada depois. O Genesis continua funcionando o tempo todo.</p></details>
+    <details><summary>Usei o Genesis no Safari antes de colocar o ícone. Perdi?</summary>
+      <p>Está guardado no Safari, à parte. Para juntar: ligue a sincronização no Safari (Config → Sincronização) e depois no ícone. As listas se juntam
+        sem perder item, e antes de juntar o app guarda uma cópia (⚙️ Config → 🛟 Cópias).</p></details>
+    <details><summary>O som da abertura incomoda.</summary>
+      <p>⚙️ Config → Núcleo → Abertura → “Só a luz” ou “Desligada”.</p></details>
+    <details><summary>Quero dar uma ideia ou contar um problema.</summary>
+      <p>Toda aba tem um <b>💡</b> no canto de cima. Escreva a ideia, do seu jeito, e toque em <b>📤 Enviar ideias</b>: abre o WhatsApp (ou o e-mail) já com o texto pronto.</p></details>
+    <p style="margin-top:16px"><a class="abrir" data-app href="./">Abrir o Genesis ›</a></p>
+  </section>
+
+</main>
+
+<p class="rodape">Genesis · guia ilustrado · os desenhos são simplificados: as telas de verdade podem ter outras cores ou mudar um pouco de lugar.</p>
+
+<script>
+  // Personaliza pelo link (#para=<chave>) e leva o convite junto para o app. Nada é gravado aqui.
+  (function () {
+    var partes = location.hash.slice(1).split('&'), chave = '', secao = '';
+    partes.forEach(function (p) { if (p.indexOf('para=') === 0) chave = p.slice(5); else if (p) secao = p; });
+    var c = null;
+    if (/^[A-Za-z0-9_\-]+$/.test(chave)) {
+      try { c = JSON.parse(decodeURIComponent(escape(atob(chave.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { c = null; }
+    }
+    if (c && typeof c.n === 'string' && c.n.trim()) {
+      var n = c.n.trim().slice(0, 40), de = String(c.de || '').trim().slice(0, 40);
+      document.getElementById('ola').textContent = 'Oi, ' + n + '!';
+      document.getElementById('ola-sub').textContent = (de ? de + ' preparou' : 'Preparamos') +
+        ' o Genesis para você, e este guia vai junto, passo a passo — com o desenho de cada tela e sem palavra difícil. Não tem como estragar nada: se errar um passo, é só voltar e fazer de novo.';
+      document.title = 'Genesis — o guia de ' + n;
+      document.querySelectorAll('a[data-app]').forEach(function (a) { a.href = './#para=' + chave; });
+    }
+    if (secao && /^[a-z-]+$/.test(secao) && document.getElementById(secao)) {
+      setTimeout(function () { document.getElementById(secao).scrollIntoView(); }, 60);
+    }
+    var bt = document.getElementById('copiar-guia'), ok = document.getElementById('copiar-guia-ok');
+    bt.addEventListener('click', function () {
+      var link = location.origin + location.pathname + (chave ? '#para=' + chave : '');
+      var feito = function () { ok.textContent = '✓ copiado — cole no WhatsApp ou no e-mail'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(feito, function () { prompt('Copie o link:', link); });
+      else prompt('Copie o link:', link);
+    });
+  })();
+</script>
+</body>
+</html>

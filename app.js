@@ -22,6 +22,9 @@ function novoId() { let id = Date.now(); if (id <= ultimoIdGerado) id = ultimoId
 let toastTimer = null;
 function toast(msg, ms = 3500) {
   const el = document.getElementById('toast'); if (!el) return;
+  // 20/10: com uma janela aberta, o aviso sobe para o alto da tela — embaixo ele cobria os campos (no Fold fechado)
+  const janela = [...document.querySelectorAll('.modal-overlay, .modal, .ng-folha, .ap-tela')].some(m => !m.hidden && getComputedStyle(m).display !== 'none');
+  el.classList.toggle('no-alto', janela);
   el.innerText = msg; el.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
@@ -4957,11 +4960,15 @@ const AG_VISTAS = { auto: 'Automática (celular: Dia · tela larga: Semana)', di
 function cfgAgenda() {
   prefs.agenda = prefs.agenda || {};
   const c = prefs.agenda;
-  if (!(c.hIni >= 0 && c.hIni <= 12)) c.hIni = 6;
+  if (!(c.hIni >= 0 && c.hIni <= 12)) c.hIni = 0;
   if (!(c.hFim >= 14 && c.hFim <= 24)) c.hFim = 23;
   if (!AG_VISTAS[c.vista]) c.vista = 'auto';
-  // A1 (10/10): as duas propostas que estavam em aberto, ligadas por padrão e desligáveis no ⚙
-  if (c.compactar === undefined) c.compactar = true;   // esconder as horas vazias do começo e do fim
+  // 20/10 (revisão geral, item 2): "gosto que tenha as 24 horas, não só uma faixa" — o dia inteiro (00–24) e sem
+  // esconder horas vazias; a grade ganhou rolagem própria que abre na hora de agora. Vale UMA vez nos aparelhos
+  // que já tinham gravado 06–23 e o "esconder" (depois, o que ele escolher no ⚙ fica)
+  if (!c.dia24) { c.dia24 = 1; c.hIni = 0; c.hFim = 23; c.compactar = false; }
+  // A1 (10/10): as duas propostas que estavam em aberto, desligáveis no ⚙ (o "esconder" nasce desligado desde 20/10)
+  if (c.compactar === undefined) c.compactar = false;  // esconder as horas vazias do começo e do fim
   if (c.proximo === undefined) c.proximo = true;       // o próximo compromisso no cabeçalho
   return c;
 }
@@ -5103,11 +5110,34 @@ function renderAgendaVista() {
   const todas = cfgAgenda().compactar && (faixa.escondeu || agTodasHoras)
     ? `<span class="ag-todas" role="button" tabindex="0" onclick="agTodasHoras = !agTodasHoras; renderAgendaVista()" onkeydown="if(event.key==='Enter'){agTodasHoras = !agTodasHoras; renderAgendaVista()}"
         title="${agTodasHoras ? 'Esconder de novo as horas vazias' : `Mostrar todas as horas (${String(faixa.ini0).padStart(2, '0')}–${String(faixa.fim0 + 1).padStart(2, '0')} h)`}">${agTodasHoras ? '⇡⇣' : '⇕'}</span>` : '';
+  // 20/10: a grade das 24 h rola por dentro (dias fixos no alto). Redesenho do mesmo dia/semana mantém a rolagem;
+  // dia/semana novos abrem na hora de agora (hoje à vista) ou no 1º compromisso dos dias à vista
+  const chaveRol = agVista + '|' + (agVista === 'dia' ? agDia : inicioDaSemana(agDia));
+  const gradeAntes = el.querySelector('.ag-grade');
+  // só conta a rolagem anterior se a ida à hora de agora JÁ aconteceu (a partida desenha com a aba escondida e um
+  // 2º desenho logo depois "guardava" o zero de antes da ida)
+  const rolAntes = gradeAntes && gradeAntes.clientHeight && el.dataset.rolFeito === chaveRol ? gradeAntes.scrollTop : null;
   el.innerHTML = `<div class="ag-grade ${agVista}">
       <div class="ag-canto">${todas}</div><div class="ag-cabecalhos">${cabec}</div>
       <div class="ag-horas" style="height:${alturaGrade}px">${linhaHoras()}</div>
       <div class="ag-colunas">${colunas}</div>
     </div>`;
+  const grade = el.querySelector('.ag-grade');
+  let alvo = rolAntes;
+  if (alvo === null) {
+    let min = 8 * 60;
+    if (dias.includes(hojeISO())) min = agoraMin() - 60;
+    else { const inis = dias.flatMap(d => blocosDoDia(d)).filter(x => x.ini !== null).map(x => x.ini); if (inis.length) min = Math.min(...inis) - 30; }
+    alvo = Math.max(0, Math.round(agPx(min)));
+  }
+  const rolar = () => { grade.scrollTop = alvo; el.dataset.rolFeito = chaveRol; };
+  if (grade.clientHeight) rolar();
+  else {
+    // aba escondida (a partida desenha todas): rola quando a grade aparecer
+    delete el.dataset.rolFeito;
+    const vigia = new ResizeObserver(() => { if (grade.clientHeight && grade.isConnected) { rolar(); vigia.disconnect(); } });
+    vigia.observe(grade);
+  }
   renderLivres(agVista === 'dia' ? agDia : hojeISO());
 }
 
@@ -5997,31 +6027,50 @@ const MODAIS_MOVEIS = {
   'lupa-modal': '🖼️ Imagem',
   'novo-modal': '➕ Novo compromisso'
 };
-function cfgModais() { prefs.modais = prefs.modais || {}; return prefs.modais; }
+// 20/10 (revisão geral: "a janela de criar evento vem toda quebrada; sempre tem uma janela fora do contexto").
+// Achado: a cada 1,5 s com uma janela aberta, o app GRAVAVA tamanho e posição dela mesmo sem ninguém arrastar
+// (guardarTamanhoModais) — e nas vezes seguintes a janela abria TRAVADA naquele tamanho e lugar: cortava quando o
+// conteúdo mudava e, no Fold, levava o tamanho da tela aberta (673) para a fechada (344). Agora: tamanho sempre
+// automático; posição só se ELE arrastar, e só vale na mesma largura de tela em que foi arrastada.
+// As gravações antigas (todas automáticas, com w/h) são esquecidas uma vez.
+function cfgModais() {
+  if (!prefs.modaisV2) { prefs.modais = {}; prefs.modaisV2 = 1; }
+  prefs.modais = prefs.modais || {}; return prefs.modais;
+}
 
-/** Põe a barra de arrastar e liga o redimensionamento em cada modal. */
+/** Liga o arrastar em cada janela. A que já tem título usa o PRÓPRIO título como alça (antes nascia uma barra a
+ *  mais em cima com o mesmo nome: dois títulos empilhados). ⌖ ou dois cliques na alça devolvem ao centro. */
 function tornarModaisMoveis() {
   Object.entries(MODAIS_MOVEIS).forEach(([id, nome]) => {
     const m = document.getElementById(id); if (!m) return;
     const cont = m.querySelector('.modal-content, .lupa-caixa'); if (!cont || cont.dataset.movel) return;
     cont.dataset.movel = id;
-    cont.insertAdjacentHTML('afterbegin',
-      `<div class="modal-grip" onpointerdown="pegarModal(event, '${id}')"><span>${nome}</span>
-        <span class="grip-acoes"><button class="mini-btn xs" title="Centralizar de novo" onclick="centralizarModal('${id}')">⌖</button></span></div>`);
+    const centro = `<button type="button" class="mini-btn xs grip-centro" title="Centralizar de novo" onclick="centralizarModal('${id}')">⌖</button>`;
+    let alca = cont.querySelector('.modal-header');
+    if (alca) {
+      alca.classList.add('modal-alca');
+      const x = alca.querySelector('.close-modal');
+      if (x) x.insertAdjacentHTML('beforebegin', centro); else alca.insertAdjacentHTML('beforeend', centro);
+    } else {
+      cont.insertAdjacentHTML('afterbegin', `<div class="modal-grip modal-alca"><span>${nome}</span><span class="grip-acoes">${centro}</span></div>`);
+      alca = cont.firstElementChild;
+    }
+    alca.addEventListener('pointerdown', ev => pegarModal(ev, id));
+    alca.addEventListener('dblclick', ev => { if (!ev.target.closest('button')) centralizarModal(id); });
     aplicarPosModal(id);
   });
 }
+/** Põe a janela onde ELE deixou — só na mesma largura de tela e só se ainda couber; senão, centro. */
 function aplicarPosModal(id) {
   const m = document.getElementById(id); if (!m) return;
   const cont = m.querySelector('[data-movel]'); if (!cont) return;
   const p = cfgModais()[id];
-  if (!p) { cont.style.position = ''; cont.style.left = ''; cont.style.top = ''; cont.style.margin = ''; if (p === null) {} return; }
+  cont.style.width = ''; cont.style.height = '';
+  if (!p || !p.vw || Math.abs(p.vw - window.innerWidth) > 40) { cont.style.position = ''; cont.style.left = ''; cont.style.top = ''; cont.style.margin = ''; return; }
   cont.style.position = 'absolute';
   cont.style.left = Math.max(4, Math.min(window.innerWidth - 80, p.x)) + 'px';
   cont.style.top = Math.max(4, Math.min(window.innerHeight - 50, p.y)) + 'px';
   cont.style.margin = '0';
-  if (p.w) cont.style.width = p.w + 'px';
-  if (p.h) cont.style.height = p.h + 'px';
 }
 function centralizarModal(id) {
   delete cfgModais()[id];
@@ -6032,50 +6081,37 @@ function centralizarModal(id) {
 }
 let modalArrasto = null;
 function pegarModal(ev, id) {
-  if (ev.target.closest('button')) return;
+  if (ev.target.closest('button, input, select, textarea, a')) return;
   const cont = document.querySelector(`#${id} [data-movel]`); if (!cont) return;
   const r = cont.getBoundingClientRect();
-  cont.style.position = 'absolute'; cont.style.margin = '0';
-  cont.style.left = r.left + 'px'; cont.style.top = r.top + 'px';
-  cont.style.width = r.width + 'px';
-  modalArrasto = { id, cont, dx: ev.clientX - r.left, dy: ev.clientY - r.top };
-  cont.classList.add('arrastando');
+  modalArrasto = { id, cont, dx: ev.clientX - r.left, dy: ev.clientY - r.top, x0: ev.clientX, y0: ev.clientY, r, moveu: false };
   try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
-  ev.preventDefault();
 }
 function moverModal(ev) {
   if (!modalArrasto) return;
-  const { cont, dx, dy } = modalArrasto;
-  cont.style.left = Math.max(4, Math.min(window.innerWidth - 80, ev.clientX - dx)) + 'px';
-  cont.style.top = Math.max(4, Math.min(window.innerHeight - 50, ev.clientY - dy)) + 'px';
+  const a = modalArrasto;
+  // só vira arrasto depois de 6 px: um toque no título não tira a janela do lugar
+  if (!a.moveu) {
+    if (Math.abs(ev.clientX - a.x0) + Math.abs(ev.clientY - a.y0) < 6) return;
+    a.moveu = true;
+    a.cont.style.position = 'absolute'; a.cont.style.margin = '0';
+    a.cont.style.left = a.r.left + 'px'; a.cont.style.top = a.r.top + 'px'; a.cont.style.width = a.r.width + 'px';
+    a.cont.classList.add('arrastando');
+  }
+  a.cont.style.left = Math.max(4, Math.min(window.innerWidth - 80, ev.clientX - a.dx)) + 'px';
+  a.cont.style.top = Math.max(4, Math.min(window.innerHeight - 50, ev.clientY - a.dy)) + 'px';
 }
 function soltarModal() {
   if (!modalArrasto) return;
-  const { id, cont } = modalArrasto; cont.classList.remove('arrastando');
-  cfgModais()[id] = { x: parseInt(cont.style.left, 10) || 0, y: parseInt(cont.style.top, 10) || 0,
-    w: Math.round(cont.offsetWidth), h: 0 };
-  modalArrasto = null;
+  const { id, cont, moveu } = modalArrasto; modalArrasto = null;
+  if (!moveu) return;
+  cont.classList.remove('arrastando'); cont.style.width = '';
+  cfgModais()[id] = { x: parseInt(cont.style.left, 10) || 0, y: parseInt(cont.style.top, 10) || 0, vw: window.innerWidth };
   localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
 }
 document.addEventListener('pointermove', moverModal);
 document.addEventListener('pointerup', soltarModal);
 document.addEventListener('pointercancel', soltarModal);
-/** O tamanho vem do `resize` do CSS: guarda quando o usuário larga o canto. */
-function guardarTamanhoModais() {
-  Object.keys(MODAIS_MOVEIS).forEach(id => {
-    const cont = document.querySelector(`#${id} [data-movel]`); if (!cont) return;
-    const m = document.getElementById(id);
-    if (!m || m.style.display !== 'flex') return;
-    const p = cfgModais()[id] || {};
-    const w = Math.round(cont.offsetWidth), h = Math.round(cont.offsetHeight);
-    if (p.w === w && p.h === h) return;
-    cfgModais()[id] = Object.assign({}, p, { w, h,
-      x: p.x !== undefined ? p.x : Math.round(cont.getBoundingClientRect().left),
-      y: p.y !== undefined ? p.y : Math.round(cont.getBoundingClientRect().top) });
-    localStorage.setItem('lifeos_prefs', JSON.stringify(prefs));
-  });
-}
-setInterval(guardarTamanhoModais, 1500);
 
 // ============================================================================
 // USABILIDADE (pedidos do caderno do desenvolvedor, 28/09 à noite)

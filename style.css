@@ -6855,3 +6855,54 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
 .ap-passos-ios { margin: 12px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; line-height: 1.5; }
 .ap-ios-ic { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border: 1.5px solid currentColor; border-radius: 5px; font-size: .8em; vertical-align: -2px; }
 .ap-tela a { color: var(--acento); }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════
+   20/10 — AS JANELAS (revisão geral, item 2: "a janela de criar evento vem toda quebrada e pouco funcional;
+   sempre tem uma janela fora do contexto visual"). Um jeito só para todas: o título é a alça (sem barra a mais),
+   largura de formulário no computador, botões numa fileira com o principal destacado, ✕ e caixinhas na cor do
+   tema, e o aviso rápido nunca por cima. (A causa maior estava no JS: a janela abria travada num tamanho gravado.)
+   ══════════════════════════════════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) { .modal-content { max-width: 520px; } }
+body .modal-content > .modal-header { background: none; padding: 0 0 12px; margin: 0 0 14px; border-radius: 0;
+  border-bottom: 1px solid var(--fio-sutil, var(--borda)); display: flex; align-items: center; gap: 8px; }
+body .modal-content > .modal-header h3 { flex: 1; min-width: 0; margin: 0; font-size: var(--t-titulo, 1.1rem); color: var(--txt-forte); }
+.modal-alca { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.modal-content.arrastando .modal-alca { cursor: grabbing; }
+.grip-centro { flex: none; opacity: .55; }
+.grip-centro:hover, .grip-centro:focus-visible { opacity: 1; }
+body .modal-content .close-modal { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; min-width: 36px; min-height: 36px;
+  padding: 0; border-radius: 50%; background: transparent; color: var(--txt3); border: 1px solid var(--fio-sutil, var(--borda)); font-size: .95rem; line-height: 1; }
+body .modal-content .close-modal:hover, body .modal-content .close-modal:focus-visible { color: var(--txt-forte); border-color: var(--acento); }
+body .modal-content > .modal-body { padding: 0; gap: 12px; }
+body .modal-content > .modal-body > label { margin-bottom: -6px; font-size: var(--t-apoio, .85rem); color: var(--txt3); }
+body .modal-content .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+body .modal-content .modal-actions > button { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; white-space: nowrap; }
+body .modal-content .modal-actions > button:first-child:not(.btn) { background: var(--acento); color: var(--bg); border-color: transparent; font-weight: 700; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--acento); }
+/* o aviso rápido com uma janela aberta: no alto, longe dos campos (e por cima das folhas, que ficam em 9000) */
+.toast.no-alto { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; z-index: 9500; transform: translateX(-50%) translateY(-20px); }
+.toast.no-alto.show { transform: translateX(-50%) translateY(0); }
+/* a ⚙ da aba: os cartões emprestados da Config viram seções como as outras (sem moldura nem título grande) */
+#aba-config-modal .aba-cfg-emprestados > .card { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+  padding: 12px 0 0 !important; border-top: 1px solid var(--fio-sutil, var(--borda)) !important; }
+#aba-config-modal .aba-cfg-emprestados > .card::before { display: none; }
+#aba-config-modal .aba-cfg-emprestados > .card > h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--txt4); font-weight: 600; margin: 0 0 6px; }
+#aba-config-modal .aba-cfg-emprestados > .card > h2 .card-toggle { display: none; }
+/* item 2: a grade das 24 h rola por dentro, com os dias fixos no alto (abre na hora de agora) */
+.ag-grade { max-height: min(72vh, 700px); overflow-y: auto; scrollbar-width: thin; }
+.ag-canto, .ag-cabecalhos { position: sticky; top: 0; z-index: 3; background: var(--card); }
+.ag-cabecalhos { margin-bottom: 0; padding-bottom: 4px; }
+/* o aviso que JÁ estava na tela quando a janela abriu também sobe (o JS do toast só pega os novos) */
+body:has(.modal-overlay[style*="display: flex"], .modal[style*="display: flex"], .ng-folha:not([hidden])) .toast {
+  top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; z-index: 9500; }
+/* na ⚙ da aba, os perfis de trabalho quebram linha em vez de sumir na borda ("Produ…") */
+#aba-config-modal #perfil-trabalho { flex-wrap: wrap; overflow: visible; }
+/* no celular, os botões da janela (Criar, Salvar…) ficam sempre à vista no pé dela, mesmo com o formulário rolando */
+@media (max-width: 700px) {
+  /* o bottom/margin negativos cobrem a margem de baixo da janela: sem isso o conteúdo rolava POR BAIXO do botão e
+     aparecia na faixa abaixo dele */
+  body .modal-content .modal-actions { position: sticky; bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom, 0px))); z-index: 2;
+    margin: 4px 0 calc(-1 * (var(--s5) + env(safe-area-inset-bottom, 0px)));
+    padding: 10px 0 calc(var(--s5) + env(safe-area-inset-bottom, 0px));
+    background: var(--card); box-shadow: 0 -10px 14px -10px rgba(0, 0, 0, .45); }
+}

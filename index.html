@@ -1869,8 +1869,9 @@
   <button id="aba-cfg-btn" class="aba-cfg-btn" title="Ajustes desta aba" onclick="abrirConfigAba()">⚙</button>
   <div id="aba-config-modal" class="modal">
     <div class="modal-content" style="max-width: 520px;">
+      <!-- 20/10: título de verdade (vira a alça de arrastar), no lugar de uma barra "⚙ Esta aba" + um título solto -->
+      <div class="modal-header"><h3 id="aba-config-titulo"></h3><button type="button" class="close-modal" onclick="fecharConfigAba()" aria-label="Fechar">✕</button></div>
       <div class="modal-body">
-        <h3 style="font-size:1rem"><span id="aba-config-titulo" style="color:var(--acento)"></span></h3>
         <div id="aba-config-corpo"></div>
         <div class="modal-actions"><button class="btn" style="width:100%; margin:0" onclick="fecharConfigAba()">Fechar</button></div>
       </div>

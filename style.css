@@ -3593,6 +3593,13 @@ button.sp-ind-troca:hover { color: var(--txt-forte); background: var(--sup-2); }
 .ng-folha-caixa header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
 .ng-folha-caixa h3 { margin: 0; font-size: var(--t-titulo, 1.1rem); color: var(--txt-forte); }
 .ng-folha-corpo { padding: 0 16px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+/* ✨ O que mudou (20/10): um grupo por versão, o mais novo em cima */
+.nov-grupo { border: 1px solid var(--borda); border-radius: 12px; padding: 8px 12px 4px; }
+.nov-v { font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--acento); }
+.nov-grupo ul { margin: 4px 0 6px; padding-left: 18px; }
+.nov-grupo li { margin: 3px 0; font-size: var(--t-apoio, .88rem); color: var(--txt2); line-height: 1.45; }
+.nov-pe { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+.nov-pe button { width: auto; padding: 0 22px; }
 .ng-abas { display: flex; gap: 4px; flex-wrap: wrap; }
 .ng-abas button { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 99px; font-size: .76rem; font-weight: 600; color: var(--txt3); border: 1px solid var(--fio-sutil); }
 .ng-abas button.on { color: var(--bg); background: var(--info); border-color: transparent; }

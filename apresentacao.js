@@ -324,3 +324,54 @@ function apQuandoAberturaAcabar(fn) {
 }
 
 if (window.GENESIS_PRIMEIRO_USO) apQuandoAberturaAcabar(() => { if (!apAberta()) abrirApresentacao(true); });
+
+// ───────────────────────────── ✨ o que mudou (20/10/2026) ─────────────────
+// Quem já usava uma versão antiga ganha, UMA vez por versão nova, a lista do que mudou desde a última que viu.
+// Gente nova vê a apresentação, não a lista. A marca é deste aparelho (lifeos_novidades_visto) e não
+// sincroniza: cada aparelho mostra uma vez. Versão nova = um grupo novo no TOPO de NOVIDADES.
+const NOVIDADES = [
+  { v: 80, quando: '20/10', itens: ['✨ Esta janela: a cada versão nova ela mostra uma vez o que mudou (e fica em ⚙️ Config → Núcleo → <b>O que mudou</b>).',
+    '📖 Leia-me e guia ilustrado atualizados.'] },
+  { v: 79, quando: '20/10', itens: ['🖼️ A obra de arte do dia toma a forma da pintura (em pé, deitada ou quadrada), sem cortar.',
+    '📐 O Painel guarda uma arrumação para cada tamanho de tela (celular, dobrável aberto, PC…).'] },
+  { v: 78, quando: '20/10', itens: ['🧘 Alongamento por tempo (segundos, vezes e lados) na ficha e no treino ao vivo.',
+    '🏃 Aeróbico com números: distância, tempo, ritmo (pace), km/h e calorias pelo seu peso.',
+    '🏋️ Carga da ficha de 1 em 1 kg, e dá para digitar um valor quebrado (37,5).'] },
+  { v: 77, quando: '20/10', itens: ['🎮 Hábitos editáveis: renomear, mudar a ordem, apagar e criar (✎ no quadro de hábitos do Painel).',
+    '🎤 O ditado das 💡 Ideias não para mais sozinho depois de alguns segundos.',
+    '👉 As pílulas do topo das Tarefas abrem o que mostram.', '📱 No dobrável fechado, o Painel desliza sem travar.'] },
+  { v: 76, quando: '20/10', itens: ['📊 Os painéis de resumo das abas se encaixam como um mural, sem buracos vazios.'] },
+  { v: 75, quando: '20/10', itens: ['🍳 Aba nova, <b>Cozinha</b>: receitas, lista de compras, pratos prontos, despensa (o que tem em casa) e os aparelhos da cozinha.'] },
+  { v: 73, quando: '20/10', itens: ['🗓️ No PC, a Agenda mostra o Painel e o Calendário lado a lado.', '🧭 A régua do ano das Viagens com os nomes legíveis.'] },
+  { v: 71, quando: '20/10', itens: ['💡 A janela de cada aba ficou organizada: <b>💡 Ideias | ⚙ Ajustes</b>, com linhas iguais.',
+    '🖼️ Sem foto de capa no topo por padrão (dá para escolher uma em ⚙️ Config → Aparência).'] },
+  { v: 69, quando: '20/10', itens: ['💰 Finanças mais compactas: histórico enxuto, o topo numa faixa e os potes do orçamento lado a lado.'] },
+  { v: 66, quando: '20/10', itens: ['🗓️ Agenda de 24 horas: criar e mudar compromisso ou plantão na própria janela; no celular, deslizar rola e segurar move; ↶ Desfazer.',
+    '🪟 As janelas flutuantes não abrem mais travadas nem cobrem o resto.'] },
+  { v: 64, quando: '19/10', itens: ['☁️ Sincronização fácil: ⚙️ Config → ☁️ Sincronização → <b>📘 Como ligar</b>; a senha é criada pelo próprio app e o 📲 liga o 2º aparelho num toque.',
+    '🖼️ Guia ilustrado, passo a passo (guia.html).'] },
+  { v: 61, quando: '19/10', itens: ['📊 Painel de resumo em 7 abas.', '🗓️ Agenda com Painel e Calendário.', '📖 Livro de receitas.', '🩺 Ajustes da Saúde a partir das ideias recebidas.'] },
+  { v: 57, quando: '15/10', itens: ['🗓️ Agenda funcional de novo e um pacote de ajustes a partir das primeiras ideias.'] }
+];
+function novVersaoAtual() { const m = /v(\d+)/.exec(typeof GENESIS_VERSAO !== 'undefined' ? GENESIS_VERSAO : ''); return m ? Number(m[1]) : 0; }
+/** A folha "O que mudou": os grupos depois da versão `desde` (sem `desde`, as últimas novidades). */
+function abrirNovidades(desde) {
+  if (typeof ngFolha !== 'function') return;
+  let lista = desde ? NOVIDADES.filter(n => n.v > desde) : NOVIDADES.slice(0, 4);
+  if (!lista.length) lista = NOVIDADES.slice(0, 1);
+  const grupos = lista.map(n => `<div class="nov-grupo"><div class="nov-v">v${n.v} · ${n.quando}</div><ul>${n.itens.map(i => `<li>${i}</li>`).join('')}</ul></div>`).join('');
+  ngFolha('✨ O que mudou', `<p class="hint">${desde ? 'Desde a última vez que você abriu' : 'As últimas novidades'} · agora na versão
+    ${typeof GENESIS_VERSAO !== 'undefined' ? GENESIS_VERSAO : ''}. Tudo o que você lançou continua no lugar.</p>${grupos}
+    <div class="nov-pe"><a href="leia-me.html" target="_blank" rel="noopener">📖 Leia-me</a><button type="button" onclick="ngFecharFolha()">Entendi</button></div>`);
+}
+(function novidadesNaPartida() {
+  const atual = novVersaoAtual(); if (!atual) return;
+  const CH = 'lifeos_novidades_visto';
+  let visto = 0; try { visto = Number(localStorage.getItem(CH)) || 0; } catch (e) { return; }
+  const marcar = () => { try { localStorage.setItem(CH, String(atual)); } catch (e) {} };
+  // gente nova (e o 2º aparelho ligado pelo link) vê a apresentação, não a lista; robô de teste também não
+  if (window.GENESIS_PRIMEIRO_USO || /[#&]ligar=/.test(location.hash) || navigator.webdriver) { marcar(); return; }
+  if (visto >= atual) return;
+  // sem marca = usava antes desta tela existir (a versão de teste começou na v55)
+  apQuandoAberturaAcabar(() => { if (apAberta()) { marcar(); return; } abrirNovidades(visto || 55); marcar(); });
+})();

@@ -388,8 +388,10 @@ const FIN_REGRAS_PADRAO = [
   [/fatura|pagamento de fatura|pgto fatura|cartao de credito|cartão de crédito/i, 'expense', ['Cartão de crédito']],
   [/aplica|investim|cdb|tesouro|corretora|xp invest|rico |clear |nuinvest|btg/i, 'expense', ['Investimentos']],
   [/resgate|rendimento|juros|dividendo|jcp/i, 'income', ['Investimentos']],
-  [/salario|salário|vencimento|folha|cisurg|prefeitura/i, 'income', ['Salário CLT', 'Salário líquido']],
-  [/plant[aã]o|psmi|hospital|upa /i, 'income', ['Plantão']],
+  // (20/10) sem nome de empregador no código público ("nada pessoal em app/"): o resto o app APRENDE com a categoria que
+  // a pessoa escolhe uma vez (budget.regrasExtrato)
+  [/salario|salário|vencimento|folha|prefeitura/i, 'income', ['Salário CLT', 'Salário líquido']],
+  [/plant[aã]o|hospital|upa /i, 'income', ['Plantão']],
   [/reembols|estorno|devolu/i, 'income', ['Reembolso']]
 ];
 function finNormaliza(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\d{2}\/\d{2}(\/\d{2,4})?/g, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }

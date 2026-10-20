@@ -24,7 +24,7 @@ NOMES_CASCA.nucleo = 'Núcleo';
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
 // sobe JUNTO com o CACHE_NAME do sw.js a cada publicação (ficou parada em v61 até a v76: as ideias enviadas diziam v61)
-const GENESIS_VERSAO = '20/10/2026 · v79';
+const GENESIS_VERSAO = '20/10/2026 · v80';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -1010,7 +1010,8 @@ function renderNucleoConfig() {
     <select onchange="escolherFundoNucleo('fundo', this.value)">${Object.entries(NU_FUNDOS).map(([k, n]) => `<option value="${k}" ${c.fundo === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
     <label style="display:block; margin-top:10px">Estilo do Núcleo claro${nuClaro() ? '' : ' <small class="item-date">(vale quando o tema for claro)</small>'}:</label>
     <select onchange="escolherFundoNucleo('claro', this.value)">${Object.entries(NU_ESTILOS_CLAROS).map(([k, n]) => `<option value="${k}" ${c.claro === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
-    <p class="nu-versao">Versão ${GENESIS_VERSAO} · este aparelho: <b>${nu3D ? 'cérebro 3D' : 'versão 2D'}</b> · visual: <b>${visualDoCerebro() === 'leve' ? 'Leve' : 'Genesis'}</b></p>
+    <p class="nu-versao">Versão ${GENESIS_VERSAO} · este aparelho: <b>${nu3D ? 'cérebro 3D' : 'versão 2D'}</b> · visual: <b>${visualDoCerebro() === 'leve' ? 'Leve' : 'Genesis'}</b>
+      ${typeof abrirNovidades === 'function' ? ' · <button type="button" class="mini-btn" onclick="abrirNovidades()">✨ O que mudou</button>' : ''}</p>
     <p class="hint" style="margin-top:6px">O cérebro 3D veio do J.A.R.V.I.S. (Trinca de Ases). "Leve" usa a versão 2D, igual em tudo, mais econômica.${nu3DTentou && !nu3D ? ' <b>Este aparelho não abriu o 3D — usando o 2D.</b>' : ''}</p>`;
 }
 function escolherVisualNucleo(v) {

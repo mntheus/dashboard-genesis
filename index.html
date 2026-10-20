@@ -1769,38 +1769,61 @@
   <!-- Criar direto na grade da Agenda: abre no horário que foi clicado/arrastado. -->
   <div id="novo-modal" class="modal-overlay">
     <div class="modal-content">
-      <div class="modal-header"><h3>➕ Novo compromisso</h3><button class="close-modal" onclick="fecharNovoRapido()">✕</button></div>
+      <div class="modal-header"><h3 id="novo-cabecalho">➕ Novo compromisso</h3><button class="close-modal" onclick="fecharNovoRapido()" aria-label="Fechar">✕</button></div>
       <div class="modal-body">
-        <div id="novo-quando" class="novo-quando"></div>
-        <label for="novo-titulo">O quê:</label>
-        <input type="text" id="novo-titulo" placeholder="Ex: Consulta, almoço, reunião..." autocomplete="off">
-        <label for="novo-tipo">Tipo:</label>
-        <select id="novo-tipo"></select>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div><label for="novo-data">Dia:</label><input type="date" id="novo-data"></div>
-          <div><label for="novo-ini">Começa:</label><input type="time" id="novo-ini"></div>
-          <div><label for="novo-fim">Termina:</label><input type="time" id="novo-fim"></div>
+        <!-- 20/10 (revisão geral): compromisso OU plantão na MESMA janela, sem sair da Agenda; tocar num bloco da grade
+             também abre aqui, para editar. "Mais opções" leva ao formulário completo (faixas, pauta, troca...). -->
+        <div id="novo-modos" class="novo-modos" role="group" aria-label="O que vai marcar">
+          <button type="button" data-tipo="event" onclick="novoTrocarTipo('event')">📅 Compromisso</button>
+          <button type="button" data-tipo="shift" id="novo-trab" onclick="novoTrocarTipo('shift')">🚑 Plantão</button>
         </div>
-        <label for="novo-repete">Repete:</label>
-        <select id="novo-repete">
-          <option value="nao">Não repete</option>
-          <option value="semanal">Toda semana</option>
-          <option value="quinzenal">A cada 15 dias</option>
-          <option value="mensal">Todo mês</option>
-          <option value="anual">Todo ano</option>
-        </select>
-        <label for="novo-local">Onde (endereço ou link da chamada):</label>
-        <input type="text" id="novo-local" placeholder="opcional">
+        <div id="novo-quando" class="novo-quando"></div>
+        <div id="novo-sec-evento" class="novo-sec">
+          <label for="novo-titulo">O quê:</label>
+          <input type="text" id="novo-titulo" placeholder="Ex: Consulta, almoço, reunião..." autocomplete="off">
+          <label for="novo-tipo">Tipo:</label>
+          <select id="novo-tipo"></select>
+        </div>
+        <div id="novo-sec-plantao" class="novo-sec" hidden>
+          <div id="novo-p-turno-box"><label for="novo-p-turno">Turno salvo (preenche local, horário e valor):</label>
+            <select id="novo-p-turno" onchange="novoAplicarTurno()"></select></div>
+          <label for="novo-p-local" id="novo-p-local-rot">Local:</label>
+          <input type="text" id="novo-p-local" list="novo-p-locais" placeholder="Hospital X" autocomplete="off">
+          <datalist id="novo-p-locais"></datalist>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div><label for="novo-data">Dia:</label><input type="date" id="novo-data" oninput="novoAtualizarQuando()"></div>
+          <div><label for="novo-ini">Começa:</label><input type="time" id="novo-ini" oninput="novoAtualizarQuando()"></div>
+          <div><label for="novo-fim">Termina:</label><input type="time" id="novo-fim" oninput="novoAtualizarQuando()"></div>
+        </div>
+        <div id="novo-sec-evento2" class="novo-sec">
+          <label for="novo-repete">Repete:</label>
+          <select id="novo-repete">
+            <option value="nao">Não repete</option>
+            <option value="semanal">Toda semana</option>
+            <option value="quinzenal">A cada 15 dias</option>
+            <option value="mensal">Todo mês</option>
+            <option value="anual">Todo ano</option>
+          </select>
+          <label for="novo-local">Onde (endereço ou link da chamada):</label>
+          <input type="text" id="novo-local" placeholder="opcional">
+        </div>
+        <div id="novo-sec-plantao2" class="novo-sec" hidden>
+          <label for="novo-p-valor">Valor total (R$):</label>
+          <input type="number" id="novo-p-valor" step="0.01" min="0" inputmode="decimal" placeholder="0,00" oninput="novoAtualizarQuando()">
+          <div id="novo-p-repete-box"><label for="novo-p-repete">Repetir:</label>
+            <select id="novo-p-repete"><option value="nao">Só este dia</option><option value="semanal">Toda semana (escala fixa)</option></select></div>
+        </div>
         <div class="modal-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button onclick="criarRapido()">➕ Criar</button>
+          <button id="novo-salvar" onclick="salvarRapido()">➕ Criar</button>
           <button class="btn" onclick="novoRapidoCompleto()">✎ Mais opções</button>
-          <button class="btn" id="novo-trab" onclick="novoRapidoTrabalho()">🚑 É plantão</button>
+          <button class="btn" id="novo-recebido" hidden onclick="novoAlternarRecebido()">💵 Recebido</button>
+          <button class="btn" id="novo-apagar" hidden onclick="novoApagar()">🗑 Apagar</button>
           <button class="btn" onclick="fecharNovoRapido()">Cancelar</button>
         </div>
       </div>
     </div>
   </div>
-
   <div id="nt-leitor" class="modal-overlay" onclick="if (event.target === this) ntFechar()" onkeydown="if (event.key === 'Escape') ntFechar()">
     <div class="modal-content nt-leitor-caixa">
       <div class="modal-header"><h3 id="nt-leitor-tit">📝 Nota</h3><button type="button" class="close-modal" title="Fechar (salva sozinha)" onclick="ntFechar()">✕</button></div>

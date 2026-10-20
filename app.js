@@ -899,8 +899,8 @@ function openDayModal(year, month, day) {
   document.getElementById('day-modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('day-modal').style.display = 'none'; }
-function goToAddShift() { closeModal(); changeTab('home'); verSecaoAgenda('plantoes'); cancelarEdicaoPlantao(); document.getElementById('shift-date').value = selectedModalDate; setTimeout(() => document.getElementById('shift-desc').focus(), 100); }
-function goToAddEvent() { closeModal(); changeTab('home'); verSecaoAgenda('compromissos'); cancelarEdicaoEvento(); document.getElementById('event-date').value = selectedModalDate; setTimeout(() => { document.getElementById('event-title').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('event-title').focus(); }, 100); }
+function goToAddShift() { closeModal(); abrirNovoRapido(selectedModalDate, 7 * 60, 19 * 60, 'shift'); }
+function goToAddEvent() { closeModal(); abrirNovoRapido(selectedModalDate, 9 * 60, 10 * 60, 'event'); }
 document.getElementById('day-modal').addEventListener('click', (e) => { if (e.target.id === 'day-modal') closeModal(); });
 
 // --- AGENDA: SEÇÕES DA ABA ---
@@ -1714,9 +1714,15 @@ function cancelarEdicaoPlantao() {
   const rd = document.getElementById('shift-repete-dica'); if (rd) rd.hidden = true;
 }
 function editarPlantao(id) {
-  const rb = document.getElementById('shift-repete-box'); if (rb) rb.hidden = true;
   const s = shifts.find(x => x.id === id); if (!s) return;
   changeTab('home'); verSecaoAgenda('plantoes');
+  preencherFormPlantao(s);
+  document.getElementById('shift-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+/** Põe um plantão no formulário de Plantões (editar). Sem trocar de seção: a janela rápida da Agenda usa isto e
+ *  dispara o submit dali mesmo. */
+function preencherFormPlantao(s) {
+  const rb = document.getElementById('shift-repete-box'); if (rb) rb.hidden = true;
   document.getElementById('shift-id').value = s.id; document.getElementById('shift-place').value = '';
   document.getElementById('shift-date').value = s.date; document.getElementById('shift-time').value = s.time || '';
   document.getElementById('shift-hours').value = s.hours || ''; document.getElementById('shift-desc').value = s.desc;
@@ -1725,7 +1731,6 @@ function editarPlantao(id) {
   document.getElementById('shift-form-title').innerText = `Editar ${vt().um}`;
   document.getElementById('shift-submit').innerText = 'Salvar alterações';
   document.getElementById('shift-cancel').hidden = false;
-  document.getElementById('shift-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function alternarPago(id) {
   const s = shifts.find(x => x.id === id); if (!s) return;
@@ -5064,7 +5069,8 @@ function colunaDoDia(iso, compacta) {
     const h = Math.max(20, (fim - ini) / 60 * AG_PX_HORA - 2);
     const larg = 100 / (x._cols || 1); const esq = (x._col || 0) * larg;
     const conflito = conf.has(x.id);
-    const acao = x.tipo === 'shift' ? `editarPlantao(${x.id})` : `editarEvento(${x.id})`;
+    // 20/10: tocar no bloco abre a janela rápida para editar AQUI (antes: ia para o formulário de outra seção)
+    const acao = `abrirEdicaoRapida('${x.tipo}', ${x.id}, '${iso}')`;
     return `<div class="ag-bloco${x.done ? ' feito' : ''}${conflito ? ' conflito' : ''}" onclick="if(!agArrastou) { ${acao} }"
       onpointerdown="agPegarBloco(event, '${x.tipo}', ${x.id}, '${iso}')"
       style="top:${t}px; height:${h}px; left:${esq}%; width:calc(${larg}% - 3px); border-left-color:${x.cor}; background:${x.cor}22"
@@ -5194,57 +5200,86 @@ function renderAgora() {
 
 
 // --- arrastar um bloco para reagendar ---------------------------------------
-// Clicar abre; arrastar reagenda. A diferença é o limiar de 6px, senão um
-// clique trêmulo viraria uma mudança de horário sem a pessoa querer.
+// 20/10 (revisão geral: "ao interagir com o calendário é muito fácil deslizar um horário sem perceber; quero manter o
+// deslizamento, porém mais funcional"). Antes, 6 px de movimento já arrastavam — no celular, rolar a agenda com o dedo
+// começando num bloco MUDAVA o horário dele. Agora:
+//   • DEDO: deslizar rola a agenda. Para mover, SEGURA meio segundo: o bloco levanta, o aparelho vibra, e aí arrasta.
+//   • MOUSE: arrastar como antes, com limiar de 8 px.
+//   • o bloco acompanha o dedo também para outro dia; perto da borda a grade rola sozinha; ao soltar, "↶ Desfazer".
+const AG_SEGURAR_MS = 450, AG_LIMIAR_DEDO = 10, AG_LIMIAR_MOUSE = 8;
 let agArrasto = null;
 let agArrastou = false;   // ligado por um instante depois de arrastar, para o clique não abrir a edição
+let agToqueArmado = false; // dedo segurando um bloco ou escolhendo um horário: a página não rola
+let agUltimaRolagem = 0;   // toque logo depois de rolar (para "frear" a rolagem) não cria compromisso
+document.addEventListener('touchmove', e => { if (agToqueArmado) e.preventDefault(); }, { passive: false });
+document.addEventListener('scroll', () => { agUltimaRolagem = Date.now(); }, true);
+function agVibrar() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+/** Perto da borda de cima/baixo da grade (que rola por dentro), rola um pouco a cada movimento. */
+function agRolarNaBorda(y) {
+  const g = document.querySelector('#ag-vista .ag-grade'); if (!g || g.scrollHeight <= g.clientHeight) return;
+  const r = g.getBoundingClientRect();
+  if (y < r.top + 70) g.scrollTop -= 16; else if (y > r.bottom - 40) g.scrollTop += 16;
+}
 function agPegarBloco(ev, tipo, id, iso) {
   if (ev.button !== undefined && ev.button !== 0) return;
-  const el = ev.currentTarget;
-  agArrasto = { tipo, id, iso, el, x0: ev.clientX, y0: ev.clientY, moveu: false,
-    topo0: parseFloat(el.style.top) || 0, alt: el.offsetHeight };
-  try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+  const el = ev.currentTarget, r = el.getBoundingClientRect(), dedo = ev.pointerType !== 'mouse';
+  const a = agArrasto = { tipo, id, iso, el, pid: ev.pointerId, dedo, x0: ev.clientX, y0: ev.clientY, moveu: false, armado: !dedo,
+    pega: ev.clientY - r.top, col0: el.closest('.ag-col') };
+  if (!dedo) { try { el.setPointerCapture(ev.pointerId); } catch (e) {} return; }
+  a.timer = setTimeout(() => {
+    if (agArrasto !== a) return;
+    a.armado = true; agToqueArmado = true; el.classList.add('erguido'); agVibrar();
+    try { el.setPointerCapture(a.pid); } catch (e) {}
+  }, AG_SEGURAR_MS);
 }
 function agMoverBloco(ev) {
-  if (!agArrasto) return;
-  const dx = ev.clientX - agArrasto.x0, dy = ev.clientY - agArrasto.y0;
-  if (!agArrasto.moveu && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-  agArrasto.moveu = true;
-  agArrasto.el.classList.add('arrastando');
-  agArrasto.el.style.top = (agArrasto.topo0 + dy) + 'px';
-  // Mostra o horário que vai ficar, enquanto arrasta. Na vista de semana o
-  // bloco não tem <small> (é compacto), então a prévia ganha um espaço próprio.
-  const novo = agHoraDoPixel(agArrasto.topo0 + dy);
-  let p = agArrasto.el.querySelector('.ag-previa');
-  if (!p) { p = document.createElement('span'); p.className = 'ag-previa'; agArrasto.el.appendChild(p); }
-  p.innerText = '→ ' + hm(novo);
-  // qual coluna (dia) está embaixo do cursor
-  const col = document.elementFromPoint(ev.clientX, ev.clientY);
-  const c = col && col.closest ? col.closest('.ag-col') : null;
-  agArrasto.destino = c ? c.dataset.dia : null;
+  const a = agArrasto; if (!a || ev.pointerId !== a.pid) return;
+  const dx = ev.clientX - a.x0, dy = ev.clientY - a.y0;
+  if (!a.armado) {   // dedo ainda não segurou: mexeu = está rolando a agenda, não arrastando
+    if (Math.abs(dx) > AG_LIMIAR_DEDO || Math.abs(dy) > AG_LIMIAR_DEDO) { clearTimeout(a.timer); agArrasto = null; }
+    return;
+  }
+  const lim = a.dedo ? 4 : AG_LIMIAR_MOUSE;
+  if (!a.moveu && Math.abs(dx) < lim && Math.abs(dy) < lim) return;
+  if (!a.moveu) { a.moveu = true; a.el.classList.add('arrastando'); }
+  agRolarNaBorda(ev.clientY);
+  // o dia embaixo do dedo (o bloco não recebe o ponteiro enquanto arrasta: .arrastando tem pointer-events none)
+  const sob = document.elementFromPoint(ev.clientX, ev.clientY);
+  const col = (sob && sob.closest && sob.closest('.ag-col')) || a.el.parentNode;
+  if (col && col !== a.el.parentNode && col.classList.contains('ag-col')) col.appendChild(a.el);
+  a.destino = col && col.dataset ? col.dataset.dia : null;
+  const topo = ev.clientY - a.el.parentNode.getBoundingClientRect().top - a.pega;
+  a.el.style.top = topo + 'px';
+  const novo = agHoraDoPixel(topo);
+  let p = a.el.querySelector('.ag-previa');
+  if (!p) { p = document.createElement('span'); p.className = 'ag-previa'; a.el.appendChild(p); }
+  p.innerText = '→ ' + (a.destino && a.destino !== a.iso ? DIAS_SEM[diaDaSemanaISO(a.destino)] + ' ' : '') + hm(novo);
 }
-/** Converte a posição em pixels para uma hora, arredondando de 15 em 15 min. */
+/** Converte a posição em pixels para uma hora, arredondando de 15 em 15 min (até 23:45 com a grade do dia inteiro). */
 function agHoraDoPixel(px) {
   const min = AG_H_INI * 60 + Math.round((px / AG_PX_HORA) * 60 / 15) * 15;
-  return Math.max(AG_H_INI * 60, Math.min(AG_H_FIM * 60 - 15, min));
+  return Math.max(AG_H_INI * 60, Math.min((AG_H_FIM + 1) * 60 - 15, min));
 }
 function agSoltarBloco(ev) {
-  if (!agArrasto) return;
-  const a = agArrasto; agArrasto = null;
-  if (!a.moveu) return;                      // foi clique, não arrasto
-  a.el.classList.remove('arrastando');
-  agArrastou = true; setTimeout(() => { agArrastou = false; }, 300);
+  const a = agArrasto; if (!a || (ev && ev.pointerId !== a.pid)) return;
+  agArrasto = null; clearTimeout(a.timer); agToqueArmado = false;
+  a.el.classList.remove('erguido', 'arrastando');
+  if (!a.moveu) return;                      // foi toque/clique, não arrasto: o onclick do bloco abre a edição
+  agArrastou = true; setTimeout(() => { agArrastou = false; }, 350);
   const novaHora = agHoraDoPixel(parseFloat(a.el.style.top) || 0);
   const novoDia = a.destino || a.iso;
+  const antes = agFoto();
   if (a.tipo === 'shift') {
     const s = shifts.find(x => x.id === a.id); if (!s) { renderAgendaVista(); return; }
+    if (s.date === novoDia && minDe(s.time) === novaHora) { renderAgendaVista(); return; }
     s.date = novoDia; s.time = hm(novaHora);
     sincronizarLancamentoPlantao(s); salvar('shifts', shifts); salvar('finances', transactions);
     redesenharAgenda(); updateFinanceValues(); renderFinances();
-    toast(`${vt().ic} ${s.desc} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, 5000);
+    toastDesfazer(`${vt().ic} ${s.desc} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, antes);
     return;
   }
   const e = events.find(x => x.id === a.id); if (!e) { renderAgendaVista(); return; }
+  if (novoDia === a.iso && minDe(e.time) === novaHora) { renderAgendaVista(); return; }
   const dur = (minDe(e.endTime) || 0) - (minDe(e.time) || 0);
   const repetindo = e.repete && e.repete !== 'nao';
   if (repetindo) {
@@ -5254,7 +5289,7 @@ function agSoltarBloco(ev) {
       events.push(Object.assign({}, e, { id: novoId(), date: novoDia, time: hm(novaHora),
         endTime: dur > 0 ? hm(novaHora + dur) : '', repete: 'nao', ate: '', skips: [], feitos: [] }));
       salvar('events', events); redesenharAgenda();
-      toast(`📅 Só ${isoParaBR(a.iso)} mudou. A repetição continua nos outros dias.`, 6000);
+      toastDesfazer(`📅 Só ${isoParaBR(a.iso)} mudou. A repetição continua nos outros dias.`, antes);
       return;
     }
     e.date = somaDias(e.date, diffDias(a.iso, novoDia));   // a série inteira anda junto
@@ -5262,19 +5297,23 @@ function agSoltarBloco(ev) {
     e.date = novoDia;
   }
   e.time = hm(novaHora);
-  if (dur > 0) e.endTime = hm(novaHora + dur);
+  if (dur > 0) e.endTime = hm(Math.min(novaHora + dur, 24 * 60 - 1));
   salvar('events', events); redesenharAgenda();
-  toast(`📅 ${e.title} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, 5000);
+  toastDesfazer(`📅 ${e.title} → ${rotuloData(novoDia)} às ${hm(novaHora)}.`, antes);
 }
 document.addEventListener('pointermove', agMoverBloco);
 document.addEventListener('pointerup', agSoltarBloco);
-document.addEventListener('pointercancel', () => { if (agArrasto) { agArrasto = null; renderAgendaVista(); } });
+document.addEventListener('pointercancel', () => {
+  if (!agArrasto) return;
+  const a = agArrasto; agArrasto = null; clearTimeout(a.timer); agToqueArmado = false;
+  if (a.moveu) renderAgendaVista(); else a.el.classList.remove('erguido');
+});
 
 // ============================================================================
-// CRIAR DIRETO NA GRADE — clicar num espaço vazio abre o compromisso já com
-// dia e horário preenchidos; arrastar para baixo define a duração. É o gesto
-// do Google Agenda, e era o que faltava: dava para MOVER um compromisso na
-// grade, mas não para CRIAR — só pelo formulário da outra seção.
+// CRIAR DIRETO NA GRADE — tocar num espaço vazio abre a janela rápida com dia e horário preenchidos.
+// MOUSE: clicar = 1 hora; clicar e arrastar = escolhe a duração (o gesto do Google Agenda).
+// DEDO (20/10): toque rápido = 1 hora; deslizar = rolar a agenda (não cria nada); SEGURAR meio segundo e arrastar =
+// escolhe a duração. Toque logo depois de rolar (para frear) também não cria.
 // ============================================================================
 let agNovo = null;
 function agPx(min) { return (min - AG_H_INI * 60) / 60 * AG_PX_HORA; }
@@ -5282,44 +5321,54 @@ function agPx(min) { return (min - AG_H_INI * 60) / 60 * AG_PX_HORA; }
 function agFundoDown(ev, iso) {
   if (ev.button !== undefined && ev.button !== 0) return;
   if (ev.target.closest('.ag-bloco')) return;      // em cima de um bloco, quem manda é o bloco
-  const col = ev.currentTarget;
+  const col = ev.currentTarget, dedo = ev.pointerType !== 'mouse';
   const min = agHoraDoPixel(ev.clientY - col.getBoundingClientRect().top);
-  const el = document.createElement('div');
-  el.className = 'ag-novo-sel';
-  col.appendChild(el);
-  agNovo = { iso, ancora: min, ini: min, fim: min + 60, col, el, moveu: false, pid: ev.pointerId };
-  agDesenharSel();
-  try { col.setPointerCapture(ev.pointerId); } catch (e) {}
-  ev.preventDefault();
+  const n = agNovo = { iso, ancora: min, ini: min, fim: min + 60, col, el: null, moveu: false, pid: ev.pointerId, dedo,
+    x0: ev.clientX, y0: ev.clientY, armado: !dedo, freando: Date.now() - agUltimaRolagem < 350 };
+  if (!dedo) { agCriarSel(n); try { col.setPointerCapture(ev.pointerId); } catch (e) {} ev.preventDefault(); return; }
+  n.timer = setTimeout(() => {
+    if (agNovo !== n) return;
+    n.armado = true; agToqueArmado = true; agVibrar(); agCriarSel(n);
+    try { col.setPointerCapture(n.pid); } catch (e) {}
+  }, AG_SEGURAR_MS);
+}
+function agCriarSel(n) {
+  const el = document.createElement('div'); el.className = 'ag-novo-sel'; n.col.appendChild(el); n.el = el; agDesenharSel();
 }
 function agDesenharSel() {
-  if (!agNovo) return;
+  if (!agNovo || !agNovo.el) return;
   agNovo.el.style.top = agPx(agNovo.ini) + 'px';
   agNovo.el.style.height = Math.max(14, agPx(agNovo.fim) - agPx(agNovo.ini)) + 'px';
   agNovo.el.innerHTML = `<span>${hm(agNovo.ini)} – ${hm(agNovo.fim)}</span>`;
 }
 function agFundoMove(ev) {
-  if (!agNovo || ev.pointerId !== agNovo.pid) return;
-  const min = agHoraDoPixel(ev.clientY - agNovo.col.getBoundingClientRect().top);
-  if (min !== agNovo.ancora) agNovo.moveu = true;
+  const n = agNovo; if (!n || ev.pointerId !== n.pid) return;
+  if (!n.armado) {   // dedo deslizou antes de segurar: é rolagem
+    if (Math.abs(ev.clientX - n.x0) > AG_LIMIAR_DEDO || Math.abs(ev.clientY - n.y0) > AG_LIMIAR_DEDO) { clearTimeout(n.timer); agNovo = null; }
+    return;
+  }
+  agRolarNaBorda(ev.clientY);
+  const min = agHoraDoPixel(ev.clientY - n.col.getBoundingClientRect().top);
+  if (min !== n.ancora) n.moveu = true;
   // arrastar para cima também vale: o começo vira o ponto mais alto
-  agNovo.ini = Math.min(agNovo.ancora, min);
-  agNovo.fim = Math.max(agNovo.ancora, min);
-  if (agNovo.fim - agNovo.ini < 15) agNovo.fim = agNovo.ini + 15;
+  n.ini = Math.min(n.ancora, min);
+  n.fim = Math.max(n.ancora, min);
+  if (n.fim - n.ini < 15) n.fim = n.ini + 15;
   agDesenharSel();
 }
 function agFundoUp(ev) {
-  if (!agNovo || (ev && ev.pointerId !== agNovo.pid)) return;
-  const n = agNovo; agNovo = null;
+  const n = agNovo; if (!n || (ev && ev.pointerId !== n.pid)) return;
+  agNovo = null; clearTimeout(n.timer); agToqueArmado = false;
   if (n.el && n.el.parentNode) n.el.parentNode.removeChild(n.el);
-  // clique seco (sem arrastar) = 1 hora, que é o padrão de todo mundo
-  const fim = n.moveu ? n.fim : Math.min(AG_H_FIM * 60, n.ini + 60);
+  if (n.dedo && !n.armado && n.freando) return;   // o toque só freou a rolagem
+  // toque/clique seco (sem arrastar) = 1 hora, que é o padrão de todo mundo
+  const fim = n.moveu ? n.fim : Math.min(23 * 60 + 59, n.ini + 60);
   abrirNovoRapido(n.iso, n.ini, fim);
 }
 document.addEventListener('pointermove', agFundoMove);
 document.addEventListener('pointerup', agFundoUp);
 document.addEventListener('pointercancel', () => {
-  if (agNovo) { if (agNovo.el && agNovo.el.parentNode) agNovo.el.parentNode.removeChild(agNovo.el); agNovo = null; }
+  if (agNovo) { clearTimeout(agNovo.timer); agToqueArmado = false; if (agNovo.el && agNovo.el.parentNode) agNovo.el.parentNode.removeChild(agNovo.el); agNovo = null; }
 });
 
 /** (15/10, ideia dele: "ao clicar na agenda não dá para adicionar compromisso, só na aba de trabalho") — o
@@ -5339,25 +5388,121 @@ function agBotaoNovo() {
   b.innerHTML = (typeof ic === 'function' ? ic('mais') : '＋') + '<span>Novo</span>';
   acoes.prepend(b);
 }
-/** Abre o modal rápido já preenchido com o que foi clicado na grade. */
-function abrirNovoRapido(iso, ini, fim) {
+// ═══ A JANELA RÁPIDA DA AGENDA (20/10, revisão geral: "ao tocar num horário para criar um plantão eu saio para outra
+// aba") ═══ Agora é UMA janela para criar e para editar, compromisso OU plantão, sem sair da Agenda:
+//   novoModo = { tipo: 'event' | 'shift', id: null (criar) | id (editar), occur: o dia tocado (série que se repete) }
+// O plantão é gravado pelo MESMO caminho do formulário de Plantões (preenche o form e dispara o submit): escala fixa,
+// lançamento a receber nas Finanças e avisos continuam iguais — uma regra de dinheiro só (armadilha nº 21).
+let novoModo = { tipo: 'event', id: null, occur: null };
+const minParaHm = m => hm(((Math.round(m) % 1440) + 1440) % 1440);
+/** Abre para CRIAR, já com o dia e o horário que foram tocados na grade. */
+function abrirNovoRapido(iso, ini, fim, tipo) {
   const m = document.getElementById('novo-modal'); if (!m) return;
-  const sel = document.getElementById('novo-tipo');
-  sel.innerHTML = Object.entries(TIPOS_EVENTO).map(([k, v]) => `<option value="${k}">${v.icone} ${v.nome}</option>`).join('');
-  sel.value = 'pessoal';
+  novoModo = { tipo: tipo === 'shift' ? 'shift' : 'event', id: null, occur: null };
+  novoPrepararCampos();
+  document.getElementById('novo-tipo').value = 'pessoal';
   document.getElementById('novo-titulo').value = '';
   document.getElementById('novo-data').value = iso;
-  document.getElementById('novo-ini').value = hm(ini);
-  document.getElementById('novo-fim').value = hm(fim);
+  document.getElementById('novo-ini').value = minParaHm(ini);
+  document.getElementById('novo-fim').value = minParaHm(fim);
   document.getElementById('novo-repete').value = 'nao';
   document.getElementById('novo-local').value = '';
-  const bt = document.getElementById('novo-trab');
-  if (bt) bt.innerText = `${vt().ic} É ${vt().um}`;
-  document.getElementById('novo-quando').innerHTML =
-    `<strong>${DIAS_LONGO[diaDaSemanaISO(iso)]}, ${isoParaBR(iso)}</strong><span>${hm(ini)} – ${hm(fim)}</span>`;
+  document.getElementById('novo-p-local').value = ''; document.getElementById('novo-p-valor').value = '';
+  document.getElementById('novo-p-turno').value = ''; document.getElementById('novo-p-repete').value = 'nao';
+  novoMostrar();
+}
+/** Abre para EDITAR o que foi tocado na grade (antes: levava ao formulário de outra seção). */
+function abrirEdicaoRapida(tipo, id, iso) {
+  const m = document.getElementById('novo-modal'); if (!m) return;
+  novoPrepararCampos();
+  if (tipo === 'shift') {
+    const s = shifts.find(x => x.id === id); if (!s) return;
+    novoModo = { tipo: 'shift', id, occur: iso };
+    const ini = minDe(s.time) || 0;
+    document.getElementById('novo-p-local').value = s.desc || '';
+    document.getElementById('novo-p-valor').value = s.amount;
+    document.getElementById('novo-p-turno').value = '';
+    document.getElementById('novo-data').value = s.date;
+    document.getElementById('novo-ini').value = s.time || '';
+    document.getElementById('novo-fim').value = minParaHm(ini + Math.round((Number(s.hours) || 1) * 60));
+  } else {
+    const e = events.find(x => x.id === id); if (!e) return;
+    novoModo = { tipo: 'event', id, occur: iso };
+    document.getElementById('novo-titulo').value = e.title || '';
+    document.getElementById('novo-tipo').value = TIPOS_EVENTO[e.type] ? e.type : 'outro';
+    // série que se repete: mostra o dia TOCADO (o "só este dia ou a série?" vem ao salvar, se mudar o horário)
+    document.getElementById('novo-data').value = iso || e.date;
+    document.getElementById('novo-ini').value = e.time || '';
+    document.getElementById('novo-fim').value = e.endTime || '';
+    document.getElementById('novo-repete').value = e.repete || 'nao';
+    document.getElementById('novo-local').value = e.local || '';
+  }
+  novoMostrar();
+}
+/** Opções que dependem dos dados (tipos de evento, turnos salvos, locais já usados) e o vocabulário do trabalho. */
+function novoPrepararCampos() {
+  const sel = document.getElementById('novo-tipo');
+  sel.innerHTML = Object.entries(TIPOS_EVENTO).map(([k, v]) => `<option value="${k}">${v.icone} ${v.nome}</option>`).join('');
+  const turnos = places.filter(p => p && (p.local || p.name));
+  document.getElementById('novo-p-turno').innerHTML = '<option value="">— nenhum, vou preencher —</option>' +
+    turnos.map(p => `<option value="${places.indexOf(p)}">${esc(p.name)}${p.time ? ' · ' + esc(p.time) : ''}${p.hours ? ' · ' + p.hours + 'h' : ''}${p.amount ? ' · ' + formatCurrency(p.amount) : ''}</option>`).join('');
+  document.getElementById('novo-p-turno-box').hidden = !turnos.length;
+  const locais = [...new Set([...turnos.map(p => p.local || p.name), ...shifts.slice(-60).map(s => s.desc)].filter(Boolean))];
+  document.getElementById('novo-p-locais').innerHTML = locais.map(l => `<option value="${esc(l)}">`).join('');
+  const bt = document.getElementById('novo-trab'); if (bt) bt.innerText = `${vt().ic} ${vt().um.charAt(0).toUpperCase() + vt().um.slice(1)}`;
+  const rot = document.getElementById('novo-p-local-rot'); if (rot) rot.innerText = vt().descLabel || 'Local:';
+}
+/** Mostra a janela no modo certo (criar/editar · compromisso/plantão). */
+function novoMostrar() {
+  const m = document.getElementById('novo-modal');
+  const plantao = novoModo.tipo === 'shift', editando = !!novoModo.id;
+  const s = plantao && editando ? shifts.find(x => x.id === novoModo.id) : null;
+  const faixas = !!(s && s.parts && s.parts.length);
+  document.getElementById('novo-modos').hidden = editando;
+  document.querySelectorAll('#novo-modos button').forEach(b => b.classList.toggle('active', b.dataset.tipo === novoModo.tipo));
+  ['novo-sec-evento', 'novo-sec-evento2'].forEach(i => { document.getElementById(i).hidden = plantao; });
+  ['novo-sec-plantao', 'novo-sec-plantao2'].forEach(i => { document.getElementById(i).hidden = !plantao; });
+  document.getElementById('novo-p-repete-box').hidden = editando;
+  // plantão com faixas de valor (feriado, virada): hora e valor se mudam no formulário completo
+  document.getElementById('novo-p-valor').disabled = faixas; document.getElementById('novo-fim').disabled = faixas;
+  const um = vt().um;
+  document.getElementById('novo-cabecalho').innerText = editando
+    ? (plantao ? `✎ ${um.charAt(0).toUpperCase() + um.slice(1)}` : '✎ Compromisso')
+    : (plantao ? `${vt().ic} Novo ${um}` : '➕ Novo compromisso');
+  document.getElementById('novo-salvar').innerText = editando ? '💾 Salvar' : (plantao ? `${vt().ic} Agendar` : '➕ Criar');
+  document.getElementById('novo-apagar').hidden = !editando;
+  const rec = document.getElementById('novo-recebido');
+  rec.hidden = !s; if (s) rec.innerText = s.paid ? '⏳ Voltar a receber' : '💵 Recebido';
+  novoAtualizarQuando(faixas);
   m.style.display = 'flex';
   aplicarPosModal('novo-modal');
-  setTimeout(() => document.getElementById('novo-titulo').focus(), 60);
+  // no celular o teclado não sobe sozinho (cobria a metade de baixo da janela)
+  if (!editando && !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) setTimeout(() => document.getElementById(plantao ? 'novo-p-local' : 'novo-titulo').focus(), 60);
+}
+function novoTrocarTipo(t) { if (novoModo.id) return; novoModo.tipo = t === 'shift' ? 'shift' : 'event'; novoMostrar(); }
+/** O resumo do alto: dia, horário e (plantão) quantas horas e quanto por hora — muda junto com os campos. */
+function novoAtualizarQuando(faixas) {
+  const el = document.getElementById('novo-quando'); if (!el) return;
+  const iso = document.getElementById('novo-data').value, ini = minDe(document.getElementById('novo-ini').value), fimM = minDe(document.getElementById('novo-fim').value);
+  if (!iso) { el.innerHTML = ''; return; }
+  let extra = '';
+  if (novoModo.tipo === 'shift' && ini !== null && fimM !== null) {
+    const dur = (fimM - ini + 1440) % 1440 || 1440;
+    const v = parseFloat(document.getElementById('novo-p-valor').value);
+    extra = ` · ${Math.round(dur / 60 * 10) / 10} h${fimM <= ini ? ' (vira o dia)' : ''}${v > 0 ? ` · ${formatCurrency(v / (dur / 60))}/h` : ''}`;
+  }
+  el.innerHTML = `<strong>${DIAS_LONGO[diaDaSemanaISO(iso)]}, ${isoParaBR(iso)}</strong><span>${ini !== null ? hm(ini) : ''}${fimM !== null ? ' – ' + hm(fimM) : ''}${extra}</span>` +
+    (faixas === true ? '<small>Este plantão tem faixas de valor: horas e valor se mudam em ✎ Mais opções.</small>' : '');
+}
+/** Turno salvo escolhido: preenche local, começo, fim e valor. */
+function novoAplicarTurno() {
+  const p = places[Number(document.getElementById('novo-p-turno').value)]; if (!p) return;
+  document.getElementById('novo-p-local').value = p.local || p.name;
+  if (p.time) document.getElementById('novo-ini').value = p.time;
+  const ini = minDe(document.getElementById('novo-ini').value);
+  if (p.hours && ini !== null) document.getElementById('novo-fim').value = minParaHm(ini + Math.round(p.hours * 60));
+  if (p.amount) document.getElementById('novo-p-valor').value = p.amount;
+  novoAtualizarQuando();
 }
 function fecharNovoRapido() { const m = document.getElementById('novo-modal'); if (m) m.style.display = 'none'; }
 function dadosNovoRapido() {
@@ -5371,20 +5516,96 @@ function dadosNovoRapido() {
     local: document.getElementById('novo-local').value.trim()
   };
 }
-function criarRapido() {
+function salvarRapido() { if (novoModo.tipo === 'shift') salvarPlantaoRapido(); else salvarEventoRapido(); }
+function criarRapido() { salvarRapido(); }   // nome antigo (Enter no campo)
+function salvarEventoRapido() {
   const d = dadosNovoRapido();
   if (!d.title) { toast('Escreva o que é.'); document.getElementById('novo-titulo').focus(); return; }
   if (!d.date) { toast('Falta o dia.'); return; }
   if (d.endTime && d.time && d.endTime <= d.time) { toast('O fim tem que ser depois do começo.'); return; }
-  events.push({
-    id: novoId(), done: false, agenda: [], followups: [], people: '', minutes: '',
-    notes: '', ate: '', avisoMin: null, skips: [], feitos: [], ...d
-  });
+  if (!novoModo.id) {
+    events.push({ id: novoId(), done: false, agenda: [], followups: [], people: '', minutes: '',
+      notes: '', ate: '', avisoMin: null, skips: [], feitos: [], ...d });
+    salvar('events', events); fecharNovoRapido(); redesenharAgenda();
+    toast(`📅 ${d.title} — ${rotuloData(d.date)} às ${d.time}.`, 4000);
+    return;
+  }
+  const e = events.find(x => x.id === novoModo.id); if (!e) { fecharNovoRapido(); return; }
+  const antes = agFoto();
+  const occur = novoModo.occur || e.date;
+  const repetia = e.repete && e.repete !== 'nao';
+  const mudouQuando = d.date !== occur || d.time !== (e.time || '') || d.endTime !== (e.endTime || '');
+  if (repetia && mudouQuando) {
+    // a mesma pergunta do arrasto: série inteira ou só o dia tocado (armadilha nº 3)
+    const serie = confirm(`"${e.title}" se repete.\n\nOK = mudar a SÉRIE inteira\nCancelar = mudar SÓ o dia ${isoParaBR(occur)}`);
+    if (!serie) {
+      e.skips = e.skips || []; if (!e.skips.includes(occur)) e.skips.push(occur);
+      events.push(Object.assign({}, e, { id: novoId(), title: d.title, type: d.type, local: d.local, date: d.date, time: d.time,
+        endTime: d.endTime, repete: 'nao', ate: '', skips: [], feitos: [] }));
+      salvar('events', events); fecharNovoRapido(); redesenharAgenda();
+      toastDesfazer(`📅 Só ${isoParaBR(occur)} mudou. A repetição continua nos outros dias.`, antes);
+      return;
+    }
+    e.date = somaDias(e.date, diffDias(occur, d.date));
+  } else if (!repetia) e.date = d.date;
+  Object.assign(e, { title: d.title, type: d.type, time: d.time, endTime: d.endTime, repete: d.repete, local: d.local });
   salvar('events', events); fecharNovoRapido(); redesenharAgenda();
-  toast(`📅 ${d.title} — ${rotuloData(d.date)} às ${d.time}.`, 4000);
+  toastDesfazer(`📅 ${e.title} salvo.`, antes);
 }
-/** "Mais opções": leva o que já foi digitado para o formulário completo. */
+/** Plantão: preenche o formulário de Plantões e dispara o MESMO submit (escala, Finanças e avisos iguais). */
+function salvarPlantaoRapido() {
+  const desc = document.getElementById('novo-p-local').value.trim();
+  const date = document.getElementById('novo-data').value, time = document.getElementById('novo-ini').value;
+  const ini = minDe(time), fimM = minDe(document.getElementById('novo-fim').value);
+  const valor = parseFloat(document.getElementById('novo-p-valor').value);
+  if (!desc) { toast(`Escreva o ${(vt().descLabel || 'local').replace(':', '').toLowerCase()}.`); document.getElementById('novo-p-local').focus(); return; }
+  if (!date || ini === null) { toast('Falta o dia e o horário de começo.'); return; }
+  if (isNaN(valor)) { toast('Falta o valor (pode ser 0).'); document.getElementById('novo-p-valor').focus(); return; }
+  const editando = novoModo.id ? shifts.find(x => x.id === novoModo.id) : null;
+  if (novoModo.id && !editando) { fecharNovoRapido(); return; }
+  if (editando) preencherFormPlantao(editando); else cancelarEdicaoPlantao();
+  document.getElementById('shift-desc').value = desc;
+  document.getElementById('shift-date').value = date;
+  document.getElementById('shift-time').value = time;
+  if (!(editando && editando.parts && editando.parts.length)) {
+    if (fimM !== null) document.getElementById('shift-hours').value = Math.round(((fimM - ini + 1440) % 1440 || 1440) / 60 * 100) / 100;
+    document.getElementById('shift-amount').value = valor;
+  }
+  const rep = document.getElementById('shift-repete'); if (rep && !editando) rep.value = document.getElementById('novo-p-repete').value;
+  const antes = agFoto();
+  fecharNovoRapido();
+  document.getElementById('shift-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  if (editando) toastDesfazer(`${vt().ic} ${desc} salvo.`, antes);
+}
+function novoApagar() {
+  if (!novoModo.id) return;
+  if (novoModo.tipo === 'shift') { fecharNovoRapido(); removeShift(novoModo.id); return; }
+  const e = events.find(x => x.id === novoModo.id); if (!e) return;
+  const repetia = e.repete && e.repete !== 'nao' && novoModo.occur;
+  if (repetia) {
+    const tudo = confirm(`"${e.title}" se repete.\n\nOK = apagar a SÉRIE inteira\nCancelar = apagar SÓ o dia ${isoParaBR(novoModo.occur)}`);
+    const antes = agFoto();
+    if (tudo) events = events.filter(x => x.id !== e.id);
+    else { e.skips = e.skips || []; if (!e.skips.includes(novoModo.occur)) e.skips.push(novoModo.occur); }
+    salvar('events', events); fecharNovoRapido(); redesenharAgenda();
+    toastDesfazer(tudo ? `🗑 "${e.title}" apagado.` : `🗑 Só ${isoParaBR(novoModo.occur)} apagado.`, antes);
+    return;
+  }
+  if (!confirm(`Apagar "${e.title}"?`)) return;
+  const antes = agFoto();
+  events = events.filter(x => x.id !== e.id); salvar('events', events); fecharNovoRapido(); redesenharAgenda();
+  toastDesfazer(`🗑 "${e.title}" apagado.`, antes);
+}
+function novoAlternarRecebido() {
+  if (novoModo.tipo !== 'shift' || !novoModo.id) return;
+  alternarPago(novoModo.id); redesenharAgenda();
+  const s = shifts.find(x => x.id === novoModo.id);
+  const rec = document.getElementById('novo-recebido'); if (s && rec) rec.innerText = s.paid ? '⏳ Voltar a receber' : '💵 Recebido';
+}
+/** "Mais opções": leva o que já foi digitado para o formulário completo (aí sim, na seção da Agenda). */
 function novoRapidoCompleto() {
+  if (novoModo.id) { const { tipo, id } = novoModo; fecharNovoRapido(); if (tipo === 'shift') editarPlantao(id); else editarEvento(id); return; }
+  if (novoModo.tipo === 'shift') { novoRapidoTrabalhoCompleto(); return; }
   const d = dadosNovoRapido();
   fecharNovoRapido();
   verSecaoAgenda('compromissos'); cancelarEdicaoEvento();
@@ -5401,20 +5622,40 @@ function novoRapidoCompleto() {
     t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus();
   }, 120);
 }
-/** O mesmo horário, mas no formulário de trabalho/plantão. */
-function novoRapidoTrabalho() {
-  const d = dadosNovoRapido();
+/** O botão antigo "É plantão" virou a troca de modo dentro da própria janela. */
+function novoRapidoTrabalho() { novoTrocarTipo('shift'); }
+/** Plantão com faixas, troca, observações: o formulário completo de Plantões, já preenchido. */
+function novoRapidoTrabalhoCompleto() {
+  const date = document.getElementById('novo-data').value, time = document.getElementById('novo-ini').value;
+  const ini = minDe(time), fimM = minDe(document.getElementById('novo-fim').value);
+  const desc = document.getElementById('novo-p-local').value.trim(), valor = document.getElementById('novo-p-valor').value;
   fecharNovoRapido();
   verSecaoAgenda('plantoes'); cancelarEdicaoPlantao();
-  document.getElementById('shift-date').value = d.date;
-  document.getElementById('shift-time').value = d.time;
-  const ini = minDe(d.time), fim = minDe(d.endTime);
-  if (ini !== null && fim !== null && fim > ini) document.getElementById('shift-hours').value = Math.round((fim - ini) / 60 * 100) / 100;
-  if (d.title) document.getElementById('shift-desc').value = d.title;
+  document.getElementById('shift-date').value = date;
+  document.getElementById('shift-time').value = time;
+  if (ini !== null && fimM !== null) document.getElementById('shift-hours').value = Math.round(((fimM - ini + 1440) % 1440 || 1440) / 60 * 100) / 100;
+  if (desc) document.getElementById('shift-desc').value = desc;
+  if (valor) document.getElementById('shift-amount').value = valor;
   setTimeout(() => {
     const t = document.getElementById('shift-desc');
     t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus();
   }, 120);
+}
+/** Para o "↶ Desfazer": uma cópia do que a mudança pode tocar (compromissos, plantões e o lançamento deles). */
+function agFoto() { return { events: JSON.stringify(events), shifts: JSON.stringify(shifts), finances: JSON.stringify(transactions) }; }
+function agDesfazer(f) {
+  events = JSON.parse(f.events); shifts = JSON.parse(f.shifts); transactions = JSON.parse(f.finances);
+  salvar('events', events); salvar('shifts', shifts); salvar('finances', transactions);
+  redesenharAgenda(); updateFinanceValues(); renderFinances(); renderShifts();
+  toast('↶ Desfeito.');
+}
+/** Aviso com o botão "↶ Desfazer" (o aviso fica 8 s). */
+function toastDesfazer(msg, foto) {
+  toast(msg, 8000);
+  const el = document.getElementById('toast'); if (!el || !foto) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-desfazer'; b.textContent = '↶ Desfazer';
+  b.onclick = () => { el.classList.remove('show'); agDesfazer(foto); };
+  el.appendChild(b);
 }
 document.getElementById('novo-modal').addEventListener('click', (e) => { if (e.target.id === 'novo-modal') fecharNovoRapido(); });
 document.getElementById('novo-modal').addEventListener('keydown', (e) => {
@@ -5448,7 +5689,7 @@ function renderListaProximos() {
     outros.forEach(x => { html += `<div class="ag-lista-item sem-hora"><span class="ag-lista-hora">—</span>
       <span style="border-left-color:${x.cor}">${x.icone} ${esc(x.titulo)}${x.idade !== undefined ? ` <small>(${x.idade} anos)</small>` : ''}</span></div>`; });
     blocos.filter(x => x.ini !== null).forEach(x => {
-      const acao = x.tipo === 'shift' ? `editarPlantao(${x.id})` : `editarEvento(${x.id})`;
+      const acao = `abrirEdicaoRapida('${x.tipo}', ${x.id}, '${d}')`;
       html += `<div class="ag-lista-item${x.done ? ' feito' : ''}" onclick="${acao}">
         <span class="ag-lista-hora">${hm(x.ini)}</span>
         <span style="border-left-color:${x.cor}">${x.repete ? '🔁 ' : ''}${x.icone} ${esc(x.titulo)}

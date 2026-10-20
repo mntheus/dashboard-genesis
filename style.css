@@ -6906,3 +6906,24 @@ body:has(.modal-overlay[style*="display: flex"], .modal[style*="display: flex"],
     padding: 10px 0 calc(var(--s5) + env(safe-area-inset-bottom, 0px));
     background: var(--card); box-shadow: 0 -10px 14px -10px rgba(0, 0, 0, .45); }
 }
+/* ═══ 20/10 — AGENDA: CRIAR E MUDAR SEM SUSTO (revisão geral, item 2) ═══
+   Deslizar na grade é ROLAR (pan-y); para mover/escolher duração no dedo, segura meio segundo. Sem o menu do iOS
+   nem seleção de texto ao segurar. */
+.ag-col, .ag-bloco { touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.ag-bloco.erguido { transform: scale(1.03); box-shadow: 0 10px 24px rgba(0, 0, 0, .45); outline: 2px solid var(--acento);
+  outline-offset: 1px; z-index: 20; transition: transform .12s, box-shadow .12s; }
+.ag-bloco.arrastando { pointer-events: none; box-shadow: 0 10px 24px rgba(0, 0, 0, .45); }
+.toast-desfazer { pointer-events: auto; margin-left: 12px; padding: 4px 12px; min-height: 0; border-radius: 99px; border: 1px solid var(--acento);
+  background: transparent; color: var(--acento); font-weight: 700; font-size: .85rem; cursor: pointer; }
+/* a janela rápida: Compromisso | Plantão no alto, e seções que trocam */
+.novo-modos { display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: var(--bg); border: 1px solid var(--fio-sutil, var(--borda)); }
+.novo-modos[hidden] { display: none; }
+body .modal-content .novo-modos button { flex: 1; min-height: 40px; margin: 0; border-radius: 9px; background: transparent; border: 0; color: var(--txt3); font-weight: 600; }
+body .modal-content .novo-modos button.active { background: var(--acento); color: var(--bg); }
+.novo-sec { display: flex; flex-direction: column; gap: 12px; }
+.novo-sec[hidden], #novo-p-turno-box[hidden], #novo-p-repete-box[hidden] { display: none; }
+#novo-p-turno-box, #novo-p-repete-box { display: flex; flex-direction: column; gap: 6px; }
+body .modal-content .novo-sec > label, #novo-p-turno-box > label, #novo-p-repete-box > label { margin-bottom: -6px; font-size: var(--t-apoio, .85rem); color: var(--txt3); }
+#novo-p-turno-box > label, #novo-p-repete-box > label { margin-bottom: 0; }
+.novo-quando small { flex-basis: 100%; color: var(--txt3); font-size: .8rem; }
+.modal-content input:disabled { opacity: .55; }

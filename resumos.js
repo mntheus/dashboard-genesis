@@ -83,6 +83,7 @@ function rsEmbrulhar(aba) {
       return;
     }
     rsAtivo[aba] = false; if (box) box.hidden = true;
+    rsArrumarLado(aba);   // saiu do Painel: a parte junto volta à largura toda
     const r = orig.apply(this, arguments);
     // 🪤 armadilha 12: várias abas acendem a micro-aba pela POSIÇÃO; com o Painel na frente, acenderiam a vizinha
     if (!el && fil) fil.querySelectorAll(':scope > span').forEach(x => x.classList.toggle('active', rsNomeDoChip(x) === s));
@@ -94,6 +95,8 @@ function rsDesenhar(aba) {
   const d = RS_ABAS[aba]; if (!d || !rsAtivo[aba]) return;
   try { const f = window[d.render]; if (typeof f === 'function') f(); }
   catch (e) { const el = document.getElementById('rs-' + aba); if (el) el.innerHTML = `<div class="sp-vazio">O painel não conseguiu se desenhar (${esc(e.message || String(e))}). As micro-abas seguem normais.</div>`; console.error(e); }
+  // lado a lado (ou não) conforme as colunas de AGORA: a aba pode ter estado escondida (sem colunas) na partida
+  rsArrumarLado(aba);
 }
 function rsTocar(aba, k) { rsSel[aba] = rsSel[aba] === k ? null : k; rsDesenhar(aba); }
 /** Qualquer gravação (de qualquer aparelho, pela sync também) redesenha o Painel que está à vista. */
@@ -110,18 +113,40 @@ function rsMudar(aba, on) {
   if (on) window[d.fn]('painel', ch); else if (rsAtivo[aba]) window[d.fn](d.primeira);
   if (typeof renderConfigAba === 'function') renderConfigAba();
 }
-function rsMudarJunto(aba, on) {
-  cfgRs()[aba + ':junto'] = !!on;
+/** modo: false (só o Painel) · 'baixo' (embaixo dele) · 'lado' (ao lado na tela larga — o padrão desde 20/10). */
+function rsMudarJunto(aba, modo) {
+  cfgRs()[aba + ':junto'] = modo === false ? false : modo === 'baixo' ? 'baixo' : 'lado';
   try { localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); } catch (e) { }
   if (rsAtivo[aba]) window[RS_ABAS[aba].fn]('painel');
   if (typeof renderConfigAba === 'function') renderConfigAba();
 }
+/** Como a parte junto aparece: 'nao' · 'baixo' · 'lado'. O true antigo (a caixinha "junto" ligada) vale como 'lado'. */
+function rsJuntoModo(aba) { const v = cfgRs()[aba + ':junto']; return v === false ? 'nao' : v === 'baixo' ? 'baixo' : 'lado'; }
 function rsHtmlCfg(aba) {
-  const on = rsLigado(aba), j = RS_ABAS[aba].junto;
+  const on = rsLigado(aba), j = RS_ABAS[aba].junto, m = rsJuntoModo(aba);
   // (20/10, item 8) linhas iguais às outras da janela da aba (fica no grupo "Como ver", que o arrumar.js põe na frente)
   return clChave('business', 'Painel de resumo', on ? 'A aba abre no resumo de todas as partes' : 'A aba abre direto na 1ª parte', on, `rsMudar('${aba}', this.checked)`)
-    + (j && on ? clChave('home', `${j.nome} junto`, 'Embaixo do painel', cfgRs()[aba + ':junto'] !== false, `rsMudarJunto('${aba}', this.checked)`) : '');
+    + (j && on ? clEscolha('home', `${j.nome} junto`, m === 'lado' ? 'Ao lado na tela larga; embaixo no celular' : m === 'baixo' ? 'Embaixo do painel' : 'Só o painel ao abrir',
+      clSeg([['Não', `rsMudarJunto('${aba}', false)`, m === 'nao'], ['Embaixo', `rsMudarJunto('${aba}', 'baixo')`, m === 'baixo'], ['Ao lado', `rsMudarJunto('${aba}', 'lado')`, m === 'lado']])) : '');
 }
+/** (20/10, item 9) "Lado a lado no PC": o Painel e a parte junto dividem a grade da aba (colunas de ≥ 340 px, CSS
+ *  auto-fill). 4 colunas ou mais (o 21:9 dele): metade e metade, o Calendário com o que sobrar; 3 (notebook): 1/3 e 2/3;
+ *  menos que isso (tablet, celular): um embaixo do outro. Conta as colunas de verdade, a cada troca e a cada resize. */
+function rsArrumarLado(aba) {
+  const d = RS_ABAS[aba], sec = document.getElementById(aba); if (!d || !d.junto || !sec) return;
+  const box = document.getElementById(`sec-${aba}-painel`), par = document.getElementById(d.junto.secao);
+  const limpar = () => { [box, par].forEach(e => { if (e) e.style.gridColumn = ''; }); sec.classList.remove('rs-lado'); };
+  if (!box || !par || !rsAtivo[aba] || !rsJunto(aba) || rsJuntoModo(aba) !== 'lado') return limpar();
+  const est = getComputedStyle(sec), n = est.display === 'grid' ? est.gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0;
+  if (n < 3) return limpar();
+  const a = n >= 4 ? Math.floor(n / 2) : 1;
+  box.style.gridColumn = `1 / span ${a}`; par.style.gridColumn = `${a + 1} / -1`; sec.classList.add('rs-lado');
+}
+let rsLadoTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(rsLadoTimer);
+  rsLadoTimer = setTimeout(() => { const aba = (typeof ABA_ATUAL === 'function' ? ABA_ATUAL() : '').replace(/^btn-/, ''); if (RS_ABAS[aba]) rsArrumarLado(aba); }, 150);
+});
 
 // ───────────────────────────── peças comuns ────────────────────────────────
 function rsQuadro(classe, ic, tit, sub, irPara, corpo, info) {

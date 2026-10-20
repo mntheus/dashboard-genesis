@@ -341,17 +341,23 @@
     <!-- Módulo 2: Finanças -->
     <div id="finances" class="tab-content">
       <div id="fin-topo" class="agenda-sec fin-topo">
-      <div class="card fin-month-bar" style="margin-top: 20px;">
-        <div class="fin-month-nav"><button type="button" class="mini-btn" onclick="mudarMesFin(-1)">◀</button><h2 id="fin-month-label" style="margin:0">Mês</h2><button type="button" class="mini-btn" onclick="mudarMesFin(1)">▶</button><button type="button" class="mini-btn" onclick="irParaMesAtual()">📍 Este mês</button></div>
-        <div class="focus-header-tabs" id="fin-modo" style="border:none; padding:0;"><span class="active" onclick="alternarModoFin('mes', this)">📅 Mês</span><span onclick="alternarModoFin('tudo', this)">♾️ Tudo</span></div>
+      <!-- 20/10 (revisão geral, item 4b — ele: "positivo"): o mês, os números e o "a pagar / previsto / acumulado" numa
+           FAIXA só. Eram 3 blocos: 272 px no PC e 462 no Fold fechado, com as micro-abas fora da 1ª tela no celular. -->
+      <div class="card fin-faixa" style="margin-top: 20px;">
+      <div class="fin-faixa-in">
+        <div class="fin-faixa-mes">
+          <div class="fin-month-nav"><button type="button" class="mini-btn" onclick="mudarMesFin(-1)" aria-label="Mês anterior">◀</button><h2 id="fin-month-label" style="margin:0">Mês</h2><button type="button" class="mini-btn" onclick="mudarMesFin(1)" aria-label="Próximo mês">▶</button></div>
+          <div class="fin-faixa-modo"><div class="focus-header-tabs" id="fin-modo" style="border:none; padding:0;"><span class="active" onclick="alternarModoFin('mes', this)">📅 Mês</span><span onclick="alternarModoFin('tudo', this)">♾️ Tudo</span></div><button type="button" class="mini-btn" onclick="irParaMesAtual()" title="Voltar para este mês" aria-label="Voltar para este mês">📍<span class="fin-hoje-txt"> Este mês</span></button></div>
+        </div>
+        <div class="fin-faixa-nums"><div class="fin-faixa-grade">
+          <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
+          <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
+          <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
+          <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color: var(--txt-forte)">R$ 0,00</h3></div>
+          <div id="fin-extra" class="fin-faixa-extra"></div>
+        </div></div>
       </div>
-      <div class="balance-card balance-4">
-        <div class="balance-item"><span>Receitas</span><h3 id="total-income" class="income">R$ 0,00</h3></div>
-        <div class="balance-item"><span>Despesas</span><h3 id="total-expense" class="expense">R$ 0,00</h3></div>
-        <div class="balance-item"><span>Saldo</span><h3 id="net-balance">R$ 0,00</h3></div>
-        <div class="balance-item"><span>A receber</span><h3 id="total-pending" style="color: var(--txt-forte)">R$ 0,00</h3></div>
       </div>
-      <div id="fin-extra" class="summary-row" style="padding: 0 6px;"></div>
       </div>
       <div class="focus-header-tabs agenda-tabs" id="financas-secoes" style="margin-top:20px">
         <span class="active" onclick="verSecaoFinancas('painel', this)">📊 Painel</span>

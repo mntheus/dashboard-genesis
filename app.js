@@ -1096,7 +1096,11 @@ function updateFinanceValues() {
   const pend = document.getElementById('total-pending'); if (pend) pend.innerText = formatCurrency(aReceber);
   const lbl = document.getElementById('fin-month-label'); if (lbl) lbl.innerText = finModo === 'mes' ? nomeMes(finMonth) : 'Todo o período';
   const extra = document.getElementById('fin-extra');
-  if (extra) extra.innerHTML = `<span>💸 A pagar: <strong style="color:var(--perigo)">${formatCurrency(aPagar)}</strong></span><span>📈 Previsto (saldo + a receber − a pagar): <strong style="color:${total + aReceber - aPagar >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(total + aReceber - aPagar)}</strong></span><span>🏦 Saldo acumulado (tudo): <strong style="color:${acumulado >= 0 ? 'var(--ok)' : 'var(--perigo)'}">${formatCurrency(acumulado)}</strong></span>`;
+  // 20/10 (item 4b): os três viram quadrinhos da mesma faixa dos outros números; a conta do "previsto" mora no title
+  const previsto = total + aReceber - aPagar, cor = v => v >= 0 ? 'var(--ok)' : 'var(--perigo)';
+  if (extra) extra.innerHTML = `<div class="balance-item" title="Contas do período ainda não pagas"><span>A pagar</span><h3 style="color:var(--perigo)">${formatCurrency(aPagar)}</h3></div>`
+    + `<div class="balance-item" title="Previsto = saldo + a receber − a pagar"><span>Previsto</span><h3 style="color:${cor(previsto)}">${formatCurrency(previsto)}</h3></div>`
+    + `<div class="balance-item" title="Saldo acumulado de todo o período (só o que já foi pago ou recebido)"><span>Acumulado</span><h3 style="color:${cor(acumulado)}">${formatCurrency(acumulado)}</h3></div>`;
 }
 
 function renderFinances() {

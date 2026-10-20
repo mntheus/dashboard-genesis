@@ -6944,3 +6944,46 @@ body .modal-content .novo-sec > label, #novo-p-turno-box > label, #novo-p-repete
   #transaction-list .transaction-info > small { flex: none; white-space: nowrap; }
   #transaction-list .transaction-info > small.item-notes { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }
+/* ═══ 20/10 — revisão geral, item 4b ("positivo"): O TOPO DAS FINANÇAS NUMA FAIXA ═══
+   Mês à esquerda; os 7 números à direita numa grade que se acomoda (uma fileira no PC, 2 colunas no celular).
+   Rótulo miúdo em cima, número médio embaixo — o padrão dos quadrinhos, só que baixo. */
+#fin-topo .fin-faixa { padding: 12px 16px; }
+/* ao arrumar, a alça do módulo (⠿ ⤢ ▾, 36 px no canto) ganha uma faixa própria: a faixa não começa por título, e
+   sem isso ela cobria o último número (PC), o 📍 (Fold aberto) ou o ▶ (celular) — armadilha 47 */
+body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-top: 52px; }
+/* a faixa mora num embrulho PRÓPRIO: com os módulos ligados o conteúdo do cartão vai para dentro do .mod-corpo
+   (modulos.js), e o flex no .card não alcançava o mês e os números (o mês ocupava a largura toda) */
+#fin-topo .fin-faixa-in { container: finfaixa / inline-size; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+#fin-topo .fin-faixa-mes { flex: 0 0 auto; max-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+#fin-topo .fin-month-nav { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+#fin-topo .fin-month-nav h2 { min-width: 0; flex: 0 1 auto; font-size: 1rem; white-space: nowrap; text-align: center; }
+#fin-topo #fin-modo span { padding: 3px 10px; font-size: .78rem; }
+#fin-topo .fin-faixa-modo { display: flex; align-items: center; gap: 6px; }
+/* os 7 números: 7 numa fileira quando cabem; senão 4 + 3 (o último ocupa 2 casas); no celular 2 colunas (o último
+   ocupa a linha). Nunca sobra um quadrinho sozinho. Pela largura do quadro dos números (container query; a grade
+   fica num embrulho porque a consulta vale para quem está DENTRO do contêiner), não da tela */
+#fin-topo .fin-faixa-nums { flex: 1 1 560px; min-width: 0; container: finnums / inline-size; }
+#fin-topo .fin-faixa-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#fin-topo .fin-faixa-extra { display: contents; }
+#fin-topo .fin-faixa-extra > :last-child { grid-column: span 2; }
+@container finnums (min-width: 520px) { #fin-topo .fin-faixa-grade { grid-template-columns: repeat(4, 1fr); } }
+@container finnums (min-width: 900px) {
+  #fin-topo .fin-faixa-grade { grid-template-columns: repeat(7, 1fr); }
+  #fin-topo .fin-faixa-extra > :last-child { grid-column: auto; }
+  #fin-topo .fin-faixa-nums .balance-item h3 { font-size: min(1.05rem, 1.72cqi); }
+}
+#fin-topo .fin-faixa-nums .balance-item { padding: 7px 10px; text-align: left; min-width: 0; }
+#fin-topo .fin-faixa-nums .balance-item h3 { font-size: 1.05rem; font-weight: 500; margin: 2px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#fin-topo .fin-faixa-nums .balance-item span { font-size: .64rem; display: block; line-height: 1.2; }
+/* sem largura para o mês ao lado dos números: o mês vira UMA linha em cima (navegação | Mês·Tudo·📍), que se
+   parte em duas, centralizadas, no celular */
+@container finfaixa (max-width: 822px) {
+  #fin-topo .fin-faixa-mes { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 24px; }
+}
+@media (max-width: 480px) {
+  #fin-topo .fin-faixa { padding: 10px; }
+  #fin-topo .fin-faixa-in { gap: 8px; }
+  #fin-topo .fin-hoje-txt { display: none; }
+  #fin-topo .fin-faixa-nums .balance-item { padding: 5px 9px; }
+}
+@media (max-width: 360px) { #fin-topo .fin-faixa-nums .balance-item h3 { font-size: .95rem; } }

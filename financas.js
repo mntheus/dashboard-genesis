@@ -195,7 +195,10 @@ function finPotes(ym) {
   const reais = itens.map(i => ({ i, real: transactions.filter(t => !transacaoPendente(t) && t.type === 'expense' && (t.category || '') === i.name && dataTransacao(t).startsWith(ym)).reduce((a, t) => a + (Number(t.amount) || 0), 0) }));
   // primeiro o que transbordou, depois o que está mais cheio
   reais.sort((a, b) => (b.real / b.i.amount) - (a.real / a.i.amount));
-  return `<div class="fin-potes">${reais.slice(0, 8).map((x, k) => finPote(x.i.name, x.real, Number(x.i.amount), x.i.kind === 'essencial' ? 'var(--info)' : 'var(--atencao)')).join('')}</div>`;
+  // 20/10 (item 4c, opção 1): o CSS escolhe as colunas pelo nº de potes (data-n), para a linha sempre fechar;
+  // a caixa de fora é o contêiner da medida (a consulta não vale para o próprio contêiner)
+  const n = Math.min(8, reais.length);
+  return `<div class="fin-potes-caixa"><div class="fin-potes" data-n="${n}" style="--n:${n}">${reais.slice(0, 8).map((x, k) => finPote(x.i.name, x.real, Number(x.i.amount), x.i.kind === 'essencial' ? 'var(--info)' : 'var(--atencao)')).join('')}</div></div>`;
 }
 
 // ═══════════════════════════ 4. A FILA (a receber / a pagar) ══════════════

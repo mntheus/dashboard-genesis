@@ -6987,3 +6987,18 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
   #fin-topo .fin-faixa-nums .balance-item { padding: 5px 9px; }
 }
 @media (max-width: 360px) { #fin-topo .fin-faixa-nums .balance-item h3 { font-size: .95rem; } }
+/* ═══ 20/10 — revisão geral, item 4c (ele: "opção 1"): POTES QUE SEMPRE FECHAM A LINHA ═══
+   Era auto-fill de 72 px: 7 + 1 no Fold aberto (o último sozinho) e 3 + 3 + 2 no celular. Agora: todos numa
+   linha quando cabem (~64 px por pote); senão em DUAS linhas iguais (8 → 4 + 4; 6 → 3 + 3). Pela largura do quadro
+   (container query na caixa de fora), não da tela. No estreito o pote encolhe um pouco (o desenho tem viewBox). */
+.fin-potes-caixa { container: potes / inline-size; }
+.fin-potes { --cols: var(--n, 4); grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px 6px; }
+.fin-potes[data-n="5"], .fin-potes[data-n="6"] { --cols: 3; }
+.fin-potes[data-n="7"], .fin-potes[data-n="8"] { --cols: 4; }
+@container potes (min-width: 312px) { .fin-potes[data-n="5"] { --cols: 5; } }
+@container potes (min-width: 376px) { .fin-potes[data-n="6"] { --cols: 6; } }
+@container potes (min-width: 440px) { .fin-potes[data-n="7"] { --cols: 7; } }
+@container potes (min-width: 504px) { .fin-potes[data-n="8"] { --cols: 8; } }
+@container potes (max-width: 260px) { .fin-pote svg { width: 40px; height: 56px; } }
+/* o valor ("1,3 mil / 1,2 mil") é dinheiro: quando não cabe, quebra no espaço em vez de virar reticências */
+.fin-potes .fin-pote-val { white-space: normal; text-wrap: balance; line-height: 1.15; }

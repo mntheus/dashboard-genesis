@@ -55,7 +55,7 @@
   // ───────────────────── a pessoa e o aparelho ─────────────────────
   const ap = aparencia.aparencia || {};
   S('prefs', Object.assign({}, aparencia, { abertura: 'off',
-    aparencia: Object.assign({ casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', ordem: [], relogio: 'digital', segundos: false, capa: 'auto' }, ap, { ocultas: [] }) }));
+    aparencia: Object.assign({ casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', ordem: [], relogio: 'digital', segundos: false, capa: 'nenhuma' }, ap, { ocultas: [] }) }));
   mem.lifeos_apresentacao = '1';
   S('profile', { name: 'Helena', initials: 'HS', subtitle: 'Life OS', trabalho: 'plantao', corpo: { altura: 168, nascimento: '1990-05-12', sexo: 'f' }, producao: { custoKwh: 0.95, maoHora: 25 } });
 

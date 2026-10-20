@@ -290,12 +290,14 @@ function aplicarCapa() {
   const veu = escuro ? 'linear-gradient(to bottom, rgba(0,0,0,0.10), var(--bg))' : 'linear-gradient(to bottom, rgba(15,23,42,0.05), rgba(15,23,42,0.45))';
   el.style.background = url ? `${veu}, url('${url}') center/cover` : 'var(--card)';
   el.style.borderBottom = url ? 'none' : '1px solid var(--borda)';
+  // sem capa, a cara nova não deixa nem o brilho apagado no alto do Painel (style.css, ".sem-capa")
+  el.classList.toggle('sem-capa', !url);
 }
 function escolherCapa(id) {
   const c = cfgAparencia();
   if (id === 'url') {
     const v = prompt('Cole o link da imagem (https://...):', c.capaUrl || ''); if (v === null) return;
-    if (!v.trim()) { c.capa = 'auto'; } else { c.capaUrl = v.trim(); c.capa = 'url'; }
+    if (!v.trim()) { c.capa = 'nenhuma'; } else { c.capaUrl = v.trim(); c.capa = 'url'; }
   } else c.capa = id;
   salvarAparencia();
 }
@@ -3297,7 +3299,7 @@ const ABAS_INFO = [
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
   ['btn-business', '📈 Negócios'], ['btn-inventory', '🎒 Inventário'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
-const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'auto', capaUrl: '', capaData: '' };
+const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'nenhuma', capaUrl: '', capaData: '' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
  *  com cópia, um `const c = cfgAparencia()` guardado numa variável se perderia
  *  na chamada seguinte. Mesmo cuidado do cfgFlut(). */
@@ -3308,6 +3310,9 @@ function cfgAparencia() {
     const p = APARENCIA_PADRAO[k];
     c[k] = Array.isArray(p) ? p.slice() : p;
   });
+  // (20/10, revisão geral item 5) ele escolheu "tirar a capa": o padrão virou 'nenhuma'. O 'auto' gravado
+  // pelo padrão antigo vira 'nenhuma' uma vez só; quem escolher "Do tema" depois disso fica com ele.
+  if (!c.capaRevista) { if (c.capa === 'auto') c.capa = 'nenhuma'; c.capaRevista = 1; }
   if (TEMAS_RENOMEADOS[c.tema]) c.tema = TEMAS_RENOMEADOS[c.tema];   // "colorido"→violeta, "gamificado"→gamer
   if (!TEMAS[c.tema]) c.tema = 'escuro';
   if (!MODOS_COR[c.cores]) c.cores = 'colorido';

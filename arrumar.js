@@ -587,11 +587,9 @@ function abAplicarTodas() { document.querySelectorAll('.tab-content').forEach(se
 /** O alternador na ⚙ de cada aba que tem micro-abas (antes do que a ⚙ dela já mostrava). */
 function abHtmlVista(aba) {
   const b = abVista(aba) === 'barras';
-  return `<h4 class="dev-titulo">Como ver esta aba</h4>
-    <div class="cfg-vista ab-vista-cfg"><span class="cfg-vista-seg" role="group" aria-label="Como ver esta aba">
-      <button type="button" class="${b ? '' : 'on'}" onclick="abMudarVista('${aba}', 'cartoes')">▦ Cartões</button>
-      <button type="button" class="${b ? 'on' : ''}" onclick="abMudarVista('${aba}', 'barras')">☰ Barras</button></span>
-      <small>${b ? 'Cada parte da aba é uma faixa: toque para abrir, só uma fica aberta.' : 'As partes da aba ficam nas micro-abas do alto.'} Vale neste aparelho.</small></div>`;
+  // (20/10, item 8) uma linha igual às outras da janela da aba
+  return clGrupo('Como ver') + clEscolha('grade', 'Partes da aba', b ? 'Faixas: toque numa para abrir' : 'Nas micro-abas do alto',
+    clSeg([['Cartões', `abMudarVista('${aba}', 'cartoes')`, !b], ['Barras', `abMudarVista('${aba}', 'barras')`, b]]));
 }
 if (typeof CFG_ABA_EXTRA !== 'undefined') document.querySelectorAll('.tab-content').forEach(sec => {
   if (!abFileira(sec)) return;

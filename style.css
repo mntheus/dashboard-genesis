@@ -6882,23 +6882,17 @@ body .modal-content .modal-actions > button { flex: 1 1 auto; width: auto; min-w
 body .modal-content .modal-actions > button:first-child:not(.btn) { background: var(--acento); color: var(--bg); border-color: transparent; font-weight: 700; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--acento); }
 /* o aviso rápido com uma janela aberta: no alto, longe dos campos (e por cima das folhas, que ficam em 9000) */
-.toast.no-alto { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; z-index: 9500; transform: translateX(-50%) translateY(-20px); }
+/* bottom com !important: as regras "body[data-casca] .toast" e "body:has(#paineis…) .toast" pesam mais e deixavam
+   top E bottom valendo — o aviso virava uma coluna da altura da tela por cima da janela (medido 1.156 px, 20/10) */
+.toast.no-alto { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto !important; z-index: 9500; transform: translateX(-50%) translateY(-20px); }
 .toast.no-alto.show { transform: translateX(-50%) translateY(0); }
-/* a ⚙ da aba: os cartões emprestados da Config viram seções como as outras (sem moldura nem título grande) */
-#aba-config-modal .aba-cfg-emprestados > .card { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
-  padding: 12px 0 0 !important; border-top: 1px solid var(--fio-sutil, var(--borda)) !important; }
-#aba-config-modal .aba-cfg-emprestados > .card::before { display: none; }
-#aba-config-modal .aba-cfg-emprestados > .card > h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--txt4); font-weight: 600; margin: 0 0 6px; }
-#aba-config-modal .aba-cfg-emprestados > .card > h2 .card-toggle { display: none; }
 /* item 2: a grade das 24 h rola por dentro, com os dias fixos no alto (abre na hora de agora) */
 .ag-grade { max-height: min(72vh, 700px); overflow-y: auto; scrollbar-width: thin; }
 .ag-canto, .ag-cabecalhos { position: sticky; top: 0; z-index: 3; background: var(--card); }
 .ag-cabecalhos { margin-bottom: 0; padding-bottom: 4px; }
 /* o aviso que JÁ estava na tela quando a janela abriu também sobe (o JS do toast só pega os novos) */
 body:has(.modal-overlay[style*="display: flex"], .modal[style*="display: flex"], .ng-folha:not([hidden])) .toast {
-  top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; z-index: 9500; }
-/* na ⚙ da aba, os perfis de trabalho quebram linha em vez de sumir na borda ("Produ…") */
-#aba-config-modal #perfil-trabalho { flex-wrap: wrap; overflow: visible; }
+  top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto !important; z-index: 9500; }
 /* no celular, os botões da janela (Criar, Salvar…) ficam sempre à vista no pé dela, mesmo com o formulário rolando */
 @media (max-width: 700px) {
   /* o bottom/margin negativos cobrem a margem de baixo da janela: sem isso o conteúdo rolava POR BAIXO do botão e
@@ -7004,3 +6998,128 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
 @container potes (max-width: 260px) { .fin-pote svg { width: 40px; height: 56px; } }
 /* o valor ("1,3 mil / 1,2 mil") é dinheiro: quando não cabe, quebra no espaço em vez de virar reticências */
 .fin-potes .fin-pote-val { white-space: normal; text-wrap: balance; line-height: 1.15; }
+/* ═══ 20/10 — A JANELA DA ABA: 💡 IDEIAS | ⚙ AJUSTES (revisão geral, item 8) ═══
+   "o pop de ideias e de configuração de abas é muito bagunçado, pouco intuitivo, layout péssimo e quebrado, nada
+   uniforme": uma janela, duas metades no alto; toda opção é uma linha igual (ícone · nome · frase curta · controle
+   à direita); o Enviar fica sempre à vista no pé. Tudo preso a #aba-config-modal para vencer as regras gerais de
+   input/button (todo button tem 44 px — armadilha 47). */
+#aba-config-titulo { display: flex; align-items: center; gap: 8px; }
+#aba-config-titulo .cl-ic { width: 20px; height: 20px; color: var(--acento); }
+#aba-config-titulo span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#aba-config-modal .cl-metades { display: flex; gap: 4px; padding: 4px; margin: 0 0 10px; border-radius: 12px; background: var(--bg);
+  border: 1px solid var(--fio-sutil, var(--borda)); }
+#aba-config-modal .cl-metades button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px;
+  margin: 0; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--txt3); font-weight: 600; font-size: .92rem; }
+#aba-config-modal .cl-metades button .cl-ic { width: 18px; height: 18px; color: inherit; }
+#aba-config-modal .cl-metades button.on { background: var(--card); color: var(--txt-forte); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+#aba-config-modal .cl-metades button.on .cl-ic { color: var(--acento); }
+/* ── as linhas dos Ajustes ── */
+#aba-config-modal .cl-grupo { margin: 16px 4px 2px; font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--txt4); }
+#aba-config-modal .cl-grupo:first-of-type { margin-top: 6px; }
+#aba-config-modal .cl-linha { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin: 0; padding: 8px 6px;
+  border: 0; border-top: 1px solid var(--fio-sutil, var(--borda)); border-radius: 0; background: none; color: var(--txt-forte);
+  text-align: left; font: inherit; font-weight: 400; letter-spacing: normal; cursor: pointer; }
+#aba-config-modal .cl-grupo + .cl-linha { border-top: 0; }
+#aba-config-modal .cl-linha:hover { background: color-mix(in srgb, var(--acento) 6%, transparent); }
+#aba-config-modal .cl-linha > .cl-ic { width: 20px; height: 20px; flex: none; color: var(--txt3); }
+#aba-config-modal .cl-ir > .cl-ic:last-child { width: 16px; height: 16px; color: var(--txt4); }
+#aba-config-modal .cl-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#aba-config-modal .cl-tx b { font-weight: 600; font-size: .92rem; color: var(--txt-forte); }
+#aba-config-modal .cl-tx small { font-size: .78rem; line-height: 1.3; color: var(--txt3); }
+#aba-config-modal .cl-ctl { flex: none; display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 58%; }
+#aba-config-modal .cl-ate { color: var(--txt4); }
+#aba-config-modal .cl-sel { width: auto; min-width: 0; max-width: 100%; min-height: 36px; margin: 0; padding: 4px 8px; border-radius: 9px;
+  font-size: .85rem; text-overflow: ellipsis; }
+/* a chavinha: um checkbox de verdade (o toque na linha inteira liga), com cara de interruptor */
+#aba-config-modal .cl-chave { -webkit-appearance: none; appearance: none; position: relative; flex: none; width: 44px; height: 26px;
+  min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 13px; background: var(--borda2, rgba(127, 127, 127, .35)); cursor: pointer;
+  transition: background-color .15s; }
+#aba-config-modal .cl-chave::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transition: left .15s; }
+#aba-config-modal .cl-chave:checked { background: var(--acento); }
+#aba-config-modal .cl-chave:checked::after { left: 21px; }
+#aba-config-modal .cl-chave:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+#aba-config-modal .cl-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 10px; background: var(--bg); border: 1px solid var(--fio-sutil, var(--borda)); }
+#aba-config-modal .cl-seg button { min-height: 32px; margin: 0; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--txt3);
+  font-size: .82rem; font-weight: 600; }
+#aba-config-modal .cl-seg button.on { background: var(--card); color: var(--txt-forte); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+/* a linha da paleta das Notas: os botões descem para baixo do nome (são muitos) */
+#aba-config-modal .cl-alta { flex-wrap: wrap; cursor: default; }
+#aba-config-modal .cl-ctl-larga { flex-basis: 100%; max-width: none; flex-wrap: wrap; gap: 6px; padding-left: 32px; }
+#aba-config-modal .cl-paleta { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--fio-sutil, var(--borda)); background: none; color: var(--txt2); font-size: .8rem; font-weight: 500; }
+#aba-config-modal .cl-paleta.on { border-color: var(--acento); color: var(--txt-forte); }
+#aba-config-modal .cl-pe { margin: 14px 6px 0; font-size: .75rem; color: var(--txt4); }
+/* janela estreita (celular, Fold fechado): a escolha desce para baixo do nome em vez de espremer a frase
+   (medido em 344 px: "Fora dele, segue na lista e no mês" virava 4 linhas) — armadilha 90: a medida é do embrulho */
+#aba-config-corpo { container: cfgaba / inline-size; }
+@container cfgaba (max-width: 440px) {
+  #aba-config-modal .cl-linha:has(> .cl-ctl) { flex-wrap: wrap; row-gap: 8px; }
+  #aba-config-modal .cl-linha > .cl-ctl { flex-basis: 100%; max-width: 100%; padding-left: 32px; }
+  /* segmentos (Transparente | Aquarela | Paleta) usam a largura toda numa fileira só, em vez de quebrar dentro da caixa */
+  #aba-config-modal .cl-linha > .cl-ctl:has(> .cl-seg) { padding-left: 0; }
+  #aba-config-modal .cl-ctl > .cl-seg { display: flex; flex-wrap: nowrap; width: 100%; }
+  #aba-config-modal .cl-ctl > .cl-seg button { flex: 1 1 auto; padding: 0 8px; }
+  #aba-config-modal .cl-ctl-larga { padding-left: 0; }
+}
+/* ── a metade das Ideias ── */
+#aba-config-modal .ideia-nova { margin: 0; }
+#aba-config-modal .ideia-caixa { display: flex; align-items: flex-start; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 12px;
+  border: 1px solid var(--borda2, var(--fio-sutil)); background: var(--bg); }
+#aba-config-modal .ideia-caixa:focus-within { border-color: var(--acento); }
+#aba-config-modal .ideia-caixa textarea { flex: 1; min-width: 0; min-height: 60px; max-height: 220px; margin: 0; padding: 8px 0; border: 0; border-radius: 0;
+  background: none; box-shadow: none; outline: none; resize: none; font: inherit; font-size: .95rem; line-height: 1.45; color: var(--txt-forte); }
+#aba-config-modal .ideia-mic { flex: none; display: grid; place-items: center; width: 40px; min-height: 40px; margin: 0; padding: 0; border: 0;
+  border-radius: 10px; background: none; color: var(--txt3); }
+#aba-config-modal .ideia-mic .cl-ic { width: 20px; height: 20px; }
+#aba-config-modal .ideia-mic.ouvindo { background: #e5605a; color: #fff; animation: ideia-ouvindo 1.2s ease-in-out infinite; }
+@keyframes ideia-ouvindo { 50% { box-shadow: 0 0 0 6px rgba(229, 96, 90, .25); } }
+#aba-config-modal .ideia-linha { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+#aba-config-modal .ideia-tipos { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ideia-tipo, .ideia-tag { --t: #5b9cf0; }
+.t-faltou { --t: #5b9cf0; } .t-confuso { --t: #e0a83a; } .t-quebrado { --t: #e5605a; } .t-gostei { --t: #3fb57c; }
+#aba-config-modal .ideia-tipo { min-height: 32px; margin: 0; padding: 0 11px; border-radius: 8px; border: 1px solid transparent; font-size: .8rem; font-weight: 600;
+  background: color-mix(in srgb, var(--t) 15%, transparent); color: color-mix(in srgb, var(--t) 75%, var(--txt-forte)); }
+#aba-config-modal .ideia-tipo.on { border-color: var(--t); background: color-mix(in srgb, var(--t) 32%, transparent); color: var(--txt-forte); }
+#aba-config-modal .ideia-anotar { flex: none; min-height: 36px; margin: 0; padding: 0 18px; border: 0; border-radius: 10px; background: var(--acento); color: var(--bg); font-weight: 700; }
+#aba-config-modal .ideia-lista { list-style: none; margin: 12px 0 0; padding: 0; }
+#aba-config-modal .ideia-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; align-items: start; gap: 6px; padding: 8px 0;
+  border-top: 1px solid var(--fio-sutil, var(--borda)); }
+#aba-config-modal .ideia-ok, #aba-config-modal .ideia-mais-bt { display: grid; place-items: center; width: 34px; min-height: 34px; margin: 0; padding: 0;
+  border: 0; border-radius: 9px; background: none; color: var(--txt3); }
+#aba-config-modal .ideia-ok:hover, #aba-config-modal .ideia-mais-bt:hover { color: var(--acento); }
+#aba-config-modal .ideia-ok .cl-ic, #aba-config-modal .ideia-mais-bt .cl-ic { width: 20px; height: 20px; }
+#aba-config-modal .ideia-tx { padding-top: 7px; font-size: .92rem; line-height: 1.4; color: var(--txt-forte); overflow-wrap: anywhere; }
+.ideia-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px; font-size: .7rem; font-weight: 700; vertical-align: 1px;
+  background: color-mix(in srgb, var(--t) 18%, transparent); color: color-mix(in srgb, var(--t) 80%, var(--txt-forte)); }
+#aba-config-modal .ideia-enviada { display: block; margin-top: 2px; font-size: .72rem; color: var(--txt4); }
+#aba-config-modal .ideia-item.feita .ideia-tx { color: var(--txt3); text-decoration: line-through; }
+#aba-config-modal .ideia-item.feita .ideia-ok { color: var(--acento); }
+/* o "⋯" abre mover/apagar LOGO ABAIXO da ideia, na largura toda (nada por cima de nada) */
+#aba-config-modal .ideia-menu { grid-column: 1 / -1; display: none; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 0 4px 40px; }
+#aba-config-modal .ideia-item.menu-aberto .ideia-menu { display: flex; }
+#aba-config-modal .ideia-item.menu-aberto .ideia-mais-bt { color: var(--acento); background: var(--bg); }
+#aba-config-modal .ideia-menu label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: .82rem; color: var(--txt3); }
+#aba-config-modal .ideia-menu .cl-ic { width: 16px; height: 16px; }
+#aba-config-modal .ideia-menu select { width: auto; min-height: 34px; margin: 0; padding: 2px 8px; font-size: .82rem; }
+#aba-config-modal .ideia-apagar, #aba-config-modal .ideia-limpar { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; margin: 0; padding: 0 10px;
+  border-radius: 9px; border: 1px solid var(--fio-sutil, var(--borda)); background: none; color: var(--txt3); font-size: .82rem; font-weight: 600; }
+#aba-config-modal .ideia-apagar:hover { color: #e5605a; border-color: #e5605a; }
+#aba-config-modal .ideia-vazio { padding: 14px 4px 6px; border-top: 1px solid var(--fio-sutil, var(--borda)); font-size: .88rem; line-height: 1.45; color: var(--txt3); }
+#aba-config-modal .ideia-resolvidas { margin-top: 10px; }
+#aba-config-modal .ideia-resolvidas summary { cursor: pointer; padding: 8px 4px; font-size: .82rem; font-weight: 600; color: var(--txt3); }
+#aba-config-modal .ideia-resolvidas .ideia-lista { margin-top: 0; }
+#aba-config-modal .ideia-limpar { margin: 6px 0 0 40px; }
+#aba-config-modal .ideia-limpar .cl-ic { width: 16px; height: 16px; }
+/* o pé com o Enviar: sempre à vista, em qualquer largura (mesmo esquema do celular — armadilha 87) */
+#aba-config-modal #aba-config-pe { position: sticky; bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom, 0px))); z-index: 2;
+  margin: 2px 0 calc(-1 * (var(--s5) + env(safe-area-inset-bottom, 0px))); padding: 10px 0 calc(var(--s5) + env(safe-area-inset-bottom, 0px));
+  background: var(--card); box-shadow: 0 -10px 14px -10px rgba(0, 0, 0, .45); }
+#aba-config-modal #aba-config-pe[hidden] { display: none !important; }
+#aba-config-modal .ideia-pe { display: flex; gap: 8px; width: 100%; }
+/* width: auto — a regra antiga ".modal-actions button { width: 100% }" esticava o "Todas" e empurrava o Enviar para fora */
+#aba-config-modal .ideia-pe button { width: auto; min-width: 0; margin: 0; min-height: 46px; border-radius: 11px; white-space: nowrap; }
+#aba-config-modal .ideia-todas { flex: none; padding: 0 14px; background: none; border: 1px solid var(--fio-sutil, var(--borda)); color: var(--txt2); font-weight: 600; }
+#aba-config-modal .ideia-enviar-bt { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 0;
+  background: var(--acento); color: var(--bg); font-weight: 700; }
+#aba-config-modal .ideia-enviar-bt .cl-ic { width: 18px; height: 18px; }

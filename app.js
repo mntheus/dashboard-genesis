@@ -5766,36 +5766,37 @@ const ABA_ATUAL = () => (document.querySelector('.tab-btn.active') || {}).id || 
 const ABA_NOME = id => (ABAS_INFO.find(a => a[0] === id) || [id, id])[1];
 
 // --- ajustes por aba (só entram aqui os que realmente mexem em algo) --------
+// (20/10, item 8) cada ajuste tem ícone (ic) e uma frase curta (sub): a janela da aba mostra todos do mesmo jeito
 const AJUSTES_ABA = {
   'btn-focus': [
-    { k: 'avisos', nome: 'Card de avisos', pad: true },
-    { k: 'frase', nome: 'Frase do dia', pad: true },
-    { k: 'busca', nome: 'Busca global (Ctrl+K continua funcionando)', pad: true },
-    { k: 'arte', nome: 'Obra do dia', pad: true },
-    { k: 'semana', nome: 'Cartões da semana no resumo', pad: true },
-    { k: 'pomodoro', nome: 'Pomodoro', pad: true }
+    { k: 'avisos', nome: 'Avisos', sub: 'Cartão com o que pede atenção', ic: 'sino', pad: true },
+    { k: 'frase', nome: 'Frase do dia', ic: 'notes', pad: true },
+    { k: 'busca', nome: 'Busca', sub: 'O Ctrl+K funciona mesmo desligada', ic: 'busca', pad: true },
+    { k: 'arte', nome: 'Obra do dia', ic: 'cores', pad: true },
+    { k: 'semana', nome: 'Semana no resumo', sub: 'Cartões dos próximos dias', ic: 'home', pad: true },
+    { k: 'pomodoro', nome: 'Pomodoro', ic: 'relogio', pad: true }
   ],
   'btn-tasks': [
-    { k: 'feitas', nome: 'Já abrir mostrando as concluídas', pad: false },
-    { k: 'rotinas', nome: 'Card de rotinas', pad: true }
+    { k: 'feitas', nome: 'Mostrar as concluídas', sub: 'Já ao abrir a aba', ic: 'tasks', pad: false },
+    { k: 'rotinas', nome: 'Rotinas', sub: 'Cartão na aba', ic: 'restaurar', pad: true }
   ],
   'btn-notes': [
-    { k: 'entregas', nome: 'Card de compras e entregas', pad: true },
-    { k: 'arquivadas', nome: 'Mostrar as arquivadas junto', pad: false },
-    { k: 'caderno', nome: 'Notas como caderno (duas colunas) em vez de mural', pad: false }
+    { k: 'entregas', nome: 'Compras e entregas', sub: 'Cartão na aba', ic: 'carrinho', pad: true },
+    { k: 'arquivadas', nome: 'Arquivadas junto', sub: 'Com as outras notas', ic: 'caixa', pad: false },
+    { k: 'caderno', nome: 'Caderno', sub: 'Duas colunas em vez de mural', ic: 'notes', pad: false }
   ],
   'btn-finances': [
-    { k: 'mesAtual', nome: 'Abrir sempre no mês de hoje', pad: true },
-    { k: 'orcamento', nome: 'Card de orçamento', pad: true },
-    { k: 'recorrentes', nome: 'Card de recorrentes', pad: true },
-    { k: 'graficos', nome: 'Gráficos (por categoria e últimos 6 meses)', pad: true }
+    { k: 'mesAtual', nome: 'Abrir no mês de hoje', ic: 'home', pad: true },
+    { k: 'orcamento', nome: 'Orçamento', sub: 'Os potes do mês', ic: 'finances', pad: true },
+    { k: 'recorrentes', nome: 'Recorrentes', sub: 'Contas que se repetem', ic: 'restaurar', pad: true },
+    { k: 'graficos', nome: 'Gráficos', sub: 'Por categoria e últimos 6 meses', ic: 'business', pad: true }
   ],
   'btn-home': [
-    { k: 'turnos', nome: 'Card de turnos de trabalho', pad: true },
-    { k: 'baixa', nome: 'Card de receber (baixa em lote)', pad: true }
+    { k: 'turnos', nome: 'Turnos de trabalho', sub: 'Cartão na aba', ic: 'relogio', pad: true },
+    { k: 'baixa', nome: 'A receber', sub: 'Dar baixa em lote', ic: 'finances', pad: true }
   ],
   'btn-business': [
-    { k: 'mercado', nome: 'Card de mercado (cotações e gráficos)', pad: true }
+    { k: 'mercado', nome: 'Mercado', sub: 'Cotações e gráficos', ic: 'business', pad: true }
   ]
 };
 const AJUSTES_PADRAO_TODAS = [];
@@ -5837,7 +5838,10 @@ function notasDev(id) { devnotes[id] = devnotes[id] || []; return devnotes[id]; 
 function addNotaDev(ev, id) {
   if (ev) ev.preventDefault();
   const inp = document.getElementById('dev-input'); const txt = (inp.value || '').trim(); if (!txt) return;
-  notasDev(id).push({ id: novoId(), text: txt, done: false, quando: Date.now() });
+  const nota = { id: novoId(), text: txt, done: false, quando: Date.now() };
+  // (20/10, item 8) a etiqueta de um toque (Faltou, Confuso, Quebrado, Gostei) vai junto; só vale no caderno da aba
+  if (inp.closest('#aba-config-modal') && ideiaTipoSel) nota.tipo = ideiaTipoSel;
+  notasDev(id).push(nota); ideiaTipoSel = '';
   salvar('devnotes', devnotes); inp.value = ''; inp.focus();
   renderConfigAba(); tocarPaineis('dev'); atualizarBotaoConfigAba();
   if (typeof renderCfgIdeias === 'function') renderCfgIdeias();
@@ -5888,7 +5892,7 @@ function textoIdeias(soNovas) {
   const blocos = [];
   ABAS_INFO.forEach(([id, nome]) => {
     const l = notasDev(id).filter(x => !x.done && (!soNovas || !x.enviada)); if (!l.length) return;
-    blocos.push(`*${nome.replace(/^\S+\s/, '')}*\n` + l.map(n => `• ${n.text}`).join('\n'));
+    blocos.push(`*${nome.replace(/^\S+\s/, '')}*\n` + l.map(n => `• ${n.tipo && IDEIA_TIPOS[n.tipo] ? `[${IDEIA_TIPOS[n.tipo]}] ` : ''}${n.text}`).join('\n'));
   });
   if (!blocos.length) return '';
   const tela = `${Math.round(screen.width)}×${Math.round(screen.height)}`;
@@ -5944,7 +5948,7 @@ function renderCfgIdeias() {
     ${htmlAtalhosIdeia('cfg-ideia-txt')}
     <div class="ideia-geral">${abas.map(([id, nome]) => `<div class="ideia-grupo"><b>${esc(nome)}</b><ul class="dev-lista">${notasDev(id).filter(x => !x.done).map(n => `
         <li class="dev-item"><input type="checkbox" title="Resolvida" onclick="marcarNotaDev('${id}', ${n.id})">
-          <span>${esc(n.text)}${n.enviada ? `<small class="ideia-enviada">enviada ${isoParaBR(n.enviada).slice(0, 5)}</small>` : ''}</span>
+          <span>${ideiaTag(n)}${esc(n.text)}${n.enviada ? `<small class="ideia-enviada">enviada ${isoParaBR(n.enviada).slice(0, 5)}</small>` : ''}</span>
           <button type="button" class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`).join('')}</ul></div>`).join('')
       || '<p class="hint ideia-vazio">Nenhuma ideia anotada ainda. A primeira pode ser sobre qualquer coisa — até sobre esta tela.</p>'}</div>
     <div class="ideia-envio">
@@ -6023,87 +6027,164 @@ document.body.classList.toggle('modo-teste', modoTeste());
 // G2 (ditado de 09/10): "um iconezinho de configuração em todas as páginas que abre a
 // configuração daquele local — tudo que for configuração daquela aba —, sem ir na
 // Config geral. Hoje só aparece um bloco de notas de ajustes, que não é a intenção."
-// Agora são DOIS botões: ⚙ = configurações da aba (os ajustes dela + os cartões da
-// Config geral que dizem respeito a ela, EMPRESTADOS enquanto o pop-up está aberto)
-// e 🛠 = o caderno do desenvolvedor, à parte e discreto.
+// Dois botões no canto (💡 e ⚙) abrem a MESMA janela, cada um numa metade.
+// (20/10, revisão geral item 8) "o pop de ideias e de configuração de abas é muito bagunçado, pouco intuitivo,
+// layout péssimo e quebrado, nada uniforme" → UMA janela com duas metades no alto (💡 Ideias | ⚙ Ajustes);
+// toda opção é uma linha igual (ícone · nome · frase curta · controle à direita) e os cartões da Config geral
+// (Perfil, Avisos) deixaram de ser emprestados inteiros: viram uma linha que leva até eles.
 let abaConfigAtual = null, abaConfigModo = 'ajustes';
-/** Cartões da Config geral que também aparecem no ⚙ da aba (achados pelo TÍTULO — armadilha nº 12). */
+/** Cartões da Config geral que dizem respeito à aba: viram uma linha "leva até lá" (achados pelo TÍTULO — armadilha nº 12). */
 const CFG_ABA_CARTOES = {
-  'btn-focus': ['Avisos e lembretes'],
-  'btn-home': ['Perfil', 'Avisos e lembretes']
+  'btn-focus': [['Avisos e lembretes', 'sino', 'Avisos e lembretes']],
+  'btn-home': [['Perfil', 'net', 'Seu trabalho e perfil', 'Como o app chama o seu trabalho'], ['Avisos e lembretes', 'sino', 'Avisos e lembretes', 'Plantão chegando, compromisso, contas']]
 };
 /** Pedaços próprios do ⚙ de cada aba (o Painel registra o dele em painel.js). */
 const CFG_ABA_EXTRA = {};
 function abrirConfigAba(id, modo) {
+  const antes = abaConfigAtual;
   abaConfigAtual = id || ABA_ATUAL(); abaConfigModo = modo || 'ajustes';
+  if (antes !== abaConfigAtual) { ideiaTipoSel = ''; }
   renderConfigAba();
   document.getElementById('aba-config-modal').style.display = 'flex';
-  if (abaConfigModo === 'caderno') setTimeout(() => { const i = document.getElementById('dev-input'); if (i) i.focus(); }, 60);
+  const corpo = document.querySelector('#aba-config-modal .modal-content'); if (corpo) corpo.scrollTop = 0;
+  // no celular o teclado subiria por cima da janela ao abrir: o cursor só vai sozinho para a caixa no PC
+  if (abaConfigModo === 'caderno' && !matchMedia('(pointer: coarse)').matches) setTimeout(() => { const i = document.getElementById('dev-input'); if (i) i.focus(); }, 60);
 }
-function fecharConfigAba() { devolverCartoesConfig(); document.getElementById('aba-config-modal').style.display = 'none'; abaConfigAtual = null; }
-/** Devolve à Config geral, no mesmo lugar, os cartões emprestados ao ⚙ da aba. */
-function devolverCartoesConfig() {
-  document.querySelectorAll('#aba-config-corpo .cfg-emprestado').forEach(card => {
-    if (card._volta && card._volta.parentNode) { card._volta.parentNode.insertBefore(card, card._volta); card._volta.remove(); }
-    card._volta = null; card.classList.remove('cfg-emprestado');
-  });
+function fecharConfigAba() { ideiaPararDitado(); document.getElementById('aba-config-modal').style.display = 'none'; abaConfigAtual = null; }
+/** Fecha a janela e leva ao cartão da Config geral (abre o cartão se estava recolhido). */
+function irCfgGeral(nomeCartao) {
+  fecharConfigAba(); changeTab('settings');
+  setTimeout(() => {
+    const card = [...document.querySelectorAll('#settings .card')].find(c => { const h = c.querySelector('h2'); return h && h.textContent.includes(nomeCartao); });
+    if (!card) return;
+    const k = card.dataset.recolhivel;
+    if (k && prefs.recolhidos && prefs.recolhidos[k]) alternarCard(k);
+    card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, 200);
 }
-function emprestarCartoesConfig(id, alvo) {
-  (CFG_ABA_CARTOES[id] || []).forEach(nome => {
-    const card = [...document.querySelectorAll('#settings .card')].find(c => { const h = c.querySelector('h2'); return h && h.textContent.includes(nome); });
-    if (!card || card.classList.contains('cfg-emprestado')) return;
-    card._volta = document.createComment('lugar do cartão emprestado ao ⚙ da aba');
-    card.parentNode.insertBefore(card._volta, card);
-    card.classList.add('cfg-emprestado'); alvo.appendChild(card);
-  });
+
+// --- as linhas da janela (cl = "config, linha"): TODA opção tem a mesma cara ----------------------------------
+function clIc(nome) { return typeof ic === 'function' && typeof ICONES !== 'undefined' && ICONES[nome] ? ic(nome, 'cl-ic') : '<span class="cl-ic"></span>'; }
+function clGrupo(titulo) { return `<div class="cl-grupo">${titulo}</div>`; }
+function clTexto(nome, sub) { return `<span class="cl-tx"><b>${nome}</b>${sub ? `<small>${sub}</small>` : ''}</span>`; }
+/** Chave liga/desliga: a linha inteira é o toque. `acao` roda no onchange (use this.checked se precisar). */
+function clChave(icone, nome, sub, ligado, acao) {
+  return `<label class="cl-linha">${clIc(icone)}${clTexto(nome, sub)}<input type="checkbox" class="cl-chave" role="switch" ${ligado ? 'checked' : ''} onchange="${acao}"></label>`;
+}
+/** Escolha: o controle (lista, segmentos) fica à direita. */
+function clEscolha(icone, nome, sub, controle) {
+  return `<div class="cl-linha">${clIc(icone)}${clTexto(nome, sub)}<span class="cl-ctl">${controle}</span></div>`;
+}
+/** Leva a outro lugar ou faz uma ação (editar, restaurar): a linha inteira é um botão com › no fim. */
+function clIr(icone, nome, sub, acao) {
+  return `<button type="button" class="cl-linha cl-ir" onclick="${acao}">${clIc(icone)}${clTexto(nome, sub)}${clIc('seta')}</button>`;
+}
+/** Lista de escolha. opcoes = [[valor, nome], ...] */
+function clSelect(acao, opcoes, atual) {
+  return `<select class="cl-sel" onchange="${acao}">${opcoes.map(([v, n]) => `<option value="${esc(String(v))}"${String(v) === String(atual) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+}
+/** Segmentos (Cartões | Barras). opcoes = [[nome, acao, ligado], ...] */
+function clSeg(opcoes) {
+  return `<span class="cl-seg">${opcoes.map(([n, a, on]) => `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on ? 'true' : 'false'}" onclick="${a}">${n}</button>`).join('')}</span>`;
+}
+
+// --- 💡 a metade das Ideias ---------------------------------------------------------------------------------
+const IDEIA_TIPOS = { faltou: 'Faltou', confuso: 'Confuso', quebrado: 'Quebrado', gostei: 'Gostei' };
+let ideiaTipoSel = '';
+function ideiaTag(n) { return n.tipo && IDEIA_TIPOS[n.tipo] ? `<span class="ideia-tag t-${n.tipo}">${IDEIA_TIPOS[n.tipo]}</span>` : ''; }
+/** A etiqueta escolhida antes de anotar: um toque marca, outro desmarca (sem redesenhar: o texto digitado fica). */
+function ideiaTipo(k, bt) {
+  ideiaTipoSel = ideiaTipoSel === k ? '' : k;
+  bt.parentElement.querySelectorAll('.ideia-tipo').forEach(b => { const on = b.dataset.tipo === ideiaTipoSel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  const i = document.getElementById('dev-input'); if (i && !matchMedia('(pointer: coarse)').matches) i.focus();
+}
+/** Enter anota; Shift+Enter quebra a linha. */
+function ideiaTecla(ev, id) { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); addNotaDev(ev, id); } }
+function ideiaCrescer(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 220) + 'px'; }
+// 🎤 ditar: só aparece onde o navegador sabe ouvir (Chrome no Android e no PC); o texto entra na caixa
+let ideiaOuvido = null;
+function ideiaPodeDitar() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function ideiaPararDitado() { if (ideiaOuvido) { try { ideiaOuvido.stop(); } catch (e) { } ideiaOuvido = null; } document.querySelectorAll('.ideia-mic.ouvindo').forEach(b => b.classList.remove('ouvindo')); }
+function ideiaDitar(bt) {
+  if (ideiaOuvido) { ideiaPararDitado(); return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
+  const inp = document.getElementById('dev-input'); if (!inp) return;
+  const r = new R(); r.lang = 'pt-BR'; r.interimResults = false; r.continuous = false;
+  r.onresult = e => {
+    const t = [...e.results].map(x => x[0].transcript).join(' ').trim(); if (!t) return;
+    inp.value = (inp.value.trim() ? inp.value.trim() + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); ideiaCrescer(inp);
+  };
+  r.onerror = e => { toast(e.error === 'not-allowed' ? '🎤 O microfone está bloqueado para o app. Libere nas permissões do site.' : '🎤 Não consegui ouvir. Tente de novo ou use o microfone do teclado.', 5000); };
+  r.onend = () => ideiaPararDitado();
+  ideiaOuvido = r; bt.classList.add('ouvindo');
+  try { r.start(); } catch (e) { ideiaPararDitado(); }
+}
+function htmlIdeiasAba(id) {
+  const lista = notasDev(id), abertas = lista.filter(x => !x.done), feitas = lista.filter(x => x.done);
+  const nome = esc(ABA_NOME(id).replace(/^\S+\s/, ''));
+  const linha = n => `<li class="ideia-item${n.done ? ' feita' : ''}">
+      <button type="button" class="ideia-ok" title="${n.done ? 'Voltar a ficar aberta' : 'Marcar como resolvida'}" aria-pressed="${n.done ? 'true' : 'false'}" onclick="marcarNotaDev('${id}', ${n.id})">${clIc(n.done ? 'tasks' : 'circulo')}</button>
+      <span class="ideia-tx">${ideiaTag(n)}${esc(n.text)}${n.enviada && !n.done ? `<small class="ideia-enviada">enviada ${isoParaBR(n.enviada).slice(0, 5)}</small>` : ''}</span>
+      <button type="button" class="ideia-mais-bt" title="Mover ou apagar" aria-label="Mover ou apagar" onclick="this.closest('li').classList.toggle('menu-aberto')">${clIc('pontos')}</button>
+      <div class="ideia-menu">
+        <label>${clIc('mover')}<span>Mover para</span><select onchange="moverNotaDev('${id}', ${n.id}, this.value)">${opcoesAbas(id)}</select></label>
+        <button type="button" class="ideia-apagar" onclick="removerNotaDev('${id}', ${n.id})">${clIc('lixo')} Apagar</button>
+      </div></li>`;
+  return `<form class="ideia-nova" onsubmit="addNotaDev(event, '${id}')">
+      <div class="ideia-caixa">
+        <textarea id="dev-input" rows="2" placeholder="O que você mudaria em ${nome}?" enterkeyhint="send" autocomplete="off" oninput="ideiaCrescer(this)" onkeydown="ideiaTecla(event, '${id}')"></textarea>
+        ${ideiaPodeDitar() ? `<button type="button" class="ideia-mic" title="Ditar a ideia" aria-label="Ditar a ideia" onclick="ideiaDitar(this)">${clIc('mic')}</button>` : ''}
+      </div>
+      <div class="ideia-linha">
+        <span class="ideia-tipos" role="group" aria-label="Que tipo de ideia">${Object.entries(IDEIA_TIPOS).map(([k, t]) => `<button type="button" class="ideia-tipo t-${k}${ideiaTipoSel === k ? ' on' : ''}" data-tipo="${k}" aria-pressed="${ideiaTipoSel === k}" onclick="ideiaTipo('${k}', this)">${t}</button>`).join('')}</span>
+        <button type="submit" class="ideia-anotar">Anotar</button>
+      </div>
+    </form>
+    <ul class="ideia-lista">${abertas.map(linha).join('') || `<li class="ideia-vazio">Nenhuma ideia aqui ainda. O que faltou, o que ficou confuso, o que você mudaria: nenhuma é pequena demais.</li>`}</ul>
+    ${feitas.length ? `<details class="ideia-resolvidas"><summary>Resolvidas · ${feitas.length}</summary><ul class="ideia-lista">${feitas.map(linha).join('')}</ul>
+      <button type="button" class="ideia-limpar" onclick="limparFeitosDev()">${clIc('lixo')} Tirar as resolvidas (todas as abas)</button></details>` : ''}`;
+}
+function htmlPeIdeias() {
+  const total = totalDev(true), novas = Object.values(devnotes).reduce((a, l) => a + (l || []).filter(x => !x.done && !x.enviada).length, 0);
+  const rot = novas ? `Enviar ${plural(novas, 'ideia', 'ideias')}` : total ? 'Enviar de novo' : 'Enviar ideias';
+  return `<div class="ideia-pe">
+      <button type="button" class="ideia-todas" onclick="irCfgGeral('Ideias e sugestões')" title="As ideias de todas as abas juntas">Todas${total ? ` · ${total}` : ''}</button>
+      <button type="button" class="ideia-enviar-bt" onclick="enviarIdeias()">${clIc('enviar')} ${rot}</button></div>`;
+}
+
+// --- ⚙ a metade dos Ajustes ---------------------------------------------------------------------------------
+function htmlAjustesAba(id) {
+  // o Painel novo (painel.js) tem os ajustes dele; os antigos só valem na apresentação clássica
+  const ajustes = id === 'btn-focus' && typeof cascaNova === 'function' && cascaNova() ? [] : (AJUSTES_ABA[id] || []);
+  const c = cfgAba(id);
+  let extra = '';
+  try { extra = typeof CFG_ABA_EXTRA[id] === 'function' ? CFG_ABA_EXTRA[id]() : ''; } catch (e) { console.error('ajustes da aba', id, e); }
+  const ir = (CFG_ABA_CARTOES[id] || []).map(([cartao, icone, nome, sub]) => clIr(icone, nome, sub || 'Na Config geral', `irCfgGeral('${cartao}')`)).join('');
+  return extra
+    + (ajustes.length ? clGrupo('O que aparece') + ajustes.map(a => clChave(a.ic || 'grade', a.nome, a.sub || '', c[a.k], `alternarAjusteAba('${id}', '${a.k}')`)).join('') : '')
+    + clGrupo('Mais') + ir
+    + clIr('settings', 'Config geral', 'Tema, sincronização e o resto do app', "fecharConfigAba(); changeTab('settings')")
+    + '<p class="cl-pe">Estes ajustes valem só neste aparelho.</p>';
 }
 function renderConfigAba() {
   const id = abaConfigAtual; if (!id) return;
   const el = document.getElementById('aba-config-corpo'); if (!el) return;
-  devolverCartoesConfig();
+  // a própria Config só recebe ideias (os ajustes dela são ela mesma)
+  if (id === 'btn-settings') abaConfigModo = 'caderno';
   const caderno = abaConfigModo === 'caderno';
-  document.getElementById('aba-config-titulo').innerText = (caderno ? '💡 Ideias · ' : '⚙ Configurações · ') + ABA_NOME(id).replace(/^\S+\s/, '');
-  // o Painel novo (painel.js) tem os ajustes dele; os antigos só valem na apresentação clássica
-  const ajustes = id === 'btn-focus' && typeof cascaNova === 'function' && cascaNova() ? [] : (AJUSTES_ABA[id] || []);
-  const c = cfgAba(id);
-  const lista = notasDev(id);
-  const abertas = lista.filter(x => !x.done); const feitas = lista.filter(x => x.done);
-  if (!caderno) {
-    const extra = typeof CFG_ABA_EXTRA[id] === 'function' ? CFG_ABA_EXTRA[id]() : '';
-    // 💡 (15/10) o convite para anotar ideias abre a ⚙ de toda aba — antes era um botão no pé, junto do "Abrir a Config"
-    const convite = `<button type="button" class="ideia-convite" onclick="abrirConfigAba('${id}', 'caderno')">
-        <span class="ideia-convite-ic" aria-hidden="true">💡</span>
-        <span><b>Tem uma ideia para esta aba?</b><small>${abertas.length ? `${plural(abertas.length, 'ideia anotada', 'ideias anotadas')} aqui · toque para ver ou anotar outra` : 'O que faltou, o que ficou confuso, o que você mudaria — anote em um toque.'}</small></span>
-        <span class="ideia-convite-ir" aria-hidden="true">›</span></button>`;
-    el.innerHTML = `${convite}${extra}
-      ${ajustes.length ? `<h4 class="dev-titulo">Desta aba</h4>
-        ${ajustes.map(a => `<label class="check-line"><input type="checkbox" ${c[a.k] ? 'checked' : ''} onchange="alternarAjusteAba('${id}', '${a.k}')"> ${esc(a.nome)}</label>`).join('')}` : ''}
-      ${!extra && !ajustes.length && !(CFG_ABA_CARTOES[id] || []).length ? '<p class="hint">Esta aba ainda não tem configurações próprias. O que fizer falta, anote nas 💡 ideias.</p>' : ''}
-      <div id="aba-cfg-emprestados" class="aba-cfg-emprestados"></div>
-      <div class="pf-botoes" style="margin-top:10px"><button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings');">⚙️ Abrir a Config geral</button></div>`;
-    emprestarCartoesConfig(id, document.getElementById('aba-cfg-emprestados'));
-    return;
-  }
-  const linha = n => `<li class="dev-item ${n.done ? 'feito' : ''}"><input type="checkbox" ${n.done ? 'checked' : ''} title="Resolvida" onclick="marcarNotaDev('${id}', ${n.id})">
-      <span>${esc(n.text)}${n.enviada && !n.done ? `<small class="ideia-enviada">enviada ${isoParaBR(n.enviada).slice(0, 5)}</small>` : ''}</span>
-      <select class="dev-mover" title="Mover para outra aba" onchange="moverNotaDev('${id}', ${n.id}, this.value)">${opcoesAbas(id)}</select>
-      <button class="mini-btn xs" title="Apagar" onclick="removerNotaDev('${id}', ${n.id})">✕</button></li>`;
-  const total = totalDev(true), novas = Object.values(devnotes).reduce((a, l) => a + (l || []).filter(x => !x.done && !x.enviada).length, 0);
-  el.innerHTML = `
-    <p class="ideia-chamada">O que faltou aqui? O que ficou confuso? O que você mudaria? Escreva do seu jeito, <b>uma ideia por vez</b> —
-      nenhuma é pequena demais. Cada uma fica guardada nesta aba.</p>
-    <form onsubmit="addNotaDev(event, '${id}')" class="ideia-form">
-      <input type="text" id="dev-input" placeholder="uma ideia para ${esc(ABA_NOME(id).replace(/^\S+\s/, ''))}…" autocomplete="off">
-      <button type="submit" title="Anotar">＋</button>
-    </form>
-    ${htmlAtalhosIdeia('dev-input')}
-    <h4 class="dev-titulo">Anotadas aqui <small>${abertas.length ? plural(abertas.length, 'ideia', 'ideias') : 'nenhuma ainda'}</small></h4>
-    <ul class="dev-lista dev-caderno">${abertas.map(linha).join('') || '<li class="dev-vazio">Seja o primeiro: a primeira ideia desta aba é sua.</li>'}${feitas.length ? `<li class="dev-sep">resolvidas (${feitas.length})</li>` + feitas.map(linha).join('') : ''}</ul>
-    <div class="ideia-envio">
-      <span>${total ? `Você tem <b>${plural(total, 'ideia', 'ideias')}</b> em todas as abas${novas ? ` · <b>${novas}</b> ainda não ${palavra(novas, 'enviada', 'enviadas')}` : ' · todas enviadas'}.` : 'Quando tiver ideias, mande todas de uma vez.'}</span>
-      <button type="button" class="btn ideia-enviar" onclick="enviarIdeias()" ${total ? '' : 'disabled'}>📤 Enviar ideias</button>
-    </div>
-    <div class="pf-botoes" style="margin-top:8px">${feitas.length ? '<button class="mini-btn" onclick="limparFeitosDev()">🧹 limpar resolvidas (todas as abas)</button>' : ''}${id !== 'btn-settings' ? `<button class="mini-btn" onclick="abrirConfigAba('${id}')">⚙️ Configurações desta aba</button>` : ''}<button class="mini-btn" onclick="fecharConfigAba(); changeTab('settings'); setTimeout(() => { const c = document.getElementById('cfg-ideias-card'); if (c) c.scrollIntoView({ block: 'start' }); }, 200);">Todas as ideias</button></div>`;
+  const titulo = document.getElementById('aba-config-titulo');
+  titulo.innerHTML = `${clIc(id.replace('btn-', ''))}<span>${esc(ABA_NOME(id).replace(/^\S+\s/, ''))}</span>`;
+  // o que já estava escrito na caixa sobrevive ao redesenho (marcar, mover ou apagar uma ideia redesenha tudo)
+  const escrito = (document.getElementById('dev-input') || {}).value || '';
+  const abertas = notasDev(id).filter(x => !x.done).length;
+  const metades = id === 'btn-settings' ? '' : `<div class="cl-metades" role="tablist" aria-label="Ideias ou ajustes desta aba">
+      <button type="button" role="tab" aria-selected="${caderno}" class="${caderno ? 'on' : ''}" onclick="abrirConfigAba('${id}', 'caderno')">${clIc('ideia')}<span>Ideias${abertas ? ` · ${abertas}` : ''}</span></button>
+      <button type="button" role="tab" aria-selected="${!caderno}" class="${caderno ? '' : 'on'}" onclick="abrirConfigAba('${id}', 'ajustes')">${clIc('settings')}<span>Ajustes</span></button></div>`;
+  el.innerHTML = metades + (caderno ? htmlIdeiasAba(id) : htmlAjustesAba(id));
+  const pe = document.getElementById('aba-config-pe');
+  if (pe) { pe.hidden = !caderno; pe.innerHTML = caderno ? htmlPeIdeias() : ''; }
+  const inp = document.getElementById('dev-input');
+  if (inp && escrito) { inp.value = escrito; ideiaCrescer(inp); }
 }
 // ============================================================================
 // EDITOR DE LISTA (pedido 10 do caderno)

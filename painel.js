@@ -1108,13 +1108,15 @@ setInterval(() => {
 // ───────────────────────────── o ⚙ do Painel (G2) ──────────────────────────
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-focus'] = () => {
   const c = cfgPainel(), arte = typeof cfgArte === 'function' ? cfgArte() : null;
-  return `<h4 class="dev-titulo">O Painel</h4>
-    <div class="pf-botoes"><button class="mini-btn" onclick="fecharConfigAba(); changeTab('focus'); pnEditar(true)">✎ Editar o painel</button><button class="mini-btn" onclick="fecharConfigAba(); pnAbrirCatalogo()">＋ Adicionar widget</button><button class="mini-btn" onclick="pnRestaurar()">↺ Painel de fábrica</button></div>
-    <label style="display:block; margin-top:10px">Formato do painel:</label>
-    <select onchange="cfgPainel().formato = this.value; delete cfgPainel().compacto; pnGravar(); pnGeoCache = null; pnRender()">${Object.entries(PN_FORMATOS).map(([k, f]) => `<option value="${k}" ${(c.formato || 'auto') === k ? 'selected' : ''}>${f.nome}</option>`).join('')}</select>
-    <p class="hint" style="margin:4px 0 8px">O automático escolhe as colunas e a altura para o painel encher a tela sem rolar: largo no ultrawide, mais equilibrado no 16:9. Agora: <b>${pnCols} colunas</b>, linhas de <b>${pnU}px</b>.</p>
-    ${arte ? `<label class="check-line"><input type="checkbox" ${arte.ligado ? 'checked' : ''} onchange="cfgArte().ligado = this.checked; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); pnObra = null; pnRender()"> Obra do dia (busca a imagem na internet)</label>` : ''}
-    <p class="hint" style="margin-top:4px">${c.itens.length} widgets. A arrumação do Painel vale só neste aparelho — o PC e o celular podem ter painéis diferentes.</p>`;
+  // (20/10, item 8) linhas iguais às outras da janela da aba
+  return clGrupo('O Painel')
+    + clIr('lapis', 'Editar o painel', 'Mover e mudar o tamanho dos quadros', "fecharConfigAba(); changeTab('focus'); pnEditar(true)")
+    + clIr('mais', 'Adicionar widget', `${c.itens.length} no painel agora`, 'fecharConfigAba(); pnAbrirCatalogo()')
+    // o nome curto na lista ("Automático"); o que ele faz vai na frase de baixo (o nome inteiro esticava a lista a 418 px)
+    + clEscolha('grade', 'Formato', `${esc(((PN_FORMATOS[c.formato || 'auto'] || {}).nome || '').split(' — ')[1] || '')} · agora ${pnCols} colunas`,
+      clSelect('cfgPainel().formato = this.value; delete cfgPainel().compacto; pnGravar(); pnGeoCache = null; pnRender(); renderConfigAba()', Object.entries(PN_FORMATOS).map(([k, f]) => [k, f.nome.split(' — ')[0]]), c.formato || 'auto'))
+    + (arte ? clChave('cores', 'Obra do dia', 'Busca a imagem na internet', arte.ligado, "cfgArte().ligado = this.checked; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); pnObra = null; pnRender()") : '')
+    + clIr('restaurar', 'Painel de fábrica', 'Volta os quadros ao começo', 'pnRestaurar()');
 };
 
 // ───────────────────────────── partida ─────────────────────────────────────

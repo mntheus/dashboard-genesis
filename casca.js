@@ -35,7 +35,25 @@ const ICONES = {
   grade:    'M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z',
   fechar:   'M6.5 6.5l11 11M17.5 6.5l-11 11',
   ideia:    'M9.5 18.5h5M10.5 21h3M12 3.5a5.5 5.5 0 00-3.3 9.9c.7.5 1.1 1.3 1.1 2.1v.5h4.4v-.5c0-.8.4-1.6 1.1-2.1A5.5 5.5 0 0012 3.5z',
-  seta:     'M9.5 6l6 6-6 6'
+  seta:     'M9.5 6l6 6-6 6',
+  // (20/10, item 8) as linhas da janela da aba (Ideias | Ajustes)
+  relogio:  'M12 20.5a8.5 8.5 0 110-17 8.5 8.5 0 010 17zM12 7.5V12l3 2',
+  sino:     'M6 16.5V11a6 6 0 0112 0v5.5l1.5 2h-15zM10 20.5h4',
+  cores:    'M12 3.5a8.5 8.5 0 000 17c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.6 0-.9.7-1.6 1.7-1.6h2.4a3.6 3.6 0 003.6-3.6C20.5 6.9 16.7 3.5 12 3.5zM7.5 13.3a.8.8 0 100-1.6.8.8 0 000 1.6zM9.5 9.3a.8.8 0 100-1.6.8.8 0 000 1.6zM14 8.3a.8.8 0 100-1.6.8.8 0 000 1.6z',
+  restaurar: 'M4.5 12a7.5 7.5 0 107.5-7.5c-2.2 0-4.2 1-5.5 2.5M4.5 4v4h4',
+  carrinho: 'M3.5 4.5h2.2l2 10.5h10.6l1.9-7.5H6.6M9 20.3a.8.8 0 100-1.6.8.8 0 000 1.6zM17 20.3a.8.8 0 100-1.6.8.8 0 000 1.6z',
+  caixa:    'M4 4.5h16v4H4zM5.5 8.5v11h13v-11M10 12.5h4',
+  lapis:    'M4.5 19.5l1-4.2 10.3-10.3a2 2 0 012.9 2.9L8.4 18.2zM14 6.8l3.2 3.2',
+  tela:     'M8 3.5h8a1.5 1.5 0 011.5 1.5v14a1.5 1.5 0 01-1.5 1.5H8A1.5 1.5 0 016.5 19V5A1.5 1.5 0 018 3.5zM11 17.5h2',
+  som:      'M4.5 9.5h3l4.5-4v13l-4.5-4h-3zM15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11',
+  vibrar:   'M9 4.5h6a1 1 0 011 1v13a1 1 0 01-1 1H9a1 1 0 01-1-1v-13a1 1 0 011-1zM4.5 9v6M19.5 9v6',
+  gota:     'M12 3.5s6 6.4 6 10.5a6 6 0 01-12 0c0-4.1 6-10.5 6-10.5z',
+  enviar:   'M20.5 3.5L3.5 10.5l7 3 3 7zM10.5 13.5l10-10',
+  mic:      'M12 3.5a3 3 0 013 3v5a3 3 0 01-6 0v-5a3 3 0 013-3zM6 11.5a6 6 0 0012 0M12 17.5v3',
+  circulo:  'M12 20.5a8.5 8.5 0 110-17 8.5 8.5 0 010 17z',
+  pontos:   'M6 13a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM18 13a1 1 0 100-2 1 1 0 000 2z',
+  lixo:     'M5 7h14M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5',
+  mover:    'M4.5 12h11M11.5 8l4 4-4 4M19.5 4.5v15'
 };
 function ic(nome, cls) { return `<svg class="ic ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONES[nome] || ''}"/></svg>`; }
 
@@ -506,27 +524,34 @@ function montarCoresNotas() {
   sec.appendChild(pop);
   aplicarCoresNotas();
 }
-if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-notes'] = () => typeof ntHtmlCores === 'function'
-  ? `<h4 class="dev-titulo">Cores das notas</h4><div class="nt-cores-cfg">${ntHtmlCores()}</div>` : '';
+/** ⚙ das Notas: o estilo das cores e a paleta (20/10, item 8: linhas iguais às outras da janela da aba). */
+if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-notes'] = () => {
+  if (typeof ntCfgCores !== 'function') return '';
+  const c = ntCfgCores();
+  const fams = Object.entries(NT_PALETAS).map(([k, p]) => `<button type="button" class="cl-paleta${c.corEstilo === 'paleta' && c.corPaleta === k ? ' on' : ''}" onclick="ntMudarCores('corPaleta', '${k}')" title="Paleta ${p.nome}"><span class="nt-cores-amostra">${ntAmostra(c, k)}</span>${p.nome}</button>`).join('');
+  return clGrupo('Cores das notas')
+    + clEscolha('cores', 'Estilo', 'A cor de cada nota não muda', clSeg(Object.entries(NT_ESTILOS_COR).map(([k, n]) => [n, `ntMudarCores('corEstilo', '${k}')`, c.corEstilo === k])))
+    + `<div class="cl-linha cl-alta">${clIc('notes')}${clTexto('Paleta', 'Cada cor vira um tom da família')}<span class="cl-ctl cl-ctl-larga">${fams}</span></div>`;
+};
 /** ⚙ da Agenda (A1): a vista com que ela abre e o horário da grade — por aparelho. */
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-home'] = () => {
   if (typeof cfgAgenda !== 'function') return '';
-  const c = cfgAgenda(), horas = (de, ate, sel) => Array.from({ length: ate - de + 1 }, (_, i) => de + i)
-    .map(h => `<option value="${h}"${h === sel ? ' selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
-  return `<h4 class="dev-titulo">Agenda neste aparelho</h4>
-    <label class="cfg-linha">Abrir em <select onchange="mudarCfgAgenda('vista', this.value)">${Object.entries(AG_VISTAS).map(([k, n]) => `<option value="${k}"${c.vista === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-    <label class="cfg-linha">A grade do dia vai das <select onchange="mudarCfgAgenda('hIni', this.value)">${horas(0, 12, c.hIni)}</select>
-      às <select onchange="mudarCfgAgenda('hFim', this.value)">${horas(14, 24, c.hFim)}</select></label>
-    <p class="hint" style="margin:4px 0 12px">Compromisso fora da faixa continua aparecendo na lista e no mês; a grade só mostra menos horas vazias.</p>
-    <label class="check-line"><input type="checkbox" ${c.compactar ? 'checked' : ''} onchange="alternarCfgAgenda('compactar')"> Esconder sozinho as horas vazias do começo e do fim (a grade mostra das 08 às 20 e cresce até os seus compromissos; o ⇕ no canto mostra todas)</label>
-    <label class="check-line"><input type="checkbox" ${c.proximo ? 'checked' : ''} onchange="alternarCfgAgenda('proximo')"> Mostrar o próximo compromisso no cabeçalho da Agenda</label>`;
+  const c = cfgAgenda(), horas = (de, ate) => Array.from({ length: ate - de + 1 }, (_, i) => [de + i, String(de + i).padStart(2, '0') + 'h']);
+  // (20/10, item 8) "Automática (celular: Dia · tela larga: Semana)" não cabe na linha: o nome curto na lista, o resto embaixo
+  const vistas = Object.entries(AG_VISTAS).map(([k, n]) => [k, n.replace(/\s*\(.*\)$/, '')]);
+  return clGrupo('Grade do dia')
+    + clEscolha('tela', 'Abrir em', c.vista === 'auto' ? 'Celular: Dia · tela larga: Semana' : '', clSelect("mudarCfgAgenda('vista', this.value); renderConfigAba()", vistas, c.vista))
+    + clEscolha('relogio', 'Horário', 'Fora dele, segue na lista e no mês', clSelect("mudarCfgAgenda('hIni', this.value)", horas(0, 12), c.hIni) + '<span class="cl-ate">–</span>' + clSelect("mudarCfgAgenda('hFim', this.value)", horas(14, 24), c.hFim))
+    + clChave('grade', 'Esconder horas vazias', 'Mostra 08–20 e cresce até os compromissos', c.compactar, "alternarCfgAgenda('compactar')")
+    + clChave('relogio', 'Próximo compromisso', 'No cabeçalho da Agenda', c.proximo, "alternarCfgAgenda('proximo')");
 };
 /** ⚙ da Saúde: o treino ao vivo (som, vibração, tela acesa) — "tudo que liga/desliga vai para as Configurações". */
 if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-health'] = () => {
   if (typeof cfgTreinoVivo !== 'function') return '';
-  const c = cfgTreinoVivo(), item = (k, nome) => `<label class="check-line"><input type="checkbox" ${c[k] ? 'checked' : ''} onchange="tvMudarCfg('${k}')"> ${nome}</label>`;
-  return `<h4 class="dev-titulo">Treino ao vivo</h4>
-    ${item('som', 'Bipe no fim do descanso')}${item('vibrar', 'Vibrar no fim do descanso (celular)')}${item('telaAcesa', 'Manter a tela acesa durante o treino')}${item('agua', 'Botão de água no descanso (💧 +250 ml, soma na água do dia)')}`;
+  const c = cfgTreinoVivo(), item = (k, icone, nome, sub) => clChave(icone, nome, sub, c[k], `tvMudarCfg('${k}')`);
+  return clGrupo('Treino ao vivo')
+    + item('som', 'som', 'Bipe', 'No fim do descanso') + item('vibrar', 'vibrar', 'Vibrar', 'No fim do descanso (celular)')
+    + item('telaAcesa', 'tela', 'Tela acesa', 'Durante o treino') + item('agua', 'gota', 'Água no descanso', '+250 ml somam na água do dia');
 };
 /** Os marcadores das Notas saem da linha de baixo e viram um seletor (# marcadores ▾). */
 function montarMarcadoresNotas() {

@@ -118,10 +118,9 @@ function rsMudarJunto(aba, on) {
 }
 function rsHtmlCfg(aba) {
   const on = rsLigado(aba), j = RS_ABAS[aba].junto;
-  return `<h4 class="dev-titulo">Painel de resumo</h4>
-    <label class="check-line"><input type="checkbox" ${on ? 'checked' : ''} onchange="rsMudar('${aba}', this.checked)"> Mostrar o 📊 Painel como primeira micro-aba</label>
-    ${j && on ? `<label class="check-line"><input type="checkbox" ${cfgRs()[aba + ':junto'] !== false ? 'checked' : ''} onchange="rsMudarJunto('${aba}', this.checked)"> Abrir com o ${j.nome} junto, embaixo do Painel</label>` : ''}
-    <small class="hint">${on ? 'A aba abre no resumo de todas as partes dela; cada quadro leva à sua.' : 'Desligado: a aba abre direto na primeira parte, como antes.'} Vale neste aparelho.</small>`;
+  // (20/10, item 8) linhas iguais às outras da janela da aba (fica no grupo "Como ver", que o arrumar.js põe na frente)
+  return clChave('business', 'Painel de resumo', on ? 'A aba abre no resumo de todas as partes' : 'A aba abre direto na 1ª parte', on, `rsMudar('${aba}', this.checked)`)
+    + (j && on ? clChave('home', `${j.nome} junto`, 'Embaixo do painel', cfgRs()[aba + ':junto'] !== false, `rsMudarJunto('${aba}', this.checked)`) : '');
 }
 
 // ───────────────────────────── peças comuns ────────────────────────────────

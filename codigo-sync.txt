@@ -395,3 +395,11 @@ function lerRSS(xml) {
   });
   return out;
 }
+
+/** Rode ESTA função no editor (▷ Executar) para o Google pedir a permissão de
+ *  "conectar a um serviço externo" que a ponte precisa. Ela só faz uma busca
+ *  de teste no Yahoo e escreve o resultado no registro de execução. */
+function testarPonteNoEditor() {
+  const r = UrlFetchApp.fetch('https://query1.finance.yahoo.com/v1/finance/search?q=ibovespa&quotesCount=1&newsCount=0', { muteHttpExceptions: true, headers: PONTE_UA });
+  Logger.log('Ponte OK — o Yahoo respondeu ' + r.getResponseCode());
+}

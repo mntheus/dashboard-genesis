@@ -113,7 +113,10 @@ function pnAnel(pct, chave, cor, tam, grosso) {
 function pnAnelTam(x, folga, min, max, frac) {
   const h = x.h || ({ p: 104, m: 104, q: 220, a: 336, l: 220, g: 336 })[x.tam] || 104;
   const w = x.w || ({ p: 150, m: 312, q: 312, a: 312, l: 636, g: 636 })[x.tam] || 150;
-  return Math.round(Math.max(min, Math.min(max, h - folga, w * (frac || 1) - 24)));
+  // (20/10) o título + as margens do quadro tomam 52 px (medido): folga menor que isso deixava o anel 8–12 px maior que
+  // o miolo — cortado no PC e, no celular, virava rolagem que prendia o dedo. E o mínimo só vale se couber.
+  const cabe = h - Math.max(folga, 52);
+  return Math.round(Math.max(Math.min(min, cabe), Math.min(max, cabe, w * (frac || 1) - 24)));
 }
 /** Barrinha horizontal fina (0–1). */
 const pnBarra = (pct, cor) => `<span class="pn-barra"><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;${cor ? `background:${cor}` : ''}"></i></span>`;
@@ -279,9 +282,10 @@ pnDef('habitos', {
   nome: 'Hábitos de hoje', desc: 'Marque num toque; a chama conta os dias seguidos', tams: ['m', 'q', 'l'], padrao: 'm',
   render(x) {
     const hs = typeof habits !== 'undefined' ? habits : [];
-    if (!hs.length) return { corpo: pnVazio('focus', 'Nenhum hábito ainda.', 'Criar', "changeTab('focus'); addNewHabit()") };
+    if (!hs.length) return { corpo: pnVazio('focus', 'Nenhum hábito ainda.', 'Criar', 'habAbrirEditor()') };
     const feitos = hs.filter(h => h.done).length;
-    const extra = `<span class="pn-tag">${feitos}/${hs.length}</span>`;
+    // (20/10) o ✎ abre a janela dos hábitos — antes editar só existia no Painel antigo, escondido (armadilha 77)
+    const extra = `<span class="pn-tag">${feitos}/${hs.length}</span>${x.previa ? '' : '<button type="button" class="pn-hab-ed" onclick="event.stopPropagation(); habAbrirEditor()" title="Criar, renomear, ordenar ou apagar hábitos" aria-label="Editar os hábitos">✎</button>'}`;
     const chip = (h, i) => {
       const st = pnTenta(() => streakHabito(h), 0);
       return `<button type="button" class="pn-hab ${h.done ? 'on' : ''} ${i === pnHabitoTocado ? 'pop' : ''}" ${x.previa ? '' : `onclick="pnHabito(${i})"`} title="${esc(h.text)}${st > 1 ? ' · ' + st + ' dias seguidos' : ''}">
@@ -684,7 +688,9 @@ const PN_FORMATOS = {
   equilibrado: { nome: 'Equilibrado — widgets quase quadrados e maiores (pode rolar)', celula: 0.9, largCol: 300 },
   compacto: { nome: 'Compacto — tudo baixinho, cabe mais (rola se precisar)', fixo: 88 }
 };
-const PN_U_MIN = 98, PN_U_MAX = 240;
+// (20/10) mínimo 112: com 98 o quadro de número cortava o pé (Saldo: número + frase + barrinha, 8 px) e no Fold aberto o
+// Plantão, com a frase em 2 linhas, ainda passava 6 px com 106
+const PN_U_MIN = 112, PN_U_MAX = 240;
 /** Widgets de NÚMERO (e em que tamanhos) que ficam centralizados na altura. */
 const PN_CENTRO = { relogio: 'pm', saldo: 'pm', plantao: 'pm', viagem: 'pm', estudo: 'pm', patrimonio: 'pm', carteira: 'pm', progresso: 'pm', agua: 'pm', foco: 'pm', frase: 'mql' };
 /** Quantas colunas a largura deixa (cada uma com pelo menos `min` px), sempre par. */
@@ -700,7 +706,9 @@ function pnAlturaLivre(pn) {
  *  tem a proporção mais perto do alvo — com castigo para o que obrigaria a rolar.
  *  `linhasReais` (2ª passada) = quantas linhas a grade de fato usou. */
 function pnGeometria(W, H, itens, formato, linhasReais, soCols) {
-  if (W < 600) return { cols: 2, u: 98, linhas: 0 };
+  // celular: 2 colunas e linha de 112 px (com 98 o miolo dos quadros pequenos — Água, Saldo, Foco, Plantão — passava
+  // 8 a 14 px, cortava a última linha e virava uma rolagem que prendia o dedo: "deslizar trava", ideia dele de 20/10)
+  if (W < 600) return { cols: 2, u: 112, linhas: 0 };
   const f = PN_FORMATOS[formato] || PN_FORMATOS.auto, max = pnColunasMax(W);
   if (f.fixo) return { cols: max, u: f.fixo, linhas: 0 };
   // horizontal e equilibrado: a FORMA da célula manda (não enchem a tela à força)
@@ -825,7 +833,14 @@ function pnCaber(raiz) {
     const base = mais ? Number((mais.textContent.match(/\+(\d+)/) || [0, 0])[1]) : 0;
     if (!mais) {
       mais = document.createElement('button'); mais.type = 'button'; mais.className = 'pn-mais';
-      mais.onclick = ev => { ev.stopPropagation(); itens.forEach(li => { li.hidden = false; }); corpo.classList.add('rolando'); mais.remove(); };
+      mais.onclick = ev => {
+        ev.stopPropagation();
+        // (20/10, ideia dele: no Fold fechado "deslizar trava") no TOQUE, uma lista que rola dentro do quadro prende o
+        // dedo: o "+N" leva à aba de onde a lista vem (o título do quadro); no mouse, mostra tudo ali mesmo, com rolagem
+        const ir = matchMedia('(pointer: coarse)').matches && corpo.closest('.pn-w') && corpo.closest('.pn-w').querySelector('.pn-w-rot[onclick]');
+        if (ir) { ir.click(); return; }
+        itens.forEach(li => { li.hidden = false; }); corpo.classList.add('rolando'); mais.remove();
+      };
       corpo.appendChild(mais);
     }
     const ordem = [...itens.filter(li => li.classList.contains('passou')), ...itens.filter(li => !li.classList.contains('passou')).reverse()];
@@ -1112,6 +1127,7 @@ if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-focus'] = () => {
   return clGrupo('O Painel')
     + clIr('lapis', 'Editar o painel', 'Mover e mudar o tamanho dos quadros', "fecharConfigAba(); changeTab('focus'); pnEditar(true)")
     + clIr('mais', 'Adicionar widget', `${c.itens.length} no painel agora`, 'fecharConfigAba(); pnAbrirCatalogo()')
+    + clIr('tasks', 'Hábitos', 'Criar, renomear, ordenar e apagar', 'fecharConfigAba(); habAbrirEditor()')
     // o nome curto na lista ("Automático"); o que ele faz vai na frase de baixo (o nome inteiro esticava a lista a 418 px)
     + clEscolha('grade', 'Formato', `${esc(((PN_FORMATOS[c.formato || 'auto'] || {}).nome || '').split(' — ')[1] || '')} · agora ${pnCols} colunas`,
       clSelect('cfgPainel().formato = this.value; delete cfgPainel().compacto; pnGravar(); pnGeoCache = null; pnRender(); renderConfigAba()', Object.entries(PN_FORMATOS).map(([k, f]) => [k, f.nome.split(' — ')[0]]), c.formato || 'auto'))

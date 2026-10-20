@@ -23,7 +23,8 @@ NOMES_CASCA.nucleo = 'Núcleo';
 
 // ───────────────────────────── preferências ────────────────────────────────
 /** Mostrado na Config → Núcleo: confere se o aparelho está mesmo na versão nova. */
-const GENESIS_VERSAO = '19/10/2026 · v61';
+// sobe JUNTO com o CACHE_NAME do sw.js a cada publicação (ficou parada em v61 até a v76: as ideias enviadas diziam v61)
+const GENESIS_VERSAO = '20/10/2026 · v77';
 const NUCLEO_PADRAO = { inicio: true, anel: true, janelas: false, visual: 'auto', fundo: 'tema', claro: 'aurora' };
 function cfgNucleo() {   // devolve SEMPRE o mesmo objeto (armadilha nº 6)
   const c = prefs.nucleo = prefs.nucleo || {};
@@ -1277,11 +1278,31 @@ function miniNucleo(area) {
 function abrirSetorOrbe(area, i) { const s = (tenta(() => setoresDaArea(area)) || [])[i]; if (s && s.abrir) s.abrir(); }
 /** 09/10 (cara única): o mesmo resumo da mini-órbita, em PÍLULAS ao lado do título — ele achou
  *  que as bolinhas ocupavam espaço demais. Mesma cor de urgência, mesmo clique. */
+// (20/10, ideia dele: "nas Tarefas, Atrasadas, Hoje e Com estrela — nenhum dá para clicar e ver o que sugere") — o
+// clique chamava o "abrir" do setor, que nas abas é changeTab(a mesma aba): não acontecia nada. Agora a pílula abre,
+// LOGO ABAIXO das pílulas (empurra, não cobre — "nada sobrepõe nada"), a lista do que ela conta; cada item abre o seu.
+let pilulaAberta = null;   // 'area:i' ou null
+const setoresDaPilula = area => (tenta(() => setoresDaArea(area)) || []).filter(s => s.nome !== 'Abrir a área');
+function abrirPilula(area, i) {
+  const k = area + ':' + i; pilulaAberta = pilulaAberta === k ? null : k;
+  renderOrbeDaAba(area);
+}
+function abrirItemPilula(area, i, j) {
+  const s = setoresDaPilula(area)[i], x = s && s.itens[j]; if (!x) return;
+  pilulaAberta = null; renderOrbeDaAba(area);
+  if (typeof x.abrir === 'function') x.abrir(); else if (s.abrir) s.abrir();
+}
 function pilulasDaAba(area) {
-  const S = (tenta(() => setoresDaArea(area)) || []).filter(s => s.nome !== 'Abrir a área');
+  const S = setoresDaPilula(area);
   if (!S.length) return '';
   const cor = s => { const u = s.itens.reduce((m, x) => Math.max(m, x.urg), -1); return u === 2 ? 'var(--perigo)' : u === 1 ? 'var(--atencao)' : s.itens.length ? 'var(--acento)' : 'var(--borda3)'; };
-  return `<div class="cs-setores" role="group" aria-label="Resumo de ${esc(nomeAba(area))}">${S.map((s, i) => `<button type="button" class="cs-setor${s.itens.length ? '' : ' vazio'}" style="--c:${cor(s)}" onclick="abrirSetorOrbe('${area}', ${i})" title="${esc(s.nome)}${s.itens[0] ? ' — ' + esc(s.itens[0].nome) : ''}"><i></i><b>${s.itens.length || '–'}</b><span>${esc(s.nome)}</span></button>`).join('')}</div>`;
+  const [aA, aI] = (pilulaAberta || '').split(':'), aberta = aA === area ? S[Number(aI)] : null;
+  const lista = aberta ? `<div class="cs-setor-lista" style="--c:${cor(aberta)}" role="region" aria-label="${esc(aberta.nome)}">
+      <b>${esc(aberta.nome)}</b>
+      ${aberta.itens.slice(0, 8).map((x, j) => `<button type="button" class="cs-setor-it u${x.urg}" onclick="abrirItemPilula('${area}', ${Number(aI)}, ${j})"><span>${esc(x.nome)}</span>${x.sub ? `<small>${esc(x.sub)}</small>` : ''}</button>`).join('')
+        || `<p>${esc(aberta.vazio || 'nada aqui agora')}</p>`}
+      ${aberta.itens.length > 8 ? `<small class="cs-setor-mais">+${aberta.itens.length - 8} na aba</small>` : ''}</div>` : '';
+  return `<div class="cs-setores" role="group" aria-label="Resumo de ${esc(nomeAba(area))}">${S.map((s, i) => `<button type="button" class="cs-setor${s.itens.length ? '' : ' vazio'}${aberta === s ? ' aberta' : ''}" style="--c:${cor(s)}" onclick="abrirPilula('${area}', ${i})" aria-expanded="${aberta === s}" title="${esc(s.nome)}${s.itens[0] ? ' — ' + esc(s.itens[0].nome) : ''}"><i></i><b>${s.itens.length || '–'}</b><span>${esc(s.nome)}</span></button>`).join('')}</div>${lista}`;
 }
 function renderOrbeDaAba(id) {
   const h = document.querySelector(`#${id} > .cs-hero`); if (!h) return;
@@ -1299,6 +1320,7 @@ if (typeof atualizarCabecalhoAtivo === 'function') {
 const _changeTabCasca = changeTab;
 changeTab = function (id) {
   if (id !== 'nucleo') fecharJanelaArea();
+  pilulaAberta = null;   // a lista aberta de uma pílula não segue para a outra aba
   _changeTabCasca(id);
   const noNucleo = id === 'nucleo';
   document.body.classList.toggle('nu-ativo', noNucleo);

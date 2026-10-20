@@ -6167,7 +6167,13 @@ body.ar-editando .tab-content.active > .aba-dev-btn { display: none; }
 body[data-casca="classica"] .aba-arrumar-btn, body[data-casca="classica"] .aba-arrumar-volta { display: none; }
 /* o cabeçalho reserva o canto para os três (antes 96/84 px, para dois) */
 body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 128px; }
-@media (max-width: 700px) { body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 122px; } }
+/* (20/10) no celular os três botões (💡 ✎ ⚙, 36–70 px do alto) só cruzam o rótulo e o título: a reserva de 122 px vale
+   SÓ nessas duas linhas. Antes valia no cabeçalho inteiro e as pílulas e a lista delas ficavam em 179 px (uma por linha). */
+@media (max-width: 700px) {
+  body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero { padding-right: 0; }
+  body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-rotulo,
+  body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-titulo { flex-basis: 100%; padding-right: 122px; box-sizing: border-box; }
+}
 
 /* os QUADROS dos painéis na edição: contorno, conteúdo esmaecido e quieto (o gesto é o arrumar) */
 /* (com a grade no seletor: a regra dos botões logo abaixo dava display e vencia um ".ar-ui" sozinho) */
@@ -7268,3 +7274,62 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
 /* (20/10) o Painel de resumo em ENCAIXE de mural (resumos.js, rsEncaixar; a classe NÃO é .rs-mural, que é dos post-its): linhas de 4 px, cada quadro na altura do seu conteúdo e o
    dense sobe o próximo para o buraco embaixo do mais baixo — fim do "vazio" dentro dos quadros (Rotinas, Marcadores…) */
 .rs-painel > .sp-grade.rs-encaixe { grid-auto-rows: 4px; row-gap: 0; grid-auto-flow: row dense; align-items: start; }
+/* ═══ 20/10 — 🎮 A JANELA DOS HÁBITOS (ideia dele: "é preciso editar os hábitos") ═══ */
+.pn-hab-ed { display: inline-grid; place-items: center; width: 28px; height: 28px; min-height: 0; margin: 0 0 0 6px; padding: 0; border-radius: 8px;
+  border: 1px solid var(--fio-sutil, var(--borda)); background: none; color: var(--txt3); font-size: .85rem; line-height: 1; }
+.pn-hab-ed:hover, .pn-hab-ed:focus-visible { color: var(--txt-forte); border-color: var(--acento); }
+#habitos-modal .modal-content { max-width: min(520px, calc(100vw - 24px)) !important; }
+#habitos-modal .hab-lista { list-style: none; margin: 0; padding: 0; }
+#habitos-modal .hab-ed { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 0;
+  border-top: 1px solid var(--fio-sutil, var(--borda)); }
+#habitos-modal .hab-ed:first-child { border-top: 0; }
+#habitos-modal .hab-ed input { margin: 0; min-height: 42px; }
+#habitos-modal .hab-ic { width: 52px; padding: 4px; text-align: center; font-size: 1.25rem; }
+#habitos-modal .hab-nome:disabled { opacity: .75; }
+#habitos-modal .hab-ac { display: inline-flex; gap: 4px; }
+#habitos-modal .hab-ac button { width: 36px; min-height: 36px; margin: 0; padding: 0; border-radius: 9px; border: 1px solid var(--fio-sutil, var(--borda));
+  background: none; color: var(--txt2); font-size: .95rem; font-weight: 600; }
+#habitos-modal .hab-ac button:disabled { opacity: .3; cursor: default; }
+#habitos-modal .hab-ac button:not(:disabled):hover { border-color: var(--acento); color: var(--txt-forte); }
+#habitos-modal .hab-med { grid-column: 2 / -1; font-size: .74rem; color: var(--txt3); }
+#habitos-modal .hab-vazio { padding: 12px 2px; color: var(--txt3); }
+/* criar: figura + nome + botão na MESMA linha (a regra geral "form { column }" empilhava — armadilha 93) */
+#habitos-modal .hab-novo { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; flex-direction: row; gap: 8px; margin-top: 12px; padding-top: 12px;
+  border-top: 2px solid var(--fio-sutil, var(--borda)); }
+#habitos-modal .hab-novo input { margin: 0; min-height: 42px; }
+#habitos-modal .hab-novo input:first-child { padding: 4px; text-align: center; font-size: 1.25rem; }
+#habitos-modal .hab-novo button { width: auto; margin: 0; padding: 0 14px; white-space: nowrap; }
+#habitos-modal .hab-pe { margin: 10px 2px 0; font-size: .76rem; color: var(--txt4); }
+/* celular estreito: as setas e o ✕ descem para a linha de baixo do nome */
+@media (max-width: 420px) {
+  #habitos-modal .hab-ed { grid-template-columns: 52px minmax(0, 1fr); }
+  #habitos-modal .hab-ac { grid-column: 2; justify-content: flex-end; }
+  #habitos-modal .hab-novo { grid-template-columns: 52px minmax(0, 1fr); }
+  #habitos-modal .hab-novo button { grid-column: 1 / -1; }
+}
+/* ═══ 20/10 — a pílula do topo da aba abre a lista do que ela conta (ideia dele, Tarefas) ═══
+   embaixo das pílulas, na largura do cabeçalho: empurra o conteúdo, não cobre nada */
+body[data-casca="nova"]:not([data-resumo="orbita"]) .tab-content:not(#nucleo) > .cs-hero .cs-orbe-lugar:has(.cs-setor-lista) { flex-basis: 100%; flex-wrap: wrap; row-gap: 8px; }
+.cs-setor.aberta { border-color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.cs-setor-lista { flex-basis: 100%; display: flex; flex-direction: column; gap: 2px; max-width: 560px; padding: 8px 10px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 7%, var(--card)); }
+.cs-setor-lista > b { margin: 0 4px 4px; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--txt3); }
+.cs-setor-it { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: baseline; gap: 8px; min-height: 36px; padding: 7px 8px; border-radius: 8px; }
+.cs-setor-it:hover, .cs-setor-it:focus-visible { background: var(--sup-2); }
+.cs-setor-it span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .88rem; color: var(--txt-forte); }
+.cs-setor-it small { white-space: nowrap; font-size: .74rem; color: var(--txt3); }
+.cs-setor-it.u2 small { color: var(--perigo); }
+.cs-setor-it.u1 small { color: var(--atencao); }
+.cs-setor-lista p, .cs-setor-mais { margin: 4px 6px; font-size: .82rem; color: var(--txt3); }
+/* (20/10, ideia dele: "no Fold fechado deslizar a tela trava") em tela de TOQUE o miolo dos quadros do Painel não rola
+   sozinho: um quadro com 10 px sobrando prendia o dedo e, no fim, não deixava a página seguir (contain). O "+N" de lista
+   longa leva à aba de origem (painel.js, pnCaber). */
+@media (pointer: coarse) {
+  .pn-w-corpo:not(.rolando) { overflow-y: hidden; }
+  /* a lista que ELE abriu no "+N" (quadro sem aba de origem, ex.: Avisos) rola por dentro, mas no fim devolve à página */
+  .pn-w-corpo { overscroll-behavior: auto; }
+}
+/* (20/10) a carga do treino ao vivo é uma caixinha: parece o número grande, mas aceita digitar (37,5); − e ＋ andam 1 kg */
+.tv-aj .tv-carga-in { width: 70px; min-height: 0; height: 34px; margin: 0; padding: 0 4px; border-radius: 8px; border: 1px dashed var(--fio-sutil, var(--borda));
+  background: transparent; color: var(--txt-forte); font-size: 1.45rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.tv-aj .tv-carga-in:focus { border-style: solid; border-color: var(--acento); outline: none; }

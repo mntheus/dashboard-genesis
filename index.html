@@ -1933,6 +1933,13 @@
     </div>
   </div>
   <button id="aba-cfg-btn" class="aba-cfg-btn" title="Ajustes desta aba" onclick="abrirConfigAba()">⚙</button>
+  <!-- 20/10: 🎮 os hábitos (criar, renomear, ordenar, apagar) — o ✎ do quadro de hábitos e a ⚙ do Painel abrem -->
+  <div id="habitos-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><h3>🎮 Hábitos</h3><button type="button" class="close-modal" onclick="habFechar()" aria-label="Fechar">✕</button></div>
+      <div class="modal-body"><div id="habitos-corpo"></div></div>
+    </div>
+  </div>
   <div id="aba-config-modal" class="modal">
     <div class="modal-content" style="max-width: 520px;">
       <!-- 20/10: título de verdade (vira a alça de arrastar), no lugar de uma barra "⚙ Esta aba" + um título solto -->

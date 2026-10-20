@@ -196,6 +196,15 @@ function tvDesfazer() {
   s.ex[alvo].feitas.pop(); s.atual = alvo; s.descansoAte = 0; s.fim = false;
   tvGravar(); tvRender(); toast('↶ Série desfeita.');
 }
+// (20/10, ideia dele) "o marcador de peso tem que pedir valores além dos automáticos de 2,5 kg a cada clique: aumentar de
+// 1 em 1 kg e poder escolher o valor quebrado (ex.: 37,5)" → − e ＋ andam 1 kg; o número é uma caixinha que aceita
+// qualquer valor (vírgula ou ponto), arredondado a 0,1 kg.
+function tvCarga(txt) {
+  const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e) return;
+  const n = parseFloat(String(txt || '').replace(',', '.'));
+  e.cargaAgora = isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : 0;
+  tvGravar(); tvRender();
+}
 function tvAjustar(campo, d) {
   const s = treinoEmAndamento(); if (!s) return; const e = s.ex[s.atual]; if (!e) return;
   if (campo === 'carga') e.cargaAgora = Math.max(0, Math.round(((Number(e.cargaAgora) || 0) + d) * 10) / 10);
@@ -401,7 +410,7 @@ function tvRender(acabouDescanso) {
         ${e.aerob ? (completo ? `<p class="tv-ok">✓ ${e.feitas.reduce((a, f) => a + (Number(f.min) || 0), 0)} min feitos</p>${acao}` : tvAeroHTML(s, e)) : `<div class="tv-series" aria-label="Séries">${Array.from({ length: e.series }, (_, k) => `<i class="${k < e.feitas.length ? 'ok' : k === e.feitas.length ? 'agora' : ''}">${k < e.feitas.length ? '✓' : k + 1}</i>`).join('')}</div>
         ${completo ? '<p class="tv-ok">✓ Todas as séries feitas</p>' : `<div class="tv-ajustes">
           <div class="tv-aj"><button type="button" onclick="tvAjustar('reps', -1)" aria-label="Menos repetições">−</button><span><b>${esc(String(e.repsAgora || e.reps))}</b><small>reps</small></span><button type="button" onclick="tvAjustar('reps', 1)" aria-label="Mais repetições">＋</button></div>
-          <div class="tv-aj"><button type="button" onclick="tvAjustar('carga', -2.5)" aria-label="Menos carga">−</button><span><b>${e.cargaAgora ? spNum(e.cargaAgora, e.cargaAgora % 1 ? 1 : 0) : '—'}</b><small>kg</small></span><button type="button" onclick="tvAjustar('carga', 2.5)" aria-label="Mais carga">＋</button></div>
+          <div class="tv-aj"><button type="button" onclick="tvAjustar('carga', -1)" aria-label="Menos 1 kg">−</button><span><input type="text" class="tv-carga-in" inputmode="decimal" enterkeyhint="done" aria-label="Carga em kg (pode digitar, ex.: 37,5)" value="${e.cargaAgora ? String(spNum(e.cargaAgora, e.cargaAgora % 1 ? 1 : 0)) : ''}" placeholder="—" onfocus="this.select()" onchange="tvCarga(this.value)" onkeydown="if (event.key === 'Enter') this.blur()"><small>kg</small></span><button type="button" onclick="tvAjustar('carga', 1)" aria-label="Mais 1 kg">＋</button></div>
         </div>`}
         ${acao}`}
         ${feitas ? '<button type="button" class="tv-desfaz" onclick="tvDesfazer()">↶ desfazer a última série</button>' : ''}

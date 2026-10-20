@@ -701,6 +701,70 @@ function removerHabito(index) {
   habits.splice(index, 1); salvar('habits', habits); renderFocusTab(); renderJournal(); atualizarSaudacao();
 }
 
+// --- 🎮 a janela dos hábitos (20/10, ideia dele: "é preciso editar os hábitos, eu não consigo editá-los") ---
+// O ✎ só existia na lista do Painel ANTIGO (#main-habits-list, dentro do #pn-legado escondido — armadilha 77);
+// o quadro novo só marcava. Agora o ✎ do quadro (e a ⚙ do Painel) abre esta janela: renomear (a sequência 🔥
+// continua), trocar a figura, mudar a ordem, apagar e criar. Hábito que vem da rotina de remédios (medId) tem o
+// nome e o apagar travados: quem manda nele é Saúde → Médico (lá ele seria recriado).
+function habAbrirEditor() { habDesenharEditor(); document.getElementById('habitos-modal').style.display = 'flex'; }
+function habFechar() { document.getElementById('habitos-modal').style.display = 'none'; }
+function habMudou() {
+  salvar('habits', habits); renderFocusTab(); atualizarSaudacao();
+  if (typeof pnRender === 'function') pnRender();
+  habDesenharEditor();
+}
+function habDesenharEditor() {
+  const el = document.getElementById('habitos-corpo'); if (!el) return;
+  const linha = (h, i) => {
+    const med = !!h.medId;
+    return `<li class="hab-ed${med ? ' med' : ''}">
+      <input type="text" class="hab-ic" id="hab-ic-${i}" value="${esc(h.icon || '')}" maxlength="8" aria-label="Figura do hábito" onchange="habRenomear(${i})">
+      <input type="text" class="hab-nome" id="hab-nome-${i}" value="${esc(h.text)}" aria-label="Nome do hábito" ${med ? 'disabled title="Vem da rotina de remédios: mude em Saúde → Médico"' : `onchange="habRenomear(${i})" enterkeyhint="done"`}>
+      <span class="hab-ac">
+        <button type="button" onclick="habMover(${i}, -1)" ${i ? '' : 'disabled'} title="Subir" aria-label="Subir">↑</button>
+        <button type="button" onclick="habMover(${i}, 1)" ${i < habits.length - 1 ? '' : 'disabled'} title="Descer" aria-label="Descer">↓</button>
+        <button type="button" onclick="habApagar(${i})" ${med ? 'disabled title="Vem da rotina de remédios: desligue lá"' : 'title="Apagar"'} aria-label="Apagar">✕</button></span>
+      ${med ? '<small class="hab-med">💊 vem da rotina de remédios — o nome se muda em Saúde → Médico</small>' : ''}</li>`;
+  };
+  el.innerHTML = `<ul class="hab-lista">${habits.map(linha).join('') || '<li class="hab-vazio">Nenhum hábito ainda. Crie o primeiro abaixo.</li>'}</ul>
+    <form class="hab-novo" onsubmit="event.preventDefault(); habNovo()">
+      <input type="text" id="hab-novo-ic" maxlength="8" placeholder="😀" aria-label="Figura do novo hábito">
+      <input type="text" id="hab-novo-nome" placeholder="novo hábito (ex.: beber 2 L de água)" autocomplete="off" enterkeyhint="done" aria-label="Nome do novo hábito">
+      <button type="submit">＋ Criar</button></form>
+    <p class="hab-pe">Renomear não zera a sequência 🔥. A figura pode ser qualquer emoji do teclado.</p>`;
+}
+function habRenomear(i) {
+  const h = habits[i]; if (!h) return;
+  const ic = (document.getElementById('hab-ic-' + i).value || '').trim() || '📌';
+  const nomeEl = document.getElementById('hab-nome-' + i), nome = h.medId ? h.text : (nomeEl.value || '').trim();
+  if (!nome) { nomeEl.value = h.text; toast('O hábito precisa de um nome.'); return; }
+  if (nome !== h.text) {
+    if (habits.some((x, k) => k !== i && x.text.toLowerCase() === nome.toLowerCase())) { nomeEl.value = h.text; toast('Já existe um hábito com esse nome.'); return; }
+    // mantém o histórico/sequência: renomeia o hábito nos dias já registrados (como o editarHabito antigo)
+    Object.values(habitLog.dias || {}).forEach(r => { if (r.feitos) r.feitos = r.feitos.map(f => f === h.text ? nome : f); });
+    salvar('habitlog', habitLog);
+  }
+  h.icon = ic; h.text = nome; habMudou();
+}
+function habMover(i, d) {
+  const j = i + d; if (j < 0 || j >= habits.length) return;
+  [habits[i], habits[j]] = [habits[j], habits[i]]; habMudou();
+}
+function habApagar(i) {
+  const h = habits[i]; if (!h || h.medId) return;
+  if (!confirm(`Apagar o hábito "${h.text}"? O que já foi marcado nos dias passados continua no histórico.`)) return;
+  habits.splice(i, 1); habMudou(); renderJournal();
+}
+function habNovo() {
+  const n = document.getElementById('hab-novo-nome'), t = (n.value || '').trim(); if (!t) { n.focus(); return; }
+  if (habits.some(x => x.text.toLowerCase() === t.toLowerCase())) { toast('Já existe um hábito com esse nome.'); return; }
+  const ic = (document.getElementById('hab-novo-ic').value || '').trim();
+  const sep = ic ? { icon: ic, text: t } : separarIconeTexto(t);
+  habits.push({ text: sep.text, icon: sep.icon, done: false }); habMudou();
+  toast(`🎮 ${sep.text} entrou nos hábitos de hoje.`, 2500);
+  const nn = document.getElementById('hab-novo-nome'); if (nn) nn.focus();
+}
+
 // --- RESUMO (ex-Journals): números reais do período ---
 let currentJournal = 'day';
 function changeJournalTab(period, element) {
@@ -6108,19 +6172,42 @@ function ideiaCrescer(t) { t.style.height = 'auto'; t.style.height = Math.min(t.
 // 🎤 ditar: só aparece onde o navegador sabe ouvir (Chrome no Android e no PC); o texto entra na caixa
 let ideiaOuvido = null;
 function ideiaPodeDitar() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
-function ideiaPararDitado() { if (ideiaOuvido) { try { ideiaOuvido.stop(); } catch (e) { } ideiaOuvido = null; } document.querySelectorAll('.ideia-mic.ouvindo').forEach(b => b.classList.remove('ouvindo')); }
+function ideiaPararDitado() {
+  const r = ideiaOuvido; ideiaOuvido = null;   // antes do stop: o "onend" vê null e não recomeça
+  if (r) { try { r.stop(); } catch (e) { } }
+  document.querySelectorAll('.ideia-mic.ouvindo').forEach(b => b.classList.remove('ouvindo'));
+  const inp = document.getElementById('dev-input'); if (inp && inp.dataset.ph) { inp.placeholder = inp.dataset.ph; delete inp.dataset.ph; }
+}
+// (20/10, ideia dele: "permitir que o áudio para gravar as ideias dure mais tempo, ele grava só uns 30 segundos") — o
+// navegador encerra o ditado sozinho depois de um silêncio. Agora é contínuo: recomeça sozinho até ELE tocar no 🎤 de
+// novo (ou 1 minuto inteiro sem ouvir nada, para não gastar bateria), e a caixa mostra o que está ouvindo.
 function ideiaDitar(bt) {
   if (ideiaOuvido) { ideiaPararDitado(); return; }
   const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
   const inp = document.getElementById('dev-input'); if (!inp) return;
-  const r = new R(); r.lang = 'pt-BR'; r.interimResults = false; r.continuous = false;
+  if (!inp.dataset.ph) inp.dataset.ph = inp.placeholder;
+  let ultimoSom = Date.now();
+  const r = new R(); r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true;
   r.onresult = e => {
-    const t = [...e.results].map(x => x[0].transcript).join(' ').trim(); if (!t) return;
-    inp.value = (inp.value.trim() ? inp.value.trim() + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); ideiaCrescer(inp);
+    ultimoSom = Date.now();
+    let fim = '', meio = '';
+    for (let k = e.resultIndex; k < e.results.length; k++) { const t = e.results[k][0].transcript; if (e.results[k].isFinal) fim += t; else meio += t; }
+    const t = fim.trim();
+    if (t) { inp.value = (inp.value.trim() ? inp.value.trim() + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); ideiaCrescer(inp); }
+    inp.placeholder = meio.trim() ? '🎤 ' + meio.trim() + '…' : '🎤 Ouvindo… toque no microfone para parar';
   };
-  r.onerror = e => { toast(e.error === 'not-allowed' ? '🎤 O microfone está bloqueado para o app. Libere nas permissões do site.' : '🎤 Não consegui ouvir. Tente de novo ou use o microfone do teclado.', 5000); };
-  r.onend = () => ideiaPararDitado();
+  r.onerror = e => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;   // silêncio: o onend recomeça
+    toast(e.error === 'not-allowed' ? '🎤 O microfone está bloqueado para o app. Libere nas permissões do site.' : '🎤 Não consegui ouvir. Tente de novo ou use o microfone do teclado.', 5000);
+    ideiaPararDitado();
+  };
+  r.onend = () => {
+    if (ideiaOuvido !== r) return;   // ele tocou para parar
+    if (Date.now() - ultimoSom > 60000) { ideiaPararDitado(); toast('🎤 Parei: um minuto sem ouvir nada.', 3500); return; }
+    try { r.start(); } catch (x) { ideiaPararDitado(); }
+  };
   ideiaOuvido = r; bt.classList.add('ouvindo');
+  inp.placeholder = '🎤 Ouvindo… toque no microfone para parar';
   try { r.start(); } catch (e) { ideiaPararDitado(); }
 }
 function htmlIdeiasAba(id) {
@@ -6358,6 +6445,7 @@ setInterval(sincronizarListas, 700);
 const MODAIS_MOVEIS = {
   'anexo-modal': '📎 Anexos',
   'aba-config-modal': '⚙ Esta aba',
+  'habitos-modal': '🎮 Hábitos',
   'compra-modal': '🛒 Comprei',
   'lupa-modal': '🖼️ Imagem',
   'novo-modal': '➕ Novo compromisso'

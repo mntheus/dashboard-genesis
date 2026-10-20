@@ -53,10 +53,12 @@ const PN_TAM = {
   m: { c: 2, l: 1, nome: 'Médio' },
   q: { c: 2, l: 2, nome: 'Quadrado' },
   a: { c: 2, l: 3, nome: 'Alto' },
+  // (20/10) só a Obra do dia usa: o retrato estreito (a "Mona Lisa") num quadro de pé
+  t: { c: 1, l: 3, nome: 'Torre' },
   l: { c: 4, l: 2, nome: 'Largo' },
   g: { c: 4, l: 3, nome: 'Grande' }
 };
-const PN_ORDEM_TAM = ['p', 'm', 'q', 'a', 'l', 'g'];
+const PN_ORDEM_TAM = ['p', 'm', 'q', 'a', 't', 'l', 'g'];
 /** A cor de cada aba (a bolinha do rótulo e os traços dos gráficos). */
 const PN_COR = {
   focus: 'var(--acento)', home: '#60a5fa', finances: '#22c55e', tasks: '#f59e0b', notes: '#eab308',
@@ -478,11 +480,49 @@ let pnObra = null, pnObraCarregando = false;
 function pnCarregarObra(forcar) {
   if (pnObraCarregando || typeof carregarObraDoDia !== 'function') return;
   pnObraCarregando = true;
-  Promise.resolve(carregarObraDoDia(forcar)).then(o => { pnObra = o || null; }).catch(e => { console.warn('Obra do dia:', e); pnObra = { erro: true }; })
+  // (20/10) mede a pintura ANTES de desenhar: o quadro toma a forma dela (não pisca de quadrado para alto)
+  Promise.resolve(carregarObraDoDia(forcar)).then(pnMedirObra).then(o => { pnObra = o || null; pnGeoCache = null; })
+    .catch(e => { console.warn('Obra do dia:', e); pnObra = { erro: true }; })
     .finally(() => { pnObraCarregando = false; pnRender(); });
 }
+// ── a Obra do dia na FORMA DA PINTURA (20/10, ideia dele: "a aba do quadro sempre se adaptasse diariamente de acordo
+// com o formato do quadro… principalmente o quadro de arte do dia seja adequado à sua apresentação") ──
+// A proporção da imagem decide o tamanho do widget: retrato (< 0,8) = Alto 2×3; paisagem (> 1,3) = Largo 4×2; o resto =
+// Quadrado 2×2. A pintura aparece inteira (contain) sobre um fundo desfocado dela mesma. Se ele mudar o tamanho à mão
+// no ✎, aquele tamanho fica (formaFixa); a ⚙ do Painel religa a forma automática.
+function pnMedirObra(o) {
+  return new Promise(res => {
+    if (!o || !o.img || o.ratio) return res(o);
+    const im = new Image(); let feito = false;
+    const fim = () => { if (!feito) { feito = true; res(o); } };
+    im.onload = () => { if (im.naturalWidth && im.naturalHeight) o.ratio = im.naturalWidth / im.naturalHeight; fim(); };
+    im.onerror = fim; setTimeout(fim, 5000);
+    im.referrerPolicy = 'no-referrer'; im.src = o.img;
+  });
+}
+/** O tamanho cuja medida em PIXELS (não em células: no PC um "quadrado" 2×2 é 405 × 236) mais se parece com a pintura.
+ *  Guardado por obra e por faixa de tela: a geometria muda com o tamanho e não pode ficar trocando a cada redesenho. */
+function pnFormaObra() {
+  const r = pnObra && pnObra.ratio; if (!r) return 'q';
+  const tela = cfgPainel().tela || 'pc'; pnObra.formaPor = pnObra.formaPor || {};
+  if (pnObra.formaPor[tela]) return pnObra.formaPor[tela];
+  const cols = pnCols || 6, cw = pnColW || 160, u = pnU || 112, gap = PN_VAO;
+  // a ÁREA DA IMAGEM de cada tamanho (medida): o quadro tira 26 px de lado e 52 de altura (título e margens); de pé, a
+  // legenda de uma linha tira mais 24; largo, o texto ao lado fica com 42% da largura
+  const px = t => {
+    const T = PN_TAM[t], c = Math.min(T.c, cols), W = c * cw + (c - 1) * gap - 26, H = T.l * u + (T.l - 1) * gap - 52;
+    return t === 'l' || t === 'g' ? (W * 0.58 - 6) / H : W / (H - 24);
+  };
+  const melhor = ['q', 'a', 't', 'l', 'g'].reduce((m, t) => Math.abs(Math.log(px(t) / r)) < Math.abs(Math.log(px(m) / r)) ? t : m, 'q');
+  // com que largura de grade a conta foi feita: na 1ª vez numa tela nova as medidas ainda são da tela anterior, e o
+  // pnRender refaz a escolha uma vez com as certas
+  (pnObra.formaW = pnObra.formaW || {})[tela] = pnGeoW;
+  return (pnObra.formaPor[tela] = melhor);
+}
+let pnGeoW = 0, pnRefazendoObra = false;   // a largura em que pnCols/pnColW/pnU foram calculados
+function pnObraAuto(inst) { return inst.t === 'obra' && cfgPainel().obraForma !== false && !inst.formaFixa; }
 pnDef('obra', {
-  nome: 'Obra do dia', desc: 'Uma obra de arte por dia, com a história dela', tams: ['q', 'l', 'g'], padrao: 'q',
+  nome: 'Obra do dia', desc: 'Uma obra de arte por dia, com a história dela — o quadro toma a forma da pintura', tams: ['q', 'a', 't', 'l', 'g'], padrao: 'q',
   render(x) {
     if (typeof cfgArte === 'function' && !cfgArte().ligado) return { corpo: pnVazio('foto', 'A obra do dia está desligada.', 'Ligar', "cfgArte().ligado = true; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); pnObra = null; pnRender()") };
     if (x.previa) return { corpo: `<div class="pn-obra pn-obra-previa">${ic('foto')}</div>` };
@@ -490,9 +530,14 @@ pnDef('obra', {
     if (pnObra.erro) return { corpo: pnVazio('foto', 'Sem internet para a obra de hoje.', 'Tentar de novo', 'pnCarregarObra(true)') };
     const o = pnObra;
     const extra = `<button type="button" class="pn-ico-bt" title="Ver outra" onclick="pnCarregarObra(true)">${ic('girar')}</button>`;
-    const sobre = x.tam !== 'q' && o.sobre ? `<p class="pn-obra-sobre">${esc(o.sobre)}</p>` : '';
-    return { extra, corpo: `<div class="pn-obra-wrap ${x.tam}"><a class="pn-obra" href="${esc(o.link || '#')}" target="_blank" rel="noopener" title="Ver no ${esc(o.fonte || 'site')}"><img src="${esc(o.img)}" alt="${esc(o.titulo)}" loading="lazy" onerror="this.parentElement.classList.add('erro')"></a>
-      <div class="pn-obra-txt"><b>${esc(o.titulo)}</b><small>${esc(o.autor || '')}${o.ano ? ' · ' + esc(String(o.ano)) : ''}</small>${sobre}</div></div>` };
+    // (20/10) largo (l, g): o texto ao lado, com a história; de pé (q, a, t): UMA linha embaixo — a pintura fica com o resto
+    const lado = x.tam === 'l' || x.tam === 'g';
+    const sobre = lado && o.sobre ? `<p class="pn-obra-sobre">${esc(o.sobre)}</p>` : '';
+    const leg = `${o.titulo || ''}${o.autor ? ' · ' + o.autor : ''}${o.ano ? ', ' + o.ano : ''}`;
+    // o fundo desfocado é a própria obra (variável CSS): aspas, parênteses e espaços do endereço viram %xx para o url() não quebrar
+    const fundo = String(o.img || '').replace(/['"()\s]/g, ch => '%' + ch.charCodeAt(0).toString(16).toUpperCase());
+    return { extra, corpo: `<div class="pn-obra-wrap ${x.tam}"><a class="pn-obra" style="--obra-img:url('${esc(fundo)}')" href="${esc(o.link || '#')}" target="_blank" rel="noopener" title="Ver no ${esc(o.fonte || 'site')}"><img src="${esc(o.img)}" alt="${esc(o.titulo)}" loading="eager" referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('erro')"></a>
+      ${lado ? `<div class="pn-obra-txt"><b>${esc(o.titulo)}</b><small>${esc(o.autor || '')}${o.ano ? ' · ' + esc(String(o.ano)) : ''}</small>${sobre}</div>` : `<p class="pn-obra-leg" title="${esc(leg)}">${esc(leg)}</p>`}</div>` };
   }
 });
 let pnFrase = '';
@@ -740,7 +785,37 @@ function pnLinhasUsadas(pn) {
 }
 function pnTamValido(inst) {
   const d = PN_W[inst.t]; if (!d) return 'm';
+  if (pnObraAuto(inst)) return pnFormaObra();   // (20/10) a Obra do dia na forma da pintura de hoje
   return d.tams.includes(inst.s) ? inst.s : d.padrao;
+}
+/** Mudou o tamanho da Obra à mão: aquele tamanho fica (a forma automática volta pela ⚙ do Painel). */
+function pnFixarObra(inst) {
+  if (!inst || inst.t !== 'obra' || inst.formaFixa) return;
+  inst.formaFixa = true;
+  toast('🖼️ Tamanho da Obra do dia fixado. Para ela voltar a tomar a forma da pintura: ⚙ do Painel.', 5000);
+}
+
+// ── uma arrumação POR TELA (20/10, ideia dele: "uma arrumação por tela") ──
+// O Painel guarda uma lista de widgets por faixa de largura: o Fold fechado, o Fold aberto, o PC e o ultrawide não se
+// bagunçam um ao outro. `itens` é sempre a lista da tela de AGORA; ao mudar de faixa (abriu o Fold, dividiu a tela),
+// ela é guardada em `porTela` e a da outra entra. Tela nova parte da arrumação que ele já tinha.
+const PN_TELAS = [['celular', 0, 'celular (Fold fechado)'], ['media', 600, 'tela média (Fold aberto, tablet)'], ['pc', 1100, 'computador'], ['ultra', 2300, 'tela ultralarga']];
+function pnTelaAgora() { const w = window.innerWidth || 1280; let t = PN_TELAS[0]; PN_TELAS.forEach(x => { if (w >= x[1]) t = x; }); return t; }
+function pnTrocarTela() {
+  const c = cfgPainel(), k = pnTelaAgora()[0];
+  if (c.tela === k) return;
+  c.porTela = c.porTela || {};
+  if (c.tela) {
+    c.porTela[c.tela] = c.itens;
+    c.itens = c.porTela[k] ? c.porTela[k] : JSON.parse(JSON.stringify(c.itens));
+  }
+  c.tela = k; c.porTela[k] = c.itens; pnGeoCache = null; pnGravar();
+}
+function pnCopiarParaTelas() {
+  if (!confirm('Usar a arrumação desta tela também nas outras (celular, Fold aberto, computador, ultrawide)? A arrumação que elas tinham sai.')) return;
+  const c = cfgPainel(); c.porTela = {};
+  PN_TELAS.forEach(([k]) => { c.porTela[k] = k === c.tela ? c.itens : JSON.parse(JSON.stringify(c.itens)); });
+  pnGravar(); toast('🧩 Arrumação copiada para todas as telas.');
 }
 function pnHtmlWidget(inst) {
   const d = PN_W[inst.t]; if (!d) return '';
@@ -782,6 +857,7 @@ function pnRender() {
   if (!pn.offsetParent && !document.querySelector('#focus.active')) { pnSujo = true; return; }
   pnSujo = false;
   pnBotoesCabecalho();   // antes de medir: os botões mudam a altura do cabeçalho
+  pnTrocarTela();        // (20/10) a arrumação desta faixa de tela (o Fold aberto e o fechado têm cada um a sua)
   const larg = pn.clientWidth || (document.querySelector('.container') || document.body).clientWidth;
   pn.classList.toggle('editando', pnEditando);
   const c = cfgPainel();
@@ -793,7 +869,7 @@ function pnRender() {
   let g = doCache ? pnGeoCache.g : pnGeometria(larg, H, c.itens, formato);
   const aneisAntes = Object.assign({}, pnAnelAntes);
   const desenhar = geo => {
-    pnCols = geo.cols; pnU = geo.u; pnColW = (larg - (pnCols - 1) * PN_VAO) / pnCols;
+    pnCols = geo.cols; pnU = geo.u; pnColW = (larg - (pnCols - 1) * PN_VAO) / pnCols; pnGeoW = larg;
     pn.style.setProperty('--pn-cols', pnCols); pn.style.setProperty('--pn-u', pnU + 'px');
     pn.innerHTML = c.itens.map(pnHtmlWidget).join('') +
       (pnEditando ? `<button type="button" class="pn-novo" onclick="pnAbrirCatalogo()">${ic('mais')}<span>Adicionar widget</span></button>` : '') +
@@ -811,6 +887,12 @@ function pnRender() {
     pnGeoCache = { chave, g };
   }
   pnDepois(pn);
+  // (20/10) a forma da Obra foi decidida com as medidas de outra largura (1ª vez nesta tela): refaz uma vez, com as certas
+  const tl = c.tela || 'pc';
+  if (!pnRefazendoObra && pnObra && pnObra.formaPor && pnObra.formaPor[tl] && pnObra.formaW && pnObra.formaW[tl] !== larg) {
+    delete pnObra.formaPor[tl]; pnGeoCache = null; pnRefazendoObra = true;
+    try { pnRender(); } finally { pnRefazendoObra = false; }
+  }
 }
 /** Depois de desenhar: anéis animam do valor velho ao novo; arraste no modo editar. */
 function pnDepois(raiz) {
@@ -881,7 +963,7 @@ function pnEditar(ligar) {
   if (pnEditando) toast('Modo editar: arraste os widgets, troque o tamanho (P M Q A L G) ou tire com ✕.', 4500);
 }
 function pnInst(u) { return cfgPainel().itens.find(i => i.u === u); }
-function pnTamanho(u, s) { const i = pnInst(u); if (!i) return; i.s = s; pnGravar(); pnRenderAnimado(); }
+function pnTamanho(u, s) { const i = pnInst(u); if (!i) return; pnFixarObra(i); i.s = s; pnGravar(); pnRenderAnimado(); }
 function pnMover(u, dir) {
   const l = cfgPainel().itens, k = l.findIndex(i => i.u === u), j = k + dir;
   if (k < 0 || j < 0 || j >= l.length) return;
@@ -976,7 +1058,7 @@ function pnIniciarEsticar(e, w) {
     const querC = Math.max(1, Math.round((ev.clientX - r.left + gap) / (colW + gap)));
     const querL = Math.max(1, Math.round((ev.clientY - r.top + gap) / (u + gap)));
     const melhor = d.tams.map(t => ({ t, dist: Math.abs(Math.min(PN_TAM[t].c, pnCols) - querC) * 2 + Math.abs(PN_TAM[t].l - querL) })).sort((a, b) => a.dist - b.dist)[0];
-    if (melhor && melhor.t !== pnTamValido(inst)) { inst.s = melhor.t; pnRenderAnimado(); w = document.querySelector(`#pn .pn-w[data-u="${inst.u}"]`) || w; w.classList.add('pn-esticando'); }
+    if (melhor && melhor.t !== pnTamValido(inst)) { pnFixarObra(inst); inst.s = melhor.t; pnRenderAnimado(); w = document.querySelector(`#pn .pn-w[data-u="${inst.u}"]`) || w; w.classList.add('pn-esticando'); }
   };
   const soltar = () => { window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', soltar); pnGravar(); pnRender(); };
   window.addEventListener('pointermove', mover); window.addEventListener('pointerup', soltar);
@@ -1132,6 +1214,9 @@ if (typeof CFG_ABA_EXTRA !== 'undefined') CFG_ABA_EXTRA['btn-focus'] = () => {
     + clEscolha('grade', 'Formato', `${esc(((PN_FORMATOS[c.formato || 'auto'] || {}).nome || '').split(' — ')[1] || '')} · agora ${pnCols} colunas`,
       clSelect('cfgPainel().formato = this.value; delete cfgPainel().compacto; pnGravar(); pnGeoCache = null; pnRender(); renderConfigAba()', Object.entries(PN_FORMATOS).map(([k, f]) => [k, f.nome.split(' — ')[0]]), c.formato || 'auto'))
     + (arte ? clChave('cores', 'Obra do dia', 'Busca a imagem na internet', arte.ligado, "cfgArte().ligado = this.checked; localStorage.setItem('lifeos_prefs', JSON.stringify(prefs)); pnObra = null; pnRender()") : '')
+    // (20/10) a obra na forma da pintura; religar solta o tamanho que ele fixou à mão
+    + clChave('grade', 'Obra na forma da pintura', 'Retrato fica alto, paisagem fica larga', c.obraForma !== false, "cfgPainel().obraForma = this.checked; if (this.checked) cfgPainel().itens.forEach(i => { delete i.formaFixa; }); pnGravar(); pnGeoCache = null; pnRender()")
+    + clIr('grade', 'Arrumação desta tela', `${pnTelaAgora()[2]} — cada tela tem a sua; toque para copiar esta para as outras`, 'pnCopiarParaTelas()')
     + clIr('restaurar', 'Painel de fábrica', 'Volta os quadros ao começo', 'pnRestaurar()');
 };
 

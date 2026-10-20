@@ -5560,8 +5560,13 @@ body[data-casca="classica"] .aba-dev-btn { position: static; float: right; margi
 .pn-obra-wrap { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .pn-obra-wrap.l, .pn-obra-wrap.g { flex-direction: row; }
 .pn-obra { position: relative; flex: 1; min-height: 60px; border-radius: 8px; overflow: hidden; display: block; background: var(--sup-1); }
-.pn-obra img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 6s ease; }
-.pn-w:hover .pn-obra img { transform: scale(1.06); }
+/* (20/10) a pintura INTEIRA (contain: o quadro já tem a forma dela) sobre um fundo desfocado dela mesma, que preenche a
+   moldura que sobra — antes "cover" cortava as bordas da obra */
+.pn-obra::before { content: ''; position: absolute; inset: -14px; background: var(--obra-img, none) center / cover no-repeat; filter: blur(16px) brightness(.45); }
+.pn-obra img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: contain; transition: transform 6s ease; }
+.pn-w:hover .pn-obra img { transform: scale(1.03); }
+/* de pé (q, a, t): a legenda numa linha só, embaixo da pintura */
+.pn-obra-leg { flex: none; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .74rem; color: var(--txt2); }
 .pn-obra.erro::after { content: 'imagem indisponível'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .75rem; color: var(--txt3); }
 .pn-obra-previa { display: flex; align-items: center; justify-content: center; color: var(--txt4); }
 .pn-carregando { background: linear-gradient(90deg, var(--sup-1), var(--sup-2), var(--sup-1)); background-size: 200% 100%; animation: pn-brilho 1.2s linear infinite; }

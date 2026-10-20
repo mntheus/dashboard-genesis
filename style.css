@@ -6658,6 +6658,25 @@ body .tab-content.active.ab-barras { display: flex; flex-direction: column; gap:
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--cor) 70%, transparent) 0 6px, color-mix(in srgb, var(--cor) 35%, transparent) 6px 12px); border: 1px solid var(--cor); }
 .rs-vg-seg.feita { background: var(--cor); }
 .rs-vg-seg span { font-size: .6rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #0008; letter-spacing: .04em; }
+/* (20/10) o nome de cada viagem numa etiqueta EM CIMA da barra (dentro dela saía cortado: "LIS", "SA", "O"); dois
+   andares quando duas viagens ficam perto; um fio liga a etiqueta à barra */
+.rs-vg-rots { position: relative; height: 82px; }
+.rs-vg-rot { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; transform: translateX(-50%); z-index: 1;
+  display: flex; flex-direction: column; align-items: center; max-width: 30%; padding: 3px 9px; border-radius: 8px; line-height: 1.15;
+  border: 1px solid color-mix(in srgb, var(--cor) 60%, transparent); background: color-mix(in srgb, var(--cor) 18%, var(--card)); text-align: center; }
+.rs-vg-rot.a0 { bottom: 8px; }
+.rs-vg-rot.a1 { bottom: 46px; }
+.rs-vg-rot.ini { transform: translateX(-12px); }
+.rs-vg-rot.fim { transform: translateX(calc(-100% + 12px)); }
+.rs-vg-rot b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .76rem; font-weight: 700; color: var(--txt-forte); }
+.rs-vg-rot .rs-vg-cod { display: none; }
+.rs-vg-rot small { font-size: .64rem; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.rs-vg-rot:hover, .rs-vg-rot.sel { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 32%, var(--card)); }
+.rs-vg-tique { position: absolute; bottom: 0; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--cor); opacity: .7; }
+.rs-vg-tique.a0 { height: 10px; }
+.rs-vg-tique.a1 { height: 48px; }
+/* quadro estreito (celular): o código de 3 letras no lugar do nome inteiro, que não caberia */
+@container rsq (max-width: 420px) { .rs-vg-rot .rs-vg-nome { display: none; } .rs-vg-rot .rs-vg-cod { display: block; } .rs-vg-rot { padding: 3px 6px; } }
 .rs-vg-seg.sel { outline: 2px solid var(--txt-forte); outline-offset: 2px; }
 .rs-vg-hoje { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--txt-forte); border-radius: 1px; }
 .rs-vg-meses { position: relative; height: 20px; margin-top: 4px; }

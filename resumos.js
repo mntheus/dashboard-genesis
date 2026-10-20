@@ -593,16 +593,27 @@ function rsVgAno() {
   const l = trips.map((t, i) => ({ t, i })).filter(({ t }) => t.inicio && t.status !== 'ideia' && t.inicio <= fim && (t.fim || t.inicio) >= ini)
     .sort((a, b) => a.t.inicio.localeCompare(b.t.inicio));
   let viajados = 0;
+  // (20/10, item 9) o nome ia DENTRO da barra e uma viagem de 11 dias tem 3% da régua: saía "LIS", "SA", "O" cortados.
+  // Agora a barra fica só com a cor e o nome vai numa etiqueta EM CIMA dela, em dois andares quando duas ficam perto.
+  const ultimoNoAndar = [-100, -100];
+  const rots = [];
   const seg = l.map(({ t, i }) => { const a = Math.max(0, doAno(t.inicio < ini ? ini : t.inicio)), b = Math.min(nDias - 1, doAno((t.fim || t.inicio) > fim ? fim : (t.fim || t.inicio)));
     viajados += b - a + 1;
-    return `<button type="button" class="rs-vg-seg${vgFeita(t) ? ' feita' : ''}${sel === 'v' + i ? ' sel' : ''}" style="left:${(a / nDias * 100).toFixed(2)}%; width:max(10px, ${((b - a + 1) / nDias * 100).toFixed(2)}%); --cor:${vgCor(t.destino)}" onclick="rsTocar('trips', 'v${i}')" title="${esc(t.destino)}"><span>${esc(vgCodigo(t.destino))}</span></button>`; }).join('');
+    const meio = (a + b + 1) / 2 / nDias * 100, cor = vgCor(t.destino);
+    const andar = meio - ultimoNoAndar[0] >= 22 ? 0 : meio - ultimoNoAndar[1] >= 22 ? 1 : 0;
+    ultimoNoAndar[andar] = meio;
+    const lado = meio < 12 ? ' ini' : meio > 88 ? ' fim' : '';
+    rots.push(`<i class="rs-vg-tique a${andar}" style="left:${meio.toFixed(2)}%; --cor:${cor}"></i>`
+      + `<button type="button" class="rs-vg-rot a${andar}${lado}${sel === 'v' + i ? ' sel' : ''}" style="left:${meio.toFixed(2)}%; --cor:${cor}" onclick="rsTocar('trips', 'v${i}')" title="${esc(t.destino)}">`
+      + `<b class="rs-vg-nome">${esc(t.destino)}</b><b class="rs-vg-cod">${esc(vgCodigo(t.destino))}</b><small>${isoParaBR(t.inicio).slice(0, 5)}</small></button>`);
+    return `<button type="button" class="rs-vg-seg${vgFeita(t) ? ' feita' : ''}${sel === 'v' + i ? ' sel' : ''}" style="left:${(a / nDias * 100).toFixed(2)}%; width:max(10px, ${((b - a + 1) / nDias * 100).toFixed(2)}%); --cor:${cor}" onclick="rsTocar('trips', 'v${i}')" title="${esc(t.destino)}" aria-label="${esc(t.destino)}"></button>`; }).join('');
   const meses = Array.from({ length: 12 }, (_, m) => `<small style="left:${(doAno(`${ano}-${String(m + 1).padStart(2, '0')}-01`) / nDias * 100).toFixed(2)}%">${new Date(ano, m, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</small>`).join('');
   const hojeP = doAno(hojeISO()) / nDias * 100;
   const k = sel && sel[0] === 'v' ? Number(sel.slice(1)) : -1, t = trips[k];
   const info = t ? `<span><strong>${esc(t.destino)}</strong> · ${isoParaBR(t.inicio).slice(0, 5)}${t.fim ? ' → ' + isoParaBR(t.fim).slice(0, 5) : ''} · ${diasDeViagem(t) || 1} dias · ${(STATUS_VIAGEM[t.status] || STATUS_VIAGEM.ideia)[1].toLowerCase()}</span><button type="button" class="mini-btn" onclick="vgAbrir(${t.id})">abrir ›</button>`
     : `<span><strong>${plural(viajados, 'dia', 'dias')}</strong> de viagem em ${ano} · ${plural(l.length, 'viagem', 'viagens')}</span>`;
   return rsQuadro('rs-vg-ano', '🗺️', `${ano} em viagens`, `${l.filter(x => vgFeita(x.t)).length} feitas · ${l.filter(x => !vgFeita(x.t)).length} por vir`, "verSecaoViagens('viagens')",
-    `<div class="rs-vg-regua"><div class="rs-vg-pista">${seg}<i class="rs-vg-hoje" style="left:${hojeP.toFixed(2)}%"></i></div><div class="rs-vg-meses">${meses}</div></div>`, info);
+    `<div class="rs-vg-regua"><div class="rs-vg-rots">${rots.join('')}</div><div class="rs-vg-pista">${seg}<i class="rs-vg-hoje" style="left:${hojeP.toFixed(2)}%"></i></div><div class="rs-vg-meses">${meses}</div></div>`, info);
 }
 function rsVgMilhas() {
   const h = hojeISO(), l = milhas.slice().sort((a, b) => (Number(b.saldo) || 0) - (Number(a.saldo) || 0));

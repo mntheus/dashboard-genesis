@@ -7142,3 +7142,42 @@ body.mod-ligado.ar-editando #fin-topo .fin-faixa:not(.mod-recolhido) { padding-t
 #aba-config-modal .ideia-enviar-bt { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 0;
   background: var(--acento); color: var(--bg); font-weight: 700; }
 #aba-config-modal .ideia-enviar-bt .cl-ic { width: 18px; height: 18px; }
+/* ═══ 20/10 — A ABA COZINHA (revisão geral, item 10; cozinha.js) ═══
+   Parte 1: o livro de receitas (mudou da Saúde, estilos .rc-* de sempre), a lista de compras (a mesma das Notas)
+   e a galeria dos pratos prontos (o formulário é o .pr-form da Saúde). */
+/* flex-direction: row explícito — a regra geral "form { flex-direction: column }" jogava o ＋ para baixo da caixa */
+.cz-add { display: flex; flex-direction: row; gap: 8px; margin: 4px 0 10px; }
+.cz-add input { flex: 1; min-width: 0; margin: 0; }
+.cz-add button { flex: none; width: 48px; margin: 0; padding: 0; font-size: 1.2rem; }
+.cz-lista { list-style: none; margin: 0; padding: 0; }
+.cz-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 8px; min-height: 46px;
+  border-top: 1px solid var(--fio-sutil, var(--borda)); }
+.cz-marca { display: grid; place-items: center; width: 26px; height: 26px; min-height: 0; margin: 0 auto; padding: 0; border-radius: 8px;
+  border: 2px solid var(--txt4); background: none; color: var(--bg); font-weight: 800; line-height: 1; }
+.cz-marca:hover { border-color: var(--acento); }
+.cz-item.feito .cz-marca { background: var(--acento); border-color: var(--acento); }
+.cz-item-tx { color: var(--txt-forte); overflow-wrap: anywhere; }
+.cz-item.feito .cz-item-tx { color: var(--txt3); text-decoration: line-through; }
+.cz-tirar { width: 34px; min-height: 34px; margin: 0; padding: 0; border: 0; background: none; color: var(--txt4); }
+.cz-tirar:hover { color: var(--perigo, #e5605a); }
+.cz-vazio { padding: 14px 4px; border-top: 1px solid var(--fio-sutil, var(--borda)); font-size: .9rem; line-height: 1.45; color: var(--txt3); }
+.cz-feitos { margin-top: 10px; }
+.cz-feitos summary { cursor: pointer; padding: 8px 2px; font-size: .85rem; font-weight: 600; color: var(--txt3); }
+.cz-feitos .mini-btn { margin-top: 8px; }
+.cz-pe { margin: 12px 2px 0; font-size: .76rem; color: var(--txt4); }
+/* pratos: um cartão por prato — ícone, nome e ✎ em cima; "Comi agora" largo embaixo (no flex o ✎ caía sozinho
+   numa 2ª linha e o nome quebrava: "Marmita do / plantão", print 2560 de 20/10) */
+.cz-pratos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; }
+.cz-pratos > .cz-vazio { grid-column: 1 / -1; border-top: 0; }
+.cz-prato { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "ic tx ed" "co co co"; align-items: center;
+  gap: 8px 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--fio-sutil, var(--borda)); background: var(--sup-1); }
+.cz-prato.editando { border-color: var(--acento); }
+.cz-prato-ic { grid-area: ic; font-size: 1.5rem; text-align: center; }
+.cz-prato-tx { grid-area: tx; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cz-prato-tx b { color: var(--txt-forte); overflow-wrap: anywhere; }
+.cz-prato-tx small { font-size: .76rem; line-height: 1.3; color: var(--txt3); }
+.cz-prato > .mini-btn { margin: 0; }
+.cz-prato > .mini-btn:last-child { grid-area: ed; align-self: start; }
+.cz-prato > .mini-btn:nth-last-child(2) { grid-area: co; width: 100%; }
+.cz-prato-novo { margin-top: 12px; }
+#cz-pratos .pr-form { margin-top: 12px; }

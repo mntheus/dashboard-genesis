@@ -283,8 +283,10 @@ const AB_RESUMOS = {
   'business/projetos': 'Projetos de negócio',
   'health/painel': 'Treino, corpo, comida e médico de relance', 'health/treinos': 'Fichas e treinos feitos',
   'health/medidas': 'O corpo hoje, peso e medidas', 'health/comida': 'Planos alimentares e refeições',
-  'health/receitas': 'O livro: sumário, porções e a lista de compras',
   'health/medico': 'Remédios, prevenção, consultas e exames',
+  // (20/10) a aba Cozinha (cozinha.js): o livro saiu da Saúde
+  'kitchen/receitas': 'O livro: sumário, porções e o que falta comprar', 'kitchen/compras': 'A lista de compras (a mesma das Notas)',
+  'kitchen/pratos': 'A refeição que se repete, num toque',
   'leisure/painel': 'O que está na tela, a próxima saída, a música e o ano',
   'leisure/midia': 'Filmes, séries e documentários', 'leisure/saidas': 'Museus, shows e programas', 'leisure/musica': 'Playlists por momento',
   'trips/painel': 'A próxima viagem, o ano, as milhas e o que custa',
@@ -429,6 +431,12 @@ const AB_VIVOS = {
     const h = hojeISO(), p = medical.filter(m => !m.done && m.date && m.date >= h).sort((a, b) => a.date.localeCompare(b.date))[0];
     return p ? `Próxima: ${p.title} ${abQuando(p.date)}${p.time ? ' ' + p.time : ''}` : '';
   },
+  'kitchen/receitas': () => receitas.length ? plural(receitas.length, 'receita', 'receitas') : '',
+  'kitchen/compras': () => {
+    const l = typeof czListaCompras === 'function' ? czListaCompras(false) : null, n = l ? l.checklist.filter(i => !i.done).length : 0;
+    return n ? plural(n, 'item para comprar', 'itens para comprar') : 'Nada para comprar';
+  },
+  'kitchen/pratos': () => pratos.length ? plural(pratos.length, 'prato pronto', 'pratos prontos') : '',
   'leisure/midia': () => {
     const as = media.filter(m => m.status === 'assistindo').length, q = media.filter(m => m.status === 'quero').length;
     return as || q ? abJunta(as && plural(as, 'assistindo', 'assistindo'), q && plural(q, 'para ver', 'para ver')) : '';

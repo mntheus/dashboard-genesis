@@ -24,6 +24,8 @@ const ICONES = {
   business: 'M3.5 17l5.5-5.5 4 4 7.5-7.5M15 8h5.5v5.5',
   inventory: 'M8.5 7.5V6a3.5 3.5 0 017 0v1.5M5.5 7.5h13a1 1 0 011 1v10a2 2 0 01-2 2h-11a2 2 0 01-2-2v-10a1 1 0 011-1zM4.5 12.5h15M10 12.5v2h4v-2',
   health:   'M3 12h4l2.5-6 4 12 2.5-6h5',
+  // (20/10) a panela com vapor da aba Cozinha
+  kitchen:  'M4.5 10.5h13v4a4 4 0 01-4 4h-5a4 4 0 01-4-4zM2.5 10.5h2M17.5 10.5h2M9 7.5c0-1.2 1-1.3 1-2.5M13 7.5c0-1.2 1-1.3 1-2.5',
   leisure:  'M3.5 8.5a2 2 0 002-2h13a2 2 0 002 2v1.5a2 2 0 000 4v1.5a2 2 0 00-2 2h-13a2 2 0 00-2-2V14a2 2 0 000-4zM13.5 6.5v11',
   trips:    'M12 20.5a8.5 8.5 0 110-17 8.5 8.5 0 010 17zM3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17',
   net:      'M15.5 19v-1a3.5 3.5 0 00-3.5-3.5H7A3.5 3.5 0 003.5 18v1M9.5 11a3 3 0 100-6 3 3 0 000 6zM20.5 19v-1a3.5 3.5 0 00-2.6-3.4M15.5 5.2a3 3 0 010 5.6',
@@ -60,7 +62,7 @@ function ic(nome, cls) { return `<svg class="ic ${cls || ''}" viewBox="0 0 24 24
 // nome curto de cada área (o nome longo continua nas listas da Config)
 const NOMES_CASCA = {
   focus: 'Painel', home: 'Agenda', finances: 'Finanças', tasks: 'Tarefas', notes: 'Notas',
-  studies: 'Estudos', business: 'Negócios', inventory: 'Inventário', health: 'Saúde', leisure: 'Lazer', trips: 'Viagens',
+  studies: 'Estudos', business: 'Negócios', inventory: 'Inventário', health: 'Saúde', kitchen: 'Cozinha', leisure: 'Lazer', trips: 'Viagens',
   net: 'Rede', clinic: 'Clínica', prod: 'Produção', settings: 'Config'
 };
 function nomeAba(id) {
@@ -178,6 +180,10 @@ function estadoDaAba(id) {
       case 'health': {
         const h = typeof hydration !== 'undefined' ? hydration : null;
         return h && h.goal ? `Água hoje ${(h.ml / 1000).toFixed(1).replace('.', ',')} de ${(h.goal / 1000).toFixed(1).replace('.', ',')} L.` : 'Corpo, treino e comida.';
+      }
+      case 'kitchen': {
+        const l = typeof czListaCompras === 'function' ? czListaCompras(false) : null, falta = l ? l.checklist.filter(i => !i.done).length : 0;
+        return `${plural((receitas || []).length, 'receita', 'receitas')}${falta ? ` · ${falta} para comprar` : ''} · ${plural((pratos || []).length, 'prato pronto', 'pratos prontos')}.`;
       }
       case 'leisure': {
         const quero = (media || []).filter(m => m.status === 'quero').length;

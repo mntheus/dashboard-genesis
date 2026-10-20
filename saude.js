@@ -643,34 +643,45 @@ function prRenderRapidos() {
       ${lista.map(chip).join('') || '<small class="pr-vazio">Guarde a refeição que se repete: ＋ prato, ou a ☆ de uma refeição do diário.</small>'}
       <button type="button" class="pr-chip pr-mais" onclick="prAbrirForm('novo')">＋ prato</button>
       ${pratos.length ? `<button type="button" class="pr-chip pr-edit${prEditando ? ' on' : ''}" onclick="prAlternarEdicao()" title="${prEditando ? 'Terminar' : 'Mudar ou apagar pratos'}">${prEditando ? '✓' : '✎'}</button>` : ''}</div>
-    ${f ? `<form class="pr-form" onsubmit="event.preventDefault(); prGuardar()">
-      <input type="text" id="pr-nome" placeholder="nome do prato (ex.: tapioca)" value="${esc(f.nome || '')}" required>
-      <input type="number" id="pr-kcal" min="0" step="1" inputmode="numeric" placeholder="kcal" aria-label="Calorias (opcional)" value="${f.kcal || ''}">
-      <input type="number" id="pr-prot" min="0" step="1" inputmode="numeric" placeholder="proteína (g)" aria-label="Proteína em gramas (opcional)" value="${f.prot || ''}">
-      <select id="pr-tipo" aria-label="Refeição"><option value="">🕒 pela hora</option>${Object.entries(TIPOS_REFEICAO).map(([k, v]) => `<option value="${k}"${f.tipo === k ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
-      <small class="pr-form-dica">Calorias e proteína só se quiser: com elas, o prato conta no "Hoje × o que o corpo pede".</small>
-      <span class="pr-form-bt"><button type="submit">${prFormId === 'novo' ? 'Guardar' : 'Salvar'}</button>
-        ${prFormId !== 'novo' ? `<button type="button" class="mini-btn" onclick="prApagar(${prFormId})">Apagar</button>` : ''}
-        <button type="button" class="mini-btn" onclick="prAbrirForm(null)">Cancelar</button></span></form>` : ''}`;
+    ${f ? prFormHtml(f, 'pr', prFormId === 'novo', { guardar: 'prGuardar()', apagar: `prApagar(${prFormId})`, cancelar: 'prAbrirForm(null)' }) : ''}`;
   if (f) setTimeout(() => { const i = document.getElementById('pr-nome'); if (i && !i.value) i.focus(); }, 30);
+}
+/** O formulário do prato — UM só, usado aqui e na aba Cozinha (20/10; duas cópias sempre divergem, armadilha 21).
+ *  `pref` muda os ids (pr-nome, cz-pr-nome…); `acoes` diz o que cada botão chama. */
+function prFormHtml(f, pref, novo, acoes) {
+  return `<form class="pr-form" onsubmit="event.preventDefault(); ${acoes.guardar}">
+      <input type="text" id="${pref}-nome" placeholder="nome do prato (ex.: tapioca)" value="${esc(f.nome || '')}" required>
+      <input type="number" id="${pref}-kcal" min="0" step="1" inputmode="numeric" placeholder="kcal" aria-label="Calorias (opcional)" value="${f.kcal || ''}">
+      <input type="number" id="${pref}-prot" min="0" step="1" inputmode="numeric" placeholder="proteína (g)" aria-label="Proteína em gramas (opcional)" value="${f.prot || ''}">
+      <select id="${pref}-tipo" aria-label="Refeição"><option value="">🕒 pela hora</option>${Object.entries(TIPOS_REFEICAO).map(([k, v]) => `<option value="${k}"${f.tipo === k ? ' selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select>
+      <small class="pr-form-dica">Calorias e proteína só se quiser: com elas, o prato conta no "Hoje × o que o corpo pede".</small>
+      <span class="pr-form-bt"><button type="submit">${novo ? 'Guardar' : 'Salvar'}</button>
+        ${!novo ? `<button type="button" class="mini-btn" onclick="${acoes.apagar}">Apagar</button>` : ''}
+        <button type="button" class="mini-btn" onclick="${acoes.cancelar}">Cancelar</button></span></form>`;
+}
+/** Grava o prato do formulário `pref` (id = 'novo' ou o id do prato). Devolve true se gravou. */
+function prGravarForm(pref, id) {
+  const nome = (document.getElementById(pref + '-nome').value || '').trim(); if (!nome) return false;
+  const dados = { nome, kcal: Number(document.getElementById(pref + '-kcal').value) || 0, prot: Number(document.getElementById(pref + '-prot').value) || 0, tipo: document.getElementById(pref + '-tipo').value || '' };
+  if (id === 'novo') pratos.push({ id: novoId(), usos: 0, criadoEm: Date.now(), ...dados });
+  else { const p = pratos.find(x => x.id === id); if (!p) return false; Object.assign(p, dados); }
+  salvar('pratos', pratos);
+  toast(id === 'novo' ? `⚡ ${nome} guardado: agora é um toque.` : `⚡ ${nome} atualizado.`);
+  if (typeof czRenderPratos === 'function') czRenderPratos();
+  return true;
 }
 function prAlternarEdicao() { prEditando = !prEditando; prFormId = null; prRenderRapidos(); }
 function prAbrirForm(id) { prFormId = id; prRenderRapidos(); }
-function prGuardar() {
-  const nome = (document.getElementById('pr-nome').value || '').trim(); if (!nome) return;
-  const dados = { nome, kcal: Number(document.getElementById('pr-kcal').value) || 0, prot: Number(document.getElementById('pr-prot').value) || 0, tipo: document.getElementById('pr-tipo').value || '' };
-  if (prFormId === 'novo') pratos.push({ id: novoId(), usos: 0, criadoEm: Date.now(), ...dados });
-  else { const p = pratos.find(x => x.id === prFormId); if (!p) return; Object.assign(p, dados); }
-  const novo = prFormId === 'novo';
-  salvar('pratos', pratos); prFormId = null; prRenderRapidos();
-  toast(novo ? `⚡ ${nome} guardado: agora é um toque.` : `⚡ ${nome} atualizado.`);
-}
+function prGuardar() { if (!prGravarForm('pr', prFormId)) return; prFormId = null; prRenderRapidos(); }
+/** Devolve true se apagou (ele pode desistir no "tem certeza?"). */
 function prApagar(id) {
-  const p = pratos.find(x => x.id === id); if (!p) return;
-  if (!confirm(`Apagar o prato pronto "${p.nome}"? As refeições já anotadas continuam no diário.`)) return;
+  const p = pratos.find(x => x.id === id); if (!p) return false;
+  if (!confirm(`Apagar o prato pronto "${p.nome}"? As refeições já anotadas continuam no diário.`)) return false;
   pratos = pratos.filter(x => x.id !== id); salvar('pratos', pratos); prFormId = null;
   if (!pratos.length) prEditando = false;
   prRenderRapidos(); renderRefeicoes();
+  if (typeof czRenderPratos === 'function') czRenderPratos();
+  return true;
 }
 /** A ☆ de uma refeição do diário: vira prato pronto com o que ela tinha (do plano, os números dos itens). */
 function prDeRefeicao(mealId) {

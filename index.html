@@ -68,6 +68,7 @@
       <button class="tab-btn" id="btn-business" onclick="changeTab('business')">📈 Negócios</button>
       <button class="tab-btn" id="btn-inventory" onclick="changeTab('inventory')">🎒 Inventário</button>
       <button class="tab-btn" id="btn-health" onclick="changeTab('health')">🩺 Saúde</button>
+      <button class="tab-btn" id="btn-kitchen" onclick="changeTab('kitchen')">🍳 Cozinha</button>
       <button class="tab-btn" id="btn-leisure" onclick="changeTab('leisure')">🎬 Lazer</button>
       <button class="tab-btn" id="btn-trips" onclick="changeTab('trips')">✈️ Viagens</button>
       <button class="tab-btn" id="btn-net" onclick="changeTab('net')">🤝 Rede</button>
@@ -896,7 +897,6 @@
         <span onclick="verSecaoSaude('treinos', this)">🏋️ Treino</span>
         <span onclick="verSecaoSaude('medidas', this)">⚖️ Corpo</span>
         <span onclick="verSecaoSaude('comida', this)">🥗 Comida</span>
-        <span onclick="verSecaoSaude('receitas', this)">📖 Receitas</span>
         <span onclick="verSecaoSaude('medico', this)">🩺 Médico</span>
       </div>
       <div id="sec-sa-painel" class="agenda-sec">
@@ -933,36 +933,6 @@
           <div id="sp-metas-dia" class="sp-metas-dia"></div>
           <button class="btn" type="button" style="width:100%; margin-bottom:12px" onclick="novaDieta()">＋ Novo plano</button>
           <div id="dietas-lista"></div>
-        </div>
-      </div>
-      <!-- (19/10) 📖 o livro de receitas (receitas.js): o livro em si e a ficha de receita (que vira folha no alto) -->
-      <div id="sec-sa-receitas" class="agenda-sec" hidden>
-        <div class="card rc-card" style="margin-top: 20px;">
-          <h2>📖 Livro de receitas</h2>
-          <div id="rc-livro" class="rc-livro"></div>
-        </div>
-        <div class="card">
-          <h2 id="rc-form-tit">📖 Nova receita</h2>
-          <form id="rc-form" onsubmit="rcSalvar(event)">
-            <input type="hidden" id="rc-id">
-            <div class="rc-form-grade">
-              <div class="rc-f-nome"><label for="rc-nome">Nome:</label><input type="text" id="rc-nome" placeholder="ex.: Frango com legumes" required autocomplete="off"></div>
-              <div><label for="rc-cat">Para quando:</label><select id="rc-cat"></select></div>
-              <div><label for="rc-tempo">Tempo (min):</label><input type="number" id="rc-tempo" min="0" step="5" placeholder="30"></div>
-              <div><label for="rc-porcoes">Porções:</label><input type="number" id="rc-porcoes" min="1" step="1" value="2"></div>
-            </div>
-            <label for="rc-ingredientes">Ingredientes (um por linha, com a quantidade na frente):</label>
-            <textarea id="rc-ingredientes" rows="5" placeholder="300 g de peito de frango&#10;1 cebola&#10;2 colheres de azeite"></textarea>
-            <label for="rc-passos">Modo de preparo (um passo por linha):</label>
-            <textarea id="rc-passos" rows="5" placeholder="Corte o frango em cubos&#10;Doure na frigideira com o azeite"></textarea>
-            <div class="rc-form-grade">
-              <div><label for="rc-kcal">kcal por porção:</label><input type="number" id="rc-kcal" min="0" step="1" placeholder="opcional"></div>
-              <div><label for="rc-prot">Proteína (g) por porção:</label><input type="number" id="rc-prot" min="0" step="1" placeholder="opcional"></div>
-              <div class="rc-f-nome"><label for="rc-fonte">De onde veio:</label><input type="text" id="rc-fonte" placeholder="link, livro ou &quot;da vó&quot; (opcional)"></div>
-            </div>
-            <label for="rc-notas">Observação:</label><input type="text" id="rc-notas" placeholder="opcional — ex.: fica melhor no dia seguinte">
-            <div style="display:flex; gap:10px;"><button type="submit" id="rc-submit" style="flex:1">Guardar receita</button><button type="button" id="rc-cancel" class="btn" hidden onclick="rcLimparForm()">Cancelar</button></div>
-          </form>
         </div>
       </div>
       <div id="sec-sa-medico" class="agenda-sec sa-sec-duas" hidden>
@@ -1084,6 +1054,58 @@
             <div style="display:flex; gap:10px;"><button type="submit" id="medical-submit" style="flex:1">Adicionar</button><button type="button" id="medical-cancel" class="btn" hidden onclick="cancelarEdicaoMedico()">Cancelar</button></div>
           </form>
           <ul id="medical-list" class="transaction-list" style="margin-top: 15px;"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- (20/10, revisão geral item 10) 🍳 COZINHA (cozinha.js): receitas, compras e pratos prontos; na parte 2, despensa, aparelhos e painel -->
+    <div id="kitchen" class="tab-content">
+      <div class="focus-header-tabs agenda-tabs" id="cozinha-secoes" style="margin-top:20px">
+        <span class="active" onclick="verSecaoCozinha('receitas', this)">📖 Receitas</span>
+        <span onclick="verSecaoCozinha('compras', this)">🛒 Compras</span>
+        <span onclick="verSecaoCozinha('pratos', this)">⚡ Pratos</span>
+      </div>
+      <!-- (19/10) 📖 o livro de receitas (receitas.js); (20/10) mudou da Saúde para a Cozinha, sem mudar nada dentro -->
+      <div id="sec-cz-receitas" class="agenda-sec">
+        <div class="card rc-card" style="margin-top: 20px;">
+          <h2>📖 Livro de receitas</h2>
+          <div id="rc-livro" class="rc-livro"></div>
+        </div>
+        <div class="card">
+          <h2 id="rc-form-tit">📖 Nova receita</h2>
+          <form id="rc-form" onsubmit="rcSalvar(event)">
+            <input type="hidden" id="rc-id">
+            <div class="rc-form-grade">
+              <div class="rc-f-nome"><label for="rc-nome">Nome:</label><input type="text" id="rc-nome" placeholder="ex.: Frango com legumes" required autocomplete="off"></div>
+              <div><label for="rc-cat">Para quando:</label><select id="rc-cat"></select></div>
+              <div><label for="rc-tempo">Tempo (min):</label><input type="number" id="rc-tempo" min="0" step="5" placeholder="30"></div>
+              <div><label for="rc-porcoes">Porções:</label><input type="number" id="rc-porcoes" min="1" step="1" value="2"></div>
+            </div>
+            <label for="rc-ingredientes">Ingredientes (um por linha, com a quantidade na frente):</label>
+            <textarea id="rc-ingredientes" rows="5" placeholder="300 g de peito de frango&#10;1 cebola&#10;2 colheres de azeite"></textarea>
+            <label for="rc-passos">Modo de preparo (um passo por linha):</label>
+            <textarea id="rc-passos" rows="5" placeholder="Corte o frango em cubos&#10;Doure na frigideira com o azeite"></textarea>
+            <div class="rc-form-grade">
+              <div><label for="rc-kcal">kcal por porção:</label><input type="number" id="rc-kcal" min="0" step="1" placeholder="opcional"></div>
+              <div><label for="rc-prot">Proteína (g) por porção:</label><input type="number" id="rc-prot" min="0" step="1" placeholder="opcional"></div>
+              <div class="rc-f-nome"><label for="rc-fonte">De onde veio:</label><input type="text" id="rc-fonte" placeholder="link, livro ou &quot;da vó&quot; (opcional)"></div>
+            </div>
+            <label for="rc-notas">Observação:</label><input type="text" id="rc-notas" placeholder="opcional — ex.: fica melhor no dia seguinte">
+            <div style="display:flex; gap:10px;"><button type="submit" id="rc-submit" style="flex:1">Guardar receita</button><button type="button" id="rc-cancel" class="btn" hidden onclick="rcLimparForm()">Cancelar</button></div>
+          </form>
+        </div>
+      </div>
+      <div id="sec-cz-compras" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="cz-compras">
+          <h2>🛒 Lista de compras</h2>
+          <div id="cz-compras"></div>
+        </div>
+      </div>
+      <div id="sec-cz-pratos" class="agenda-sec" hidden>
+        <div class="card" style="margin-top: 20px;" data-mod="cz-pratos">
+          <h2>⚡ Pratos prontos</h2>
+          <p class="hint">A refeição que se repete vira um toque: "Comi agora" anota no diário da Saúde, na hora.</p>
+          <div id="cz-pratos"></div>
         </div>
       </div>
     </div>
@@ -1965,6 +1987,7 @@
   <script src="treino.js"></script>
   <script src="estudos.js"></script>
   <script src="receitas.js"></script>
+  <script src="cozinha.js"></script>
   <script src="app.js"></script>
   <script src="casca.js"></script>
   <script src="nucleo.js"></script>

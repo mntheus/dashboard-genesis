@@ -4,6 +4,8 @@ function changeTab(tabId) {
   document.getElementById(tabId).classList.add('active');
   document.getElementById('btn-' + tabId).classList.add('active');
   if (typeof atualizarBotaoConfigAba === 'function') atualizarBotaoConfigAba();
+  // (20/10) a Cozinha mostra a lista de compras das Notas: redesenha ao entrar (a lista pode ter mudado lá)
+  if (tabId === 'kitchen' && typeof renderCozinha === 'function') renderCozinha();
 }
 
 // --- UTILITÁRIOS ---
@@ -3169,13 +3171,14 @@ function renderDietas() {
 // --- seções da aba Saúde ----------------------------------------------------
 let saudeSecao = 'painel';
 function verSecaoSaude(s, el) {
+  // (20/10) 📖 Receitas mudou para a aba Cozinha: quem ainda pedir a Saúde → receitas vai para lá (sem mexer na Saúde)
+  if (s === 'receitas') { changeTab('kitchen'); if (typeof verSecaoCozinha === 'function') verSecaoCozinha('receitas'); return; }
   saudeSecao = s;
   document.querySelectorAll('#saude-secoes > span').forEach(x => x.classList.remove('active'));
   if (el) el.classList.add('active');
-  // (19/10) 📖 Receitas entrou entre Comida e Médico: a ordem aqui é a das micro-abas no HTML (escolhe por posição)
-  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'receitas', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes > span')[i]; if (sp) sp.classList.add('active'); }
-  ['painel', 'treinos', 'medidas', 'comida', 'receitas', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
-  if (s === 'receitas' && typeof rcRender === 'function') rcRender();
+  // a ordem aqui é a das micro-abas no HTML (escolhe por posição)
+  else { const i = ['painel', 'treinos', 'medidas', 'comida', 'medico'].indexOf(s); const sp = document.querySelectorAll('#saude-secoes > span')[i]; if (sp) sp.classList.add('active'); }
+  ['painel', 'treinos', 'medidas', 'comida', 'medico'].forEach(k => { const d = document.getElementById('sec-sa-' + k); if (d) d.hidden = k !== s; });
   // o gráfico do peso mede a largura de onde está: escondido, ela é zero
   if (s === 'medidas' && typeof renderMedidas === 'function') renderMedidas();
 }
@@ -3297,7 +3300,7 @@ const MODOS_COR = { colorido: ['🎨', 'Colorido'], neutro: ['🩶', 'Neutro'] }
 const ABAS_INFO = [
   ['btn-focus', '🎯 Painel Central'], ['btn-home', '📅 Agenda'], ['btn-finances', '💰 Finanças'],
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
-  ['btn-business', '📈 Negócios'], ['btn-inventory', '🎒 Inventário'], ['btn-health', '🩺 Saúde'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
+  ['btn-business', '📈 Negócios'], ['btn-inventory', '🎒 Inventário'], ['btn-health', '🩺 Saúde'], ['btn-kitchen', '🍳 Cozinha'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
 const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'nenhuma', capaUrl: '', capaData: '' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
@@ -8407,7 +8410,7 @@ function redesenharTudo() {
   workouts = JSON.parse(localStorage.getItem('lifeos_workouts')) || []; measures = JSON.parse(localStorage.getItem('lifeos_measures')) || []; hydration = JSON.parse(localStorage.getItem('lifeos_hydration')) || hydration; meals = JSON.parse(localStorage.getItem('lifeos_meals')) || []; medical = JSON.parse(localStorage.getItem('lifeos_medical')) || [];
   profile = JSON.parse(localStorage.getItem('lifeos_profile')) || profile; aplicarPerfil();
   renderCfgIdeias();   // 💡 as ideias que chegaram pela sincronização
-  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderTaskLists(); renderTasks(); renderRotinas(); renderNotes(); renderEntregas(); redesenharEstudos(); redesenharNegocios(); renderInventario(); renderSaude(); redesenharLazer(); redesenharViagens(); redesenharRede(); renderAvisos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
+  renderFocusTab(); preencherLocais(); renderShifts(); renderEvents(); updateFinanceValues(); renderFinances(); renderRecorrentes(); renderOrcamento(); renderTaskLists(); renderTasks(); renderRotinas(); renderNotes(); renderEntregas(); redesenharEstudos(); redesenharNegocios(); renderInventario(); renderSaude(); if (typeof renderCozinha === 'function') renderCozinha(); redesenharLazer(); redesenharViagens(); redesenharRede(); renderAvisos(); updateStudyStats(); renderJournal(); atualizarSaudacao();
 }
 
 function setAgendaStatus(estado, texto) {

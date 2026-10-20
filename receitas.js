@@ -5,7 +5,7 @@
 // da direita para esquerda)" e "deve ser sincronizada com lista de compras e notas também, a fim de cada item da
 // receita poder ser apresentado como itens de lista para compras e futuramente fazer também uma aba de geladeira
 // com apresentação 3D".
-// Onde: Saúde → 📖 Receitas (ao lado da Comida, onde já estão os planos alimentares e os pratos prontos).
+// Onde: (20/10) a aba 🍳 Cozinha → 📖 Receitas (antes era a Saúde; a cozinha.js tem as compras e os pratos).
 //
 // O livro: um sumário e uma página dupla por receita (no celular, uma página só). Vira com o dedo (arrastar para
 // a esquerda = próxima), com ‹ › ou com as setas do teclado. Na página: as porções recalculam as quantidades,
@@ -133,7 +133,7 @@ function rcPagina(r, n) {
       <div class="rc-acoes">
         <button type="button" class="mini-btn" onclick="rcFiz(${r.id})" title="Conta mais uma vez que você fez">✓ Fiz hoje</button>
         <button type="button" class="mini-btn" onclick="rcComi(${r.id})" title="Anota uma porção no diário de refeições de hoje">🍽️ Anotar no diário</button>
-        <button type="button" class="mini-btn" onclick="rcPrato(${r.id})" title="Vira um botão em Comida → Pratos prontos">⚡ Prato pronto</button>
+        <button type="button" class="mini-btn" onclick="rcPrato(${r.id})" title="Vira um botão em Cozinha → Pratos (e em Saúde → Comida)">⚡ Prato pronto</button>
         <button type="button" class="mini-btn${r.fav ? ' on' : ''}" onclick="rcFav(${r.id})" title="Favorita">⭐</button>
         <button type="button" class="mini-btn" onclick="rcEditar(${r.id})" title="Mudar a receita">✎</button>
         <button type="button" class="mini-btn" onclick="rcApagar(${r.id})" title="Apagar a receita">🗑</button>
@@ -165,7 +165,7 @@ function rcLigarDedo(palco) {
 }
 document.addEventListener('keydown', e => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-  const sec = document.getElementById('sec-sa-receitas');
+  const sec = document.getElementById('sec-cz-receitas');   // (20/10) o livro mudou da Saúde para a Cozinha
   if (!sec || sec.hidden || !sec.checkVisibility || !sec.checkVisibility()) return;
   if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (document.body.classList.contains('cs-com-folha')) return;
@@ -199,7 +199,8 @@ function rcCompras(id) {
   if (!n) { toast(`A lista "${l.title}" já tem tudo o que falta.`); return; }
   l.updatedAt = Date.now(); salvar('notes', notes);
   if (typeof renderNotes === 'function') renderNotes();
-  toast(`🛒 ${plural(n, 'item foi', 'itens foram')} para a lista "${l.title}" (Notas → Listas).`, 5000);
+  if (typeof czRenderCompras === 'function') czRenderCompras();
+  toast(`🛒 ${plural(n, 'item foi', 'itens foram')} para a lista "${l.title}" (Cozinha → Compras).`, 5000);
 }
 function rcFiz(id) {
   const r = rcAchar(id); if (!r) return;
@@ -222,7 +223,8 @@ function rcPrato(id) {
   pratos.push({ id: novoId(), nome: r.nome, tipo: ['cafe', 'almoco', 'lanche', 'jantar'].includes(rcCat(r.cat)) ? rcCat(r.cat) : '', kcal: Math.round(Number(r.kcal) || 0), prot: Math.round(Number(r.prot) || 0), usos: 0, criadoEm: Date.now() });
   salvar('pratos', pratos);
   if (typeof prRenderRapidos === 'function') prRenderRapidos();
-  toast(`⚡ ${r.nome} virou prato pronto: está em Comida → Refeições.`, 4500);
+  if (typeof czRenderPratos === 'function') czRenderPratos();
+  toast(`⚡ ${r.nome} virou prato pronto: está em Cozinha → Pratos.`, 4500);
 }
 function rcFav(id) { const r = rcAchar(id); if (!r) return; r.fav = !r.fav; salvar('receitas', receitas); rcRender(); }
 function rcApagar(id) {

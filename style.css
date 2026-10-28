@@ -1276,6 +1276,14 @@ body:has(#paineis[data-modo="celular"]:not([hidden])) .toast { bottom: 100px; }
   --txt-forte: #ffffff; --acento: #f0a62f; --sombra: rgba(0,0,0,.7);
 }
 
+/* 28/10 (ideia dele: "contraste péssimo com o tema, tipo o clique do calendário"): o que o NAVEGADOR
+   desenha — o 📅 dos campos de data, o 🕒 dos de hora, a lista e o calendário que abrem, as barras de
+   rolagem comuns — segue o tema. Sem isto tudo saía no esquema claro: ícone preto no campo escuro, quase
+   invisível nos 6 temas escuros (foto: computador\testes\campos-temas.html). */
+:root, [data-tema="escuro"], [data-tema="noite"], [data-tema="medio"], [data-tema="profissional"],
+[data-tema="violeta"], [data-tema="gamer"] { color-scheme: dark; }
+[data-tema="claro"], [data-tema="papel"], [data-tema="nevoa"], [data-tema="menta"] { color-scheme: light; }
+
 /* ───────────────────────────────── BASE ────────────────────────────────── */
 html { -webkit-text-size-adjust: 100%; }
 body {

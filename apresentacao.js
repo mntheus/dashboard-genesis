@@ -330,6 +330,8 @@ if (window.GENESIS_PRIMEIRO_USO) apQuandoAberturaAcabar(() => { if (!apAberta())
 // Gente nova vê a apresentação, não a lista. A marca é deste aparelho (lifeos_novidades_visto) e não
 // sincroniza: cada aparelho mostra uma vez. Versão nova = um grupo novo no TOPO de NOVIDADES.
 const NOVIDADES = [
+  { v: 81, quando: '28/10', itens: ['📶 Com sinal fraco ou Wi-Fi sem internet, o app abre em poucos segundos com a última versão guardada (antes esperava a rede desistir, às vezes mais de um minuto).',
+    '🛟 Se o site sair do ar, o app abre a versão guardada no aparelho em vez de uma página de erro.'] },
   { v: 80, quando: '20/10', itens: ['✨ Esta janela: a cada versão nova ela mostra uma vez o que mudou (e fica em ⚙️ Config → Núcleo → <b>O que mudou</b>).',
     '📖 Leia-me e guia ilustrado atualizados.'] },
   { v: 79, quando: '20/10', itens: ['🖼️ A obra de arte do dia toma a forma da pintura (em pé, deitada ou quadrada), sem cortar.',

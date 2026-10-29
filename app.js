@@ -3391,7 +3391,7 @@ const ABAS_INFO = [
   ['btn-tasks', '✅ Tarefas'], ['btn-notes', '📝 Notas'], ['btn-studies', '📚 Estudos'],
   ['btn-business', '📈 Negócios'], ['btn-inventory', '🎒 Inventário'], ['btn-health', '🩺 Saúde'], ['btn-kitchen', '🍳 Cozinha'], ['btn-leisure', '🎬 Lazer'], ['btn-trips', '✈️ Viagens'], ['btn-net', '🤝 Rede'], ['btn-clinic', '🏥 Clínica'], ['btn-prod', '🖨️ Produção'], ['btn-settings', '⚙️ Config']
 ];
-const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'nenhuma', capaUrl: '', capaData: '' };
+const APARENCIA_PADRAO = { casca: 'nova', tema: 'noite', cores: 'colorido', abas: 'topo', layout: 'centro', ordem: ABAS_INFO.map(a => a[0]), ocultas: [], relogio: 'digital', segundos: false, capa: 'nenhuma', capaUrl: '', capaData: '', datas: 'toque' };
 /** Devolve SEMPRE o mesmo objeto (só completa o que falta), nunca uma cópia —
  *  com cópia, um `const c = cfgAparencia()` guardado numa variável se perderia
  *  na chamada seguinte. Mesmo cuidado do cfgFlut(). */
@@ -3462,6 +3462,8 @@ function matizDoTema() {
 /** 1.6 (ditado de 07/10, "centralizar × lateralizar o layout"): em tela mais larga que o conteúdo (ultrawide),
  *  a coluna fica no centro, encostada à esquerda ou à direita. Em tela comum não muda nada. */
 function escolherLayout(p) { cfgAparencia().layout = ['centro', 'esquerda', 'direita'].includes(p) ? p : 'centro'; salvarAparencia(); if (typeof recolocarPaineis === 'function') setTimeout(recolocarPaineis, 60); }
+/** (28/10) Digitar a data (casca.js, dataDigAplicar): na tela de toque (padrão) · sempre · só o calendário. Por aparelho. */
+function escolherDatas(m) { cfgAparencia().datas = ['toque', 'sempre', 'nunca'].includes(m) ? m : 'toque'; salvarAparencia(); if (typeof dataDigAplicar === 'function') dataDigAplicar(); }
 function moverAba(id, dir) {
   if (id === 'btn-focus' || id === 'btn-settings') return;   // as duas pontas são fixas
   const c = cfgAparencia(); const i = c.ordem.indexOf(id); const j = i + dir;
@@ -3483,6 +3485,7 @@ function renderAparencia() {
   if (mc) mc.innerHTML = Object.entries(MODOS_COR).map(([k, m]) => `<span class="${c.cores === k ? 'active' : ''}" onclick="escolherModoCor('${k}')">${m[0]} ${m[1]}</span>`).join('');
   document.querySelectorAll('#abas-posicao span').forEach(s => s.classList.toggle('active', s.dataset.pos === c.abas));
   document.querySelectorAll('#layout-posicao span').forEach(s => s.classList.toggle('active', s.dataset.layout === (c.layout || 'centro')));
+  document.querySelectorAll('#datas-digitar span').forEach(s => s.classList.toggle('active', s.dataset.dig === (c.datas || 'toque')));
   const fa = document.getElementById('arte-fonte'); if (fa) fa.querySelectorAll('span').forEach(s => s.classList.toggle('active', s.dataset.fonte === cfgArte().fonte));
   const al = document.getElementById('arte-ligado'); if (al) al.checked = cfgArte().ligado;
   renderCapas();

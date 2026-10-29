@@ -645,3 +645,149 @@ setInterval(() => { if (cascaNova()) atualizarCabecalhoAtivo(); }, 60000);
 // INICIALIZAÇÃO DA CASCA
 montarEsqueleto();
 aplicarCasca();
+
+// ═══ 📅 DATA DIGITÁVEL (28/10/2026, ideia dele: "poderia ser digitável também a data") ═════════════════════
+// No celular o navegador só abre o calendário. Aqui cada campo de data ganha uma caixa de digitar (dd/mm/aaaa,
+// teclado de números, as barras entram sozinhas) com o 📅 à direita. O campo ORIGINAL continua no lugar,
+// transparente em cima do 📅 (tocar nele abre o calendário de sempre), e é ele que o resto do app lê e grava:
+// nada mais muda. As duas andam juntas: o que se digita vai para o campo quando a data fica completa (ou ao sair
+// da caixa: "20/11" = este ano, "20/11/26" = 2026); o que o app grava (.value) e o que se escolhe no calendário
+// aparece na caixa; o form.reset() volta as duas juntas (a caixa guarda o valor de fábrica do campo).
+// Config → Aparência → "Digitar a data": na tela de toque (padrão) · sempre · só o calendário (vale por aparelho).
+const DATA_DIG_VALOR = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+const dataDigFeitos = new WeakMap();   // campo → o título e o rótulo de leitura que ele tinha antes
+let dataDigVigia = null;
+let dataDigProprio = null;   // o campo que a própria caixa está gravando agora (não precisa voltar para ela)
+
+function dataDigLigada() {
+  const m = (typeof cfgAparencia === 'function' && cfgAparencia().datas) || 'toque';
+  return m === 'sempre' || (m === 'toque' && matchMedia('(pointer: coarse)').matches);
+}
+function dataDigTexto(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? isoParaBR(iso) : ''; }
+/** O que foi digitado vira 'aaaa-mm-dd', ou null se não for uma data de verdade (31/02 não passa).
+ *  `completar` (ao sair da caixa): "2011" = 20/11 deste ano, "201126" = 20/11/2026. */
+function dataDigLer(txt, completar) {
+  const d = String(txt || '').replace(/\D/g, '');
+  if (!(d.length === 8 || (completar && (d.length === 4 || d.length === 6)))) return null;
+  const dia = d.slice(0, 2), mes = d.slice(2, 4);
+  const ano = d.length === 8 ? d.slice(4) : d.length === 6 ? '20' + d.slice(4) : String(new Date().getFullYear());
+  const dt = new Date(+ano, +mes - 1, +dia);
+  if (+ano < 1900 || +ano > 2100 || dt.getFullYear() !== +ano || dt.getMonth() !== +mes - 1 || dt.getDate() !== +dia) return null;
+  return `${ano}-${mes}-${dia}`;
+}
+/** As barras entram sozinhas; quem digita a barra depois de um número só ("2/11") ganha o zero ("02/11"). */
+function dataDigMascara(txt) {
+  const partes = String(txt || '').split('/');
+  const d = partes.map((p, i) => { const n = p.replace(/\D/g, ''); return i < 2 && i < partes.length - 1 && n.length === 1 ? '0' + n : n; }).join('').slice(0, 8);
+  return d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+}
+/** Grava no campo original como o calendário faria: o app recebe o 'input' e o 'change' de sempre. */
+function dataDigGravar(inp, iso) {
+  if (DATA_DIG_VALOR.get.call(inp) === iso) return;
+  DATA_DIG_VALOR.set.call(inp, iso);
+  dataDigProprio = inp;
+  try {
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  } finally { dataDigProprio = null; }
+}
+/** O campo mudou: a caixa mostra. Vale mesmo com o cursor nela — o Enter salva o formulário e o app volta o
+ *  campo para hoje com o cursor ainda ali; se a caixa não acompanhasse, ao sair ela apagaria esse "hoje". */
+function dataDigEspelhar(inp) {
+  const caixa = inp.parentElement;
+  const t = caixa && caixa.classList.contains('data-dig') ? caixa.querySelector('.data-dig-txt') : null;
+  if (t) t.value = dataDigTexto(DATA_DIG_VALOR.get.call(inp));
+}
+/** O calendário (ou outro código) avisou que o campo mudou; o aviso da própria caixa não volta para ela. */
+function dataDigAoEscolher(e) { if (e.currentTarget !== dataDigProprio) dataDigEspelhar(e.currentTarget); }
+/** No PC o clique no 📅 abre o calendário inteiro (no toque o próprio campo já abre). */
+function dataDigAbrir(e) {
+  if (!matchMedia('(pointer: fine)').matches || !e.currentTarget.showPicker) return;
+  try { e.currentTarget.showPicker(); } catch (er) { /* já aberto: fica o clique comum do campo */ }
+}
+/** Fecha o que foi digitado (ao sair da caixa): completa e grava, ou volta ao que estava. */
+function dataDigFechar(t) {
+  const inp = t.parentElement && t.parentElement.querySelector('input[type="date"]'); if (!inp) return true;
+  const v = t.value.trim();
+  if (!v) { dataDigGravar(inp, ''); return true; }
+  const iso = dataDigLer(v, true);
+  if (iso) { dataDigGravar(inp, iso); t.value = dataDigTexto(iso); return true; }
+  return false;
+}
+function dataDigPor(inp) {
+  if (dataDigFeitos.has(inp) || !inp.isConnected || !inp.parentElement) return;
+  // dentro de uma caixa que não é dele = a cópia do "arrastar" (o fantasma): fica como está
+  if (inp.parentElement.classList.contains('data-dig') || inp.closest('.ar-fantasma')) return;
+  dataDigFeitos.set(inp, { title: inp.getAttribute('title'), aria: inp.getAttribute('aria-label') });
+  const caixa = document.createElement('span'); caixa.className = 'data-dig';
+  const t = document.createElement('input');
+  t.type = 'text'; t.className = 'data-dig-txt'; t.inputMode = 'numeric'; t.autocomplete = 'off'; t.maxLength = 10;
+  t.placeholder = 'dd/mm/aaaa'; t.required = inp.required; t.disabled = inp.disabled;
+  t.setAttribute('aria-label', (inp.getAttribute('aria-label') || 'Data') + ' (dd/mm/aaaa)');
+  if (inp.title) t.title = inp.title;
+  if (inp.id) { t.id = inp.id + '-dig'; document.querySelectorAll(`label[for="${inp.id}"]`).forEach(l => { l.htmlFor = t.id; }); }
+  t.defaultValue = dataDigTexto(inp.defaultValue);   // o form.reset() volta as duas juntas
+  inp.replaceWith(caixa);
+  caixa.append(t, inp);
+  caixa.insertAdjacentHTML('beforeend', typeof ic === 'function' ? ic('home', 'data-dig-ic') : '<span class="data-dig-ic">📅</span>');
+  inp.tabIndex = -1; inp.title = 'Abrir o calendário'; inp.setAttribute('aria-label', 'Abrir o calendário');
+  // o app grava pelo .value: a caixa acompanha
+  Object.defineProperty(inp, 'value', {
+    configurable: true,
+    get() { return DATA_DIG_VALOR.get.call(this); },
+    set(v) { DATA_DIG_VALOR.set.call(this, v); dataDigEspelhar(this); }
+  });
+  inp.addEventListener('input', dataDigAoEscolher);
+  inp.addEventListener('change', dataDigAoEscolher);
+  inp.addEventListener('click', dataDigAbrir);
+  t.value = dataDigTexto(inp.value);
+  t.addEventListener('input', () => {
+    if (t.selectionStart === t.value.length) t.value = dataDigMascara(t.value);
+    const iso = dataDigLer(t.value, false);
+    if (iso) dataDigGravar(inp, iso);
+  });
+  // ao sair: data pela metade ou que não existe volta ao que estava (e avisa, se a caixa ainda está à vista)
+  t.addEventListener('blur', () => {
+    if (dataDigFechar(t)) return;
+    t.value = dataDigTexto(DATA_DIG_VALOR.get.call(inp));
+    if (t.offsetParent && typeof toast === 'function') toast('📅 Data pela metade ou que não existe (ex.: 31/02): ficou a de antes. Digite dd/mm/aaaa.', 5000);
+  });
+  // Enter com data pela metade não deixa o formulário salvar com a data errada: segura e avisa
+  t.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || dataDigFechar(t)) return;
+    e.preventDefault();
+    if (typeof toast === 'function') toast('📅 Termine a data: dd/mm/aaaa (ex.: 20/11/2026).', 4000);
+  });
+}
+function dataDigTirar(inp) {
+  const caixa = inp.parentElement;
+  if (!dataDigFeitos.has(inp) || !caixa || !caixa.classList.contains('data-dig')) return;
+  const antes = dataDigFeitos.get(inp); dataDigFeitos.delete(inp);
+  const t = caixa.querySelector('.data-dig-txt');
+  if (t && t.id) document.querySelectorAll(`label[for="${t.id}"]`).forEach(l => { l.htmlFor = inp.id; });
+  delete inp.value;   // volta o .value de fábrica (o valor do campo fica)
+  inp.removeEventListener('input', dataDigAoEscolher); inp.removeEventListener('change', dataDigAoEscolher); inp.removeEventListener('click', dataDigAbrir);
+  inp.removeAttribute('tabindex');
+  if (antes.title === null) inp.removeAttribute('title'); else inp.setAttribute('title', antes.title);
+  if (antes.aria === null) inp.removeAttribute('aria-label'); else inp.setAttribute('aria-label', antes.aria);
+  caixa.replaceWith(inp);
+}
+/** Liga ou desliga em todos os campos, e vigia os que as janelas criam depois (innerHTML). */
+function dataDigAplicar() {
+  const ligar = dataDigLigada();
+  document.querySelectorAll('input[type="date"]').forEach(i => (ligar ? dataDigPor(i) : dataDigTirar(i)));
+  if (ligar && !dataDigVigia) {
+    dataDigVigia = new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
+      if (n.nodeType !== 1) return;
+      if (n.matches('input[type="date"]')) dataDigPor(n);
+      else if (n.firstElementChild) n.querySelectorAll('input[type="date"]').forEach(dataDigPor);
+    })));
+    dataDigVigia.observe(document.body, { childList: true, subtree: true });
+  } else if (!ligar && dataDigVigia) { dataDigVigia.disconnect(); dataDigVigia = null; }
+}
+function dataDigIniciar() {
+  dataDigAplicar();
+  // o Fold com um mouse ligado (ou o contrário): "na tela de toque" acompanha
+  matchMedia('(pointer: coarse)').addEventListener('change', dataDigAplicar);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dataDigIniciar); else dataDigIniciar();

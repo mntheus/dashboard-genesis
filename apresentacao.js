@@ -330,6 +330,8 @@ if (window.GENESIS_PRIMEIRO_USO) apQuandoAberturaAcabar(() => { if (!apAberta())
 // Gente nova vê a apresentação, não a lista. A marca é deste aparelho (lifeos_novidades_visto) e não
 // sincroniza: cada aparelho mostra uma vez. Versão nova = um grupo novo no TOPO de NOVIDADES.
 const NOVIDADES = [
+  { v: 83, quando: '28/10', itens: ['⌨️ No celular dá para DIGITAR a data: cada campo de data mostra uma caixa dd/mm/aaaa (as barras entram sozinhas; "20/11" vira este ano) e o 📅 ao lado abre o calendário.',
+    '⚙️ Em ⚙️ Config → Aparência → <b>Digitar a data</b>: no toque (padrão), sempre (também no PC) ou só o calendário.'] },
   { v: 82, quando: '28/10', itens: ['📅 Nos temas escuros, o ícone do calendário e o do relógio dos campos de data e hora aparecem claros (antes quase sumiam), e o calendário e as listas que abrem ficam escuros também.'] },
   { v: 81, quando: '28/10', itens: ['📶 Com sinal fraco ou Wi-Fi sem internet, o app abre em poucos segundos com a última versão guardada (antes esperava a rede desistir, às vezes mais de um minuto).',
     '🛟 Se o site sair do ar, o app abre a versão guardada no aparelho em vez de uma página de erro.'] },

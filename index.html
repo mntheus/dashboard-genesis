@@ -1712,6 +1712,13 @@
           <span data-layout="direita" onclick="escolherLayout('direita')">⇥ À direita</span>
         </div>
         <p class="hint" style="margin-top:6px">Só muda algo quando a tela é mais larga que o conteúdo (ultrawide, ou com as janelas flutuantes abertas). O espaço que sobra fica do outro lado.</p>
+        <label style="margin-top:14px; display:block;">Digitar a data:</label>
+        <div class="focus-header-tabs" id="datas-digitar" style="border:none; padding:0;">
+          <span data-dig="toque" onclick="escolherDatas('toque')">📱 No toque</span>
+          <span data-dig="sempre" onclick="escolherDatas('sempre')">⌨️ Sempre</span>
+          <span data-dig="nunca" onclick="escolherDatas('nunca')">📅 Só calendário</span>
+        </div>
+        <p class="hint" style="margin-top:6px">Os campos de data ganham uma caixa para digitar dd/mm/aaaa (as barras entram sozinhas), com o 📅 ao lado para abrir o calendário. "No toque" liga só em celular e tablet: no PC o campo comum já aceita digitar. Vale só neste aparelho.</p>
         <label style="margin-top:10px; display:block;">Ordem e visibilidade:</label>
         <ul id="abas-ordem" class="abas-ordem"></ul>
         <button type="button" class="btn" style="width:100%; margin-top:10px" onclick="restaurarAparencia()">↺ Restaurar padrão</button>

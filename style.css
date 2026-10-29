@@ -1563,6 +1563,17 @@ input:focus, select:focus, textarea:focus {
 }
 ::placeholder { color: var(--txt4); }
 
+/* ── 📅 data digitável (28/10, casca.js): a caixa de digitar no lugar do campo; o campo de data original fica
+   transparente em cima do 📅 da direita (tocar nele abre o calendário do aparelho). ─────────────────────── */
+.data-dig { position: relative; display: block; width: 100%; min-width: 0; }
+.data-dig > .data-dig-txt { width: 100%; padding-right: 44px; }
+.data-dig > input[type="date"] {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 44px; height: auto; min-width: 0; min-height: 0; max-width: none;
+  margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; z-index: 1;
+}
+.data-dig > .data-dig-ic { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); pointer-events: none; color: var(--txt3); }
+.baixa-acao .data-dig-txt { padding: 5px 40px 5px 8px; font-size: 0.8rem; }
+
 /* ── o fio de significado no topo do quadrinho ──────────────────────────── */
 /* O numero agora e branco (legivel em qualquer tema) e a cor vira um fio de
    2px no topo: o significado continua la, sem pintar o dado. */
